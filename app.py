@@ -234,7 +234,7 @@ def display_jobs(jobs: list[JobSQL], tab_key: str) -> None:
 
         sort_key = next(
             (k for k, v in sort_options.items() if v == st.session_state.sort_by),
-            "last_seen",  # Default fallback if not found
+            "Posted",  # Default fallback if not found
         )
         sorted_df = df.sort_values(by=sort_key, ascending=st.session_state.sort_asc)
 
