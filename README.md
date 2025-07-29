@@ -123,10 +123,13 @@ Download CSV per tab (filtered/edited data).
 graph TD
     A[User] -->|Interact| B[Streamlit UI: Tabs/Views/Search/Edit/Export]
     B -->|Rescrape/Manage| C[Scraper: Crawl4AI Async/Retries/Fallbacks/Validate]
-    C -->|Filter/Update| D[SQLite DB: Jobs/Companies (SQLAlchemy ORM)]
+    C -->|Filter/Update| D[SQLite DB: Jobs/Companies - SQLAlchemy ORM]
     B -->|Query/Filter| D
-    E[Logging/Errors] -->|All| A & C & B
-    F[Docker] -->|Container| B & D
+    E[Logging/Errors] -->|All| A
+    E --> C
+    E --> B
+    F[Docker] -->|Container| B
+    F --> D
 ```
 
 ## 🛠️ Implementation Details
