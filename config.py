@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     Attributes:
         openai_api_key (str): OpenAI API key for enhanced job extraction.
         db_url (str): Database connection URL, defaults to SQLite file.
+
     """
 
     openai_api_key: str

@@ -11,12 +11,14 @@ import json
 import logging
 import re
 import time
+
 from datetime import datetime
 from pathlib import Path
 
 import httpx
 import pandas as pd
 import typer
+
 from crawl4ai import AsyncWebCrawler
 from crawl4ai.extraction_strategy import (
     JsonCssExtractionStrategy,
@@ -103,8 +105,8 @@ def save_schema_cache(company: str, schema: dict) -> None:
     cache_file.write_text(json.dumps(schema, indent=2))
 
 
-def is_valid_job(job: dict, company: str) -> bool:
-    """Simple job validation."""
+def is_valid_job(job: dict, _company: str) -> bool:
+    """Job validation."""
     required = ["title", "description", "link"]
 
     # Check required fields exist and have content
@@ -122,10 +124,8 @@ def is_valid_job(job: dict, company: str) -> bool:
     if len(desc) < 10 or len(desc) > 1000:
         return False
 
-    if not link.startswith(("http://", "https://")):
-        return False
-
-    return True
+    # Check if link is valid and return True or False
+    return link.startswith(("http://", "https://"))
 
 
 def log_session_summary():
@@ -164,7 +164,6 @@ async def extract_jobs_safe(url: str, company: str) -> list[dict]:
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
 async def extract_jobs(url: str, company: str) -> list[dict]:
     """Extract jobs with simple caching and optimized LLM settings."""
-
     # Apply company-specific rate limiting
     delay = COMPANY_DELAYS.get(company.lower(), COMPANY_DELAYS["default"])
     await asyncio.sleep(delay)
@@ -188,7 +187,8 @@ async def extract_jobs(url: str, company: str) -> list[dict]:
 
                     if jobs and len(jobs) > 0:
                         logger.info(
-                            f"✅ Used cached schema for {company} - found {len(jobs)} jobs"
+                            f"✅ Used cached schema for {company} - "
+                            f"found {len(jobs)} jobs"
                         )
                         session_stats["cache_hits"] += 1
                         validated_jobs = [
@@ -222,14 +222,19 @@ async def extract_jobs(url: str, company: str) -> list[dict]:
             # If LLM extraction worked, try to generate a reusable schema
             if jobs and len(jobs) > 2:  # Only cache if we got multiple jobs
                 try:
-                    # Simple schema generation - extract CSS patterns from successful extraction
+                    # Schema generation - extract CSS patterns from successful extract
                     simple_schema = {
                         "jobs": {
-                            "selector": ".job-listing, .job-item, .position, [class*='job'], [class*='position']",
+                            "selector": (
+                                ".job-listing, .job-item, .position, [class*='job'], "
+                                "[class*='position']"
+                            ),
                             "fields": {
                                 "title": ".title, .job-title, h3, h4, .position-title",
-                                "description": ".description, .summary, .job-summary, p",
-                                "link": "a@href, .apply-link@href, .job-link@href",
+                                "description": (
+                                    ".description, .summary, .job-summary, p"
+                                ),
+                                "link": ("a@href, .apply-link@href, .job-link@href"),
                                 "location": ".location, .job-location, .office",
                                 "posted_date": ".date, .posted, .job-date",
                             },
@@ -282,6 +287,7 @@ def is_relevant(job: dict) -> bool:
 
     Returns:
         bool: True if job title matches relevant keywords, False otherwise.
+
     """
     return bool(RELEVANT_KEYWORDS.search(job["title"]))
 
@@ -297,6 +303,7 @@ async def validate_link(link: str) -> str | None:
 
     Returns:
         str | None: Original link if valid and accessible, None otherwise.
+
     """
     try:
         async with httpx.AsyncClient(timeout=5) as client:
@@ -312,24 +319,25 @@ def update_db(jobs_df: pd.DataFrame) -> None:
     """Update database with scraped job data from Pandas DataFrame.
 
     Performs full CRUD operations: validates jobs with Pydantic, adds new jobs,
-    updates existing jobs when content changes (via hash comparison), and
-    removes jobs that are no longer found. Preserves user edits (favorite,
-    status, notes) when updating existing jobs.
+    updates existing jobs when content changes (via hash comparison), and removes
+    jobs that are no longer found. Preserves user edits (favorite, status, notes)
+    when updating existing jobs.
 
     Args:
-        jobs_df (pd.DataFrame): DataFrame containing scraped job data with
-            columns: company, title, description, link, location, posted_date.
+        jobs_df (pd.DataFrame): DataFrame containing scraped job data with columns:
+            company, title, description, link, location, posted_date.
 
     Note:
         Uses database transactions with rollback on error to maintain consistency.
         Invalid jobs are logged and skipped rather than failing the entire operation.
+
     """
     session = Session()
     try:
         existing = {j.link: j for j in session.query(JobSQL).all()}
         validated_jobs = []
-        for _, job_dict in jobs_df.iterrows():
-            job_dict = job_dict.to_dict()
+        for _, row in jobs_df.iterrows():
+            job_dict = row.to_dict()
             try:
                 JobPydantic(**job_dict)
             except Exception as ve:
@@ -341,7 +349,7 @@ def update_db(jobs_df: pd.DataFrame) -> None:
             if not valid_link:
                 continue
             job_dict["link"] = valid_link
-            job_hash = hashlib.md5(job_dict["description"].encode()).hexdigest()
+            job_hash = hashlib.sha256(job_dict["description"].encode()).hexdigest()
             if job_dict["link"] in existing:
                 ex = existing[job_dict["link"]]
                 if ex.hash != job_hash:
@@ -377,18 +385,19 @@ def update_db(jobs_df: pd.DataFrame) -> None:
 async def scrape_all() -> pd.DataFrame:
     """Scrape job postings from all active company websites.
 
-    Retrieves active companies from database, scrapes their careers pages
-    in parallel using asyncio, filters for relevant AI/ML positions,
-    and returns consolidated results as a DataFrame.
+    Retrieves active companies from database, scrapes their careers pages in
+    parallel using asyncio, filters for relevant AI/ML positions, and returns
+    consolidated results as a DataFrame.
 
     Returns:
-        pd.DataFrame: DataFrame containing all relevant scraped jobs with
-            columns: company, title, description, link, location, posted_date.
-            Empty DataFrame if no jobs found or all scraping attempts failed.
+        pd.DataFrame: DataFrame containing all relevant scraped jobs with columns:
+            company, title, description, link, location, posted_date. Empty DataFrame
+            if no jobs found or all scraping attempts failed.
 
     Note:
-        Individual company scraping failures are logged but don't stop
-        the overall process. Only jobs with valid titles are included.
+        Individual company scraping failures are logged but don't stop the overall
+        process. Only jobs with valid titles are included.
+
     """
     session = Session()
     active_companies = session.query(CompanySQL).filter_by(active=True).all()
@@ -414,8 +423,8 @@ def main() -> None:
     """Command-line interface entry point for the job scraper.
 
     Orchestrates the complete scraping workflow: scrapes all active companies,
-    updates the database, and logs the results. Handles top-level exceptions
-    and provides user feedback via logging.
+    updates the database, and logs the results. Handles top-level exceptions and
+    provides user feedback via logging.
 
     Note:
         Designed to be run via CLI: `python scraper.py` or `uv run python scraper.py`
