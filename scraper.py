@@ -174,7 +174,10 @@ def is_valid_job(job: dict, company: str) -> bool:  # noqa: ARG001
 
     Args:
         job: Job dictionary to validate
-        company: Company name (kept for future company-specific validation)
+        company: Company name (reserved for future company-specific validation)
+
+    Returns:
+        bool: True if job passes all validation checks, False otherwise
     """
     required = ["title", "description", "link"]
 
@@ -297,9 +300,7 @@ async def extract_jobs(url: str, company: str) -> list[dict]:
             jobs = extracted.get("jobs", [])
 
             # If LLM extraction worked, try to generate a reusable schema
-            if (
-                jobs and len(jobs) >= settings.min_jobs_for_cache
-            ):  # Configurable cache threshold
+            if len(jobs) >= settings.min_jobs_for_cache:  # Configurable cache threshold
                 try:
                     # Schema generation - extract CSS patterns from successful extract
                     simple_schema = {
