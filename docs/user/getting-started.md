@@ -254,7 +254,7 @@ uv run streamlit run app.py --server.port=8502
 
 - Check your OpenAI account has credits
 
-- The app will fallback to CSS extraction automatically
+- The app will fall back to CSS extraction automatically
 
 #### Empty job results
 

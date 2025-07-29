@@ -6,10 +6,12 @@ the local database with new and updated job information.
 """
 
 import asyncio
+import contextlib
 import hashlib
 import json
 import logging
 import re
+import threading
 import time
 
 from datetime import datetime
@@ -45,8 +47,8 @@ Session = sessionmaker(bind=engine)
 
 RELEVANT_KEYWORDS = re.compile(r"(AI|Machine Learning|MLOps|AI Agent).*Engineer", re.I)
 
-# Cache directory setup
-CACHE_DIR = Path("./cache")
+# Cache directory setup (configurable via settings)
+CACHE_DIR = Path(settings.cache_dir)
 CACHE_DIR.mkdir(exist_ok=True)
 
 # Optimized LLM schema and settings
@@ -77,32 +79,94 @@ COMPANY_DELAYS = {
     "default": 1.0,  # Default delay
 }
 
-# Session statistics
-session_stats = {
-    "start_time": None,
-    "companies_processed": 0,
-    "jobs_found": 0,
-    "cache_hits": 0,
-    "llm_calls": 0,
-    "errors": 0,
-}
+
+# Thread-safe session statistics
+class SessionStats:
+    """Thread-safe session statistics tracker."""
+
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._stats = {
+            "start_time": None,
+            "companies_processed": 0,
+            "jobs_found": 0,
+            "cache_hits": 0,
+            "llm_calls": 0,
+            "errors": 0,
+        }
+
+    def increment(self, key: str, value: int = 1):
+        """Thread-safe increment operation."""
+        with self._lock:
+            self._stats[key] += value
+
+    def set(self, key: str, value):
+        """Thread-safe set operation."""
+        with self._lock:
+            self._stats[key] = value
+
+    def get(self, key: str):
+        """Thread-safe get operation."""
+        with self._lock:
+            return self._stats[key]
+
+    def get_all(self):
+        """Thread-safe get all stats operation."""
+        with self._lock:
+            return self._stats.copy()
 
 
-def get_cached_schema(company: str) -> dict | None:
-    """Get cached extraction schema for company."""
+session_stats = SessionStats()
+
+
+def get_cached_schema(company: str, ttl_hours: int = 168) -> dict | None:
+    """Get cached extraction schema for company with TTL validation.
+
+    Args:
+        company: Company name for the cache file
+        ttl_hours: Time-to-live in hours (default: 168 = 1 week)
+
+    Returns:
+        Cached schema dict if valid and within TTL, None otherwise
+    """
     cache_file = CACHE_DIR / f"{company.lower()}.json"
-    if cache_file.exists():
-        try:
-            return json.loads(cache_file.read_text())
-        except Exception:
+    if not cache_file.exists():
+        return None
+
+    try:
+        # Check file age
+        file_age_hours = (time.time() - cache_file.stat().st_mtime) / 3600
+        if file_age_hours > ttl_hours:
+            logger.info(f"Cache expired for {company} (age: {file_age_hours:.1f}h)")
+            cache_file.unlink()  # Remove expired cache
             return None
-    return None
+
+        cached_data = json.loads(cache_file.read_text())
+
+        # Check for schema version (future-proofing)
+        if "schema_version" not in cached_data:
+            logger.info(f"Cache lacks version for {company}, invalidating")
+            cache_file.unlink()
+            return None
+
+        return cached_data.get("schema")
+    except Exception as e:
+        logger.warning(f"Cache read failed for {company}: {e}")
+        with contextlib.suppress(Exception):
+            cache_file.unlink()  # Remove corrupted cache
+        return None
 
 
 def save_schema_cache(company: str, schema: dict) -> None:
-    """Save successful extraction schema."""
+    """Save successful extraction schema with metadata."""
     cache_file = CACHE_DIR / f"{company.lower()}.json"
-    cache_file.write_text(json.dumps(schema, indent=2))
+    cache_data = {
+        "schema": schema,
+        "schema_version": "1.0",
+        "created_at": datetime.now().isoformat(),
+        "company": company.lower(),
+    }
+    cache_file.write_text(json.dumps(cache_data, indent=2))
 
 
 def is_valid_job(job: dict, _company: str) -> bool:
@@ -130,18 +194,23 @@ def is_valid_job(job: dict, _company: str) -> bool:
 
 def log_session_summary():
     """Print simple session summary."""
-    duration = time.time() - session_stats["start_time"]
-    cache_rate = session_stats["cache_hits"] / max(
-        session_stats["companies_processed"], 1
-    )
+    stats = session_stats.get_all()
+    duration = time.time() - stats["start_time"]
+    companies_processed = stats["companies_processed"]
+
+    if companies_processed == 0:
+        cache_rate_str = "N/A (no companies processed)"
+    else:
+        cache_rate = stats["cache_hits"] / companies_processed
+        cache_rate_str = f"{cache_rate:.1%}"
 
     logger.info("📊 Session Summary:")
     logger.info(f"  Duration: {duration:.1f}s")
-    logger.info(f"  Companies: {session_stats['companies_processed']}")
-    logger.info(f"  Jobs found: {session_stats['jobs_found']}")
-    logger.info(f"  Cache hit rate: {cache_rate:.1%}")
-    logger.info(f"  LLM calls: {session_stats['llm_calls']}")
-    logger.info(f"  Errors: {session_stats['errors']}")
+    logger.info(f"  Companies: {companies_processed}")
+    logger.info(f"  Jobs found: {stats['jobs_found']}")
+    logger.info(f"  Cache hit rate: {cache_rate_str}")
+    logger.info(f"  LLM calls: {stats['llm_calls']}")
+    logger.info(f"  Errors: {stats['errors']}")
 
 
 async def extract_jobs_safe(url: str, company: str) -> list[dict]:
@@ -153,7 +222,7 @@ async def extract_jobs_safe(url: str, company: str) -> list[dict]:
             return await extract_jobs(url, company)
         except Exception as e:
             logger.error(f"Attempt {attempt + 1} failed for {company}: {e}")
-            session_stats["errors"] += 1
+            session_stats.increment("errors")
             if attempt < max_retries - 1:
                 await asyncio.sleep(2**attempt)  # Exponential backoff
             else:
@@ -164,8 +233,11 @@ async def extract_jobs_safe(url: str, company: str) -> list[dict]:
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
 async def extract_jobs(url: str, company: str) -> list[dict]:
     """Extract jobs with simple caching and optimized LLM settings."""
-    # Apply company-specific rate limiting
-    delay = COMPANY_DELAYS.get(company.lower(), COMPANY_DELAYS["default"])
+    # Apply company-specific rate limiting with normalized company name
+    normalized_company = (
+        company.lower().strip().replace(" ", "").replace("_", "").replace("-", "")
+    )
+    delay = COMPANY_DELAYS.get(normalized_company, COMPANY_DELAYS["default"])
     await asyncio.sleep(delay)
 
     # Try cached schema first (free & fast)
@@ -190,7 +262,7 @@ async def extract_jobs(url: str, company: str) -> list[dict]:
                             f"✅ Used cached schema for {company} - "
                             f"found {len(jobs)} jobs"
                         )
-                        session_stats["cache_hits"] += 1
+                        session_stats.increment("cache_hits")
                         validated_jobs = [
                             job for job in jobs if is_valid_job(job, company)
                         ]
@@ -200,7 +272,7 @@ async def extract_jobs(url: str, company: str) -> list[dict]:
 
     # Fallback to LLM (existing logic with optimized settings)
     logger.info(f"🔄 Using LLM extraction for {company}")
-    session_stats["llm_calls"] += 1
+    session_stats.increment("llm_calls")
 
     async with AsyncWebCrawler() as crawler:
         try:
@@ -220,7 +292,9 @@ async def extract_jobs(url: str, company: str) -> list[dict]:
             jobs = extracted.get("jobs", [])
 
             # If LLM extraction worked, try to generate a reusable schema
-            if jobs and len(jobs) > 2:  # Only cache if we got multiple jobs
+            if (
+                jobs and len(jobs) >= settings.min_jobs_for_cache
+            ):  # Configurable cache threshold
                 try:
                     # Schema generation - extract CSS patterns from successful extract
                     simple_schema = {
@@ -403,7 +477,7 @@ async def scrape_all() -> pd.DataFrame:
     active_companies = session.query(CompanySQL).filter_by(active=True).all()
     session.close()
 
-    session_stats["companies_processed"] = len(active_companies)
+    session_stats.set("companies_processed", len(active_companies))
 
     tasks = [extract_jobs_safe(c.url, c.name) for c in active_companies]
     all_jobs = []
@@ -414,7 +488,7 @@ async def scrape_all() -> pd.DataFrame:
             all_jobs.extend(relevant)
         except Exception as e:
             logger.error(f"Scrape failed: {e}")
-            session_stats["errors"] += 1
+            session_stats.increment("errors")
     df = pd.DataFrame(all_jobs)
     return df[df["title"].notna()]
 
@@ -429,17 +503,17 @@ def main() -> None:
     Note:
         Designed to be run via CLI: `python scraper.py` or `uv run python scraper.py`
     """
-    session_stats["start_time"] = time.time()
+    session_stats.set("start_time", time.time())
 
     try:
         jobs_df = asyncio.run(scrape_all())
         update_db(jobs_df)
-        session_stats["jobs_found"] = len(jobs_df)
+        session_stats.set("jobs_found", len(jobs_df))
         logger.info(f"Scraped {len(jobs_df)} jobs.")
         log_session_summary()
     except Exception as e:
         logger.error(f"Main failed: {e}")
-        session_stats["errors"] += 1
+        session_stats.increment("errors")
         log_session_summary()
 
 
