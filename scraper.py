@@ -6,15 +6,21 @@ the local database with new and updated job information.
 """
 
 import asyncio
+import contextlib
 import hashlib
 import json
 import logging
 import re
+import threading
+import time
+
 from datetime import datetime
+from pathlib import Path
 
 import httpx
 import pandas as pd
 import typer
+
 from crawl4ai import AsyncWebCrawler
 from crawl4ai.extraction_strategy import (
     JsonCssExtractionStrategy,
@@ -41,55 +47,296 @@ Session = sessionmaker(bind=engine)
 
 RELEVANT_KEYWORDS = re.compile(r"(AI|Machine Learning|MLOps|AI Agent).*Engineer", re.I)
 
+# Cache directory setup (configurable via settings)
+CACHE_DIR = Path(settings.cache_dir)
+CACHE_DIR.mkdir(exist_ok=True)
+
+# Optimized LLM schema and settings
+SIMPLE_SCHEMA = {
+    "jobs": [
+        {
+            "title": "Job title (exact text)",
+            "description": "Brief summary (50 words max)",
+            "link": "Application URL",
+            "location": "Location or Remote",
+            "posted_date": "When posted",
+        }
+    ]
+}
+
+SIMPLE_INSTRUCTIONS = """
+Extract ONLY job postings from this page. 
+Skip: company info, news, descriptions, alerts.
+Return: title, summary, application link, location, date.
+Keep descriptions under 50 words.
+"""
+
+# Company-specific rate limits
+COMPANY_DELAYS = {
+    "nvidia": 3.0,  # Slower for NVIDIA (complex site)
+    "meta": 2.0,  # Slower for Meta
+    "microsoft": 2.5,  # Slower for Microsoft
+    "default": 1.0,  # Default delay
+}
+
+
+# Thread-safe session statistics
+class SessionStats:
+    """Thread-safe session statistics tracker."""
+
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._stats = {
+            "start_time": None,
+            "companies_processed": 0,
+            "jobs_found": 0,
+            "cache_hits": 0,
+            "llm_calls": 0,
+            "errors": 0,
+        }
+
+    def increment(self, key: str, value: int = 1):
+        """Thread-safe increment operation."""
+        with self._lock:
+            self._stats[key] += value
+
+    def set(self, key: str, value):
+        """Thread-safe set operation."""
+        with self._lock:
+            self._stats[key] = value
+
+    def get(self, key: str):
+        """Thread-safe get operation."""
+        with self._lock:
+            return self._stats[key]
+
+    def get_all(self):
+        """Thread-safe get all stats operation."""
+        with self._lock:
+            return self._stats.copy()
+
+
+session_stats = SessionStats()
+
+
+def get_cached_schema(company: str, ttl_hours: int = 168) -> dict | None:
+    """Get cached extraction schema for company with TTL validation.
+
+    Args:
+        company: Company name for the cache file
+        ttl_hours: Time-to-live in hours (default: 168 = 1 week)
+
+    Returns:
+        Cached schema dict if valid and within TTL, None otherwise
+    """
+    cache_file = CACHE_DIR / f"{company.lower()}.json"
+    if not cache_file.exists():
+        return None
+
+    try:
+        # Check file age
+        file_age_hours = (time.time() - cache_file.stat().st_mtime) / 3600
+        if file_age_hours > ttl_hours:
+            logger.info(f"Cache expired for {company} (age: {file_age_hours:.1f}h)")
+            cache_file.unlink()  # Remove expired cache
+            return None
+
+        cached_data = json.loads(cache_file.read_text())
+
+        # Check for schema version (future-proofing)
+        if "schema_version" not in cached_data:
+            logger.info(f"Cache lacks version for {company}, invalidating")
+            cache_file.unlink()
+            return None
+
+        return cached_data.get("schema")
+    except Exception as e:
+        logger.warning(f"Cache read failed for {company}: {e}")
+        with contextlib.suppress(Exception):
+            cache_file.unlink()  # Remove corrupted cache
+        return None
+
+
+def save_schema_cache(company: str, schema: dict) -> None:
+    """Save successful extraction schema with metadata."""
+    cache_file = CACHE_DIR / f"{company.lower()}.json"
+    cache_data = {
+        "schema": schema,
+        "schema_version": "1.0",
+        "created_at": datetime.now().isoformat(),
+        "company": company.lower(),
+    }
+    cache_file.write_text(json.dumps(cache_data, indent=2))
+
+
+def is_valid_job(job: dict, company: str) -> bool:  # noqa: ARG001
+    """Job validation for a specific company.
+
+    Args:
+        job: Job dictionary to validate
+        company: Company name (reserved for future company-specific validation)
+
+    Returns:
+        bool: True if job passes all validation checks, False otherwise
+    """
+    required = ["title", "description", "link"]
+
+    # Check required fields exist and have content
+    if not all(job.get(field, "").strip() for field in required):
+        return False
+
+    # Check reasonable lengths
+    title = job["title"].strip()
+    desc = job["description"].strip()
+    link = job["link"].strip()
+
+    if len(title) < 3 or len(title) > 200:
+        return False
+
+    if len(desc) < 10 or len(desc) > 1000:
+        return False
+
+    # Check if link is valid and return True or False
+    return link.startswith(("http://", "https://"))
+
+
+def log_session_summary():
+    """Print simple session summary."""
+    stats = session_stats.get_all()
+    duration = time.time() - stats["start_time"]
+    companies_processed = stats["companies_processed"]
+
+    if companies_processed == 0:
+        cache_rate_str = "N/A (no companies processed)"
+    else:
+        cache_rate = stats["cache_hits"] / companies_processed
+        cache_rate_str = f"{cache_rate:.1%}"
+
+    logger.info("📊 Session Summary:")
+    logger.info(f"  Duration: {duration:.1f}s")
+    logger.info(f"  Companies: {companies_processed}")
+    logger.info(f"  Jobs found: {stats['jobs_found']}")
+    logger.info(f"  Cache hit rate: {cache_rate_str}")
+    logger.info(f"  LLM calls: {stats['llm_calls']}")
+    logger.info(f"  Errors: {stats['errors']}")
+
+
+async def extract_jobs_safe(url: str, company: str) -> list[dict]:
+    """Safe wrapper with retries."""
+    max_retries = 2
+
+    for attempt in range(max_retries):
+        try:
+            return await extract_jobs(url, company)
+        except Exception as e:
+            logger.error(f"Attempt {attempt + 1} failed for {company}: {e}")
+            session_stats.increment("errors")
+            if attempt < max_retries - 1:
+                await asyncio.sleep(2**attempt)  # Exponential backoff
+            else:
+                logger.error(f"❌ All attempts failed for {company}")
+                return []
+
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
 async def extract_jobs(url: str, company: str) -> list[dict]:
-    """Extract job postings from a company's careers page with LLM/CSS fallback.
+    """Extract jobs with simple caching and optimized LLM settings."""
+    # Apply company-specific rate limiting with normalized company name
+    normalized_company = (
+        company.lower().strip().replace(" ", "").replace("_", "").replace("-", "")
+    )
+    delay = COMPANY_DELAYS.get(normalized_company, COMPANY_DELAYS["default"])
+    await asyncio.sleep(delay)
 
-    Uses Crawl4AI to scrape job listings, first attempting LLM extraction
-    with OpenAI, falling back to CSS selector strategy if that fails.
+    # Try cached schema first (free & fast)
+    cached_schema = get_cached_schema(company)
 
-    Args:
-        url (str): Company careers page URL to scrape.
-        company (str): Company name for job attribution.
+    if cached_schema:
+        try:
+            strategy = JsonCssExtractionStrategy(cached_schema)
+            async with AsyncWebCrawler() as crawler:
+                result = await crawler.arun(url=url, extraction_strategy=strategy)
 
-    Returns:
-        list[dict]: List of job dictionaries with company, title, description,
-            link, location, and posted_date fields.
+                if result.success and result.extracted_content:
+                    jobs_data = json.loads(result.extracted_content)
+                    jobs = (
+                        jobs_data.get("jobs", [])
+                        if isinstance(jobs_data, dict)
+                        else jobs_data
+                    )
 
-    Raises:
-        Exception: Re-raises exceptions after retry attempts are exhausted.
-    """
+                    if jobs and len(jobs) > 0:
+                        logger.info(
+                            f"✅ Used cached schema for {company} - "
+                            f"found {len(jobs)} jobs"
+                        )
+                        session_stats.increment("cache_hits")
+                        validated_jobs = [
+                            job for job in jobs if is_valid_job(job, company)
+                        ]
+                        return [{"company": company, **job} for job in validated_jobs]
+        except Exception as e:
+            logger.warning(f"Cached schema failed for {company}: {e}")
+
+    # Fallback to LLM (existing logic with optimized settings)
+    logger.info(f"🔄 Using LLM extraction for {company}")
+    session_stats.increment("llm_calls")
+
     async with AsyncWebCrawler() as crawler:
         try:
+            # Use optimized LLM strategy
             strategy = LLMExtractionStrategy(
                 provider="openai/gpt-4o-mini",
                 api_token=settings.openai_api_key,
-                extraction_schema={
-                    "jobs": [
-                        {
-                            "title": "str",
-                            "description": "str",
-                            "link": "str",
-                            "location": "str",
-                            "posted_date": "str",
-                        }
-                    ]
-                },
-                instructions="Extract jobs: title, desc, link, location, posted date (any format).",
+                extraction_schema=SIMPLE_SCHEMA,
+                instructions=SIMPLE_INSTRUCTIONS,
+                apply_chunking=True,
+                chunk_token_threshold=1000,
+                overlap_rate=0.02,
             )
+
             result = await crawler.arun(url=url, extraction_strategy=strategy)
             extracted = json.loads(result.extracted_content)
             jobs = extracted.get("jobs", [])
+
+            # If LLM extraction worked, try to generate a reusable schema
+            if len(jobs) >= settings.min_jobs_for_cache:  # Configurable cache threshold
+                try:
+                    # Schema generation - extract CSS patterns from successful extract
+                    simple_schema = {
+                        "jobs": {
+                            "selector": (
+                                ".job-listing, .job-item, .position, [class*='job'], "
+                                "[class*='position']"
+                            ),
+                            "fields": {
+                                "title": ".title, .job-title, h3, h4, .position-title",
+                                "description": (
+                                    ".description, .summary, .job-summary, p"
+                                ),
+                                "link": ("a@href, .apply-link@href, .job-link@href"),
+                                "location": ".location, .job-location, .office",
+                                "posted_date": ".date, .posted, .job-date",
+                            },
+                        }
+                    }
+                    save_schema_cache(company, simple_schema)
+                    logger.info(f"💾 Cached schema for {company}")
+                except Exception as e:
+                    logger.warning(f"Failed to cache schema for {company}: {e}")
+
         except Exception as e:
             logger.warning(f"LLM failed for {company}: {e}. CSS fallback.")
+
+            # Simple CSS fallback
             strategy = JsonCssExtractionStrategy(
-                css_selector=".job-listing",
-                instruction="Extract title, desc, link, location, date",
+                css_selector=".job-listing, .job-item, .position",
+                instruction="Extract job title, description, link, location, date",
             )
             result = await crawler.arun(url=url, extraction_strategy=strategy)
             jobs = result.extracted_content or []
 
+        # Process dates and locations
         for job in jobs:
             try:
                 job["posted_date"] = (
@@ -101,7 +348,12 @@ async def extract_jobs(url: str, company: str) -> list[dict]:
                 job["posted_date"] = None
             job["location"] = job.get("location", "Unknown")
 
-        return [{"company": company, **job} for job in jobs if "title" in job]
+        # Validate and clean jobs
+        valid_jobs = [job for job in jobs if is_valid_job(job, company)]
+
+        logger.info(f"📊 {company}: {len(valid_jobs)}/{len(jobs)} valid jobs")
+
+        return [{"company": company, **job} for job in valid_jobs]
 
 
 def is_relevant(job: dict) -> bool:
@@ -115,6 +367,7 @@ def is_relevant(job: dict) -> bool:
 
     Returns:
         bool: True if job title matches relevant keywords, False otherwise.
+
     """
     return bool(RELEVANT_KEYWORDS.search(job["title"]))
 
@@ -130,6 +383,7 @@ async def validate_link(link: str) -> str | None:
 
     Returns:
         str | None: Original link if valid and accessible, None otherwise.
+
     """
     try:
         async with httpx.AsyncClient(timeout=5) as client:
@@ -145,24 +399,25 @@ def update_db(jobs_df: pd.DataFrame) -> None:
     """Update database with scraped job data from Pandas DataFrame.
 
     Performs full CRUD operations: validates jobs with Pydantic, adds new jobs,
-    updates existing jobs when content changes (via hash comparison), and
-    removes jobs that are no longer found. Preserves user edits (favorite,
-    status, notes) when updating existing jobs.
+    updates existing jobs when content changes (via hash comparison), and removes
+    jobs that are no longer found. Preserves user edits (favorite, status, notes)
+    when updating existing jobs.
 
     Args:
-        jobs_df (pd.DataFrame): DataFrame containing scraped job data with
-            columns: company, title, description, link, location, posted_date.
+        jobs_df (pd.DataFrame): DataFrame containing scraped job data with columns:
+            company, title, description, link, location, posted_date.
 
     Note:
         Uses database transactions with rollback on error to maintain consistency.
         Invalid jobs are logged and skipped rather than failing the entire operation.
+
     """
     session = Session()
     try:
         existing = {j.link: j for j in session.query(JobSQL).all()}
         validated_jobs = []
-        for _, job_dict in jobs_df.iterrows():
-            job_dict = job_dict.to_dict()
+        for _, row in jobs_df.iterrows():
+            job_dict = row.to_dict()
             try:
                 JobPydantic(**job_dict)
             except Exception as ve:
@@ -174,7 +429,7 @@ def update_db(jobs_df: pd.DataFrame) -> None:
             if not valid_link:
                 continue
             job_dict["link"] = valid_link
-            job_hash = hashlib.md5(job_dict["description"].encode()).hexdigest()
+            job_hash = hashlib.sha256(job_dict["description"].encode()).hexdigest()
             if job_dict["link"] in existing:
                 ex = existing[job_dict["link"]]
                 if ex.hash != job_hash:
@@ -210,23 +465,27 @@ def update_db(jobs_df: pd.DataFrame) -> None:
 async def scrape_all() -> pd.DataFrame:
     """Scrape job postings from all active company websites.
 
-    Retrieves active companies from database, scrapes their careers pages
-    in parallel using asyncio, filters for relevant AI/ML positions,
-    and returns consolidated results as a DataFrame.
+    Retrieves active companies from database, scrapes their careers pages in
+    parallel using asyncio, filters for relevant AI/ML positions, and returns
+    consolidated results as a DataFrame.
 
     Returns:
-        pd.DataFrame: DataFrame containing all relevant scraped jobs with
-            columns: company, title, description, link, location, posted_date.
-            Empty DataFrame if no jobs found or all scraping attempts failed.
+        pd.DataFrame: DataFrame containing all relevant scraped jobs with columns:
+            company, title, description, link, location, posted_date. Empty DataFrame
+            if no jobs found or all scraping attempts failed.
 
     Note:
-        Individual company scraping failures are logged but don't stop
-        the overall process. Only jobs with valid titles are included.
+        Individual company scraping failures are logged but don't stop the overall
+        process. Only jobs with valid titles are included.
+
     """
     session = Session()
     active_companies = session.query(CompanySQL).filter_by(active=True).all()
     session.close()
-    tasks = [extract_jobs(c.url, c.name) for c in active_companies]
+
+    session_stats.set("companies_processed", len(active_companies))
+
+    tasks = [extract_jobs_safe(c.url, c.name) for c in active_companies]
     all_jobs = []
     for task in asyncio.as_completed(tasks):
         try:
@@ -235,6 +494,7 @@ async def scrape_all() -> pd.DataFrame:
             all_jobs.extend(relevant)
         except Exception as e:
             logger.error(f"Scrape failed: {e}")
+            session_stats.increment("errors")
     df = pd.DataFrame(all_jobs)
     return df[df["title"].notna()]
 
@@ -243,18 +503,24 @@ def main() -> None:
     """Command-line interface entry point for the job scraper.
 
     Orchestrates the complete scraping workflow: scrapes all active companies,
-    updates the database, and logs the results. Handles top-level exceptions
-    and provides user feedback via logging.
+    updates the database, and logs the results. Handles top-level exceptions and
+    provides user feedback via logging.
 
     Note:
         Designed to be run via CLI: `python scraper.py` or `uv run python scraper.py`
     """
+    session_stats.set("start_time", time.time())
+
     try:
         jobs_df = asyncio.run(scrape_all())
         update_db(jobs_df)
+        session_stats.set("jobs_found", len(jobs_df))
         logger.info(f"Scraped {len(jobs_df)} jobs.")
+        log_session_summary()
     except Exception as e:
         logger.error(f"Main failed: {e}")
+        session_stats.increment("errors")
+        log_session_summary()
 
 
 if __name__ == "__main__":

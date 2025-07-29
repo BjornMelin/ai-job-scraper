@@ -8,3 +8,13 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Cache files
+cache/
+
+# Database files
+*.db
+jobs.db
+
+# Environment files
+.env

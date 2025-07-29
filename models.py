@@ -23,6 +23,7 @@ class CompanySQL(Base):
         name (str): Company name, must be unique.
         url (str): Company careers page URL.
         active (bool): Whether to include company in scraping runs.
+
     """
 
     __tablename__ = "companies"
@@ -50,6 +51,7 @@ class JobSQL(Base):
         favorite (bool): User-marked favorite status.
         status (str): Application status (New, Applied, etc.).
         notes (str): User notes about the job.
+
     """
 
     __tablename__ = "jobs"
@@ -84,6 +86,7 @@ class JobPydantic(BaseModel):
         favorite (bool): User favorite status, defaults to False.
         status (str): Application status, defaults to "New".
         notes (str): User notes, defaults to empty string.
+
     """
 
     company: str

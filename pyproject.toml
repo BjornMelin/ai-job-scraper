@@ -17,8 +17,13 @@ dependencies = [
     "python-dateutil==2.9.0.post0",
     "pydantic==2.11.7",
     "pydantic-settings==2.10.1",
+]
+
+[dependency-groups]
+dev = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.23.0",
+    "ruff>=0.8.0",
 ]
 
 [project.urls]
@@ -31,5 +36,76 @@ line-length = 88
 target-version = "py312"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP"]
-ignore = ["E501"]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "I",    # isort
+    "UP",   # pyupgrade
+    "N",    # pep8-naming
+    "S",    # bandit (security)
+    "B",    # flake8-bugbear
+    "A",    # flake8-builtins
+    "C4",   # flake8-comprehensions  
+    "PT",   # flake8-pytest-style
+    "SIM",  # flake8-simplify
+    "TID",  # flake8-tidy-imports
+    "D",    # pydocstyle
+    "RUF",  # Ruff-specific rules
+    "ERA",  # eradicate (commented code)
+    "PL",   # Pylint
+    "ARG",  # flake8-unused-arguments
+]
+ignore = [
+    # Docstring formatting (Google style conflicts)
+    "D203",   # 1 blank line required before class docstring (conflicts with D211)
+    "D213",   # Multi-line docstring summary should start at the second line (conflicts with Google style)
+    "D107",   # Missing docstring in __init__ (often not needed for simple classes)
+    "D104",   # Missing docstring in public package (not always needed)
+    
+    # Pylint rules that can be too strict
+    "PLR0913",  # Too many arguments to function call (sometimes necessary)
+    "PLR0912",  # Too many branches (sometimes necessary for business logic)
+    "PLR2004",  # Magic value used in comparison (constants can be clear in context)
+    
+    # Security rules that can be too strict for local apps
+    "S605",   # Starting a process with a shell (needed for some CLI tools)
+    "S607",   # Starting a process with a partial executable path
+    
+    # Complexity rules (keep some but not all)
+    "PLR0915",  # Too many statements (sometimes necessary)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [
+    "S101",     # assert usage (standard practice in pytest tests)
+    "ARG001",   # Unused function argument (fixtures often unused directly)
+    "PLR2004",  # Magic value used in comparison (test values are often magic)
+    "D103",     # Missing docstring in public function (test functions don't always need docs)
+]
+"seed.py" = [
+    "T201",     # print found (acceptable in seed scripts)
+]
+"app.py" = [
+    "PLR0915",  # Too many statements (Streamlit apps can be complex)
+    "S106",     # Possible hardcoded password (false positives in UI code)
+]
+"__init__.py" = [
+    "N999",     # Invalid module name (package names can have dashes)
+]
+"tests/__init__.py" = [
+    "N999",     # Invalid module name (package names can have dashes)
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.isort]
+known-first-party = ["ai-job-scraper"]
+force-single-line = false
+lines-between-types = 1
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"

@@ -33,6 +33,7 @@ def seed_companies() -> None:
     Note:
         Safe to run multiple times - existing companies are not duplicated.
         Uses database transactions with rollback on error.
+
     """
     session = Session()
     try:

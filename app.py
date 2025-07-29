@@ -7,11 +7,14 @@ search and filtering capabilities, inline editing, and CSV export.
 """
 
 import asyncio
+import html
 import logging
+
 from datetime import datetime
 
 import pandas as pd
 import streamlit as st
+
 from sqlalchemy.orm import sessionmaker
 
 from models import CompanySQL, JobSQL
@@ -90,6 +93,7 @@ def update_status(job_id: int, tab_key: str) -> None:
     Args:
         job_id (int): Database ID of the job to update.
         tab_key (str): Tab identifier for session state management.
+
     """
     try:
         session = Session()
@@ -102,7 +106,7 @@ def update_status(job_id: int, tab_key: str) -> None:
         logger.error(f"Update status failed: {e}")
     finally:
         session.close()
-    st.experimental_rerun()
+    st.rerun()
 
 
 def update_notes(job_id: int, tab_key: str) -> None:
@@ -114,6 +118,7 @@ def update_notes(job_id: int, tab_key: str) -> None:
     Args:
         job_id (int): Database ID of the job to update.
         tab_key (str): Tab identifier for session state management.
+
     """
     try:
         session = Session()
@@ -126,7 +131,7 @@ def update_notes(job_id: int, tab_key: str) -> None:
         logger.error(f"Update notes failed: {e}")
     finally:
         session.close()
-    st.experimental_rerun()
+    st.rerun()
 
 
 def display_jobs(jobs: list[JobSQL], tab_key: str) -> None:
@@ -140,6 +145,7 @@ def display_jobs(jobs: list[JobSQL], tab_key: str) -> None:
         jobs (list[JobSQL]): List of job objects from database query.
         tab_key (str): Unique identifier for the current tab to maintain
             separate UI state across different job views.
+
     """
     if not jobs:
         st.info("No jobs in this section.")
@@ -191,7 +197,7 @@ def display_jobs(jobs: list[JobSQL], tab_key: str) -> None:
         if st.button("Save Changes", key=f"save_{tab_key}"):
             try:
                 session = Session()
-                for idx, row in edited_df.iterrows():
+                for _, row in edited_df.iterrows():
                     job = session.query(JobSQL).filter_by(id=row["id"]).first()
                     if job:
                         job.favorite = row["Favorite"]
@@ -226,9 +232,10 @@ def display_jobs(jobs: list[JobSQL], tab_key: str) -> None:
                 "Ascending", st.session_state.sort_asc, key=f"sort_asc_{tab_key}"
             )
 
-        sort_key = [
-            k for k, v in sort_options.items() if v == st.session_state.sort_by
-        ][0]
+        sort_key = next(
+            (k for k, v in sort_options.items() if v == st.session_state.sort_by),
+            "Posted",  # Default fallback if not found
+        )
         sorted_df = df.sort_values(by=sort_key, ascending=st.session_state.sort_asc)
 
         # Pagination
@@ -248,7 +255,7 @@ def display_jobs(jobs: list[JobSQL], tab_key: str) -> None:
                 and st.session_state[page_key] > 0
             ):
                 st.session_state[page_key] -= 1
-                st.experimental_rerun()
+                st.rerun()
         with col2:
             st.write(f"Page {st.session_state[page_key] + 1} of {total_pages}")
         with col3:
@@ -257,7 +264,7 @@ def display_jobs(jobs: list[JobSQL], tab_key: str) -> None:
                 and st.session_state[page_key] < total_pages - 1
             ):
                 st.session_state[page_key] += 1
-                st.experimental_rerun()
+                st.rerun()
 
         start = st.session_state[page_key] * cards_per_page
         end = start + cards_per_page
@@ -271,10 +278,18 @@ def display_jobs(jobs: list[JobSQL], tab_key: str) -> None:
                 st.markdown(
                     f"""
                 <div class="card">
-                    <div class="card-title">{row["Company"]}: {row["Title"]}</div>
-                    <div class="card-desc">{row["Description"][:150]}...</div>
-                    <p>Location: {row["Location"]} | Posted: {row["Posted"]}</p>
-                    <p>Status: {row["Status"]} | Favorite: {"⭐" if row["Favorite"] else ""}</p>
+                    <div class="card-title">{html.escape(str(row["Company"]))}: {
+                        html.escape(str(row["Title"]))
+                    }</div>
+                    <div class="card-desc">{
+                        html.escape(str(row["Description"])[:150])
+                    }...</div>
+                    <p>Location: {html.escape(str(row["Location"]))} | Posted: {
+                        html.escape(str(row["Posted"]))
+                    }</p>
+                    <p>Status: {html.escape(str(row["Status"]))} | Favorite: {
+                        "⭐" if row["Favorite"] else ""
+                    }</p>
                 </div>
                 """,
                     unsafe_allow_html=True,
@@ -293,7 +308,7 @@ def display_jobs(jobs: list[JobSQL], tab_key: str) -> None:
                         logger.error(f"Toggle favorite failed: {e}")
                     finally:
                         session.close()
-                    st.experimental_rerun()
+                    st.rerun()
                 status_options = ["New", "Interested", "Applied", "Rejected"]
                 st.selectbox(
                     "Status",
@@ -334,9 +349,10 @@ if "sort_asc" not in st.session_state:
 # Sidebar
 with st.sidebar:
     st.header("Global Filters 🔍")
-    companies = ["All"] + sorted(
-        set([j.company for j in Session().query(JobSQL.company).distinct()])
-    )
+    companies = [
+        "All",
+        *sorted({j.company for j in Session().query(JobSQL.company).distinct()}),
+    ]
     st.session_state.filters["company"] = st.multiselect(
         "Companies", companies, default=st.session_state.filters["company"]
     )
@@ -366,7 +382,7 @@ with st.sidebar:
     )
     if st.button("Save Companies"):
         try:
-            for idx, row in edited_comp.iterrows():
+            for _, row in edited_comp.iterrows():
                 comp = session.query(CompanySQL).filter_by(id=row["id"]).first()
                 if comp:
                     comp.active = row["Active"]
