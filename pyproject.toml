@@ -2,6 +2,34 @@
 name = "ai-job-scraper"
 version = "0.1.0"
 description = "Privacy-focused AI job scraper with intelligent extraction, local storage, and interactive dashboard"
+authors = [{ name = "Bjorn Melin" }]
 readme = "README.md"
+license-files = ["LICENSE"]
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "crawl4ai==0.7.2",
+    "streamlit==1.47.1",
+    "sqlalchemy==2.0.42",
+    "typer==0.16.0",
+    "pandas==2.3.1",
+    "tenacity==9.1.2",
+    "httpx==0.28.1",
+    "python-dateutil==2.9.0.post0",
+    "pydantic==2.11.7",
+    "pydantic-settings==2.10.1",
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+]
+
+[project.urls]
+Repository = "https://github.com/BjornMelin/ai-job-scraper"
+
+[tool.uv]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+ignore = ["E501"]
