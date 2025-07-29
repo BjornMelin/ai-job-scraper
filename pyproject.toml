@@ -1,7 +1,7 @@
 [project]
 name = "ai-job-scraper"
 version = "0.1.0"
-description = "Add your description here"
+description = "Privacy-focused AI job scraper with intelligent extraction, local storage, and interactive dashboard"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = []

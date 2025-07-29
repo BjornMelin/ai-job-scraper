@@ -7,19 +7,25 @@
 ![SQLite](https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white)
 
 [![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](https://choosealicense.com/licenses/mit/)
-[![GitHub](https://img.shields.io/badge/GitHub-YourName-181717?logo=github)](https://github.com/YourName)
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-YourName-0077B5?logo=linkedin)](https://www.linkedin.com/in/YourName/)
+[![GitHub](https://img.shields.io/badge/GitHub-BjornMelin-181717?logo=github)](https://github.com/BjornMelin)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-BjornMelin-0077B5?logo=linkedin)](https://www.linkedin.com/in/bjorn-melin/)
 
 **AI Job Scraper** is an open-source Python application that automatically scrapes job postings from top AI companies (e.g., Anthropic, OpenAI, NVIDIA), filters for relevant roles (AI Engineer, MLOps, etc.), stores/updates them in a local database, and provides an interactive Streamlit dashboard for tracking/managing jobs. Built with Crawl4AI for efficient scraping, it ensures privacy with local processing and supports Docker for easy setup.
 
 ## ✨ Features of AI Job Scraper
 
 - **Automated Scraping:** Fetch jobs from company sites using Crawl4AI (LLM/CSS strategies, async).
+
 - **Relevance Filtering:** Regex for AI/ML roles; Modular for future LLM.
+
 - **Persistent Storage:** SQLite DB with add/update/delete, preserving user edits (favorite/status/notes).
+
 - **Interactive Dashboard:** Tabs (All/Favorites/Applied), views (list/card with sort/paginate/search), edits, CSV export, theme toggle.
+
 - **Company Management:** Add/remove/activate sites via UI.
+
 - **Robustness:** Retries/fallbacks/validation/logging; Docker support.
+
 - **Privacy-Focused:** Local-only (optional OpenAI for extraction).
 
 ## 📖 Table of Contents
@@ -47,7 +53,9 @@
 ### 📋 Prerequisites
 
 - Python 3.12+.
+
 - (Optional) Docker for containerized run.
+
 - (Optional) OpenAI key for enhanced extraction.
 
 ### ⚙️ Installation
@@ -55,7 +63,7 @@
 1. Clone:
 
    ```bash
-   git clone https://github.com/YourRepo/ai-job-scraper.git
+   git clone https://github.com/BjornMelin/ai-job-scraper.git
    cd ai-job-scraper
    ```
 
@@ -124,11 +132,17 @@ graph TD
 ## 🛠️ Implementation Details
 
 - **Scraping:** Crawl4AI v0.7.2 with LLM schema for structured jobs, async gather for parallel.
+
 - **Filtering:** Regex for relevance; Pydantic for validation.
+
 - **DB:** SQLAlchemy v2.0.42 with models for jobs/companies; Hash for updates.
+
 - **UI:** Streamlit v1.47.1 with data_editor, custom CSS for cards/theme, session_state for persistence.
+
 - **Robustness:** Tenacity v9.1.2 retries, httpx v0.28.1 validation, logging throughout.
+
 - **Code Quality:** Ruff linted, Google docstrings, tests in tests/.
+
 - **Performance:** Async scraping, Pandas v2.3.1 for data, Docker for env.
 
 ## 🙌 Contributing
