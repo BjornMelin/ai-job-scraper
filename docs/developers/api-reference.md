@@ -438,7 +438,7 @@ def update_status(job_id: int, tab_key: str) -> None:
     Side Effects:
         - Updates job.status in database
         - Commits transaction immediately  
-        - Triggers UI refresh with st.experimental_rerun()
+        - Triggers UI refresh with st.rerun()
         - Logs errors if update fails
         
     Session State Key:

@@ -288,7 +288,7 @@ def update_status(job_id: int, tab_key: str) -> None:
         session.commit()
     finally:
         session.close()
-    st.experimental_rerun()  # Refresh UI
+    st.rerun()  # Refresh UI
 ```
 
 ### Custom CSS System (`app.py:28-83`)

@@ -7,6 +7,7 @@ search and filtering capabilities, inline editing, and CSV export.
 """
 
 import asyncio
+import html
 import logging
 
 from datetime import datetime
@@ -105,7 +106,7 @@ def update_status(job_id: int, tab_key: str) -> None:
         logger.error(f"Update status failed: {e}")
     finally:
         session.close()
-    st.experimental_rerun()
+    st.rerun()
 
 
 def update_notes(job_id: int, tab_key: str) -> None:
@@ -130,7 +131,7 @@ def update_notes(job_id: int, tab_key: str) -> None:
         logger.error(f"Update notes failed: {e}")
     finally:
         session.close()
-    st.experimental_rerun()
+    st.rerun()
 
 
 def display_jobs(jobs: list[JobSQL], tab_key: str) -> None:
@@ -254,7 +255,7 @@ def display_jobs(jobs: list[JobSQL], tab_key: str) -> None:
                 and st.session_state[page_key] > 0
             ):
                 st.session_state[page_key] -= 1
-                st.experimental_rerun()
+                st.rerun()
         with col2:
             st.write(f"Page {st.session_state[page_key] + 1} of {total_pages}")
         with col3:
@@ -263,7 +264,7 @@ def display_jobs(jobs: list[JobSQL], tab_key: str) -> None:
                 and st.session_state[page_key] < total_pages - 1
             ):
                 st.session_state[page_key] += 1
-                st.experimental_rerun()
+                st.rerun()
 
         start = st.session_state[page_key] * cards_per_page
         end = start + cards_per_page
@@ -277,10 +278,16 @@ def display_jobs(jobs: list[JobSQL], tab_key: str) -> None:
                 st.markdown(
                     f"""
                 <div class="card">
-                    <div class="card-title">{row["Company"]}: {row["Title"]}</div>
-                    <div class="card-desc">{row["Description"][:150]}...</div>
-                    <p>Location: {row["Location"]} | Posted: {row["Posted"]}</p>
-                    <p>Status: {row["Status"]} | Favorite: {
+                    <div class="card-title">{html.escape(str(row["Company"]))}: {
+                        html.escape(str(row["Title"]))
+                    }</div>
+                    <div class="card-desc">{
+                        html.escape(str(row["Description"])[:150])
+                    }...</div>
+                    <p>Location: {html.escape(str(row["Location"]))} | Posted: {
+                        html.escape(str(row["Posted"]))
+                    }</p>
+                    <p>Status: {html.escape(str(row["Status"]))} | Favorite: {
                         "⭐" if row["Favorite"] else ""
                     }</p>
                 </div>
@@ -301,7 +308,7 @@ def display_jobs(jobs: list[JobSQL], tab_key: str) -> None:
                         logger.error(f"Toggle favorite failed: {e}")
                     finally:
                         session.close()
-                    st.experimental_rerun()
+                    st.rerun()
                 status_options = ["New", "Interested", "Applied", "Rejected"]
                 st.selectbox(
                     "Status",

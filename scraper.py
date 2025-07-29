@@ -169,8 +169,13 @@ def save_schema_cache(company: str, schema: dict) -> None:
     cache_file.write_text(json.dumps(cache_data, indent=2))
 
 
-def is_valid_job(job: dict, _company: str) -> bool:
-    """Job validation."""
+def is_valid_job(job: dict, company: str) -> bool:  # noqa: ARG001
+    """Job validation for a specific company.
+
+    Args:
+        job: Job dictionary to validate
+        company: Company name (kept for future company-specific validation)
+    """
     required = ["title", "description", "link"]
 
     # Check required fields exist and have content
