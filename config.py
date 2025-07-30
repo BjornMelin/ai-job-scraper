@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     # OpenAI API key for enhanced job content extraction
     openai_api_key: str
 
+    # OpenAI base URL for enhanced job content extraction
+    openai_base_url: str = "https://api.openai.com/v1"
+
     # Database connection URL (SQLite, PostgreSQL, MySQL supported)
     db_url: str = "sqlite:///jobs.db"
 
