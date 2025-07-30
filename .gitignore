@@ -18,3 +18,13 @@ jobs.db
 
 # Environment files
 .env
+
+# Test outputs
+test_screenshots/
+*.log
+streamlit.log
+streamlit_test.log
+
+# Playwright artifacts
+playwright-report/
+test-results/
