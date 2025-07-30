@@ -7,7 +7,7 @@ for companies and job postings used throughout the application.
 from datetime import datetime
 
 from pydantic import BaseModel, Field
-from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime, Index, Integer, String, Text
 from sqlalchemy.orm import declarative_base
 
 Base = declarative_base()
@@ -20,17 +20,19 @@ class CompanySQL(Base):
 
     Attributes:
         id (int): Primary key identifier.
-        name (str): Company name, must be unique.
-        url (str): Company careers page URL.
+        name (str): Company name, must be unique and not null.
+        url (str): Company careers page URL, not null.
         active (bool): Whether to include company in scraping runs.
 
     """
 
     __tablename__ = "companies"
+    __table_args__ = (Index("ix_companies_active", "active"),)
+
     id = Column(Integer, primary_key=True)
-    name = Column(String, unique=True)
-    url = Column(String)
-    active = Column(Boolean, default=True)
+    name = Column(String, unique=True, nullable=False)
+    url = Column(String, nullable=False)
+    active = Column(Boolean, default=True, nullable=False)
 
 
 class JobSQL(Base):
@@ -40,10 +42,10 @@ class JobSQL(Base):
 
     Attributes:
         id (int): Primary key identifier.
-        company (str): Company name.
-        title (str): Job title.
-        description (str): Job description text.
-        link (str): Unique URL to job posting.
+        company (str): Company name, not null.
+        title (str): Job title, not null.
+        description (str): Job description text, not null.
+        link (str): Unique URL to job posting, not null.
         location (str): Job location.
         posted_date (datetime): When job was posted.
         hash (str): Content hash for change detection.
@@ -55,18 +57,24 @@ class JobSQL(Base):
     """
 
     __tablename__ = "jobs"
+    __table_args__ = (
+        Index("ix_jobs_company", "company"),
+        Index("ix_jobs_title", "title"),
+        Index("ix_jobs_posted_date", "posted_date"),
+    )
+
     id = Column(Integer, primary_key=True)
-    company = Column(String)
-    title = Column(String)
-    description = Column(Text)
-    link = Column(String, unique=True)
+    company = Column(String, nullable=False)
+    title = Column(String, nullable=False)
+    description = Column(Text, nullable=False)
+    link = Column(String, unique=True, nullable=False)
     location = Column(String)
     posted_date = Column(DateTime)
     hash = Column(String)
     last_seen = Column(DateTime)
-    favorite = Column(Boolean, default=False)
-    status = Column(String, default="New")
-    notes = Column(Text, default="")
+    favorite = Column(Boolean, default=False, nullable=False)
+    status = Column(String, default="New", nullable=False)
+    notes = Column(Text, default="", nullable=False)
 
 
 class JobPydantic(BaseModel):
