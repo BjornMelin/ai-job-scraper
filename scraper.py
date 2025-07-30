@@ -27,12 +27,11 @@ from crawl4ai.extraction_strategy import (
     LLMExtractionStrategy,
 )
 from dateutil.parser import parse as date_parse
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from config import Settings
-from models import Base, CompanySQL, JobPydantic, JobSQL
+from database import SessionLocal
+from models import CompanySQL, JobPydantic, JobSQL
 
 settings = Settings()
 
@@ -40,10 +39,6 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
-
-engine = create_engine(settings.db_url)
-Base.metadata.create_all(engine)
-Session = sessionmaker(bind=engine)
 
 RELEVANT_KEYWORDS = re.compile(r"(AI|Machine Learning|MLOps|AI Agent).*Engineer", re.I)
 
@@ -412,7 +407,7 @@ def update_db(jobs_df: pd.DataFrame) -> None:
         Invalid jobs are logged and skipped rather than failing the entire operation.
 
     """
-    session = Session()
+    session = SessionLocal()
     try:
         existing = {j.link: j for j in session.query(JobSQL).all()}
         validated_jobs = []
@@ -479,7 +474,7 @@ async def scrape_all() -> pd.DataFrame:
         process. Only jobs with valid titles are included.
 
     """
-    session = Session()
+    session = SessionLocal()
     active_companies = session.query(CompanySQL).filter_by(active=True).all()
     session.close()
 

@@ -4,13 +4,8 @@ This module populates the database with initial company information
 including names and career page URLs for major AI companies.
 """
 
-from sqlalchemy.orm import sessionmaker
-
-from config import Settings
-from models import CompanySQL, engine
-
-settings = Settings()
-Session = sessionmaker(bind=engine)
+from database import SessionLocal
+from models import CompanySQL
 
 SITES = {
     "anthropic": "https://careers.anthropic.com/jobs",
@@ -35,7 +30,7 @@ def seed_companies() -> None:
         Uses database transactions with rollback on error.
 
     """
-    session = Session()
+    session = SessionLocal()
     try:
         for name, url in SITES.items():
             if not session.query(CompanySQL).filter_by(name=name).first():
