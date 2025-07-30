@@ -1,0 +1,5 @@
+/* Main CSS file - imports all other CSS modules */
+@import url('theme.css');
+@import url('components.css');
+@import url('responsive.css');
+@import url('animations.css');
