@@ -6,21 +6,25 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     """Application settings with environment variable support.
 
-    This class defines the configuration settings for the AI Job Scraper,
-    including database connection, API keys, and file paths. Settings can be loaded
-    from environment variables or a .env file.
-
-    Attributes:
-        openai_api_key (str): OpenAI API key for enhanced job extraction.
-        db_url (str): Database connection URL, defaults to SQLite file.
-        cache_dir (str): Directory path for schema cache files.
-        min_jobs_for_cache (int): Minimum jobs required to save schema cache.
-
+    Settings are loaded from environment variables or .env file.
+    Environment variables take precedence over .env file values.
     """
 
+    # OpenAI API key for enhanced job content extraction
     openai_api_key: str
+
+    # Database connection URL (SQLite, PostgreSQL, MySQL supported)
     db_url: str = "sqlite:///jobs.db"
+
+    # Cache directory for job schema storage
     cache_dir: str = "./cache"
+
+    # Minimum jobs required before saving schema cache
     min_jobs_for_cache: int = 1
 
-    model_config = SettingsConfigDict(env_file=".env", env_ignore_empty=True)
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        env_ignore_empty=True,
+        extra="ignore",  # Ignore extra environment variables not defined in model
+    )

@@ -6,7 +6,7 @@ for companies and job postings used throughout the application.
 
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import Boolean, Column, DateTime, Index, Integer, String, Text
 from sqlalchemy.orm import declarative_base
 
@@ -81,11 +81,12 @@ class JobPydantic(BaseModel):
     """Pydantic model for job validation and serialization.
 
     Used for validating job data during scraping and API operations.
+    Uses Pydantic v2 ConfigDict and field validators for robust validation.
 
     Attributes:
-        company (str): Company name.
-        title (str): Job title.
-        description (str): Job description text.
+        company (str): Company name, 1-100 characters.
+        title (str): Job title, 3-200 characters.
+        description (str): Job description text, 10-1000 characters.
         link (str): Job posting URL, must be valid HTTP(S) URL.
         location (str, optional): Job location, defaults to "Unknown".
         posted_date (datetime, optional): When job was posted.
@@ -97,10 +98,16 @@ class JobPydantic(BaseModel):
 
     """
 
-    company: str
-    title: str
-    description: str
-    link: str = Field(pattern=r"^https?://")
+    model_config = ConfigDict(
+        str_strip_whitespace=True,  # Strip whitespace from string fields
+        validate_default=True,  # Validate default values
+        extra="forbid",  # Prevent extra fields
+    )
+
+    company: str = Field(min_length=1, max_length=100)
+    title: str = Field(min_length=3, max_length=200)
+    description: str = Field(min_length=10, max_length=1000)
+    link: str
     location: str | None = "Unknown"
     posted_date: datetime | None = None
     hash: str | None = None
@@ -108,3 +115,14 @@ class JobPydantic(BaseModel):
     favorite: bool = False
     status: str = "New"
     notes: str = ""
+
+    @field_validator("link")
+    @classmethod
+    def validate_url(cls, v: str) -> str:
+        """Validate that link is a proper HTTP/HTTPS URL."""
+        if not v.startswith(("http://", "https://")):
+            raise ValueError("URL must start with http:// or https://")
+        # Basic URL validation - avoid complex regex for KISS principle
+        if len(v) < 10 or len(v) > 500:
+            raise ValueError("URL length must be between 10 and 500 characters")
+        return v

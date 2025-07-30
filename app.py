@@ -15,14 +15,11 @@ from datetime import datetime
 import pandas as pd
 import streamlit as st
 
-from sqlalchemy.orm import sessionmaker
-
+from database import SessionLocal
 from models import CompanySQL, JobSQL
-from scraper import engine, scrape_all, update_db
+from scraper import scrape_all, update_db
 
 logger = logging.getLogger(__name__)
-
-Session = sessionmaker(bind=engine)
 
 st.set_page_config(page_title="AI Job Tracker", layout="wide")
 
@@ -96,7 +93,7 @@ def update_status(job_id: int, tab_key: str) -> None:
 
     """
     try:
-        session = Session()
+        session = SessionLocal()
         job = session.query(JobSQL).filter_by(id=job_id).first()
         job.status = st.session_state[
             f"status_{job_id}_{tab_key}_{st.session_state[f'card_page_{tab_key}']}"
@@ -121,7 +118,7 @@ def update_notes(job_id: int, tab_key: str) -> None:
 
     """
     try:
-        session = Session()
+        session = SessionLocal()
         job = session.query(JobSQL).filter_by(id=job_id).first()
         job.notes = st.session_state[
             f"notes_{job_id}_{tab_key}_{st.session_state[f'card_page_{tab_key}']}"
@@ -196,7 +193,7 @@ def display_jobs(jobs: list[JobSQL], tab_key: str) -> None:
 
         if st.button("Save Changes", key=f"save_{tab_key}"):
             try:
-                session = Session()
+                session = SessionLocal()
                 for _, row in edited_df.iterrows():
                     job = session.query(JobSQL).filter_by(id=row["id"]).first()
                     if job:
@@ -300,7 +297,7 @@ def display_jobs(jobs: list[JobSQL], tab_key: str) -> None:
                     key=f"fav_{row['id']}_{tab_key}_{st.session_state[page_key]}",
                 ):
                     try:
-                        session = Session()
+                        session = SessionLocal()
                         job = session.query(JobSQL).filter_by(id=row["id"]).first()
                         job.favorite = not job.favorite
                         session.commit()
@@ -351,7 +348,7 @@ with st.sidebar:
     st.header("Global Filters 🔍")
     companies = [
         "All",
-        *sorted({j.company for j in Session().query(JobSQL.company).distinct()}),
+        *sorted({j.company for j in SessionLocal().query(JobSQL.company).distinct()}),
     ]
     st.session_state.filters["company"] = st.multiselect(
         "Companies", companies, default=st.session_state.filters["company"]
@@ -370,7 +367,7 @@ with st.sidebar:
     st.session_state.view_mode = st.radio("Select View", ["List", "Card"])
 
     st.header("Manage Companies 🏢")
-    session = Session()
+    session = SessionLocal()
     comp_df = pd.DataFrame(
         [
             {"id": c.id, "Name": c.name, "URL": c.url, "Active": c.active}
@@ -410,7 +407,7 @@ if st.button("Rescrape Jobs"):
             logger.error(f"UI scrape failed: {e}")
 
 # Query jobs
-session = Session()
+session = SessionLocal()
 try:
     query = session.query(JobSQL)
     if (
