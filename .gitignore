@@ -28,3 +28,5 @@ streamlit_test.log
 # Playwright artifacts
 playwright-report/
 test-results/
+
+repomix-output.md
