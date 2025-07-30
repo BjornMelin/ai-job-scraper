@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "ai-job-scraper"
 version = "0.1.0"
@@ -29,6 +33,9 @@ dev = [
 
 [project.urls]
 Repository = "https://github.com/BjornMelin/ai-job-scraper"
+
+[tool.setuptools]
+py-modules = ["scraper", "models", "database", "config", "app", "seed"]
 
 [tool.uv]
 

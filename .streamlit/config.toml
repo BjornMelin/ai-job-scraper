@@ -1,0 +1,10 @@
+[server]
+# Enable static file serving
+enableStaticServing = true
+
+[theme]
+# Optional: You can also define theme colors here if needed
+# primaryColor = "#3b82f6"
+# backgroundColor = "#0a192f"
+# secondaryBackgroundColor = "#1e293b"
+# textColor = "#e2e8f0"
