@@ -93,7 +93,7 @@ class SessionStats:
     def increment(self, key: str, value: int = 1):
         """Thread-safe increment operation."""
         with self._lock:
-            self._stats[key] += value
+            self._stats[key] = self._stats.get(key, 0) + value
 
     def set(self, key: str, value):
         """Thread-safe set operation."""
