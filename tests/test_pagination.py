@@ -5,7 +5,6 @@ pagination detection, job duplicate filtering across pages, empty page detection
 and other pagination-related functionality.
 """
 
-
 from urllib.parse import parse_qs, urlparse
 
 import pytest

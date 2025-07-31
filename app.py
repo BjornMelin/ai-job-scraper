@@ -15,9 +15,11 @@ from datetime import datetime, timedelta
 import pandas as pd
 import streamlit as st
 
+from sqlalchemy import or_
+
 from database import SessionLocal
 from models import CompanySQL, JobSQL
-from scraper import scrape_all, update_db
+from scraper_hybrid import HybridJobScraper, update_db_hybrid
 from utils.css_loader import load_css
 
 logger = logging.getLogger(__name__)
@@ -238,86 +240,111 @@ def display_jobs(jobs: list[JobSQL], tab_key: str) -> None:
         end = start + cards_per_page
         paginated_df = sorted_df.iloc[start:end]
 
-        # Grid
+        # Grid system with proper rows
         num_cols = 3
-        cols = st.columns(num_cols)
-        for i, row in paginated_df.iterrows():
-            with cols[i % num_cols]:
-                # Format posted date
-                posted_date = row["Posted"]
-                if pd.notna(posted_date):
-                    if isinstance(posted_date, str):
-                        posted_date = datetime.strptime(posted_date, "%Y-%m-%d")
-                    days_ago = (datetime.now() - posted_date).days
-                    if days_ago == 0:
-                        time_str = "Today"
-                    elif days_ago == 1:
-                        time_str = "Yesterday"
+
+        # Create grid container
+        grid_container = st.container()
+
+        # Process cards in rows
+        for row_idx in range(0, len(paginated_df), num_cols):
+            cols = grid_container.columns(num_cols, gap="medium")
+
+            # Get items for this row
+            row_items = paginated_df.iloc[row_idx : row_idx + num_cols]
+
+            for col_idx, (_i, row) in enumerate(row_items.iterrows()):
+                with cols[col_idx]:
+                    # Format posted date
+                    posted_date = row["Posted"]
+                    if pd.notna(posted_date):
+                        if isinstance(posted_date, str):
+                            posted_date = datetime.strptime(posted_date, "%Y-%m-%d")
+                        days_ago = (datetime.now() - posted_date).days
+                        if days_ago == 0:
+                            time_str = "Today"
+                        elif days_ago == 1:
+                            time_str = "Yesterday"
+                        else:
+                            time_str = f"{days_ago} days ago"
                     else:
-                        time_str = f"{days_ago} days ago"
-                else:
-                    time_str = ""
+                        time_str = ""
 
-                # Status badge color
-                status_class = f"status-{row['Status'].lower()}"
+                    # Status badge color
+                    status_class = f"status-{row['Status'].lower()}"
 
-                st.markdown(
-                    f"""
-                <div class="card">
-                    <div class="card-title">{html.escape(str(row["Title"]))}</div>
-                    <div class="card-meta">
-                        <strong>{html.escape(str(row["Company"]))}</strong> • 
-                        {html.escape(str(row["Location"]))} • 
-                        {time_str}
-                    </div>
-                    <div class="card-desc">{
-                        html.escape(str(row["Description"])[:200])
-                    }...</div>
-                    <div class="card-footer">
-                        <span class="status-badge {status_class}">{
-                        html.escape(str(row["Status"]))
-                    }</span>
-                        {
+                    # Build the favorite star HTML
+                    favorite_star = (
                         "<span style='color: #f59e0b; font-size: 1.2em;'>⭐</span>"
                         if row["Favorite"]
                         else ""
-                    }
-                    </div>
-                </div>
-                """,
-                    unsafe_allow_html=True,
-                )
-                st.link_button("Apply", row["Link"] if row["Link"] else "#")
-                if st.button(
-                    "Toggle Favorite",
-                    key=f"fav_{row['id']}_{tab_key}_{st.session_state[page_key]}",
-                ):
-                    try:
-                        session = SessionLocal()
-                        job = session.query(JobSQL).filter_by(id=row["id"]).first()
-                        job.favorite = not job.favorite
-                        session.commit()
-                    except Exception as e:
-                        logger.error(f"Toggle favorite failed: {e}")
-                    finally:
-                        session.close()
-                    st.rerun()
-                status_options = ["New", "Interested", "Applied", "Rejected"]
-                st.selectbox(
-                    "Status",
-                    status_options,
-                    index=status_options.index(row["Status"]),
-                    key=f"status_{row['id']}_{tab_key}_{st.session_state[page_key]}",
-                    on_change=update_status,
-                    args=(row["id"], tab_key),
-                )
-                st.text_area(
-                    "Notes",
-                    row["Notes"],
-                    key=f"notes_{row['id']}_{tab_key}_{st.session_state[page_key]}",
-                    on_change=update_notes,
-                    args=(row["id"], tab_key),
-                )
+                    )
+
+                    # Properly format the description
+                    description_text = (
+                        html.escape(str(row["Description"])[:200]) + "..."
+                        if row["Description"]
+                        else "No description available"
+                    )
+
+                    # Format location
+                    location_text = html.escape(
+                        str(row["Location"])
+                        if row["Location"]
+                        else "Location not specified"
+                    )
+
+                    # Create card HTML as a single line to avoid Streamlit
+                    # interpretation issues
+                    card_html = (
+                        f'<div class="card">'
+                        f'<div class="card-title">'
+                        f"{html.escape(str(row['Title']))}</div>"
+                        f'<div class="card-meta">'
+                        f"<strong>{html.escape(str(row['Company']))}</strong> • "
+                        f"{location_text} • {time_str}"
+                        f"</div>"
+                        f'<div class="card-desc">{description_text}</div>'
+                        f'<div class="card-footer">'
+                        f'<span class="status-badge {status_class}">'
+                        f"{html.escape(str(row['Status']))}</span>"
+                        f"{favorite_star}"
+                        f"</div>"
+                        f"</div>"
+                    )
+
+                    st.markdown(card_html, unsafe_allow_html=True)
+                    st.link_button("Apply", row["Link"] if row["Link"] else "#")
+                    if st.button(
+                        "Toggle Favorite",
+                        key=f"fav_{row['id']}_{tab_key}_{st.session_state[page_key]}",
+                    ):
+                        try:
+                            session = SessionLocal()
+                            job = session.query(JobSQL).filter_by(id=row["id"]).first()
+                            job.favorite = not job.favorite
+                            session.commit()
+                        except Exception as e:
+                            logger.error(f"Toggle favorite failed: {e}")
+                        finally:
+                            session.close()
+                        st.rerun()
+                    status_options = ["New", "Interested", "Applied", "Rejected"]
+                    st.selectbox(
+                        "Status",
+                        status_options,
+                        index=status_options.index(row["Status"]),
+                        key=f"status_{row['id']}_{tab_key}_{st.session_state[page_key]}",
+                        on_change=update_status,
+                        args=(row["id"], tab_key),
+                    )
+                    st.text_area(
+                        "Notes",
+                        row["Notes"],
+                        key=f"notes_{row['id']}_{tab_key}_{st.session_state[page_key]}",
+                        on_change=update_notes,
+                        args=(row["id"], tab_key),
+                    )
 
 
 # Header with improved styling
@@ -563,11 +590,19 @@ with main_container:
                         loop = asyncio.new_event_loop()
                         asyncio.set_event_loop(loop)
 
-                    jobs_df = loop.run_until_complete(scrape_all())
-                    update_db(jobs_df)
+                    # Use optimized scraper
+                    async def run_hybrid_scraper():
+                        """Run the hybrid job scraper asynchronously."""
+                        async with HybridJobScraper() as scraper:
+                            return await scraper.scrape_all_companies()
+
+                    jobs = loop.run_until_complete(run_hybrid_scraper())
+
+                    if jobs:
+                        update_db_hybrid(jobs)
                     st.session_state.last_scrape = datetime.now()
                     st.success(
-                        f"✅ Success! Found {len(jobs_df)} jobs from active companies."
+                        f"✅ Success! Found {len(jobs)} jobs from active companies."
                     )
                     st.rerun()
                 except Exception as e:
@@ -611,17 +646,25 @@ try:
             JobSQL.title.ilike(f"%{st.session_state.filters['keyword']}%")
         )
     if st.session_state.filters["date_from"]:
+        # Include jobs with None dates OR dates within range
         query = query.filter(
-            JobSQL.posted_date
-            >= datetime.combine(
-                st.session_state.filters["date_from"], datetime.min.time()
+            or_(
+                JobSQL.posted_date is None,
+                JobSQL.posted_date
+                >= datetime.combine(
+                    st.session_state.filters["date_from"], datetime.min.time()
+                ),
             )
         )
     if st.session_state.filters["date_to"]:
+        # Include jobs with None dates OR dates within range
         query = query.filter(
-            JobSQL.posted_date
-            <= datetime.combine(
-                st.session_state.filters["date_to"], datetime.max.time()
+            or_(
+                JobSQL.posted_date is None,
+                JobSQL.posted_date
+                <= datetime.combine(
+                    st.session_state.filters["date_to"], datetime.max.time()
+                ),
             )
         )
 

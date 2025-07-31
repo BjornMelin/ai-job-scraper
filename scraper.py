@@ -679,11 +679,20 @@ async def try_css_extraction(url: str, company: str, schema: dict) -> list[dict]
 
 async def try_llm_extraction(url: str, company: str) -> list[dict]:
     """LLM-based extraction with robust error handling and retries."""
-    if (
-        not settings.openai_api_key
-        or settings.openai_api_key == "your_openai_api_key_here"
+    # Check for API keys - prefer Groq, fallback to OpenAI
+    if settings.groq_api_key:
+        provider = "groq/llama3-70b-8192"
+        api_key = settings.groq_api_key
+        logger.info(f"Using Groq for {company}")
+    elif (
+        settings.openai_api_key
+        and settings.openai_api_key != "your_openai_api_key_here"
     ):
-        logger.warning(f"No valid OpenAI API key for LLM extraction: {company}")
+        provider = "openai/gpt-4o-mini"
+        api_key = settings.openai_api_key
+        logger.info(f"Using OpenAI for {company}")
+    else:
+        logger.warning(f"No valid API keys for LLM extraction: {company}")
         return []
 
     max_retries = 3
@@ -700,16 +709,18 @@ async def try_llm_extraction(url: str, company: str) -> list[dict]:
 
                 strategy = LLMExtractionStrategy(
                     llm_config=LLMConfig(
-                        provider="openai/gpt-4o-mini",
-                        api_token=settings.openai_api_key,
-                        base_url=settings.openai_base_url,
+                        provider=provider,
+                        api_token=api_key,
+                        base_url=settings.openai_base_url
+                        if provider.startswith("openai")
+                        else None,
                     ),
                     extraction_schema=LLM_SCHEMA,
                     instructions=get_company_specific_instructions(company),
                     extraction_type="schema",
                     apply_chunking=True,
-                    chunk_token_threshold=2000,  # Increased from 1000
-                    overlap_rate=0.15,  # Increased from 0.02 for better context
+                    chunk_token_threshold=1000,  # Smaller chunks for speed
+                    overlap_rate=0.05,  # Minimal overlap for speed
                     input_format="fit_markdown",  # Better for structured extraction
                     extra_args={
                         "temperature": 0.1,  # Lower for consistency
@@ -721,8 +732,6 @@ async def try_llm_extraction(url: str, company: str) -> list[dict]:
                 config = CrawlerRunConfig(
                     extraction_strategy=strategy,
                     page_timeout=30000,
-                    # Wait for job elements
-                    wait_for="css:.job-listing, css:[class*='job']",
                     # Scroll to load all jobs
                     js_code="window.scrollTo(0, document.body.scrollHeight);",
                 )

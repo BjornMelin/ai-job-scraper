@@ -41,32 +41,51 @@
     background-color: #dc2626 !important;
 }
 
+/* Grid container styles */
+.stContainer > div > div > div > div {
+    gap: 20px !important;
+}
+
+/* Ensure equal height columns */
+[data-testid="column"] {
+    display: flex;
+    flex-direction: column;
+}
+
+[data-testid="column"] > div {
+    height: 100%;
+}
+
 /* Card styles */
 .card { 
     background-color: var(--bg-card);
     border: 1px solid var(--border-color);
-    border-radius: 12px;
-    padding: 20px;
+    border-radius: 16px;
+    padding: 24px;
     box-shadow: var(--shadow-md);
     margin-bottom: 20px;
     overflow: hidden;
     transition: all 0.3s ease;
     position: relative;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
 }
 
 .card:hover { 
     background-color: var(--bg-card-hover);
-    box-shadow: var(--shadow-glow);
-    transform: translateY(-2px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    transform: translateY(-4px);
     border-color: var(--primary-color);
 }
 
 .card-title { 
     color: var(--text-primary);
-    font-size: 1.25rem;
-    font-weight: 600;
-    margin-bottom: 12px;
-    line-height: 1.4;
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+    line-height: 1.3;
+    letter-spacing: -0.02em;
 }
 
 .card-desc { 
@@ -74,18 +93,30 @@
     font-size: 0.95rem;
     line-height: 1.6;
     margin-bottom: 16px;
+    font-weight: 400;
+    flex-grow: 1;
 }
 
 .card-meta {
     color: var(--text-muted);
     font-size: 0.875rem;
-    margin-bottom: 12px;
+    margin-bottom: 16px;
+    font-weight: 500;
+}
+
+.card-meta strong {
+    color: var(--text-primary);
+    font-weight: 600;
+    font-size: 0.95rem;
 }
 
 .card-footer {
     border-top: 1px solid var(--border-color);
     margin-top: 16px;
     padding-top: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
 }
 
 /* Input and form styles */
