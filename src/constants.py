@@ -11,6 +11,7 @@ RELEVANT_PHRASES = [
     "artificial intelligence",
     "ml",
     "machine learning",
+    "data science",
     "data scientist",
     "data engineer",
     "nlp",

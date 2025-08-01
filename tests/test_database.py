@@ -6,19 +6,20 @@ import pytest
 
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from src.models import CompanySQL, JobSQL
 
 
 @pytest.mark.asyncio
-async def test_database_connection(temp_db):
+async def test_database_connection(temp_db: AsyncSession):
     """Test async database connection."""
     result = await temp_db.exec(select(1))
-    assert result.first() == (1,)
+    assert result.first() == 1
 
 
 @pytest.mark.asyncio
-async def test_company_crud_operations(temp_db):
+async def test_company_crud_operations(temp_db: AsyncSession):
     """Test async CRUD for companies."""
     company = CompanySQL(name="CRUD Co", url="https://crud.co", active=True)
     temp_db.add(company)
@@ -48,7 +49,7 @@ async def test_company_crud_operations(temp_db):
 
 
 @pytest.mark.asyncio
-async def test_job_crud_operations(temp_db):
+async def test_job_crud_operations(temp_db: AsyncSession):
     """Test async CRUD for jobs."""
     job = JobSQL(
         company="CRUD Co",
@@ -87,7 +88,7 @@ async def test_job_crud_operations(temp_db):
 
 
 @pytest.mark.asyncio
-async def test_job_filtering_queries(temp_db):
+async def test_job_filtering_queries(temp_db: AsyncSession):
     """Test async job filtering queries."""
     now = datetime.datetime.now()
     yesterday = now - datetime.timedelta(days=1)
@@ -125,7 +126,7 @@ async def test_job_filtering_queries(temp_db):
 
 
 @pytest.mark.asyncio
-async def test_database_constraints(temp_db):
+async def test_database_constraints(temp_db: AsyncSession):
     """Test database integrity constraints async."""
     company1 = CompanySQL(name="Const Co", url="https://const1.co", active=True)
     temp_db.add(company1)
@@ -162,7 +163,7 @@ async def test_database_constraints(temp_db):
 
 
 @pytest.mark.asyncio
-async def test_database_rollback(temp_db):
+async def test_database_rollback(temp_db: AsyncSession):
     """Test async transaction rollback."""
     company = CompanySQL(name="Rollback Co", url="https://rollback.co", active=True)
     temp_db.add(company)

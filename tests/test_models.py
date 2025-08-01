@@ -40,15 +40,16 @@ async def test_company_unique_name(temp_db):
 @pytest.mark.asyncio
 async def test_job_sql_creation(temp_db):
     """Test creating and querying JobSQL."""
-    job = JobSQL(
-        company="Test Co",
-        title="AI Engineer",
-        description="AI role",
-        link="https://test.co/job",
-        location="Remote",
-        posted_date=datetime.datetime.now(),
-        salary="$100k-150k",
-    )
+    job_data = {
+        "company": "Test Co",
+        "title": "AI Engineer",
+        "description": "AI role",
+        "link": "https://test.co/job",
+        "location": "Remote",
+        "posted_date": datetime.datetime.now(),
+        "salary": "$100k-150k",
+    }
+    job = JobSQL.model_validate(job_data)
     temp_db.add(job)
     await temp_db.commit()
     await temp_db.refresh(job)
@@ -56,31 +57,36 @@ async def test_job_sql_creation(temp_db):
     result = await temp_db.exec(select(JobSQL).where(JobSQL.title == "AI Engineer"))
     retrieved = result.first()
     assert retrieved.company == "Test Co"
-    assert retrieved.salary == (100000, 150000)  # Parsed
+    assert list(retrieved.salary) == [
+        100000,
+        150000,
+    ]  # JSON column converts tuple to list
 
 
 @pytest.mark.asyncio
 async def test_job_unique_link(temp_db):
     """Test job link uniqueness."""
-    job1 = JobSQL(
-        company="Test Co",
-        title="Job1",
-        description="Desc1",
-        link="https://test.co/job",
-        location="Remote",
-        salary=(None, None),
-    )
+    job1_data = {
+        "company": "Test Co",
+        "title": "Job1",
+        "description": "Desc1",
+        "link": "https://test.co/job",
+        "location": "Remote",
+        "salary": (None, None),
+    }
+    job1 = JobSQL.model_validate(job1_data)
     temp_db.add(job1)
     await temp_db.commit()
 
-    job2 = JobSQL(
-        company="Test Co",
-        title="Job2",
-        description="Desc2",
-        link="https://test.co/job",
-        location="Office",
-        salary=(None, None),
-    )
+    job2_data = {
+        "company": "Test Co",
+        "title": "Job2",
+        "description": "Desc2",
+        "link": "https://test.co/job",
+        "location": "Office",
+        "salary": (None, None),
+    }
+    job2 = JobSQL.model_validate(job2_data)
     temp_db.add(job2)
     with pytest.raises(IntegrityError):
         await temp_db.commit()
@@ -104,5 +110,13 @@ async def test_job_unique_link(temp_db):
 )
 def test_salary_parsing(salary_input, expected):
     """Test salary parsing validator, revealing potential issue with mixed scales."""
-    job = JobSQL(salary=salary_input)
+    job_data = {
+        "company": "Test Co",
+        "title": "Test Job",
+        "description": "Test description",
+        "link": "https://test.com/job",
+        "location": "Test Location",
+        "salary": salary_input,
+    }
+    job = JobSQL.model_validate(job_data)
     assert job.salary == expected

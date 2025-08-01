@@ -29,6 +29,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "aiosqlite>=0.21.0",
     "pytest-asyncio>=0.23.0",
     "pytest>=8.0.0",
     "ruff>=0.10.0",

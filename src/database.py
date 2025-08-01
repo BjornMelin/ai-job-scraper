@@ -11,7 +11,14 @@ from .config import Settings
 
 settings = Settings()
 
-engine: AsyncEngine = create_async_engine(settings.db_url, echo=False, future=True)
+# Convert regular SQLite URL to async if needed
+db_url = settings.db_url
+if db_url.startswith("sqlite:///"):
+    db_url = db_url.replace("sqlite:///", "sqlite+aiosqlite:///")
+elif db_url == "sqlite:///:memory:":
+    db_url = "sqlite+aiosqlite:///:memory:"
+
+engine: AsyncEngine = create_async_engine(db_url, echo=False, future=True)
 
 # Create async session factory
 async_session_factory = sessionmaker(

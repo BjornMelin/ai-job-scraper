@@ -7,7 +7,7 @@ from datetime import datetime
 import pytest
 import pytest_asyncio
 
-from sqlalchemy import create_engine
+from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlmodel import SQLModel
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -32,9 +32,14 @@ def event_loop():
 @pytest_asyncio.fixture
 async def temp_db():
     """Create a temporary in-memory database for async testing."""
-    # Use in-memory SQLite for faster tests
-    test_engine = create_engine("sqlite:///:memory:")
-    SQLModel.metadata.create_all(test_engine)
+    # Create async engine for testing with in-memory SQLite
+    test_engine: AsyncEngine = create_async_engine(
+        "sqlite+aiosqlite:///:memory:", echo=False, future=True
+    )
+
+    # Create tables
+    async with test_engine.begin() as conn:
+        await conn.run_sync(SQLModel.metadata.create_all)
 
     async_session = sessionmaker(
         test_engine, class_=AsyncSession, expire_on_commit=False
@@ -60,7 +65,7 @@ def test_settings():
 
 
 @pytest_asyncio.fixture
-async def sample_company(temp_db):
+async def sample_company(temp_db: AsyncSession):
     """Create and insert a sample company for testing."""
     company = CompanySQL(
         name="Test Company", url="https://test.com/careers", active=True
@@ -72,7 +77,7 @@ async def sample_company(temp_db):
 
 
 @pytest_asyncio.fixture
-async def sample_job(temp_db):
+async def sample_job(temp_db: AsyncSession):
     """Create and insert a sample job for testing."""
     job = JobSQL(
         company="Test Company",

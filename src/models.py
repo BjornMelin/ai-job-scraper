@@ -20,7 +20,7 @@ class CompanySQL(SQLModel, table=True):
     """
 
     id: int | None = Field(default=None, primary_key=True)
-    name: str
+    name: str = Field(unique=True)
     url: str
     active: bool = True
 
@@ -45,7 +45,7 @@ class JobSQL(SQLModel, table=True):
     company: str
     title: str
     description: str
-    link: str
+    link: str = Field(unique=True)
     location: str
     posted_date: datetime | None = None
     salary: tuple[int | None, int | None] = Field(
@@ -57,14 +57,14 @@ class JobSQL(SQLModel, table=True):
     @field_validator("salary", mode="before")
     @classmethod
     def parse_salary(
-        cls, value: str | tuple[int | None, int | None]
+        cls, value: str | tuple[int | None, int | None] | None
     ) -> tuple[int | None, int | None]:
         """Parse salary string into (min, max) tuple.
 
         Handles formats like "$100k-150k", "£80,000 - £120,000", ignoring currencies.
 
         Args:
-            value: Salary input as string or tuple.
+            value: Salary input as string, tuple, or None.
 
         Returns:
             tuple[int | None, int | None]: Parsed (min, max) salaries.
@@ -72,13 +72,15 @@ class JobSQL(SQLModel, table=True):
         if isinstance(value, tuple) and len(value) == 2:
             return value
 
-        if not isinstance(value, str):
+        if value is None or not isinstance(value, str) or value.strip() == "":
             return (None, None)
 
-        # Remove currency symbols and commas
+        # Remove currency symbols, commas, and extra text
         cleaned = re.sub(r"[£$€,]", "", value).lower()
+        # Remove common phrases like "from", "a year", "+"
+        cleaned = re.sub(r"\b(from|a year|\+)\b", "", cleaned).strip()
 
-        # Find numbers, handling 'k' for thousands
+        # Find numbers with optional 'k' suffix
         numbers = re.findall(r"(\d+(?:\.\d+)?)\s*(k)?", cleaned)
 
         if not numbers:
