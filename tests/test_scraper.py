@@ -1,456 +1,185 @@
-"""Tests for the AI Job Scraper functionality.
+"""Tests for the AI Job Scraper functionality in src/scraper.py."""
 
-This module contains comprehensive tests for the core scraping functionality,
-including job relevance filtering, link validation, data validation, and
-scraping workflow integration.
-"""
+import datetime
 
-import asyncio
-import json
-import tempfile
+from unittest.mock import patch
 
-from datetime import datetime
-from pathlib import Path
-from unittest.mock import AsyncMock, patch
-
-import pandas as pd
 import pytest
 
-from pydantic import ValidationError
+from sqlmodel import select
 
-from src.models import CompanySQL, JobPydantic, JobSQL
-from scraper import (
-    RELEVANT_KEYWORDS,
-    SessionStats,
-    get_cached_schema,
-    is_relevant,
-    is_valid_job,
-    save_schema_cache,
-    update_db,
-    validate_link,
-)
+from src.models import CompanySQL, JobSQL
+from src.scraper import scrape_all, update_db
 
 
-class TestJobRelevance:
-    """Test cases for job relevance filtering."""
+@pytest.mark.asyncio
+async def test_update_db_new_jobs(temp_db):
+    """Test updating database with new jobs."""
+    jobs = [
+        JobSQL(
+            company="New Co",
+            title="AI Eng",
+            description="AI role",
+            link="https://new.co/job1",
+            location="Remote",
+            posted_date=datetime.datetime.now(),
+            salary="$100k-150k",
+        ),
+    ]
 
-    @pytest.mark.parametrize(
-        ("title", "expected"),
-        [
-            ("Senior AI Engineer", True),
-            ("Machine Learning Engineer", True),
-            ("MLOps Engineer", True),
-            ("AI Agent Engineer", True),
-            ("Principal AI Engineer at Google", True),
-            (
-                "Software Engineer - AI/ML",
-                False,
-            ),  # Pattern expects keywords before "Engineer"
-            ("Sales Representative", False),
-            ("Product Manager", False),
-            ("Data Analyst", False),
-            ("Frontend Developer", False),
-            ("Marketing Specialist", False),
-        ],
+    update_db(jobs)
+
+    result = (await temp_db.exec(select(JobSQL))).all()
+    assert len(result) == 1
+    assert result[0].salary == (100000, 150000)
+
+
+@pytest.mark.asyncio
+async def test_update_db_upsert_and_delete(temp_db):
+    """Test upsert and delete stale jobs."""
+    # Add existing job
+    existing = JobSQL(
+        company="Exist Co",
+        title="Old Title",
+        description="Old desc",
+        link="https://exist.co/job",
+        location="Old Loc",
+        posted_date=datetime.datetime.now() - datetime.timedelta(days=1),
+        salary=(80000, 120000),
+        favorite=True,  # User field to preserve
     )
-    def test_is_relevant_comprehensive(self, title, expected):
-        """Test job relevance filtering with various titles."""
-        assert is_relevant({"title": title}) == expected
+    temp_db.add(existing)
+    await temp_db.commit()
 
-    def test_is_relevant_case_insensitive(self):
-        """Test that relevance filtering is case insensitive."""
-        assert is_relevant({"title": "ai engineer"})
-        assert is_relevant({"title": "AI ENGINEER"})
-        assert is_relevant({"title": "Machine learning Engineer"})
-        assert is_relevant({"title": "MACHINE LEARNING ENGINEER"})
-
-    def test_is_relevant_regex_pattern(self):
-        """Test the underlying regex pattern works correctly."""
-        test_cases = [
-            ("AI Engineer", True),
-            ("Machine Learning Engineer", True),
-            ("MLOps Engineer", True),
-            ("AI Agent Engineer", True),
-            ("Engineer AI", False),  # Pattern expects keywords before "Engineer"
-            ("AI Developer", False),  # Pattern specifically looks for "Engineer"
-            ("Machine Learning Specialist", False),  # Same here
-        ]
-
-        for title, expected in test_cases:
-            match = bool(RELEVANT_KEYWORDS.search(title))
-            assert match == expected, f"Failed for title: {title}"
-
-
-class TestLinkValidation:
-    """Test cases for URL validation."""
-
-    @pytest.mark.asyncio
-    async def test_validate_link_valid_urls(self):
-        """Test validation of valid URLs."""
-        # Google should be reliably accessible
-        valid = await validate_link("https://google.com")
-        assert valid == "https://google.com"
-
-        # Test with different valid URLs
-        valid_http = await validate_link("http://httpbin.org/status/200")
-        assert valid_http == "http://httpbin.org/status/200"
-
-    @pytest.mark.asyncio
-    async def test_validate_link_invalid_urls(self):
-        """Test validation of invalid URLs."""
-        # Test non-existent domain
-        invalid = await validate_link(
-            "https://this-domain-definitely-does-not-exist-12345.com"
-        )
-        assert invalid is None
-
-        # Test malformed URL
-        invalid_malformed = await validate_link("not-a-url")
-        assert invalid_malformed is None
-
-    @pytest.mark.asyncio
-    async def test_validate_link_timeout(self):
-        """Test that link validation respects timeout."""
-        # Test with a URL that should timeout
-        # Using httpbin delay endpoint
-        start_time = asyncio.get_event_loop().time()
-        result = await validate_link("http://httpbin.org/delay/10")  # 10 second delay
-        end_time = asyncio.get_event_loop().time()
-
-        # Should timeout (5 seconds) and return None
-        assert result is None
-        assert (end_time - start_time) < 8  # Should timeout before 8 seconds
-
-    @pytest.mark.asyncio
-    async def test_validate_link_redirects(self):
-        """Test that link validation follows redirects."""
-        # Test with a URL that redirects
-        result = await validate_link("http://httpbin.org/redirect/1")
-        assert result == "http://httpbin.org/redirect/1"
-
-
-class TestJobValidation:
-    """Test cases for job data validation."""
-
-    def test_is_valid_job_success(self):
-        """Test valid job data passes validation."""
-        valid_job = {
-            "title": "Senior AI Engineer",
-            "description": (
-                "We are looking for an experienced AI engineer to join our team."
-            ),
-            "link": "https://example.com/careers/ai-engineer-123",
-        }
-        assert is_valid_job(valid_job, "Test Company")
-
-    @pytest.mark.parametrize(
-        "invalid_data",
-        [
-            # Missing title
-            {
-                "description": "Valid description here.",
-                "link": "https://example.com/job/123",
-            },
-            # Empty title
-            {
-                "title": "",
-                "description": "Valid description here.",
-                "link": "https://example.com/job/123",
-            },
-            # Title too short
-            {
-                "title": "AI",
-                "description": "Valid description here.",
-                "link": "https://example.com/job/123",
-            },
-            # Title too long
-            {
-                "title": "A" * 201,
-                "description": "Valid description here.",
-                "link": "https://example.com/job/123",
-            },
-            # Description too short
-            {
-                "title": "AI Engineer",
-                "description": "Short",
-                "link": "https://example.com/job/123",
-            },
-            # Description too long
-            {
-                "title": "AI Engineer",
-                "description": "A" * 1001,
-                "link": "https://example.com/job/123",
-            },
-            # Invalid link protocol
-            {
-                "title": "AI Engineer",
-                "description": "Valid description here.",
-                "link": "ftp://example.com/job/123",
-            },
-            # Missing link
-            {"title": "AI Engineer", "description": "Valid description here."},
-        ],
+    # Stale job
+    stale = JobSQL(
+        company="Stale Co",
+        title="Stale Job",
+        description="To delete",
+        link="https://stale.co/job",
+        location="Stale",
+        salary=(None, None),
     )
-    def test_is_valid_job_failures(self, invalid_data):
-        """Test invalid job data fails validation."""
-        assert not is_valid_job(invalid_data, "Test Company")
+    temp_db.add(stale)
+    await temp_db.commit()
 
-    def test_pydantic_integration(self):
-        """Test Pydantic validation integration."""
-        # Test valid job
-        job = JobPydantic(
-            company="Test Company",
-            title="Senior AI Engineer",
-            description="We are looking for an experienced AI engineer.",
-            link="https://test.com/careers/ai-engineer-123",
-        )
-        assert job.title == "Senior AI Engineer"
-        assert job.company == "Test Company"
-        assert job.location == "Unknown"  # Default value
+    # New jobs data
+    new_jobs = [
+        JobSQL(
+            company="Exist Co",
+            title="Updated Title",
+            description="Updated desc",
+            link="https://exist.co/job",
+            location="Updated Loc",
+            posted_date=datetime.datetime.now(),
+            salary="$90k-130k",
+        ),
+        JobSQL(
+            company="New Co",
+            title="New Job",
+            description="New desc",
+            link="https://new.co/job",
+            location="New Loc",
+            salary=(None, None),
+        ),
+    ]
 
-    def test_pydantic_validation_errors(self):
-        """Test Pydantic validation catches errors."""
-        with pytest.raises(ValidationError):
-            JobPydantic(
-                company="",  # Too short
+    update_db(new_jobs)
+
+    all_jobs = (await temp_db.exec(select(JobSQL))).all()
+    assert len(all_jobs) == 2  # Stale deleted
+
+    updated = next(j for j in all_jobs if j.link == "https://exist.co/job")
+    assert updated.title == "Updated Title"  # Updated
+    assert updated.salary == (90000, 130000)
+    assert updated.favorite is True  # Preserved
+
+    new_job = next(j for j in all_jobs if j.link == "https://new.co/job")
+    assert new_job.title == "New Job"
+
+
+@pytest.mark.asyncio
+@patch("src.scraper.scrape_job_boards")
+@patch("src.scraper.load_active_companies")
+@patch("src.scraper.graph.invoke")
+async def test_scrape_all_workflow(
+    mock_graph_invoke, mock_load_companies, mock_scrape_boards, temp_db
+):
+    """Test full scrape_all workflow with mocks."""
+    mock_load_companies.return_value = [
+        CompanySQL(name="Mock Co", url="https://mock.co", active=True)
+    ]
+
+    mock_graph_invoke.return_value = {
+        "normalized_jobs": [
+            JobSQL(
+                company="Mock Co",
                 title="AI Engineer",
-                description="Valid description here.",
-                link="https://example.com/job/123",
+                description="AI role",
+                link="https://mock.co/job1",
+                location="Remote",
+                salary=(None, None),
             )
-
-
-class TestSchemaCache:
-    """Test cases for schema caching functionality."""
-
-    def test_cache_operations(self):
-        """Test cache save and retrieve operations."""
-        with (
-            tempfile.TemporaryDirectory() as temp_dir,
-            patch("scraper.CACHE_DIR", Path(temp_dir)),
-        ):
-            company = "test_company"
-            test_schema = {
-                "jobs": {
-                    "selector": ".job-listing",
-                    "fields": {
-                        "title": ".title",
-                        "description": ".description",
-                        "link": "a@href",
-                    },
-                }
-            }
-
-            # Test saving cache
-            save_schema_cache(company, test_schema)
-
-            # Test retrieving cache
-            cached_schema = get_cached_schema(company)
-            assert cached_schema == test_schema
-
-    def test_cache_expiration(self):
-        """Test that cache expires after TTL."""
-        with (
-            tempfile.TemporaryDirectory() as temp_dir,
-            patch("scraper.CACHE_DIR", Path(temp_dir)),
-        ):
-            company = "expiry_test"
-            test_schema = {"test": "data"}
-
-            # Save cache
-            save_schema_cache(company, test_schema)
-
-            # Test with very short TTL (should expire immediately)
-            cached_schema = get_cached_schema(company, ttl_hours=0)
-            assert cached_schema is None
-
-    def test_cache_version_handling(self):
-        """Test cache version validation."""
-        with (
-            tempfile.TemporaryDirectory() as temp_dir,
-            patch("scraper.CACHE_DIR", Path(temp_dir)),
-        ):
-            # Create cache file without version
-            cache_file = Path(temp_dir) / "version_test.json"
-            cache_file.write_text(json.dumps({"schema": {"test": "data"}}))
-
-            # Should return None due to missing version
-            cached_schema = get_cached_schema("version_test")
-            assert cached_schema is None
-
-            # File should be deleted
-            assert not cache_file.exists()
-
-
-class TestSessionStats:
-    """Test cases for session statistics tracking."""
-
-    def test_session_stats_thread_safety(self):
-        """Test that session stats are thread-safe."""
-        stats = SessionStats()
-
-        # Test basic operations
-        stats.set("test_key", 10)
-        assert stats.get("test_key") == 10
-
-        stats.increment("test_key", 5)
-        assert stats.get("test_key") == 15
-
-        stats.increment("new_key")
-        assert stats.get("new_key") == 1
-
-    def test_session_stats_get_all(self):
-        """Test getting all stats."""
-        stats = SessionStats()
-
-        stats.set("key1", 100)
-        stats.set("key2", 200)
-        stats.increment("key3", 5)
-
-        all_stats = stats.get_all()
-
-        assert all_stats["key1"] == 100
-        assert all_stats["key2"] == 200
-        assert all_stats["key3"] == 5
-
-
-class TestDatabaseUpdate:
-    """Test cases for database update functionality."""
-
-    def test_update_db_with_new_jobs(self, temp_db):
-        """Test updating database with new jobs."""
-        # Create test DataFrame
-        jobs_data = {
-            "company": ["Test Company"],
-            "title": ["Senior AI Engineer"],
-            "description": ["We are looking for an experienced AI engineer."],
-            "link": ["https://test.com/careers/ai-engineer-123"],
-            "location": ["San Francisco, CA"],
-            "posted_date": [datetime.now()],
-        }
-        jobs_df = pd.DataFrame(jobs_data)
-
-        # Mock the database session and validation
-        with (
-            patch("scraper.SessionLocal", temp_db),
-            patch("scraper.validate_link", new_callable=AsyncMock) as mock_validate,
-        ):
-            mock_validate.return_value = "https://test.com/careers/ai-engineer-123"
-
-            update_db(jobs_df)
-
-            # Verify job was added
-            session = temp_db()
-            jobs = session.query(JobSQL).all()
-            assert len(jobs) == 1
-            assert jobs[0].title == "Senior AI Engineer"
-            session.close()
-
-    def test_update_db_with_invalid_jobs(self, temp_db):
-        """Test that invalid jobs are skipped during database update."""
-        # Create DataFrame with invalid job
-        jobs_data = {
-            "company": ["Test Company"],
-            "title": ["AI"],  # Too short - should be invalid
-            "description": ["Short"],  # Too short - should be invalid
-            "link": ["https://test.com/careers/ai-engineer-123"],
-            "location": ["San Francisco, CA"],
-            "posted_date": [datetime.now()],
-        }
-        jobs_df = pd.DataFrame(jobs_data)
-
-        with (
-            patch("scraper.SessionLocal", temp_db),
-            patch("scraper.validate_link", new_callable=AsyncMock) as mock_validate,
-        ):
-            mock_validate.return_value = "https://test.com/careers/ai-engineer-123"
-
-            update_db(jobs_df)
-
-            # Verify no jobs were added due to validation failure
-            session = temp_db()
-            jobs = session.query(JobSQL).all()
-            assert len(jobs) == 0
-            session.close()
-
-
-class TestIntegrationScenarios:
-    """Integration test scenarios combining multiple components."""
-
-    def test_end_to_end_workflow_simulation(self, temp_db):
-        """Test simulated end-to-end scraping workflow."""
-        # Setup: Add a test company
-        session = temp_db()
-        test_company = CompanySQL(
-            name="Integration Test Company",
-            url="https://integration-test.com/careers",
-            active=True,
-        )
-        session.add(test_company)
-        session.commit()
-        session.close()
-
-        # Simulate scraped job data
-        scraped_jobs = [
-            {
-                "company": "Integration Test Company",
-                "title": "Senior AI Engineer",
-                "description": (
-                    "We are looking for an experienced AI engineer to work on "
-                    "cutting-edge projects."
-                ),
-                "link": "https://integration-test.com/careers/senior-ai-engineer",
-                "location": "Remote",
-                "posted_date": datetime.now(),
-            },
-            {
-                "company": "Integration Test Company",
-                "title": "Machine Learning Engineer",
-                "description": (
-                    "Join our ML team to build scalable machine learning systems."
-                ),
-                "link": "https://integration-test.com/careers/ml-engineer",
-                "location": "San Francisco, CA",
-                "posted_date": datetime.now(),
-            },
-            {
-                "company": "Integration Test Company",
-                "title": "Product Manager",  # Should be filtered out as not relevant
-                "description": "Lead product development for our AI initiatives.",
-                "link": "https://integration-test.com/careers/product-manager",
-                "location": "New York, NY",
-                "posted_date": datetime.now(),
-            },
         ]
+    }
 
-        # Filter for relevant jobs
-        relevant_jobs = [job for job in scraped_jobs if is_relevant(job)]
-        assert len(relevant_jobs) == 2  # Only AI and ML engineer jobs
+    mock_scrape_boards.return_value = [
+        {
+            "title": "ML Engineer",
+            "company": "Board Co",
+            "description": "ML role",
+            "job_url": "https://board.co/job2",
+            "location": "Office",
+            "date_posted": datetime.datetime.now(),
+            "min_amount": 100000,
+            "max_amount": 150000,
+        }
+    ]
 
-        # Validate jobs
-        valid_jobs = [job for job in relevant_jobs if is_valid_job(job, job["company"])]
-        assert len(valid_jobs) == 2  # Both should be valid
+    scrape_all()
 
-        # Convert to DataFrame and update database
-        jobs_df = pd.DataFrame(valid_jobs)
+    all_jobs = (await temp_db.exec(select(JobSQL))).all()
+    assert len(all_jobs) == 2
+    assert any(j.title == "AI Engineer" for j in all_jobs)
+    assert any(
+        j.title == "ML Engineer" and j.salary == (100000, 150000) for j in all_jobs
+    )
 
-        with (
-            patch("scraper.SessionLocal", temp_db),
-            patch("scraper.validate_link", new_callable=AsyncMock) as mock_validate,
-        ):
-            # Mock successful link validation
-            mock_validate.side_effect = lambda link: link
 
-            update_db(jobs_df)
+@pytest.mark.asyncio
+@patch("src.scraper.scrape_job_boards")
+@patch("src.scraper.load_active_companies")
+@patch("src.scraper.graph.invoke")
+async def test_scrape_all_filtering(
+    mock_graph_invoke, mock_load_companies, mock_scrape_boards, temp_db
+):
+    """Test relevance filtering in scrape_all."""
+    mock_load_companies.return_value = []
+    mock_scrape_boards.return_value = [
+        {
+            "title": "AI Engineer",
+            "company": "Co",
+            "description": "Desc",
+            "job_url": "url1",
+            "location": "Loc",
+            "date_posted": None,
+            "min_amount": None,
+            "max_amount": None,
+        },
+        {
+            "title": "Sales Manager",
+            "company": "Co",
+            "description": "Desc",
+            "job_url": "url2",
+            "location": "Loc",
+            "date_posted": None,
+            "min_amount": None,
+            "max_amount": None,
+        },
+    ]
 
-        # Verify results in database
-        session = temp_db()
-        saved_jobs = session.query(JobSQL).all()
-        assert len(saved_jobs) == 2
+    scrape_all()
 
-        # Verify job titles are correct
-        job_titles = [job.title for job in saved_jobs]
-        assert "Senior AI Engineer" in job_titles
-        assert "Machine Learning Engineer" in job_titles
-        assert "Product Manager" not in job_titles  # Should be filtered out
-
-        session.close()
+    all_jobs = (await temp_db.exec(select(JobSQL))).all()
+    assert len(all_jobs) == 1
+    assert all_jobs[0].title == "AI Engineer"

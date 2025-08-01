@@ -1,356 +1,203 @@
 """Tests for database operations and integration."""
 
-from datetime import datetime, timedelta
+import datetime
 
 import pytest
 
-from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
+from sqlmodel import select
 
-from src.database import SessionLocal
 from src.models import CompanySQL, JobSQL
 
 
-class TestDatabaseIntegration:
-    """Test cases for database integration functionality."""
+@pytest.mark.asyncio
+async def test_database_connection(temp_db):
+    """Test async database connection."""
+    result = await temp_db.exec(select(1))
+    assert result.first() == (1,)
 
-    def test_database_connection(self):
-        """Test that database connection works."""
-        session = SessionLocal()
-        try:
-            # Test basic query
-            result = session.execute(text("SELECT 1"))
-            assert result.scalar() == 1
-        finally:
-            session.close()
 
-    def test_company_crud_operations(self, temp_db):
-        """Test CRUD operations for companies."""
-        session = temp_db()
+@pytest.mark.asyncio
+async def test_company_crud_operations(temp_db):
+    """Test async CRUD for companies."""
+    company = CompanySQL(name="CRUD Co", url="https://crud.co", active=True)
+    temp_db.add(company)
+    await temp_db.commit()
+    await temp_db.refresh(company)
 
-        # Create
-        company = CompanySQL(
-            name="CRUD Test Company", url="https://crud-test.com/careers", active=True
-        )
-        session.add(company)
-        session.commit()
+    retrieved = (
+        await temp_db.exec(select(CompanySQL).where(CompanySQL.name == "CRUD Co"))
+    ).first()
+    assert retrieved.url == "https://crud.co"
 
-        # Read
-        retrieved = (
-            session.query(CompanySQL).filter_by(name="CRUD Test Company").first()
-        )
-        assert retrieved is not None
-        assert retrieved.url == "https://crud-test.com/careers"
+    retrieved.active = False
+    await temp_db.commit()
 
-        # Update
-        retrieved.active = False
-        session.commit()
+    updated = (
+        await temp_db.exec(select(CompanySQL).where(CompanySQL.name == "CRUD Co"))
+    ).first()
+    assert updated.active is False
 
-        updated = session.query(CompanySQL).filter_by(name="CRUD Test Company").first()
-        assert updated.active is False
+    await temp_db.delete(updated)
+    await temp_db.commit()
 
-        # Delete
-        session.delete(updated)
-        session.commit()
+    deleted = (
+        await temp_db.exec(select(CompanySQL).where(CompanySQL.name == "CRUD Co"))
+    ).first()
+    assert deleted is None
 
-        deleted = session.query(CompanySQL).filter_by(name="CRUD Test Company").first()
-        assert deleted is None
 
-        session.close()
+@pytest.mark.asyncio
+async def test_job_crud_operations(temp_db):
+    """Test async CRUD for jobs."""
+    job = JobSQL(
+        company="CRUD Co",
+        title="CRUD Job",
+        description="Test desc",
+        link="https://crud.co/job",
+        location="Remote",
+        posted_date=datetime.datetime.now(),
+        salary=(100000, 150000),
+    )
+    temp_db.add(job)
+    await temp_db.commit()
+    await temp_db.refresh(job)
 
-    def test_job_crud_operations(self, temp_db):
-        """Test CRUD operations for jobs."""
-        session = temp_db()
+    retrieved = (
+        await temp_db.exec(select(JobSQL).where(JobSQL.title == "CRUD Job"))
+    ).first()
+    assert retrieved.location == "Remote"
 
-        # Create
+    retrieved.favorite = True
+    retrieved.notes = "Updated"
+    await temp_db.commit()
+
+    updated = (
+        await temp_db.exec(select(JobSQL).where(JobSQL.title == "CRUD Job"))
+    ).first()
+    assert updated.favorite is True
+
+    await temp_db.delete(updated)
+    await temp_db.commit()
+
+    deleted = (
+        await temp_db.exec(select(JobSQL).where(JobSQL.title == "CRUD Job"))
+    ).first()
+    assert deleted is None
+
+
+@pytest.mark.asyncio
+async def test_job_filtering_queries(temp_db):
+    """Test async job filtering queries."""
+    now = datetime.datetime.now()
+    yesterday = now - datetime.timedelta(days=1)
+
+    jobs = [
+        JobSQL(
+            company="A",
+            title="AI Eng",
+            description="AI",
+            link="a1",
+            location="SF",
+            posted_date=now,
+            salary=(None, None),
+        ),
+        JobSQL(
+            company="B",
+            title="ML Eng",
+            description="ML",
+            link="b1",
+            location="Remote",
+            posted_date=yesterday,
+            salary=(None, None),
+        ),
+    ]
+    temp_db.add_all(jobs)
+    await temp_db.commit()
+
+    company_a = (await temp_db.exec(select(JobSQL).where(JobSQL.company == "A"))).all()
+    assert len(company_a) == 1
+
+    recent = (
+        await temp_db.exec(select(JobSQL).where(JobSQL.posted_date >= yesterday))
+    ).all()
+    assert len(recent) == 2
+
+
+@pytest.mark.asyncio
+async def test_database_constraints(temp_db):
+    """Test database integrity constraints async."""
+    company1 = CompanySQL(name="Const Co", url="https://const1.co", active=True)
+    temp_db.add(company1)
+    await temp_db.commit()
+
+    company2 = CompanySQL(name="Const Co", url="https://const2.co", active=False)
+    temp_db.add(company2)
+    with pytest.raises(IntegrityError):
+        await temp_db.commit()
+    await temp_db.rollback()
+
+    job1 = JobSQL(
+        company="Const Co",
+        title="Job1",
+        description="Desc",
+        link="https://const.co/job",
+        location="Loc",
+        salary=(None, None),
+    )
+    temp_db.add(job1)
+    await temp_db.commit()
+
+    job2 = JobSQL(
+        company="Const Co",
+        title="Job2",
+        description="Desc2",
+        link="https://const.co/job",
+        location="Loc2",
+        salary=(None, None),
+    )
+    temp_db.add(job2)
+    with pytest.raises(IntegrityError):
+        await temp_db.commit()
+
+
+@pytest.mark.asyncio
+async def test_database_rollback(temp_db):
+    """Test async transaction rollback."""
+    company = CompanySQL(name="Rollback Co", url="https://rollback.co", active=True)
+    temp_db.add(company)
+    await temp_db.commit()
+
+    try:
         job = JobSQL(
-            company="CRUD Job Company",
-            title="CRUD Test Job",
-            description="This is a test job for CRUD operations.",
-            link="https://crud-job.com/test/123",
-            location="Test City",
-            posted_date=datetime.now(),
-            hash="crud_test_hash",
-            last_seen=datetime.now(),
-            favorite=False,
-            status="New",
-            notes="",
+            company="Rollback Co",
+            title="Rollback Job",
+            description="Desc",
+            link="https://rollback.co/job",
+            location="Loc",
+            salary=(None, None),
         )
-        session.add(job)
-        session.commit()
+        temp_db.add(job)
 
-        # Read
-        retrieved = session.query(JobSQL).filter_by(title="CRUD Test Job").first()
-        assert retrieved is not None
-        assert retrieved.company == "CRUD Job Company"
-        assert retrieved.location == "Test City"
-
-        # Update
-        retrieved.favorite = True
-        retrieved.status = "Applied"
-        retrieved.notes = "Updated notes"
-        session.commit()
-
-        updated = session.query(JobSQL).filter_by(title="CRUD Test Job").first()
-        assert updated.favorite is True
-        assert updated.status == "Applied"
-        assert updated.notes == "Updated notes"
-
-        # Delete
-        session.delete(updated)
-        session.commit()
-
-        deleted = session.query(JobSQL).filter_by(title="CRUD Test Job").first()
-        assert deleted is None
-
-        session.close()
-
-    def test_job_filtering_queries(self, temp_db):
-        """Test various job filtering queries."""
-        session = temp_db()
-
-        # Create test data
-        now = datetime.now()
-        yesterday = now - timedelta(days=1)
-
-        jobs = [
-            JobSQL(
-                company="Company A",
-                title="Senior AI Engineer",
-                description="Senior position for AI engineering.",
-                link="https://company-a.com/senior-ai",
-                location="San Francisco",
-                posted_date=now,
-                hash="hash_1",
-                last_seen=now,
-                favorite=True,
-                status="Applied",
-                notes="Applied yesterday",
-            ),
-            JobSQL(
-                company="Company B",
-                title="ML Engineer",
-                description="Machine learning engineering role.",
-                link="https://company-b.com/ml-engineer",
-                location="Remote",
-                posted_date=yesterday,
-                hash="hash_2",
-                last_seen=now,
-                favorite=False,
-                status="New",
-                notes="",
-            ),
-            JobSQL(
-                company="Company A",
-                title="Data Scientist",
-                description="Data science position with ML focus.",
-                link="https://company-a.com/data-scientist",
-                location="New York",
-                posted_date=now,
-                hash="hash_3",
-                last_seen=now,
-                favorite=False,
-                status="Interested",
-                notes="Looks promising",
-            ),
-        ]
-
-        session.add_all(jobs)
-        session.commit()
-
-        # Test company filtering
-        company_a_jobs = session.query(JobSQL).filter_by(company="Company A").all()
-        assert len(company_a_jobs) == 2
-
-        # Test title filtering
-        engineer_jobs = (
-            session.query(JobSQL).filter(JobSQL.title.like("%Engineer%")).all()
+        invalid_job = JobSQL(
+            company="Rollback Co",
+            title="Invalid",
+            description="Invalid",
+            link="https://rollback.co/job",
+            location="Invalid",
+            salary=(None, None),
         )
-        assert len(engineer_jobs) == 2
+        temp_db.add(invalid_job)
+        await temp_db.commit()  # Fails
+    except Exception:
+        await temp_db.rollback()
 
-        # Test favorite filtering
-        favorite_jobs = session.query(JobSQL).filter_by(favorite=True).all()
-        assert len(favorite_jobs) == 1
-        assert favorite_jobs[0].title == "Senior AI Engineer"
+    jobs = (
+        await temp_db.exec(select(JobSQL).where(JobSQL.company == "Rollback Co"))
+    ).all()
+    assert len(jobs) == 0
 
-        # Test status filtering
-        applied_jobs = session.query(JobSQL).filter_by(status="Applied").all()
-        assert len(applied_jobs) == 1
-
-        # Test date filtering
-        recent_jobs = (
-            session.query(JobSQL).filter(JobSQL.posted_date >= yesterday).all()
-        )
-        assert len(recent_jobs) == 3
-
-        # Test location filtering
-        remote_jobs = session.query(JobSQL).filter_by(location="Remote").all()
-        assert len(remote_jobs) == 1
-
-        session.close()
-
-    def test_database_indexes_performance(self, temp_db):
-        """Test that database indexes improve query performance."""
-        session = temp_db()
-
-        # Create a larger dataset for index testing
-        companies = []
-        jobs = []
-
-        for i in range(100):
-            company = CompanySQL(
-                name=f"Performance Test Company {i}",
-                url=f"https://perf-test-{i}.com/careers",
-                active=i % 2 == 0,  # Half active, half inactive
-            )
-            companies.append(company)
-
-            job = JobSQL(
-                company=f"Performance Test Company {i}",
-                title=f"Engineer {i}",
-                description=f"Engineering position {i} for performance testing.",
-                link=f"https://perf-test-{i}.com/job/{i}",
-                location="Test Location",
-                posted_date=datetime.now(),
-                hash=f"hash_{i}",
-                last_seen=datetime.now(),
-                favorite=i % 10 == 0,  # Every 10th job is favorite
-                status="New",
-                notes="",
-            )
-            jobs.append(job)
-
-        session.add_all(companies)
-        session.add_all(jobs)
-        session.commit()
-
-        # Test indexed company queries (should be fast)
-        company_filtered = (
-            session.query(JobSQL)
-            .filter(JobSQL.company == "Performance Test Company 50")
-            .all()
-        )
-        assert len(company_filtered) == 1
-
-        # Test indexed title queries
-        title_filtered = (
-            session.query(JobSQL).filter(JobSQL.title.like("Engineer%")).all()
-        )
-        assert len(title_filtered) == 100
-
-        # Test indexed posted_date queries
-        date_filtered = (
-            session.query(JobSQL).filter(JobSQL.posted_date.is_not(None)).all()
-        )
-        assert len(date_filtered) == 100
-
-        # Test active company index
-        active_companies = session.query(CompanySQL).filter_by(active=True).all()
-        assert len(active_companies) == 50
-
-        session.close()
-
-    def test_database_constraints(self, temp_db):
-        """Test database constraints and integrity."""
-        session = temp_db()
-
-        # Test company name uniqueness
-        company1 = CompanySQL(name="Unique Test", url="https://test1.com", active=True)
-        company2 = CompanySQL(name="Unique Test", url="https://test2.com", active=True)
-
-        session.add(company1)
-        session.commit()
-
-        session.add(company2)
-
-        with pytest.raises(IntegrityError):
-            session.commit()
-
-        session.rollback()
-
-        # Test job link uniqueness
-        job1 = JobSQL(
-            company="Test Company",
-            title="Job 1",
-            description="First job description.",
-            link="https://unique-link.com/job/123",
-            location="Location 1",
-            posted_date=datetime.now(),
-            hash="hash_1",
-            last_seen=datetime.now(),
-        )
-
-        job2 = JobSQL(
-            company="Test Company",
-            title="Job 2",
-            description="Second job description.",
-            link="https://unique-link.com/job/123",  # Same link
-            location="Location 2",
-            posted_date=datetime.now(),
-            hash="hash_2",
-            last_seen=datetime.now(),
-        )
-
-        session.add(job1)
-        session.commit()
-
-        session.add(job2)
-
-        with pytest.raises(IntegrityError):
-            session.commit()
-
-        session.close()
-
-    def test_database_rollback(self, temp_db):
-        """Test database transaction rollback functionality."""
-        session = temp_db()
-
-        # Add some initial data
-        company = CompanySQL(
-            name="Rollback Test Company", url="https://rollback-test.com", active=True
-        )
-        session.add(company)
-        session.commit()
-
-        # Start a transaction that will be rolled back
-        try:
-            job = JobSQL(
-                company="Rollback Test Company",
-                title="Rollback Job",
-                description="This job will be rolled back.",
-                link="https://rollback-test.com/job/123",
-                location="Rollback City",
-                posted_date=datetime.now(),
-                hash="rollback_hash",
-                last_seen=datetime.now(),
-            )
-            session.add(job)
-
-            # Force an error to trigger rollback
-            invalid_job = JobSQL(
-                company="Rollback Test Company",
-                title="Invalid Job",
-                description="This job has invalid data.",
-                link="https://rollback-test.com/job/123",  # Duplicate link
-                location="Invalid City",
-                posted_date=datetime.now(),
-                hash="invalid_hash",
-                last_seen=datetime.now(),
-            )
-            session.add(invalid_job)
-            session.commit()  # This should fail
-
-        except Exception:
-            session.rollback()
-
-        # Verify that the rollback worked
-        jobs = session.query(JobSQL).filter_by(company="Rollback Test Company").all()
-        assert len(jobs) == 0  # No jobs should exist due to rollback
-
-        # But the company should still exist (committed before the failed transaction)
-        companies = (
-            session.query(CompanySQL).filter_by(name="Rollback Test Company").all()
-        )
-        assert len(companies) == 1
-
-        session.close()
+    companies = (
+        await temp_db.exec(select(CompanySQL).where(CompanySQL.name == "Rollback Co"))
+    ).all()
+    assert len(companies) == 1

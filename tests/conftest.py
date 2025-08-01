@@ -1,81 +1,94 @@
 """Pytest configuration and fixtures for AI Job Scraper tests."""
 
 import asyncio
-import os
-import tempfile
 
 from datetime import datetime
 
 import pytest
+import pytest_asyncio
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlmodel import SQLModel
+from sqlmodel.ext.asyncio.session import AsyncSession
+from sqlmodel.sql.expression import Select, SelectOfScalar
 
 from src.config import Settings
-from src.models import Base, CompanySQL, JobSQL
+from src.models import CompanySQL, JobSQL
+
+# Patch SQLModel for async query caching
+Select.inherit_cache = True  # type: ignore[attr-defined]
+SelectOfScalar.inherit_cache = True  # type: ignore[attr-defined]
 
 
 @pytest.fixture(scope="session")
 def event_loop():
     """Create an event loop for async tests."""
-    loop = asyncio.new_event_loop()
+    loop = asyncio.get_event_loop_policy().new_event_loop()
     yield loop
     loop.close()
 
 
-@pytest.fixture
-def temp_db():
-    """Create a temporary database for testing."""
-    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
-        db_path = tmp.name
+@pytest_asyncio.fixture
+async def temp_db():
+    """Create a temporary in-memory database for async testing."""
+    # Use in-memory SQLite for faster tests
+    test_engine = create_engine("sqlite:///:memory:")
+    SQLModel.metadata.create_all(test_engine)
 
-    # Create test engine
-    engine = create_engine(f"sqlite:///{db_path}")
-    Base.metadata.create_all(engine)
+    async_session = sessionmaker(
+        test_engine, class_=AsyncSession, expire_on_commit=False
+    )
 
-    # Create test session factory
-    test_session = sessionmaker(bind=engine)
-
-    yield test_session
-
-    # Cleanup
-    os.unlink(db_path)
+    async with async_session() as session:
+        yield session
 
 
 @pytest.fixture
 def test_settings():
     """Create test settings with temporary values."""
-    with tempfile.TemporaryDirectory() as temp_dir:
-        yield Settings(
-            openai_api_key="test-key-123",
-            db_url="sqlite:///:memory:",
-            cache_dir=temp_dir,
-            min_jobs_for_cache=1,
-        )
+    yield Settings(
+        openai_api_key="test-key-123",
+        groq_api_key="test-groq-key",
+        use_groq=False,
+        proxy_pool=[],
+        use_proxies=False,
+        use_checkpointing=False,
+        db_url="sqlite:///:memory:",
+        extraction_model="gpt-4o-mini",
+    )
 
 
-@pytest.fixture
-def sample_company():
-    """Create a sample company for testing."""
-    return CompanySQL(name="Test Company", url="https://test.com/careers", active=True)
+@pytest_asyncio.fixture
+async def sample_company(temp_db):
+    """Create and insert a sample company for testing."""
+    company = CompanySQL(
+        name="Test Company", url="https://test.com/careers", active=True
+    )
+    temp_db.add(company)
+    await temp_db.commit()
+    await temp_db.refresh(company)
+    return company
 
 
-@pytest.fixture
-def sample_job():
-    """Create a sample job for testing."""
-    return JobSQL(
+@pytest_asyncio.fixture
+async def sample_job(temp_db):
+    """Create and insert a sample job for testing."""
+    job = JobSQL(
         company="Test Company",
         title="Senior AI Engineer",
         description="We are looking for an experienced AI engineer to join our team.",
         link="https://test.com/careers/ai-engineer-123",
         location="San Francisco, CA",
         posted_date=datetime.now(),
-        hash="test_hash_123",
-        last_seen=datetime.now(),
+        salary=(100000, 150000),
         favorite=False,
-        status="New",
         notes="",
     )
+    temp_db.add(job)
+    await temp_db.commit()
+    await temp_db.refresh(job)
+    return job
 
 
 @pytest.fixture
@@ -88,4 +101,5 @@ def sample_job_dict():
         "link": "https://test.com/careers/ai-engineer-123",
         "location": "San Francisco, CA",
         "posted_date": datetime.now(),
+        "salary": "$100k-150k",
     }
