@@ -1,24 +1,32 @@
-"""Database configuration and session management for the AI Job Scraper application.
+"""Database connection and session management for the AI Job Scraper."""
 
-This module provides the database engine, session factory, and database initialization
-functionality used throughout the application. It follows SQLAlchemy best practices
-by centralizing database connection management.
-"""
+from collections.abc import AsyncGenerator
 
-from sqlalchemy import create_engine
+from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 from sqlalchemy.orm import sessionmaker
+from sqlmodel.ext.asyncio.session import AsyncSession
+from sqlmodel.sql.expression import Select, SelectOfScalar
 
-from config import Settings
-from models import Base
+from .config import Settings
 
-# Initialize settings
 settings = Settings()
 
-# Create engine - single instance for the entire application
-engine = create_engine(settings.db_url)
+engine: AsyncEngine = create_async_engine(settings.db_url, echo=False, future=True)
 
-# Create all tables
-Base.metadata.create_all(engine)
+async_session_factory = sessionmaker(
+    engine, class_=AsyncSession, expire_on_commit=False
+)
 
-# Create session factory - bound to the engine
-SessionLocal = sessionmaker(bind=engine)
+# Patch SQLModel to support async
+Select.inherit_cache = True  # type: ignore[attr-defined]
+SelectOfScalar.inherit_cache = True  # type: ignore[attr-defined]
+
+
+async def get_session() -> AsyncGenerator[AsyncSession, None]:
+    """Async context manager for database sessions.
+
+    Yields:
+        AsyncSession: An asynchronous database session.
+    """
+    async with async_session_factory() as session:
+        yield session

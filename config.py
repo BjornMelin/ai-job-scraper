@@ -4,30 +4,28 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    """Application settings with environment variable support.
+    """Application settings loaded from environment variables or .env file.
 
-    Settings are loaded from environment variables or .env file.
-    Environment variables take precedence over .env file values.
+    Attributes:
+        openai_api_key: OpenAI API key for LLM operations.
+        groq_api_key: Groq API key for alternative LLM provider.
+        use_groq: Flag to prefer Groq over OpenAI.
+        proxy_pool: List of proxy URLs for scraping.
+        use_proxies: Flag to enable proxy usage.
+        use_checkpointing: Flag to enable checkpointing in workflows.
+        db_url: Database connection URL.
+        extraction_model: LLM model name for extraction tasks.
     """
 
-    # OpenAI API key for enhanced job content extraction
-    openai_api_key: str
-
-    # OpenAI base URL for enhanced job content extraction
-    openai_base_url: str = "https://api.openai.com/v1"
-
-    # Database connection URL (SQLite, PostgreSQL, MySQL supported)
-    db_url: str = "sqlite:///jobs.db"
-
-    # Cache directory for job schema storage
-    cache_dir: str = "./cache"
-
-    # Minimum jobs required before saving schema cache
-    min_jobs_for_cache: int = 1
-
     model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        env_ignore_empty=True,
-        extra="ignore",  # Ignore extra environment variables not defined in model
+        env_file=".env", env_ignore_empty=True, extra="ignore"
     )
+
+    openai_api_key: str
+    groq_api_key: str
+    use_groq: bool = False
+    proxy_pool: list[str] = []
+    use_proxies: bool = False
+    use_checkpointing: bool = False
+    db_url: str = "sqlite:///jobs.db"
+    extraction_model: str = "gpt-4o-mini"
