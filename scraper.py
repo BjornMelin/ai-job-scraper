@@ -30,9 +30,9 @@ from crawl4ai.extraction_strategy import (
 from dateutil.parser import parse as date_parse
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from config import Settings
-from database import SessionLocal
-from models import CompanySQL, JobPydantic, JobSQL
+from src.config import Settings
+from src.database import SessionLocal
+from src.models import CompanySQL, JobPydantic, JobSQL
 
 settings = Settings()
 

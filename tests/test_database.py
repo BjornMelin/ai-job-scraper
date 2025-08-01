@@ -7,8 +7,8 @@ import pytest
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
-from database import SessionLocal
-from models import CompanySQL, JobSQL
+from src.database import SessionLocal
+from src.models import CompanySQL, JobSQL
 
 
 class TestDatabaseIntegration:

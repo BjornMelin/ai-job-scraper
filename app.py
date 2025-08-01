@@ -15,8 +15,8 @@ from datetime import datetime, timedelta
 import pandas as pd
 import streamlit as st
 
-from database import SessionLocal
-from models import CompanySQL, JobSQL
+from src.database import SessionLocal
+from src.models import CompanySQL, JobSQL
 from scraper import scrape_all, update_db
 from utils.css_loader import load_css
 

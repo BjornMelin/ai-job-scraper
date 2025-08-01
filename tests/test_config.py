@@ -9,7 +9,7 @@ import pytest
 
 from pydantic import ValidationError
 
-from config import Settings
+from src.config import Settings
 
 
 class TestSettings:

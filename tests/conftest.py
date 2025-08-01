@@ -11,8 +11,8 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from config import Settings
-from models import Base, CompanySQL, JobSQL
+from src.config import Settings
+from src.models import Base, CompanySQL, JobSQL
 
 
 @pytest.fixture(scope="session")

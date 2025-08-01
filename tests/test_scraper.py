@@ -18,7 +18,7 @@ import pytest
 
 from pydantic import ValidationError
 
-from models import CompanySQL, JobPydantic, JobSQL
+from src.models import CompanySQL, JobPydantic, JobSQL
 from scraper import (
     RELEVANT_KEYWORDS,
     SessionStats,

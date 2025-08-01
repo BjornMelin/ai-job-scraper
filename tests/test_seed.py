@@ -7,7 +7,7 @@ import pytest
 # Import and execute the __main__ block functionality
 import seed
 
-from models import CompanySQL
+from src.models import CompanySQL
 from seed import SITES, seed_companies
 
 

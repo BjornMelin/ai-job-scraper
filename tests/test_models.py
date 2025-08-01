@@ -7,7 +7,7 @@ import pytest
 from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
 
-from models import CompanySQL, JobPydantic, JobSQL
+from src.models import CompanySQL, JobPydantic, JobSQL
 
 
 class TestJobPydantic:

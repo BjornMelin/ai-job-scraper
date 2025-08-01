@@ -4,8 +4,8 @@ This module populates the database with initial company information
 including names and career page URLs for major AI companies.
 """
 
-from database import SessionLocal
-from models import CompanySQL
+from src.database import SessionLocal
+from src.models import CompanySQL
 
 SITES = {
     "anthropic": "https://www.anthropic.com/jobs?team=4002061008&office=4001218008",
