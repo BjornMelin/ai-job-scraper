@@ -1,8 +1,84 @@
-version: "3"
+version: "3.8"
+
 services:
   app:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+      # Enable BuildKit for better caching
+      args:
+        BUILDKIT_INLINE_CACHE: 1
+    image: ai-job-scraper:latest
+    container_name: ai-job-scraper
+    
     ports:
       - "8501:8501"
+    
     volumes:
-      - ./jobs.db:/app/jobs.db
+      # Database persistence - mounts local ./dbdata to container /app/db
+      - ./dbdata:/app/db
+      # Optional: Mount .env file for environment variables
+      - ./.env:/app/.env:ro
+      # Optional: Mount custom CSS/static files for live updates
+      - ./static:/app/static:ro
+    
+    environment:
+      # Database configuration - uses mounted volume
+      - DB_URL=sqlite:////app/db/jobs.db
+      # Streamlit configuration
+      - STREAMLIT_SERVER_PORT=8501
+      - STREAMLIT_SERVER_ADDRESS=0.0.0.0
+      - STREAMLIT_SERVER_HEADLESS=true
+      - STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
+      # Python optimization
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      # Optional: Override these in .env file
+      # - OPENAI_API_KEY=${OPENAI_API_KEY}
+      # - GROQ_API_KEY=${GROQ_API_KEY}
+      # - USE_GROQ=${USE_GROQ:-false}
+      # - USE_PROXIES=${USE_PROXIES:-false}
+      # - USE_CHECKPOINTING=${USE_CHECKPOINTING:-false}
+      # - EXTRACTION_MODEL=${EXTRACTION_MODEL:-gpt-4o-mini}
+    
+    # Resource limits (adjust based on your needs)
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 4G
+        reservations:
+          cpus: "1"
+          memory: 2G
+    
+    # Restart policy
+    restart: unless-stopped
+    
+    # Health check configuration
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    # Networking
+    networks:
+      - ai-job-scraper-network
+    
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# Network definition
+networks:
+  ai-job-scraper-network:
+    driver: bridge
+
+# Optional: Named volumes for better management
+volumes:
+  db-data:
+    driver: local
