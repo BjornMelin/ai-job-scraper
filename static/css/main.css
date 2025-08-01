@@ -1,5 +1,35 @@
-/* Main CSS file - imports all other CSS modules */
-@import url('theme.css');
-@import url('components.css');
-@import url('responsive.css');
-@import url('animations.css');
+body {
+  background-color: #121212;
+  color: #ffffff;
+}
+
+.stApp {
+  background-color: #121212;
+}
+
+.stButton > button {
+  background-color: #1f77b4;
+  color: white;
+}
+
+.stDataFrame {
+  background-color: #1e1e1e;
+  color: #ffffff;
+}
+
+div.row-widget.stHorizontal > div {
+  background-color: #1e1e1e;
+  padding: 10px;
+  border-radius: 5px;
+  margin-bottom: 10px;
+}
+
+h1,
+h2,
+h3 {
+  color: #ffffff;
+}
+
+a {
+  color: #1f77b4;
+}
