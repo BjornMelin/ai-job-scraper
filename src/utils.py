@@ -20,7 +20,7 @@ import time
 from groq import Groq
 from openai import OpenAI
 
-from config import Settings
+from .config import Settings
 
 settings = Settings()
 

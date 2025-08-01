@@ -36,7 +36,7 @@ dev = [
 Repository = "https://github.com/BjornMelin/ai-job-scraper"
 
 [tool.setuptools]
-py-modules = ["scraper", "models", "database", "config", "app", "seed"]
+py-modules = ["utils", "scraper_job_boards", "scraper", "models", "database", "config", "app", "seed"]
 
 [tool.uv]
 

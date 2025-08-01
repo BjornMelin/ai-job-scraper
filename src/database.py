@@ -13,6 +13,7 @@ settings = Settings()
 
 engine: AsyncEngine = create_async_engine(settings.db_url, echo=False, future=True)
 
+# Create async session factory
 async_session_factory = sessionmaker(
     engine, class_=AsyncSession, expire_on_commit=False
 )
