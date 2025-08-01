@@ -6,8 +6,6 @@ random delays for evasion, filtering for AI/ML-related roles, and normalization 
 job data into a format suitable for database insertion.
 """
 
-import re
-
 from typing import Any
 
 import pandas as pd
@@ -15,6 +13,7 @@ import pandas as pd
 from jobspy import Site, scrape_jobs
 
 from .config import Settings
+from .constants import AI_REGEX
 from .utils import random_delay
 
 settings = Settings()
@@ -63,62 +62,6 @@ def scrape_job_boards(
     all_jobs = pd.concat(all_dfs, ignore_index=True)
     all_jobs.drop_duplicates(subset=["job_url"], inplace=True)
 
-    phrases = [
-        "ai",
-        "artificial intelligence",
-        "ml",
-        "machine learning",
-        "data scientist",
-        "data engineer",
-        "nlp",
-        "natural language processing",
-        "computer vision",
-        "deep learning",
-        "ai engineer",
-        "ai agent engineer",
-        "ai agent",
-        "agentic ai engineer",
-        "ai researcher",
-        "research engineer",
-        "mlops",
-        "machine learning engineer",
-        "ml engineer",
-        "senior ml engineer",
-        "staff ml engineer",
-        "principal ml engineer",
-        "ai software engineer",
-        "ml infrastructure engineer",
-        "mlops engineer",
-        "deep learning engineer",
-        "computer vision engineer",
-        "nlp engineer",
-        "speech recognition engineer",
-        "reinforcement learning engineer",
-        "ai research scientist",
-        "machine learning researcher",
-        "research scientist",
-        "applied scientist",
-        "principal researcher",
-        "generative ai engineer",
-        "rag engineer",
-        "retrieval-augmented generation developer",
-        "rag pipeline engineer",
-        "ai agent developer",
-        "gpu machine learning engineer",
-        "cuda engineer",
-        "performance engineer",
-        "deep learning compiler engineer",
-        "gpgpu engineer",
-        "ml acceleration engineer",
-        "ai hardware engineer",
-        "cuda libraries engineer",
-        "tensorrt engineer",
-        "ai solutions architect",
-        "ai architect",
-        "ai platform architect",
-        "agentic",
-    ]
-    ai_regex = r"(?i)\b(" + "|".join(re.escape(p) for p in phrases) + r")\b"
-    filtered_jobs = all_jobs[all_jobs["title"].str.contains(ai_regex, na=False)]
+    filtered_jobs = all_jobs[all_jobs["title"].str.contains(AI_REGEX, na=False)]
 
     return filtered_jobs.to_dict(orient="records")

@@ -24,6 +24,7 @@ dependencies = [
     "scrapegraphai==1.61.0",
     "sqlmodel==0.0.24",
     "streamlit>=1.47.1",
+    "typer>=0.16.0",
 ]
 
 [dependency-groups]
