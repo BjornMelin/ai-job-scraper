@@ -14,6 +14,7 @@ dependencies = [
     "groq==0.30.0",
     "httpx==0.28.1",
     "langgraph==0.6.2",
+    "langgraph-checkpoint-sqlite>=2.0.11",
     "openai>=1.98.0",
     "pandas==2.3.1",
     "proxies==1.6",
