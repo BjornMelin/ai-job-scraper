@@ -53,7 +53,7 @@ def seed() -> None:
             active=True,
         ),
     ]
-    
+
     # Open a database session for transactions
     with sqlmodel.Session(engine) as session:
         # Initialize counter for newly added companies
