@@ -11,8 +11,10 @@ readme = "README.md"
 license-files = ["LICENSE"]
 requires-python = ">=3.12"
 dependencies = [
+    "aiosqlite>=0.21.0",
     "groq==0.30.0",
     "httpx==0.28.1",
+    "langchain-groq>=0.3.6",
     "langgraph==0.6.2",
     "langgraph-checkpoint-sqlite>=2.0.11",
     "openai>=1.98.0",
@@ -29,7 +31,6 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "aiosqlite>=0.21.0",
     "pytest-asyncio>=0.23.0",
     "pytest>=8.0.0",
     "ruff>=0.10.0",
@@ -38,8 +39,14 @@ dev = [
 [project.urls]
 Repository = "https://github.com/BjornMelin/ai-job-scraper"
 
-[tool.setuptools]
-py-modules = ["utils", "scraper_job_boards", "scraper", "models", "database", "config", "app", "seed"]
+[project.scripts]
+ai-job-scraper = "src.app_cli:main"
+ai-job-scrape = "src.scraper:app"
+ai-job-seed = "src.seed:app"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*", "utils*"]
 
 [tool.uv]
 

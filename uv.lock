@@ -12,8 +12,10 @@ name = "ai-job-scraper"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "aiosqlite" },
     { name = "groq" },
     { name = "httpx" },
+    { name = "langchain-groq" },
     { name = "langgraph" },
     { name = "langgraph-checkpoint-sqlite" },
     { name = "openai" },
@@ -30,7 +32,6 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
-    { name = "aiosqlite" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "ruff" },
@@ -38,8 +39,10 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "aiosqlite", specifier = ">=0.21.0" },
     { name = "groq", specifier = "==0.30.0" },
     { name = "httpx", specifier = "==0.28.1" },
+    { name = "langchain-groq", specifier = ">=0.3.6" },
     { name = "langgraph", specifier = "==0.6.2" },
     { name = "langgraph-checkpoint-sqlite", specifier = ">=2.0.11" },
     { name = "openai", specifier = ">=1.98.0" },
@@ -56,7 +59,6 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "aiosqlite", specifier = ">=0.21.0" },
     { name = "pytest", specifier = ">=8.0.0" },
     { name = "pytest-asyncio", specifier = ">=0.23.0" },
     { name = "ruff", specifier = ">=0.10.0" },
@@ -934,6 +936,19 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/8b/49/7568baeb96a57d3218cb5f1f113b142063679088fd3a0d0cae1feb0b3d36/langchain_core-0.3.72.tar.gz", hash = "sha256:4de3828909b3d7910c313242ab07b241294650f5cb6eac17738dd3638b1cd7de", size = 567227, upload-time = "2025-07-24T00:40:08.5Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/6e/7d/9f75023c478e3b854d67da31d721e39f0eb30ae969ec6e755430cb1c0fb5/langchain_core-0.3.72-py3-none-any.whl", hash = "sha256:9fa15d390600eb6b6544397a7aa84be9564939b6adf7a2b091179ea30405b240", size = 442806, upload-time = "2025-07-24T00:40:06.994Z" },
+]
+
+[[package]]
+name = "langchain-groq"
+version = "0.3.6"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "groq" },
+    { name = "langchain-core" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/c2/d3/abeb19b686961dd5a99a43f5f92554135e444e0f291fca19b14e8d0d9f57/langchain_groq-0.3.6.tar.gz", hash = "sha256:ca6f94e250357d1e77b348e002d7da4fcf674fde4c9df1827431b430e45d88de", size = 24372, upload-time = "2025-07-11T15:03:36.174Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c2/7d/7b5967f6bbe0248cebfee14a6e499873d81bbb761df6531d43ad166faf11/langchain_groq-0.3.6-py3-none-any.whl", hash = "sha256:51aff1ecc5472e031b06f41cd2219c238b7c862935ef90e15283e5d04d9e7207", size = 16351, upload-time = "2025-07-11T15:03:35.129Z" },
 ]
 
 [[package]]
