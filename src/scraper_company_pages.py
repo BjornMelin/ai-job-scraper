@@ -253,32 +253,28 @@ def normalize_jobs(state: State) -> dict[str, list[JobSQL]]:
 
 
 def save_jobs(state: State) -> dict:
-    """Save normalized jobs to the database, avoiding duplicates by link.
+    """Return normalized jobs from state for external processing.
+
+    This node no longer writes to the database directly. Instead, it retrieves
+    the normalized jobs from the workflow state and returns them to the caller
+    for processing by the SmartSyncEngine.
 
     Args:
         state: Current workflow state.
 
     Returns:
-        dict: Empty dict to end the workflow.
+        dict: Contains normalized_jobs for external processing.
     """
-    normalized = state.get("normalized_jobs", [])
-    session = SessionLocal()
-    try:
-        for job in normalized:
-            # Check for existing job by unique link
-            existing = session.exec(
-                select(JobSQL).where(JobSQL.link == job.link)
-            ).first()
-            if not existing:
-                session.add(job)
-        session.commit()
-    finally:
-        session.close()
-    return {}
+    normalized_jobs = state.get("normalized_jobs", [])
+    return {"normalized_jobs": normalized_jobs}
 
 
-def scrape_company_pages() -> None:
-    """Run the agentic scraping workflow for active companies."""
+def scrape_company_pages() -> list[JobSQL]:
+    """Run the agentic scraping workflow for active companies.
+
+    Returns:
+        list[JobSQL]: List of normalized job objects scraped from company pages.
+    """
     # Set proxy if enabled and available
     if proxy := get_proxy():
         os.environ["http_proxy"] = proxy
@@ -310,6 +306,8 @@ def scrape_company_pages() -> None:
 
     initial_state = {"companies": companies}
     try:
-        graph.invoke(initial_state)
+        final_state = graph.invoke(initial_state)
+        return final_state.get("normalized_jobs", [])
     except Exception as e:
         logger.error(f"Workflow failed: {e}")
+        return []
