@@ -67,65 +67,70 @@ class JobService:
         Raises:
             Exception: If database query fails.
         """
-        with db_session() as session:
-            # Start with base query, eagerly loading company relationship
-            query = select(JobSQL).options(joinedload(JobSQL.company_relation))
+        try:
+            with db_session() as session:
+                # Start with base query, eagerly loading company relationship
+                query = select(JobSQL).options(joinedload(JobSQL.company_relation))
 
-            # Apply text search filter
-            if text_search := filters.get("text_search", "").strip():
-                query = query.filter(
-                    or_(
-                        JobSQL.title.ilike(f"%{text_search}%"),
-                        JobSQL.description.ilike(f"%{text_search}%"),
+                # Apply text search filter
+                if text_search := filters.get("text_search", "").strip():
+                    query = query.filter(
+                        or_(
+                            JobSQL.title.ilike(f"%{text_search}%"),
+                            JobSQL.description.ilike(f"%{text_search}%"),
+                        )
                     )
-                )
 
-            # Apply company filter using JOIN for better performance
-            if (
-                company_filter := filters.get("company", [])
-            ) and "All" not in company_filter:
-                query = query.join(CompanySQL).filter(
-                    CompanySQL.name.in_(company_filter)
-                )
+                # Apply company filter using JOIN for better performance
+                if (
+                    company_filter := filters.get("company", [])
+                ) and "All" not in company_filter:
+                    query = query.join(CompanySQL).filter(
+                        CompanySQL.name.in_(company_filter)
+                    )
 
-            # Apply application status filter
-            if (
-                status_filter := filters.get("application_status", [])
-            ) and "All" not in status_filter:
-                query = query.filter(JobSQL.application_status.in_(status_filter))
+                # Apply application status filter
+                if (
+                    status_filter := filters.get("application_status", [])
+                ) and "All" not in status_filter:
+                    query = query.filter(JobSQL.application_status.in_(status_filter))
 
-            # Apply date filters
-            if date_from := filters.get("date_from"):
-                date_from = (
-                    datetime.fromisoformat(date_from)
-                    if isinstance(date_from, str)
-                    else date_from
-                )
-                query = query.filter(JobSQL.posted_date >= date_from)
+                # Apply date filters
+                if date_from := filters.get("date_from"):
+                    date_from = (
+                        datetime.fromisoformat(date_from)
+                        if isinstance(date_from, str)
+                        else date_from
+                    )
+                    query = query.filter(JobSQL.posted_date >= date_from)
 
-            if date_to := filters.get("date_to"):
-                date_to = (
-                    datetime.fromisoformat(date_to)
-                    if isinstance(date_to, str)
-                    else date_to
-                )
-                query = query.filter(JobSQL.posted_date <= date_to)
+                if date_to := filters.get("date_to"):
+                    date_to = (
+                        datetime.fromisoformat(date_to)
+                        if isinstance(date_to, str)
+                        else date_to
+                    )
+                    query = query.filter(JobSQL.posted_date <= date_to)
 
-            # Apply favorites filter
-            if filters.get("favorites_only", False):
-                query = query.filter(JobSQL.favorite.is_(True))
+                # Apply favorites filter
+                if filters.get("favorites_only", False):
+                    query = query.filter(JobSQL.favorite.is_(True))
 
-            # Filter out archived jobs by default
-            if not filters.get("include_archived", False):
-                query = query.filter(JobSQL.archived.is_(False))
+                # Filter out archived jobs by default
+                if not filters.get("include_archived", False):
+                    query = query.filter(JobSQL.archived.is_(False))
 
-            # Order by posted date (newest first) by default
-            query = query.order_by(JobSQL.posted_date.desc().nullslast())
+                # Order by posted date (newest first) by default
+                query = query.order_by(JobSQL.posted_date.desc().nullslast())
 
-            jobs = session.exec(query).all()
+                jobs = session.exec(query).all()
 
-            logger.info(f"Retrieved {len(jobs)} jobs with filters: {filters}")
-            return jobs
+                logger.info(f"Retrieved {len(jobs)} jobs with filters: {filters}")
+                return jobs
+
+        except Exception as e:
+            logger.error(f"Failed to get filtered jobs: {e}")
+            raise
 
     @staticmethod
     def update_job_status(job_id: int, status: str) -> bool:
@@ -141,28 +146,33 @@ class JobService:
         Raises:
             Exception: If database update fails.
         """
-        with db_session() as session:
-            job = session.exec(select(JobSQL).filter_by(id=job_id)).first()
-            if not job:
-                logger.warning(f"Job with ID {job_id} not found")
-                return False
+        try:
+            with db_session() as session:
+                job = session.exec(select(JobSQL).filter_by(id=job_id)).first()
+                if not job:
+                    logger.warning(f"Job with ID {job_id} not found")
+                    return False
 
-            old_status = job.application_status
-            job.application_status = status
+                old_status = job.application_status
+                job.application_status = status
 
-            # Set application date only if status changed to "Applied"
-            # Preserve historical application data - never clear once set
-            if (
-                status == "Applied"
-                and old_status != "Applied"
-                and job.application_date is None
-            ):
-                job.application_date = datetime.now()
+                # Set application date only if status changed to "Applied"
+                # Preserve historical application data - never clear once set
+                if (
+                    status == "Applied"
+                    and old_status != "Applied"
+                    and job.application_date is None
+                ):
+                    job.application_date = datetime.now()
 
-            logger.info(
-                f"Updated job {job_id} status from '{old_status}' to '{status}'"
-            )
-            return True
+                logger.info(
+                    f"Updated job {job_id} status from '{old_status}' to '{status}'"
+                )
+                return True
+
+        except Exception as e:
+            logger.error(f"Failed to update job status for job {job_id}: {e}")
+            raise
 
     @staticmethod
     def toggle_favorite(job_id: int) -> bool:
@@ -177,16 +187,21 @@ class JobService:
         Raises:
             Exception: If database update fails.
         """
-        with db_session() as session:
-            job = session.exec(select(JobSQL).filter_by(id=job_id)).first()
-            if not job:
-                logger.warning(f"Job with ID {job_id} not found")
-                return False
+        try:
+            with db_session() as session:
+                job = session.exec(select(JobSQL).filter_by(id=job_id)).first()
+                if not job:
+                    logger.warning(f"Job with ID {job_id} not found")
+                    return False
 
-            job.favorite = not job.favorite
+                job.favorite = not job.favorite
 
-            logger.info(f"Toggled favorite for job {job_id} to {job.favorite}")
-            return job.favorite
+                logger.info(f"Toggled favorite for job {job_id} to {job.favorite}")
+                return job.favorite
+
+        except Exception as e:
+            logger.error(f"Failed to toggle favorite for job {job_id}: {e}")
+            raise
 
     @staticmethod
     def update_notes(job_id: int, notes: str) -> bool:
@@ -202,16 +217,21 @@ class JobService:
         Raises:
             Exception: If database update fails.
         """
-        with db_session() as session:
-            job = session.exec(select(JobSQL).filter_by(id=job_id)).first()
-            if not job:
-                logger.warning(f"Job with ID {job_id} not found")
-                return False
+        try:
+            with db_session() as session:
+                job = session.exec(select(JobSQL).filter_by(id=job_id)).first()
+                if not job:
+                    logger.warning(f"Job with ID {job_id} not found")
+                    return False
 
-            job.notes = notes
+                job.notes = notes
 
-            logger.info(f"Updated notes for job {job_id}")
-            return True
+                logger.info(f"Updated notes for job {job_id}")
+                return True
+
+        except Exception as e:
+            logger.error(f"Failed to update notes for job {job_id}: {e}")
+            raise
 
     @staticmethod
     def get_job_by_id(job_id: int) -> JobSQL | None:
@@ -226,19 +246,24 @@ class JobService:
         Raises:
             Exception: If database query fails.
         """
-        with db_session() as session:
-            job = session.exec(
-                select(JobSQL)
-                .options(joinedload(JobSQL.company_relation))
-                .filter_by(id=job_id)
-            ).first()
+        try:
+            with db_session() as session:
+                job = session.exec(
+                    select(JobSQL)
+                    .options(joinedload(JobSQL.company_relation))
+                    .filter_by(id=job_id)
+                ).first()
 
-            if job:
-                logger.info(f"Retrieved job {job_id}: {job.title}")
-            else:
-                logger.warning(f"Job with ID {job_id} not found")
+                if job:
+                    logger.info(f"Retrieved job {job_id}: {job.title}")
+                else:
+                    logger.warning(f"Job with ID {job_id} not found")
 
-            return job
+                return job
+
+        except Exception as e:
+            logger.error(f"Failed to get job {job_id}: {e}")
+            raise
 
     @staticmethod
     def get_job_counts_by_status() -> dict[str, int]:
@@ -250,13 +275,18 @@ class JobService:
         Raises:
             Exception: If database query fails.
         """
-        with db_session() as session:
-            results = session.exec(
-                select(JobSQL.application_status, func.count(JobSQL.id))
-                .filter(JobSQL.archived.is_(False))
-                .group_by(JobSQL.application_status)
-            ).all()
+        try:
+            with db_session() as session:
+                results = session.exec(
+                    select(JobSQL.application_status, func.count(JobSQL.id))
+                    .filter(JobSQL.archived.is_(False))
+                    .group_by(JobSQL.application_status)
+                ).all()
 
-            counts = dict(results)
-            logger.info(f"Job counts by status: {counts}")
-            return counts
+                counts = dict(results)
+                logger.info(f"Job counts by status: {counts}")
+                return counts
+
+        except Exception as e:
+            logger.error(f"Failed to get job counts: {e}")
+            raise
