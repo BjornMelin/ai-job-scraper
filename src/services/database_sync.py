@@ -11,6 +11,7 @@ import logging
 
 from datetime import datetime, timedelta
 
+from sqlalchemy import func
 from sqlmodel import Session, select
 
 from ..database import SessionLocal
@@ -52,9 +53,7 @@ class SmartSyncEngine:
         Returns:
             Session: Database session for operations.
         """
-        if self._session:
-            return self._session
-        return SessionLocal()
+        return self._session if self._session else SessionLocal()
 
     def _close_session_if_owned(self, session: Session) -> None:
         """Close session if it was created by this engine.
@@ -155,9 +154,9 @@ class SmartSyncEngine:
         Returns:
             str: Operation performed ('inserted', 'updated', or 'skipped').
         """
-        existing = session.exec(select(JobSQL).where(JobSQL.link == job.link)).first()
-
-        if existing:
+        if existing := session.exec(
+            select(JobSQL).where(JobSQL.link == job.link)
+        ).first():
             return self._update_existing_job(session, existing, job)
         else:
             return self._insert_new_job(session, job)
@@ -392,24 +391,22 @@ class SmartSyncEngine:
         """
         session = self._get_session()
         try:
-            # Get basic counts
-            total_jobs = len(session.exec(select(JobSQL)).all())
-            active_jobs = len(
-                session.exec(select(JobSQL).where(not JobSQL.archived)).all()
-            )  # noqa: E712
-            archived_jobs = len(
-                session.exec(select(JobSQL).where(JobSQL.archived)).all()
-            )  # noqa: E712
-            favorited_jobs = len(
-                session.exec(select(JobSQL).where(JobSQL.favorite)).all()
-            )  # noqa: E712
+            # Get basic counts using efficient count queries
+            total_jobs = session.exec(select(func.count(JobSQL.id))).scalar()
+            active_jobs = session.exec(
+                select(func.count(JobSQL.id)).where(~JobSQL.archived)
+            ).scalar()
+            archived_jobs = session.exec(
+                select(func.count(JobSQL.id)).where(JobSQL.archived)
+            ).scalar()
+            favorited_jobs = session.exec(
+                select(func.count(JobSQL.id)).where(JobSQL.favorite)
+            ).scalar()
 
             # Count applied jobs (status != "New")
-            applied_jobs = len(
-                session.exec(
-                    select(JobSQL).where(JobSQL.application_status != "New")
-                ).all()
-            )
+            applied_jobs = session.exec(
+                select(func.count(JobSQL.id)).where(JobSQL.application_status != "New")
+            ).scalar()
 
             return {
                 "total_jobs": total_jobs,
