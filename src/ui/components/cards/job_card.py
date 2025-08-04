@@ -141,8 +141,7 @@ def _handle_status_change(job_id: int) -> None:
         job_id: Database ID of the job to update.
     """
     try:
-        new_status = st.session_state.get(f"status_{job_id}")
-        if new_status:
+        if new_status := st.session_state.get(f"status_{job_id}"):
             JobService.update_job_status(job_id, new_status)
             st.rerun()
     except Exception as e:
@@ -188,27 +187,35 @@ def render_job_details_expander(job: JobSQL) -> None:
             st.markdown("**Job Description:**")
             st.markdown(job.description)
 
-            # Notes text area with on_change callback
-            st.text_area(
+            # Notes text area with save button to prevent excessive database writes
+            notes_key = f"notes_{job.id}"
+            notes_value = st.text_area(
                 "Notes",
-                value=job.notes,
-                key=f"notes_{job.id}",
-                on_change=_handle_notes_change,
-                args=(job.id,),
+                value=job.notes or "",
+                key=notes_key,
                 help="Add your personal notes about this job",
             )
 
+            # Save button to update notes only when explicitly requested
+            if st.button("Save Notes", key=f"save_notes_{job.id}"):
+                _handle_notes_save(job.id, notes_value)
 
-def _handle_notes_change(job_id: int) -> None:
-    """Handle notes change callback.
+
+def _handle_notes_save(job_id: int, notes: str) -> None:
+    """Handle notes save button click.
+
+    This function updates notes only when the save button is clicked,
+    preventing excessive database writes on every keystroke.
 
     Args:
         job_id: Database ID of the job to update notes for.
+        notes: New notes content to save.
     """
     try:
-        new_notes = st.session_state.get(f"notes_{job_id}", "")
-        JobService.update_notes(job_id, new_notes)
+        JobService.update_notes(job_id, notes)
         logger.info(f"Updated notes for job {job_id}")
+        st.success("Notes saved successfully!")
+        st.rerun()
     except Exception as e:
         logger.error(f"Failed to update notes: {e}")
         st.error("Failed to update notes")

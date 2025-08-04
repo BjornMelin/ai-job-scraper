@@ -94,11 +94,11 @@ class JobService:
 
             # Apply favorites filter
             if filters.get("favorites_only", False):
-                query = query.filter(JobSQL.favorite == True)  # noqa: E712
+                query = query.filter(JobSQL.favorite.is_(True))
 
             # Filter out archived jobs by default
             if not filters.get("include_archived", False):
-                query = query.filter(JobSQL.archived == False)  # noqa: E712
+                query = query.filter(JobSQL.archived.is_(False))
 
             # Order by posted date (newest first) by default
             query = query.order_by(JobSQL.posted_date.desc().nullslast())
@@ -139,11 +139,14 @@ class JobService:
             old_status = job.application_status
             job.application_status = status
 
-            # Set application date if status changed to "Applied"
-            if status == "Applied" and old_status != "Applied":
+            # Set application date only if status changed to "Applied"
+            # Preserve historical application data - never clear once set
+            if (
+                status == "Applied"
+                and old_status != "Applied"
+                and job.application_date is None
+            ):
                 job.application_date = datetime.now()
-            elif status != "Applied":
-                job.application_date = None
 
             session.commit()
 
@@ -281,7 +284,7 @@ class JobService:
 
             results = (
                 session.query(JobSQL.application_status, func.count(JobSQL.id))
-                .filter(JobSQL.archived == False)  # noqa: E712
+                .filter(JobSQL.archived.is_(False))
                 .group_by(JobSQL.application_status)
                 .all()
             )
