@@ -13,60 +13,97 @@ from datetime import datetime
 import pandas as pd
 import streamlit as st
 
-from src.database import SessionLocal
 from src.models import JobSQL
+from src.services.job_service import JobService
 from src.ui.state.app_state import StateManager
 
 logger = logging.getLogger(__name__)
 
 
-def render_job_card(job_data: pd.Series, tab_key: str, page_num: int) -> None:
+def render_job_card(job: JobSQL) -> None:
     """Render an individual job card with interactive controls.
 
     This function creates a visually appealing job card with job details,
-    status badge, favorite toggle, and editable fields for status and notes.
+    status badge, favorite toggle, and view details functionality as specified
+    in the requirements.
 
     Args:
-        job_data: Pandas Series containing job information.
-        tab_key: Unique identifier for the current tab.
-        page_num: Current page number for unique widget keys.
+        job: JobSQL object containing job information.
     """
-    # Format posted date for display
-    time_str = _format_posted_date(job_data["Posted"])
+    # Use st.container with border as required
+    with st.container(border=True):
+        # Format posted date for display
+        time_str = _format_posted_date(job.posted_date)
 
-    # Determine status badge CSS class
-    status_class = f"status-{job_data['Status'].lower()}"
+        # Job title and company
+        st.markdown(f"### {html.escape(job.title)}")
+        st.markdown(
+            f"**{html.escape(job.company)}** • {html.escape(job.location)} • {time_str}"
+        )
 
-    # Render the main card HTML
-    st.markdown(
-        f"""
-        <div class="card">
-            <div class="card-title">{html.escape(str(job_data["Title"]))}</div>
-            <div class="card-meta">
-                <strong>{html.escape(str(job_data["Company"]))}</strong> • 
-                {html.escape(str(job_data["Location"]))} • 
-                {time_str}
-            </div>
-            <div class="card-desc">{
-            html.escape(str(job_data["Description"])[:200])
-        }...</div>
-            <div class="card-footer">
-                <span class="status-badge {status_class}">{
-            html.escape(str(job_data["Status"]))
-        }</span>
-                {
-            "<span style='color: #f59e0b; font-size: 1.2em;'>⭐</span>"
-            if job_data["Favorite"]
-            else ""
-        }
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+        # Job description preview
+        description_preview = (
+            job.description[:200] + "..."
+            if len(job.description) > 200
+            else job.description
+        )
+        st.markdown(description_preview)
 
-    # Render interactive controls
-    _render_card_controls(job_data, tab_key, page_num)
+        # Status badge and favorite indicator
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            status_class = f"status-{job.application_status.lower()}"
+            status_html = (
+                f'<span class="status-badge {status_class}">'
+                f"{html.escape(job.application_status)}</span>"
+            )
+            st.markdown(status_html, unsafe_allow_html=True)
+        with col2:
+            if job.favorite:
+                st.markdown("⭐")
+
+        # Interactive controls row
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            # Status selectbox with on_change callback
+            status_options = ["New", "Interested", "Applied", "Rejected"]
+            current_index = (
+                status_options.index(job.application_status)
+                if job.application_status in status_options
+                else 0
+            )
+
+            st.selectbox(
+                "Status",
+                status_options,
+                index=current_index,
+                key=f"status_{job.id}",
+                on_change=_handle_status_change,
+                args=(job.id,),
+            )
+
+        with col2:
+            # Favorite toggle button with heart icons
+            favorite_icon = "❤️" if job.favorite else "🤍"
+            if st.button(
+                favorite_icon,
+                key=f"favorite_{job.id}",
+                help="Toggle favorite",
+                on_click=_handle_favorite_toggle,
+                args=(job.id,),
+            ):
+                pass  # onClick is handled by the on_click parameter
+
+        with col3:
+            # View Details button
+            if st.button(
+                "View Details",
+                key=f"details_{job.id}",
+                on_click=_handle_view_details,
+                args=(job.id,),
+            ):
+                pass  # onClick is handled by the on_click parameter
 
 
 def _format_posted_date(posted_date: any) -> str:
@@ -97,134 +134,114 @@ def _format_posted_date(posted_date: any) -> str:
     return ""
 
 
-def _render_card_controls(job_data: pd.Series, tab_key: str, page_num: int) -> None:
-    """Render interactive controls for the job card.
+def _handle_status_change(job_id: int) -> None:
+    """Handle status change callback.
 
     Args:
-        job_data: Pandas Series containing job information.
-        tab_key: Unique identifier for the current tab.
-        page_num: Current page number for unique widget keys.
+        job_id: Database ID of the job to update.
     """
-    job_id = job_data["id"]
-
-    # Apply button
-    apply_link = job_data["Link"] if job_data["Link"] else "#"
-    st.link_button("Apply", apply_link)
-
-    # Toggle favorite button
-    if st.button(
-        "Toggle Favorite",
-        key=f"fav_{job_id}_{tab_key}_{page_num}",
-    ):
-        _toggle_job_favorite(job_id)
-
-    # Status selectbox
-    status_options = ["New", "Interested", "Applied", "Rejected"]
-    current_status_index = status_options.index(job_data["Status"])
-
-    st.selectbox(
-        "Status",
-        status_options,
-        index=current_status_index,
-        key=f"status_{job_id}_{tab_key}_{page_num}",
-        on_change=_update_job_status,
-        args=(job_id, tab_key, page_num),
-    )
-
-    # Notes text area
-    st.text_area(
-        "Notes",
-        job_data["Notes"],
-        key=f"notes_{job_id}_{tab_key}_{page_num}",
-        on_change=_update_job_notes,
-        args=(job_id, tab_key, page_num),
-    )
+    try:
+        new_status = st.session_state.get(f"status_{job_id}")
+        if new_status:
+            JobService.update_job_status(job_id, new_status)
+            st.rerun()
+    except Exception as e:
+        logger.error(f"Failed to update job status: {e}")
+        st.error("Failed to update job status")
 
 
-def _toggle_job_favorite(job_id: int) -> None:
-    """Toggle the favorite status of a job.
+def _handle_favorite_toggle(job_id: int) -> None:
+    """Handle favorite toggle callback.
 
     Args:
         job_id: Database ID of the job to toggle.
     """
-    session = SessionLocal()
-
     try:
-        job = session.query(JobSQL).filter_by(id=job_id).first()
-        if job:
-            job.favorite = not job.favorite
-            session.commit()
-            st.rerun()
-
+        JobService.toggle_favorite(job_id)
+        st.rerun()
     except Exception as e:
-        logger.error(f"Toggle favorite failed for job {job_id}: {e}")
-        st.error("Failed to update favorite status")
-
-    finally:
-        session.close()
+        logger.error(f"Failed to toggle favorite: {e}")
+        st.error("Failed to toggle favorite")
 
 
-def _update_job_status(job_id: int, tab_key: str, page_num: int) -> None:
-    """Update job application status in database.
-
-    Callback function for Streamlit status selectbox changes.
+def _handle_view_details(job_id: int) -> None:
+    """Handle view details button click.
 
     Args:
-        job_id: Database ID of the job to update.
-        tab_key: Tab identifier for session state management.
-        page_num: Page number for session state key.
+        job_id: Database ID of the job to view details for.
     """
-    session = SessionLocal()
-
-    try:
-        job = session.query(JobSQL).filter_by(id=job_id).first()
-        if job:
-            # Get the new status from session state
-            status_key = f"status_{job_id}_{tab_key}_{page_num}"
-            new_status = st.session_state.get(status_key)
-
-            if new_status:
-                job.application_status = new_status
-                session.commit()
-                st.rerun()
-
-    except Exception as e:
-        logger.error(f"Update status failed for job {job_id}: {e}")
-        st.error("Failed to update job status")
-
-    finally:
-        session.close()
+    st.session_state.expanded_job_id = job_id
 
 
-def _update_job_notes(job_id: int, tab_key: str, page_num: int) -> None:
-    """Update job notes in database.
+def render_job_details_expander(job: JobSQL) -> None:
+    """Render job details expander if this job is selected.
 
-    Callback function for Streamlit text area changes.
+    This function should be called after render_job_card to check if the
+    job details should be expanded based on session state.
 
     Args:
-        job_id: Database ID of the job to update.
-        tab_key: Tab identifier for session state management.
-        page_num: Page number for session state key.
+        job: JobSQL object to potentially show details for.
     """
-    session = SessionLocal()
+    if st.session_state.get("expanded_job_id") == job.id:
+        with st.expander("Details", expanded=True):
+            # Display job description
+            st.markdown("**Job Description:**")
+            st.markdown(job.description)
 
+            # Notes text area with on_change callback
+            st.text_area(
+                "Notes",
+                value=job.notes,
+                key=f"notes_{job.id}",
+                on_change=_handle_notes_change,
+                args=(job.id,),
+                help="Add your personal notes about this job",
+            )
+
+
+def _handle_notes_change(job_id: int) -> None:
+    """Handle notes change callback.
+
+    Args:
+        job_id: Database ID of the job to update notes for.
+    """
     try:
-        job = session.query(JobSQL).filter_by(id=job_id).first()
-        if job:
-            # Get the new notes from session state
-            notes_key = f"notes_{job_id}_{tab_key}_{page_num}"
-            new_notes = st.session_state.get(notes_key, "")
-
-            job.notes = new_notes
-            session.commit()
-            st.rerun()
-
+        new_notes = st.session_state.get(f"notes_{job_id}", "")
+        JobService.update_notes(job_id, new_notes)
+        logger.info(f"Updated notes for job {job_id}")
     except Exception as e:
-        logger.error(f"Update notes failed for job {job_id}: {e}")
-        st.error("Failed to update job notes")
+        logger.error(f"Failed to update notes: {e}")
+        st.error("Failed to update notes")
 
-    finally:
-        session.close()
+
+# Legacy function for backward compatibility with existing grid rendering
+def _render_card_controls(job_data: pd.Series, tab_key: str, page_num: int) -> None:
+    """Legacy function for backward compatibility with existing grid rendering."""
+    # This function is kept for compatibility with the existing grid rendering system
+    pass
+
+
+def render_jobs_list(jobs: list[JobSQL]) -> None:
+    """Render a list of job cards with details expanders.
+
+    This is the main function for rendering jobs according to T1.1 requirements.
+
+    Args:
+        jobs: List of JobSQL objects to render.
+    """
+    if not jobs:
+        st.info("No jobs to display.")
+        return
+
+    for job in jobs:
+        # Render the job card
+        render_job_card(job)
+
+        # Render the details expander if this job is selected
+        render_job_details_expander(job)
+
+        # Add some spacing between cards
+        st.markdown("---")
 
 
 def render_job_cards_grid(jobs_df: pd.DataFrame, tab_key: str) -> None:

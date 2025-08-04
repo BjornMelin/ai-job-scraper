@@ -16,7 +16,8 @@ import streamlit as st
 from src.database import SessionLocal
 from src.models import CompanySQL, JobSQL
 from src.scraper import scrape_all, update_db
-from src.ui.components.cards.job_card import render_job_cards_grid
+from src.services.job_service import JobService
+from src.ui.components.cards.job_card import render_jobs_list
 from src.ui.state.app_state import StateManager
 
 logger = logging.getLogger(__name__)
@@ -224,64 +225,23 @@ def _get_filtered_jobs(state_manager: StateManager) -> list[JobSQL]:
     Returns:
         List of filtered job objects.
     """
-    session = SessionLocal()
-
     try:
-        query = session.query(JobSQL)
+        # Convert state manager filters to JobService format
+        filters = {
+            "text_search": state_manager.filters.get("keyword", ""),
+            "company": state_manager.filters.get("company", []),
+            "application_status": [],  # We'll handle status filtering in tabs
+            "date_from": state_manager.filters.get("date_from"),
+            "date_to": state_manager.filters.get("date_to"),
+            "favorites_only": False,
+            "include_archived": False,
+        }
 
-        # Apply company filter
-        if (
-            "All" not in state_manager.filters["company"]
-            and state_manager.filters["company"]
-        ):
-            company_ids = (
-                session.query(CompanySQL.id)
-                .filter(CompanySQL.name.in_(state_manager.filters["company"]))
-                .subquery()
-            )
-            query = query.filter(JobSQL.company_id.in_(company_ids))
-
-        # Apply keyword filter
-        if state_manager.filters["keyword"]:
-            query = query.filter(
-                JobSQL.title.ilike(f"%{state_manager.filters['keyword']}%")
-            )
-
-        # Apply date filters
-        if state_manager.filters["date_from"]:
-            query = query.filter(
-                JobSQL.posted_date
-                >= datetime.combine(
-                    state_manager.filters["date_from"], datetime.min.time()
-                )
-            )
-
-        if state_manager.filters["date_to"]:
-            query = query.filter(
-                JobSQL.posted_date
-                <= datetime.combine(
-                    state_manager.filters["date_to"], datetime.max.time()
-                )
-            )
-
-        # Load all jobs with their company relationships
-        all_jobs = query.all()
-
-        # Ensure company relationships are loaded
-        for job in all_jobs:
-            if job.company_id and not job.company_relation:
-                job.company_relation = (
-                    session.query(CompanySQL).filter_by(id=job.company_id).first()
-                )
-
-        return all_jobs
+        return JobService.get_filtered_jobs(filters)
 
     except Exception as e:
         logger.error(f"Job query failed: {e}")
         return []
-
-    finally:
-        session.close()
 
 
 def _render_job_tabs(jobs: list[JobSQL], state_manager: StateManager) -> None:
@@ -342,17 +302,12 @@ def _render_job_display(
     if not jobs:
         return
 
-    # Convert jobs to DataFrame
-    df = _jobs_to_dataframe(jobs)
+    # Apply per-tab search to jobs list
+    filtered_jobs = _apply_tab_search_to_jobs(jobs, tab_key)
 
-    # Apply per-tab search
-    df = _apply_tab_search(df, tab_key)
-
-    # Render based on view mode
-    if state_manager.view_mode == "List":
-        _render_list_view(df, tab_key)
-    else:
-        render_job_cards_grid(df, tab_key)
+    # For now, we'll use the new render_jobs_list function as specified in T1.1
+    # This implements the requirements for job cards with details expanders
+    render_jobs_list(filtered_jobs)
 
 
 def _jobs_to_dataframe(jobs: list[JobSQL]) -> pd.DataFrame:
@@ -384,15 +339,15 @@ def _jobs_to_dataframe(jobs: list[JobSQL]) -> pd.DataFrame:
     )
 
 
-def _apply_tab_search(df: pd.DataFrame, tab_key: str) -> pd.DataFrame:
-    """Apply per-tab search filtering.
+def _apply_tab_search_to_jobs(jobs: list[JobSQL], tab_key: str) -> list[JobSQL]:
+    """Apply per-tab search filtering to JobSQL objects.
 
     Args:
-        df: DataFrame to filter.
+        jobs: List of JobSQL objects to filter.
         tab_key: Tab key for search state.
 
     Returns:
-        Filtered DataFrame.
+        Filtered list of JobSQL objects.
     """
     # Per-tab search with visual feedback
     search_col1, search_col2 = st.columns([3, 1])
@@ -409,24 +364,29 @@ def _apply_tab_search(df: pd.DataFrame, tab_key: str) -> pd.DataFrame:
 
     # Apply search filter if search term exists
     if search_term:
-        filtered_df = df[
-            df["Title"].str.contains(search_term, case=False, na=False)
-            | df["Description"].str.contains(search_term, case=False, na=False)
-            | df["Company"].str.contains(search_term, case=False, na=False)
+        search_term_lower = search_term.lower()
+        filtered_jobs = [
+            job
+            for job in jobs
+            if (
+                search_term_lower in job.title.lower()
+                or search_term_lower in job.description.lower()
+                or search_term_lower in job.company.lower()
+            )
         ]
 
         with search_col2:
             st.metric(
                 "Results",
-                len(filtered_df),
-                delta=f"-{len(df) - len(filtered_df)}"
-                if len(filtered_df) < len(df)
+                len(filtered_jobs),
+                delta=f"-{len(jobs) - len(filtered_jobs)}"
+                if len(filtered_jobs) < len(jobs)
                 else None,
             )
 
-        return filtered_df
+        return filtered_jobs
 
-    return df
+    return jobs
 
 
 def _render_list_view(df: pd.DataFrame, tab_key: str) -> None:
