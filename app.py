@@ -17,7 +17,7 @@ import streamlit as st
 
 from src.database import SessionLocal
 from src.models import CompanySQL, JobSQL
-from scraper import scrape_all, update_db
+from src.scraper import scrape_all, update_db
 from utils.css_loader import load_css
 
 logger = logging.getLogger(__name__)
@@ -49,7 +49,7 @@ def update_status(job_id: int, tab_key: str) -> None:
     try:
         session = SessionLocal()
         job = session.query(JobSQL).filter_by(id=job_id).first()
-        job.status = st.session_state[
+        job.application_status = st.session_state[
             f"status_{job_id}_{tab_key}_{st.session_state[f'card_page_{tab_key}']}"
         ]
         session.commit()
@@ -169,7 +169,7 @@ def display_jobs(jobs: list[JobSQL], tab_key: str) -> None:
                     job = session.query(JobSQL).filter_by(id=row["id"]).first()
                     if job:
                         job.favorite = row["Favorite"]
-                        job.status = row["Status"]
+                        job.application_status = row["Status"]
                         job.notes = row["Notes"]
                 session.commit()
                 st.success("Saved!")
@@ -371,9 +371,13 @@ with st.sidebar:
         # Get company list
         session = SessionLocal()
         try:
-            companies = sorted(
-                {j.company for j in session.query(JobSQL.company).distinct()}
+            # Get unique company names through relationship
+            jobs_with_companies = (
+                session.query(JobSQL)
+                .join(CompanySQL, JobSQL.company_id == CompanySQL.id)
+                .all()
             )
+            companies = sorted({job.company for job in jobs_with_companies})
         except Exception:
             companies = []
         finally:
@@ -597,7 +601,7 @@ with main_container:
         finally:
             session.close()
 
-# Query jobs
+# Query jobs with company relationships
 session = SessionLocal()
 try:
     query = session.query(JobSQL)
@@ -605,7 +609,13 @@ try:
         "All" not in st.session_state.filters["company"]
         and st.session_state.filters["company"]
     ):
-        query = query.filter(JobSQL.company.in_(st.session_state.filters["company"]))
+        # Filter by company names through relationship
+        company_ids = (
+            session.query(CompanySQL.id)
+            .filter(CompanySQL.name.in_(st.session_state.filters["company"]))
+            .subquery()
+        )
+        query = query.filter(JobSQL.company_id.in_(company_ids))
     if st.session_state.filters["keyword"]:
         query = query.filter(
             JobSQL.title.ilike(f"%{st.session_state.filters['keyword']}%")
@@ -625,7 +635,14 @@ try:
             )
         )
 
+    # Load all jobs with their company relationships
     all_jobs = query.all()
+    # Ensure company relationships are loaded
+    for job in all_jobs:
+        if job.company_id and not job.company_relation:
+            job.company_relation = (
+                session.query(CompanySQL).filter_by(id=job.company_id).first()
+            )
 except Exception as e:
     logger.error(f"Job query failed: {e}")
     all_jobs = []

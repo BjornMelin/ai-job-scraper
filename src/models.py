@@ -4,9 +4,9 @@ import re
 
 from datetime import datetime
 
-from pydantic import field_validator
+from pydantic import computed_field, field_validator
 from sqlalchemy.types import JSON
-from sqlmodel import Column, Field, SQLModel
+from sqlmodel import Column, Field, Relationship, SQLModel
 
 
 class CompanySQL(SQLModel, table=True):
@@ -17,12 +17,21 @@ class CompanySQL(SQLModel, table=True):
         name: Company name.
         url: Company careers URL.
         active: Flag indicating if the company is active for scraping.
+        last_scraped: Timestamp of the last successful scrape.
+        scrape_count: Total number of scrapes performed for this company.
+        success_rate: Success rate of scraping attempts (0.0 to 1.0).
     """
 
     id: int | None = Field(default=None, primary_key=True)
     name: str = Field(unique=True)
     url: str
     active: bool = True
+    last_scraped: datetime | None = None
+    scrape_count: int = Field(default=0)
+    success_rate: float = Field(default=1.0)
+
+    # Relationships
+    jobs: list["JobSQL"] = Relationship(back_populates="company_relation")
 
 
 class JobSQL(SQLModel, table=True):
@@ -30,7 +39,7 @@ class JobSQL(SQLModel, table=True):
 
     Attributes:
         id: Primary key identifier.
-        company: Company name.
+        company_id: Foreign key reference to CompanySQL.
         title: Job title.
         description: Job description.
         link: Application link.
@@ -39,10 +48,14 @@ class JobSQL(SQLModel, table=True):
         salary: Tuple of (min, max) salary values.
         favorite: Flag if the job is favorited.
         notes: User notes for the job.
+        content_hash: Hash of job content for duplicate detection.
+        application_status: Current status of the job application.
+        application_date: Date when application was submitted.
+        archived: Flag indicating if the job is archived (soft delete).
     """
 
     id: int | None = Field(default=None, primary_key=True)
-    company: str
+    company_id: int | None = Field(default=None, foreign_key="companysql.id")
     title: str
     description: str
     link: str = Field(unique=True)
@@ -53,6 +66,34 @@ class JobSQL(SQLModel, table=True):
     )
     favorite: bool = False
     notes: str = ""
+    content_hash: str = Field(index=True)
+    application_status: str = Field(default="New", index=True)
+    application_date: datetime | None = None
+    archived: bool = Field(default=False, index=True)
+    last_seen: datetime | None = None
+
+    # Relationships
+    company_relation: "CompanySQL" = Relationship(back_populates="jobs")
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def company(self) -> str:
+        """Get company name from relationship or return unknown.
+
+        Returns:
+            str: Company name or 'Unknown' if not found.
+        """
+        return self.company_relation.name if self.company_relation else "Unknown"
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def status(self) -> str:
+        """Backward compatibility alias for application_status.
+
+        Returns:
+            str: Current application status.
+        """
+        return self.application_status
 
     @field_validator("salary", mode="before")
     @classmethod

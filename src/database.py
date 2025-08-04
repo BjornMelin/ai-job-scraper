@@ -1,40 +1,43 @@
-"""Database connection and session management for the AI Job Scraper."""
+"""Database connection and session management for the AI Job Scraper.
 
-from collections.abc import AsyncGenerator
+This module provides synchronous database connectivity using SQLAlchemy
+and SQLModel. It handles database engine creation, session management,
+and table creation for the AI Job Scraper application.
+"""
 
-from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlmodel.sql.expression import Select, SelectOfScalar
+from sqlmodel import Session, SQLModel
 
 from .config import Settings
 
 settings = Settings()
 
-# Convert regular SQLite URL to async if needed
-db_url = settings.db_url
-if db_url.startswith("sqlite:///"):
-    db_url = db_url.replace("sqlite:///", "sqlite+aiosqlite:///")
-elif db_url == "sqlite:///:memory:":
-    db_url = "sqlite+aiosqlite:///:memory:"
+# Create synchronous SQLAlchemy engine
+engine = create_engine(settings.db_url, echo=False)
 
-engine: AsyncEngine = create_async_engine(db_url, echo=False, future=True)
-
-# Create async session factory
-async_session_factory = sessionmaker(
-    engine, class_=AsyncSession, expire_on_commit=False
-)
-
-# Patch SQLModel to support async
-Select.inherit_cache = True  # type: ignore[attr-defined]
-SelectOfScalar.inherit_cache = True  # type: ignore[attr-defined]
+# Create session factory
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
-async def get_session() -> AsyncGenerator[AsyncSession, None]:
-    """Async context manager for database sessions.
+def create_db_and_tables() -> None:
+    """Create database tables from SQLModel definitions.
 
-    Yields:
-        AsyncSession: An asynchronous database session.
+    This function creates all tables defined in the SQLModel metadata.
+    It should be called once during application initialization to ensure
+    all required database tables exist.
     """
-    async with async_session_factory() as session:
-        yield session
+    SQLModel.metadata.create_all(engine)
+
+
+def get_session() -> Session:
+    """Create a new database session.
+
+    Returns:
+        Session: A new SQLAlchemy session for database operations.
+
+    Note:
+        The caller is responsible for closing the session when done.
+        Consider using a context manager or try/finally block.
+    """
+    return SessionLocal()

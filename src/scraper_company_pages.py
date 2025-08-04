@@ -8,6 +8,7 @@ delays for evasion, normalizes data to JobSQL models, and saves to the
 database. Checkpointing is optional for resumability.
 """
 
+import hashlib
 import logging
 import os
 
@@ -15,14 +16,13 @@ from datetime import datetime
 from typing import TypedDict
 from urllib.parse import urljoin
 
-import sqlmodel
-
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.graph import END, StateGraph
 from scrapegraphai.graphs import SmartScraperMultiGraph
-from sqlmodel import Session, select
+from sqlmodel import select
 
 from .config import Settings
+from .database import SessionLocal
 from .models import CompanySQL, JobSQL
 from .utils import (
     get_extraction_model,
@@ -35,7 +35,6 @@ from .utils import (
 settings = Settings()
 llm_client = get_llm_client()
 extraction_model = get_extraction_model()
-engine = sqlmodel.create_engine(settings.db_url)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -56,8 +55,11 @@ def load_active_companies() -> list[CompanySQL]:
     Returns:
         list[CompanySQL]: List of active CompanySQL instances.
     """
-    with Session(engine) as session:
+    session = SessionLocal()
+    try:
         return session.exec(select(CompanySQL).where(CompanySQL.active)).all()
+    finally:
+        session.close()
 
 
 def extract_job_lists(state: State) -> dict[str, list[dict]]:
@@ -202,16 +204,46 @@ def normalize_jobs(state: State) -> dict[str, list[JobSQL]]:
             if not posted:
                 logger.warning(f"Could not parse date: {posted_str}")
 
-        # Use JobSQL validator for salary parsing
+        # Use JobSQL validator for salary parsing and new schema
         try:
+            # Get or create company ID using a session
+            session = SessionLocal()
+            try:
+                company_name = raw["company"]
+                company = session.exec(
+                    select(CompanySQL).where(CompanySQL.name == company_name)
+                ).first()
+
+                if not company:
+                    # Create new company
+                    company = CompanySQL(
+                        name=company_name,
+                        url="",  # Will be updated later if available
+                        active=True,
+                    )
+                    session.add(company)
+                    session.commit()
+                    session.refresh(company)
+
+                company_id = company.id
+            finally:
+                session.close()
+
+            # Create content hash
+            content = f"{raw['title']}{raw.get('description', '')}{raw['company']}"
+            content_hash = hashlib.md5(content.encode()).hexdigest()
+
             job = JobSQL(
-                company=raw["company"],
+                company_id=company_id,
                 title=raw["title"],
                 description=raw.get("description", ""),
                 link=raw.get("link", raw["url"]),
                 location=raw.get("location", ""),
                 posted_date=posted,
                 salary=raw.get("salary", ""),
+                content_hash=content_hash,
+                application_status="New",
+                last_seen=datetime.now(),
             )
             normalized.append(job)
         except Exception as e:
@@ -230,7 +262,8 @@ def save_jobs(state: State) -> dict:
         dict: Empty dict to end the workflow.
     """
     normalized = state.get("normalized_jobs", [])
-    with Session(engine) as session:
+    session = SessionLocal()
+    try:
         for job in normalized:
             # Check for existing job by unique link
             existing = session.exec(
@@ -239,6 +272,8 @@ def save_jobs(state: State) -> dict:
             if not existing:
                 session.add(job)
         session.commit()
+    finally:
+        session.close()
     return {}
 
 
