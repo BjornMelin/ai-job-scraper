@@ -14,19 +14,12 @@ from datetime import datetime
 import sqlmodel
 import typer
 
-from langgraph.graph import END, StateGraph
-
 from .constants import AI_REGEX, SEARCH_KEYWORDS, SEARCH_LOCATIONS
 from .database import SessionLocal
 from .models import CompanySQL, JobSQL
-from .scraper_company_pages import (
-    State,
-    extract_details,
-    extract_job_lists,
-    load_active_companies,
-    normalize_jobs,
-)
+from .scraper_company_pages import scrape_company_pages
 from .scraper_job_boards import scrape_job_boards
+from .services.database_sync import SmartSyncEngine
 from .utils import random_delay
 
 logging.basicConfig(level=logging.INFO)
@@ -61,68 +54,132 @@ def get_or_create_company(session: sqlmodel.Session, company_name: str) -> int:
     return company.id
 
 
-def scrape_all() -> None:
-    """Run the full scraping workflow.
+def scrape_all() -> dict[str, int]:
+    """Run the full scraping workflow with intelligent database synchronization.
 
     This function orchestrates scraping from company pages and job boards,
     normalizes the data, filters for relevant AI/ML jobs using regex,
-    deduplicates by job link, and updates the database.
+    deduplicates by job link, and uses SmartSyncEngine for safe database updates.
+
+    Returns:
+        dict[str, int]: Synchronization statistics from SmartSyncEngine.
 
     Raises:
         Exception: If any part of the scraping or normalization fails, errors are
             logged but the function continues where possible.
     """
-    # Scrape company pages using modified workflow to get jobs without saving
-    companies = load_active_companies()
-    company_jobs: list[JobSQL] = []
-    if companies:
-        workflow = StateGraph(State)
-        workflow.add_node("extract_lists", extract_job_lists)
-        workflow.add_node("extract_details", extract_details)
-        workflow.add_node("normalize", normalize_jobs)
-        workflow.set_entry_point("extract_lists")
-        workflow.add_edge("extract_lists", "extract_details")
-        workflow.add_edge("extract_details", "normalize")
-        workflow.add_edge("normalize", END)
-        graph = workflow.compile()
-        initial_state = {"companies": companies}
-        try:
-            final_state = graph.invoke(initial_state)
-            company_jobs = final_state.get("normalized_jobs", [])
-        except Exception as e:
-            logger.error(f"Company scraping workflow failed: {e}")
+    logger.info("Starting comprehensive job scraping workflow")
+
+    # Step 1: Scrape company pages using the decoupled workflow
+    logger.info("Scraping company career pages...")
+    try:
+        company_jobs = scrape_company_pages()
+        logger.info(f"Retrieved {len(company_jobs)} jobs from company pages")
+    except Exception as e:
+        logger.error(f"Company scraping failed: {e}")
+        company_jobs = []
+
     random_delay()
 
-    # Scrape job boards
-    board_jobs_raw = scrape_job_boards(SEARCH_KEYWORDS, SEARCH_LOCATIONS)
+    # Step 2: Scrape job boards
+    logger.info("Scraping job boards...")
+    try:
+        board_jobs_raw = scrape_job_boards(SEARCH_KEYWORDS, SEARCH_LOCATIONS)
+        logger.info(f"Retrieved {len(board_jobs_raw)} raw jobs from job boards")
+    except Exception as e:
+        logger.error(f"Job board scraping failed: {e}")
+        board_jobs_raw = []
 
-    # Normalize board jobs to JobSQL - need to handle new schema
+    # Step 3: Normalize board jobs to JobSQL objects
+    board_jobs = _normalize_board_jobs(board_jobs_raw)
+    logger.info(f"Normalized {len(board_jobs)} jobs from job boards")
+
+    # Step 4: Safety guard against mass-archiving when both scrapers fail
+    if not company_jobs and not board_jobs:
+        logger.warning(
+            "Both company pages and job boards scrapers returned empty results. "
+            "This could indicate scraping failures. Skipping sync to prevent "
+            "mass-archiving of existing jobs."
+        )
+        return {"inserted": 0, "updated": 0, "archived": 0, "deleted": 0, "skipped": 0}
+
+    # Additional safety check for suspiciously low job counts
+    total_scraped = len(company_jobs) + len(board_jobs)
+    if total_scraped < 5:  # Configurable threshold
+        logger.warning(
+            f"Only {total_scraped} jobs scraped total, which is suspiciously low. "
+            "This might indicate scraping issues. Proceeding with caution..."
+        )
+
+    # Step 5: Combine and filter relevant jobs
+    all_jobs = company_jobs + board_jobs
+    filtered_jobs = [job for job in all_jobs if AI_REGEX.search(job.title)]
+    logger.info(f"Filtered to {len(filtered_jobs)} AI/ML relevant jobs")
+
+    # Step 6: Deduplicate by link, keeping the last occurrence
+    job_dict = {job.link: job for job in filtered_jobs if job.link}
+    dedup_jobs = list(job_dict.values())
+    logger.info(f"Deduplicated to {len(dedup_jobs)} unique jobs")
+
+    # Step 7: Final safety check before sync
+    if not dedup_jobs:
+        logger.warning(
+            "No valid jobs remaining after filtering and deduplication. "
+            "Skipping sync to prevent archiving all existing jobs."
+        )
+        return {"inserted": 0, "updated": 0, "archived": 0, "deleted": 0, "skipped": 0}
+
+    # Step 8: Use SmartSyncEngine for intelligent database synchronization
+    logger.info("Synchronizing jobs with database using SmartSyncEngine...")
+    sync_engine = SmartSyncEngine()
+    sync_stats = sync_engine.sync_jobs(dedup_jobs)
+
+    logger.info("Scraping workflow completed successfully")
+    return sync_stats
+
+
+def _normalize_board_jobs(board_jobs_raw: list[dict]) -> list[JobSQL]:
+    """Normalize raw job board data to JobSQL objects.
+
+    This function converts dictionaries from job board scrapers into properly
+    structured JobSQL objects, handling company creation, salary formatting,
+    and content hashing.
+
+    Args:
+        board_jobs_raw: List of raw job dictionaries from job board scrapers.
+
+    Returns:
+        list[JobSQL]: List of normalized JobSQL objects ready for sync.
+    """
     board_jobs: list[JobSQL] = []
     session = SessionLocal()
+
     try:
         for raw in board_jobs_raw:
-            salary = ""
-            min_amt = raw.get("min_amount")
-            max_amt = raw.get("max_amount")
-            if min_amt and max_amt:
-                salary = f"${min_amt}-${max_amt}"
-            elif min_amt:
-                salary = f"${min_amt}+"
-            elif max_amt:
-                salary = f"${max_amt}"
-
             try:
+                # Format salary from min/max amounts
+                salary = ""
+                min_amt = raw.get("min_amount")
+                max_amt = raw.get("max_amount")
+                if min_amt and max_amt:
+                    salary = f"${min_amt}-${max_amt}"
+                elif min_amt:
+                    salary = f"${min_amt}+"
+                elif max_amt:
+                    salary = f"${max_amt}"
+
                 # Get or create company
                 company_name = raw.get("company", "Unknown")
                 company_id = get_or_create_company(session, company_name)
 
-                # Create content hash
+                # Create content hash for change detection
                 title = raw.get("title", "")
                 description = raw.get("description", "")
                 company = raw.get("company", "")
                 content = f"{title}{description}{company}"
                 content_hash = hashlib.md5(content.encode()).hexdigest()
 
+                # Create JobSQL object
                 job = JobSQL(
                     title=raw.get("title", ""),
                     company_id=company_id,
@@ -136,86 +193,14 @@ def scrape_all() -> None:
                     last_seen=datetime.now(),
                 )
                 board_jobs.append(job)
+
             except Exception as e:
                 logger.error(f"Failed to normalize board job {raw.get('job_url')}: {e}")
+
     finally:
         session.close()
 
-    # Combine and filter relevant jobs
-    all_jobs = company_jobs + board_jobs
-    filtered_jobs = [job for job in all_jobs if AI_REGEX.search(job.title)]
-
-    # Deduplicate by link, keeping the last occurrence
-    job_dict = {job.link: job for job in filtered_jobs if job.link}
-    dedup_jobs = list(job_dict.values())
-
-    # Update database
-    update_db(dedup_jobs)
-
-
-def update_db(jobs: list[JobSQL]) -> None:
-    """Update the database with scraped jobs.
-
-    This function performs an upsert operation: adds new jobs, updates existing
-    ones with fresh scraped data (preserving user fields like favorites), and
-    archives stale jobs no longer present in the current scrape.
-
-    Args:
-        jobs: List of normalized JobSQL instances to upsert.
-    """
-    session = SessionLocal()
-    try:
-        current_links = {job.link for job in jobs if job.link}
-
-        # Upsert jobs
-        for job in jobs:
-            if not job.link:
-                continue
-
-            existing = session.exec(
-                sqlmodel.select(JobSQL).where(JobSQL.link == job.link)
-            ).first()
-
-            if existing:
-                # Update job fields while preserving user data
-                existing.title = job.title
-                existing.company_id = job.company_id
-                existing.description = job.description
-                existing.location = job.location
-                existing.posted_date = job.posted_date
-                existing.salary = job.salary
-                existing.content_hash = job.content_hash
-                existing.last_seen = datetime.now()
-                # Preserve: favorite, notes, application_status, application_date
-            else:
-                session.add(job)
-
-        # Archive stale jobs instead of deleting them
-        all_db_jobs = session.exec(
-            sqlmodel.select(JobSQL).where(not JobSQL.archived)
-        ).all()
-
-        for db_job in all_db_jobs:
-            if db_job.link not in current_links:
-                # Only archive if it has user data, otherwise delete
-                if (
-                    db_job.favorite
-                    or db_job.notes
-                    or db_job.application_status != "New"
-                ):
-                    db_job.archived = True
-                else:
-                    session.delete(db_job)
-
-        session.commit()
-        logger.info(f"Updated database with {len(jobs)} jobs")
-
-    except Exception as e:
-        logger.error(f"Database update failed: {e}")
-        session.rollback()
-        raise
-    finally:
-        session.close()
+    return board_jobs
 
 
 app = typer.Typer()
@@ -224,7 +209,14 @@ app = typer.Typer()
 @app.command()
 def scrape() -> None:
     """CLI command to run the full scraping workflow."""
-    scrape_all()
+    sync_stats = scrape_all()
+    print("\nScraping completed successfully!")
+    print("📊 Sync Statistics:")
+    print(f"  ✅ Inserted: {sync_stats['inserted']} new jobs")
+    print(f"  🔄 Updated: {sync_stats['updated']} existing jobs")
+    print(f"  📋 Archived: {sync_stats['archived']} stale jobs with user data")
+    print(f"  🗑️  Deleted: {sync_stats['deleted']} stale jobs without user data")
+    print(f"  ⏭️  Skipped: {sync_stats['skipped']} jobs (no changes)")
 
 
 if __name__ == "__main__":
