@@ -252,8 +252,8 @@ def normalize_jobs(state: State) -> dict[str, list[JobSQL]]:
     return {"normalized_jobs": normalized}
 
 
-def save_jobs(state: State) -> dict:
-    """Return normalized jobs from state for external processing.
+def get_normalized_jobs(state: State) -> dict:
+    """Get normalized jobs from state for external processing.
 
     This node no longer writes to the database directly. Instead, it retrieves
     the normalized jobs from the workflow state and returns them to the caller
@@ -289,7 +289,7 @@ def scrape_company_pages() -> list[JobSQL]:
     workflow.add_node("extract_lists", extract_job_lists)
     workflow.add_node("extract_details", extract_details)
     workflow.add_node("normalize", normalize_jobs)
-    workflow.add_node("save", save_jobs)
+    workflow.add_node("save", get_normalized_jobs)
 
     workflow.add_edge("extract_lists", "extract_details")
     workflow.add_edge("extract_details", "normalize")

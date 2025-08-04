@@ -97,22 +97,34 @@ class SmartSyncEngine:
         try:
             logger.info(f"Starting sync of {len(jobs)} jobs")
 
-            # Step 1: Process incoming jobs (insert/update)
+            # Step 1: Bulk load existing jobs to avoid N+1 query pattern
             current_links = {job.link for job in jobs if job.link}
+            if current_links:
+                existing_jobs_query = session.exec(
+                    select(JobSQL).where(JobSQL.link.in_(current_links))
+                )
+                existing_jobs_map = {job.link: job for job in existing_jobs_query}
+                logger.debug(f"Bulk loaded {len(existing_jobs_map)} existing jobs")
+            else:
+                existing_jobs_map = {}
+
+            # Step 2: Process incoming jobs (insert/update) using bulk-loaded data
             for job in jobs:
                 if not job.link:
                     logger.warning(f"Skipping job without link: {job.title}")
                     continue
 
-                operation = self._sync_single_job(session, job)
+                operation = self._sync_single_job_optimized(
+                    session, job, existing_jobs_map
+                )
                 stats[operation] += 1
 
-            # Step 2: Handle stale jobs (archive/delete)
+            # Step 3: Handle stale jobs (archive/delete)
             stale_stats = self._handle_stale_jobs(session, current_links)
             stats["archived"] += stale_stats["archived"]
             stats["deleted"] += stale_stats["deleted"]
 
-            # Step 3: Commit all changes
+            # Step 4: Commit all changes
             session.commit()
 
             logger.info(
@@ -144,6 +156,29 @@ class SmartSyncEngine:
             str: Operation performed ('inserted', 'updated', or 'skipped').
         """
         existing = session.exec(select(JobSQL).where(JobSQL.link == job.link)).first()
+
+        if existing:
+            return self._update_existing_job(session, existing, job)
+        else:
+            return self._insert_new_job(session, job)
+
+    def _sync_single_job_optimized(
+        self, session: Session, job: JobSQL, existing_jobs_map: dict[str, JobSQL]
+    ) -> str:
+        """Synchronize a single job with the database using pre-loaded existing jobs.
+
+        This optimized version uses a pre-loaded map of existing jobs to avoid
+        individual database queries for each job, eliminating the N+1 query pattern.
+
+        Args:
+            session: Database session for operations.
+            job: JobSQL object to synchronize.
+            existing_jobs_map: Pre-loaded map of {link: JobSQL} for existing jobs.
+
+        Returns:
+            str: Operation performed ('inserted', 'updated', or 'skipped').
+        """
+        existing = existing_jobs_map.get(job.link)
 
         if existing:
             return self._update_existing_job(session, existing, job)
@@ -290,14 +325,17 @@ class SmartSyncEngine:
             bool: True if job has user data, False otherwise.
         """
         return (
-            job.favorite or job.notes.strip() != "" or job.application_status != "New"
+            job.favorite
+            or (job.notes or "").strip() != ""
+            or job.application_status != "New"
         )
 
     def _generate_content_hash(self, job: JobSQL) -> str:
-        """Generate MD5 hash of job content for change detection.
+        """Generate MD5 hash of job content for comprehensive change detection.
 
-        The hash includes title, description, and company information to detect
-        meaningful changes in job content per DB-SYNC-02.
+        The hash includes all relevant scraped fields to detect meaningful changes
+        in job content per DB-SYNC-02. This ensures updates are triggered when
+        any significant job detail changes.
 
         Args:
             job: JobSQL object to hash.
@@ -305,9 +343,40 @@ class SmartSyncEngine:
         Returns:
             str: MD5 hash of job content.
         """
-        # Use company_id if available, otherwise fallback to extracting company name
-        company_identifier = str(job.company_id) if job.company_id else "unknown"
-        content = f"{job.title}{job.description}{company_identifier}"
+        # Use company name from relationship if available, fallback to company_id
+        try:
+            company_identifier = (
+                job.company_relation.name
+                if job.company_relation
+                else str(job.company_id)
+                if job.company_id
+                else "unknown"
+            )
+        except AttributeError:
+            # Fallback if company_relation is not loaded
+            company_identifier = str(job.company_id) if job.company_id else "unknown"
+
+        # Include all relevant scraped fields for comprehensive change detection
+        content_parts = [
+            job.title or "",
+            job.description or "",
+            job.location or "",
+            company_identifier,
+        ]
+
+        # Handle salary field (tuple format)
+        if hasattr(job, "salary") and job.salary:
+            if isinstance(job.salary, tuple):
+                salary_str = f"{job.salary[0] or ''}-{job.salary[1] or ''}"
+            else:
+                salary_str = str(job.salary)
+            content_parts.append(salary_str)
+
+        # Handle posted_date if available
+        if job.posted_date:
+            content_parts.append(job.posted_date.isoformat())
+
+        content = "".join(content_parts)
         return hashlib.md5(content.encode("utf-8")).hexdigest()
 
     def get_sync_statistics(self) -> dict[str, int]:

@@ -94,17 +94,42 @@ def scrape_all() -> dict[str, int]:
     board_jobs = _normalize_board_jobs(board_jobs_raw)
     logger.info(f"Normalized {len(board_jobs)} jobs from job boards")
 
-    # Step 4: Combine and filter relevant jobs
+    # Step 4: Safety guard against mass-archiving when both scrapers fail
+    if not company_jobs and not board_jobs:
+        logger.warning(
+            "Both company pages and job boards scrapers returned empty results. "
+            "This could indicate scraping failures. Skipping sync to prevent "
+            "mass-archiving of existing jobs."
+        )
+        return {"inserted": 0, "updated": 0, "archived": 0, "deleted": 0, "skipped": 0}
+
+    # Additional safety check for suspiciously low job counts
+    total_scraped = len(company_jobs) + len(board_jobs)
+    if total_scraped < 5:  # Configurable threshold
+        logger.warning(
+            f"Only {total_scraped} jobs scraped total, which is suspiciously low. "
+            "This might indicate scraping issues. Proceeding with caution..."
+        )
+
+    # Step 5: Combine and filter relevant jobs
     all_jobs = company_jobs + board_jobs
     filtered_jobs = [job for job in all_jobs if AI_REGEX.search(job.title)]
     logger.info(f"Filtered to {len(filtered_jobs)} AI/ML relevant jobs")
 
-    # Step 5: Deduplicate by link, keeping the last occurrence
+    # Step 6: Deduplicate by link, keeping the last occurrence
     job_dict = {job.link: job for job in filtered_jobs if job.link}
     dedup_jobs = list(job_dict.values())
     logger.info(f"Deduplicated to {len(dedup_jobs)} unique jobs")
 
-    # Step 6: Use SmartSyncEngine for intelligent database synchronization
+    # Step 7: Final safety check before sync
+    if not dedup_jobs:
+        logger.warning(
+            "No valid jobs remaining after filtering and deduplication. "
+            "Skipping sync to prevent archiving all existing jobs."
+        )
+        return {"inserted": 0, "updated": 0, "archived": 0, "deleted": 0, "skipped": 0}
+
+    # Step 8: Use SmartSyncEngine for intelligent database synchronization
     logger.info("Synchronizing jobs with database using SmartSyncEngine...")
     sync_engine = SmartSyncEngine()
     sync_stats = sync_engine.sync_jobs(dedup_jobs)
