@@ -11,11 +11,10 @@ from .constants import AI_REGEX, RELEVANT_PHRASES, SEARCH_KEYWORDS, SEARCH_LOCAT
 
 # Database
 from .database import (
-    async_engine,
-    async_session_factory,
+    SessionLocal,
+    create_db_and_tables,
     engine,
     get_session,
-    sync_engine,
 )
 
 # Models
@@ -51,9 +50,8 @@ __all__ = [
     "Settings",
     # Database
     "engine",
-    "sync_engine",
-    "async_engine",
-    "async_session_factory",
+    "SessionLocal",
+    "create_db_and_tables",
     "get_session",
     # Models
     "CompanySQL",

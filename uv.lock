@@ -12,7 +12,6 @@ name = "ai-job-scraper"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "aiosqlite" },
     { name = "groq" },
     { name = "httpx" },
     { name = "langchain-groq" },
@@ -39,7 +38,6 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "aiosqlite", specifier = ">=0.21.0" },
     { name = "groq", specifier = "==0.30.0" },
     { name = "httpx", specifier = "==0.28.1" },
     { name = "langchain-groq", specifier = ">=0.3.6" },
