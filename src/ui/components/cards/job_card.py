@@ -9,6 +9,7 @@ import html
 import logging
 
 from datetime import datetime
+from typing import Any
 
 import pandas as pd
 import streamlit as st
@@ -106,7 +107,7 @@ def render_job_card(job: JobSQL) -> None:
                 pass  # onClick is handled by the on_click parameter
 
 
-def _format_posted_date(posted_date: any) -> str:
+def _format_posted_date(posted_date: Any) -> str:
     """Format the posted date for display.
 
     Args:

@@ -53,8 +53,7 @@ class JobService:
             query = session.query(JobSQL).options(joinedload(JobSQL.company_relation))
 
             # Apply text search filter
-            text_search = filters.get("text_search", "").strip()
-            if text_search:
+            if text_search := filters.get("text_search", "").strip():
                 search_pattern = f"%{text_search}%"
                 query = query.filter(
                     or_(
@@ -64,8 +63,9 @@ class JobService:
                 )
 
             # Apply company filter
-            company_filter = filters.get("company", [])
-            if company_filter and "All" not in company_filter:
+            if (
+                company_filter := filters.get("company", [])
+            ) and "All" not in company_filter:
                 # Get company IDs for the selected companies
                 company_ids = (
                     session.query(CompanySQL.id)
@@ -75,19 +75,18 @@ class JobService:
                 query = query.filter(JobSQL.company_id.in_(company_ids))
 
             # Apply application status filter
-            status_filter = filters.get("application_status", [])
-            if status_filter and "All" not in status_filter:
+            if (
+                status_filter := filters.get("application_status", [])
+            ) and "All" not in status_filter:
                 query = query.filter(JobSQL.application_status.in_(status_filter))
 
             # Apply date filters
-            date_from = filters.get("date_from")
-            if date_from:
+            if date_from := filters.get("date_from"):
                 if isinstance(date_from, str):
                     date_from = datetime.fromisoformat(date_from)
                 query = query.filter(JobSQL.posted_date >= date_from)
 
-            date_to = filters.get("date_to")
-            if date_to:
+            if date_to := filters.get("date_to"):
                 if isinstance(date_to, str):
                     date_to = datetime.fromisoformat(date_to)
                 query = query.filter(JobSQL.posted_date <= date_to)
