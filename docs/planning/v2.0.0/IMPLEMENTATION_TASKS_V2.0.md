@@ -14,6 +14,7 @@ This plan details the tasks for the **V2.0 "Polished & Professional" Release**. 
 
 - **Release**: V2.0
 - **Priority**: **Critical**
+- **Status**: **PENDING**
 - **Prerequisites**: A functional V1.1 application.
 - **Related Requirements**: `NFR-TEST-01`, `NFR-TEST-02`, `NFR-TEST-03`
 - **Libraries**: `pytest==8.2.2`, `pytest-mock==3.14.0`, `pytest-asyncio==0.23.7`
@@ -61,6 +62,7 @@ This plan details the tasks for the **V2.0 "Polished & Professional" Release**. 
 
 - **Release**: V2.0
 - **Priority**: **High**
+- **Status**: **PENDING**
 - **Prerequisites**: A functional V1.1 application.
 - **Related Requirements**: `UI-UX-01`, `UI-UX-02`, `UI-UX-03`
 - **Libraries**: `streamlit==1.47.1`
@@ -84,6 +86,7 @@ This plan details the tasks for the **V2.0 "Polished & Professional" Release**. 
 
 - **Release**: V2.0
 - **Priority**: **Medium**
+- **Status**: **PENDING**
 - **Prerequisites**: `T1.3` (Smart Sync Engine)
 - **Related Requirements**: `DB-AUDIT-01`, `DB-AUDIT-02`
 - **Libraries**: `sqlmodel==0.0.19`
@@ -103,6 +106,7 @@ This plan details the tasks for the **V2.0 "Polished & Professional" Release**. 
 
 - **Release**: V2.0
 - **Priority**: **Medium**
+- **Status**: **PENDING**
 - **Prerequisites**: A complete and stable V2.0 application.
 - **Related Requirements**: `NFR-DOCS-01`, `NFR-DOCS-02`
 - **Libraries**: N/A

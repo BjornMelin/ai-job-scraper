@@ -12,6 +12,7 @@ This document outlines the tasks for the **V1.0 "Job Hunter's MVP" Release**. It
 
 - **Release**: V1.0
 - **Priority**: **High**
+- **Status**: **PENDING**
 - **Prerequisites**: `T0.1`, `T0.2`, `T0.3`
 - **Related Requirements**: `UI-JOBS-01`, `UI-JOBS-02`, `UI-JOBS-03`, `UI-JOBS-04`, `UI-TRACK-01`
 - **Libraries**: `streamlit==1.47.1`
@@ -40,6 +41,7 @@ This document outlines the tasks for the **V1.0 "Job Hunter's MVP" Release**. It
 
 - **Release**: V1.0
 - **Priority**: **High**
+- **Status**: **PENDING**
 - **Prerequisites**: `T0.3`
 - **Related Requirements**: `SYS-ARCH-04`, `SCR-PROG-01`, `UI-PROG-01`
 - **Libraries**: `asyncio`
@@ -61,6 +63,7 @@ This document outlines the tasks for the **V1.0 "Job Hunter's MVP" Release**. It
 
 - **Release**: V1.0
 - **Priority**: **Medium**
+- **Status**: **PENDING**
 - **Prerequisites**: `T0.1`, `T0.2`
 - **Related Requirements**: `UI-COMP-01`, `UI-COMP-02`, `UI-SETT-01`
 - **Libraries**: `streamlit==1.47.1`

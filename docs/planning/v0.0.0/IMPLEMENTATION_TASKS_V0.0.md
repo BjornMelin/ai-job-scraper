@@ -12,6 +12,7 @@ This document outlines the critical, prerequisite tasks for **Phase 0: Foundatio
 
 - **Release**: V0.0 (Prerequisite for V1.0)
 - **Priority**: **CRITICAL**
+- **Status**: **DONE**
 - **Related Requirements**: `DB-SCHEMA-01`, `DB-SCHEMA-02`, `DB-SCHEMA-03`, `NFR-MAINT-01`
 - **Libraries**: `sqlmodel==0.0.24`, `sqlalchemy==2.0.42`
 - **Description**: This task unifies database access to a standard synchronous model, which is more stable and less complex within the Streamlit environment. It also upgrades the database models to support all planned features, fixing a critical data structure gap.
@@ -65,6 +66,7 @@ This document outlines the critical, prerequisite tasks for **Phase 0: Foundatio
 
 - **Release**: V0.0 (Prerequisite for V1.0)
 - **Priority**: **CRITICAL**
+- **Status**: **IN PROGRESS**
 - **Related Requirements**: `SYS-ARCH-01`, `SYS-ARCH-02`, `SYS-ARCH-03`
 - **Libraries**: `streamlit==1.47.1`
 - **Description**: This task implements the planned component-based architecture by deconstructing the monolithic `app.py` file into a modular and maintainable structure.
@@ -100,6 +102,7 @@ This document outlines the critical, prerequisite tasks for **Phase 0: Foundatio
 
 - **Release**: V0.0 (Prerequisite for V1.0)
 - **Priority**: **CRITICAL**
+- **Status**: **PENDING**
 - **Related Requirements**: `DB-SYNC-01`, `DB-SYNC-02`, `DB-SYNC-03`, `DB-SYNC-04`
 - **Libraries**: `hashlib`, `json`
 - **Description**: Decouple the data extraction logic from the database writing logic. Replace the old, destructive `update_db` function with the robust `SmartSyncEngine`.

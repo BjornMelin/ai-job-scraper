@@ -14,6 +14,7 @@ This plan details the tasks for the **V1.1 "Power User" Upgrade**. It assumes a 
 
 - **Release**: V1.1
 - **Priority**: **High**
+- **Status**: **PENDING**
 - **Prerequisites**: A functional V1.0 with a populated database.
 - **Related Requirements**: `UI-ANALYTICS-01`
 - **Libraries**: `plotly==5.18.0`, `pandas==2.3.1`
@@ -52,6 +53,7 @@ This plan details the tasks for the **V1.1 "Power User" Upgrade**. It assumes a 
 
 - **Release**: V1.1
 - **Priority**: **High**
+- **Status**: **PENDING**
 - **Prerequisites**: `T1.5` (Core Job Browser), `T2.1` (for data to analyze)
 - **Related Requirements**: `UI-JOBS-05`
 - **Libraries**: `streamlit==1.47.1`
@@ -74,6 +76,7 @@ This plan details the tasks for the **V1.1 "Power User" Upgrade**. It assumes a 
 
 - **Release**: V1.1
 - **Priority**: **Medium**
+- **Status**: **PENDING**
 - **Prerequisites**: `T1.5` (Core Job Browser)
 - **Related Requirements**: `UI-JOBS-06`, `NFR-UX-01`
 - **Libraries**: `streamlit-elements==0.1.0`
@@ -107,6 +110,7 @@ This plan details the tasks for the **V1.1 "Power User" Upgrade**. It assumes a 
 
 - **Release**: V1.1
 - **Priority**: **Medium**
+- **Status**: **PENDING**
 - **Prerequisites**: `T1.4` (Core Progress Dashboard)
 - **Related Requirements**: `UI-PROG-02`
 - **Libraries**: `streamlit==1.47.1`
