@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "ai-job-scraper"
 version = "0.1.0"
@@ -7,27 +11,42 @@ readme = "README.md"
 license-files = ["LICENSE"]
 requires-python = ">=3.12"
 dependencies = [
-    "crawl4ai==0.7.2",
-    "streamlit==1.47.1",
-    "sqlalchemy==2.0.42",
-    "typer==0.16.0",
-    "pandas==2.3.1",
-    "tenacity==9.1.2",
+    "aiosqlite>=0.21.0",
+    "groq==0.30.0",
     "httpx==0.28.1",
-    "python-dateutil==2.9.0.post0",
-    "pydantic==2.11.7",
+    "langchain-groq>=0.3.6",
+    "langgraph==0.6.2",
+    "langgraph-checkpoint-sqlite>=2.0.11",
+    "openai>=1.98.0",
+    "pandas==2.3.1",
+    "proxies==1.6",
     "pydantic-settings==2.10.1",
+    "python-dotenv==1.1.1",
+    "python-jobspy==1.1.82",
+    "scrapegraphai==1.61.0",
+    "sqlmodel==0.0.24",
+    "streamlit>=1.47.1",
+    "typer>=0.16.0",
 ]
 
 [dependency-groups]
 dev = [
-    "pytest>=8.0.0",
     "pytest-asyncio>=0.23.0",
-    "ruff>=0.8.0",
+    "pytest>=8.0.0",
+    "ruff>=0.10.0",
 ]
 
 [project.urls]
 Repository = "https://github.com/BjornMelin/ai-job-scraper"
+
+[project.scripts]
+ai-job-scraper = "src.app_cli:main"
+ai-job-scrape = "src.scraper:app"
+ai-job-seed = "src.seed:app"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*", "utils*"]
 
 [tool.uv]
 
@@ -37,63 +56,55 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = [
-    "E",    # pycodestyle errors
-    "F",    # pyflakes
-    "I",    # isort
-    "UP",   # pyupgrade
-    "N",    # pep8-naming
-    "S",    # bandit (security)
-    "B",    # flake8-bugbear
-    "A",    # flake8-builtins
-    "C4",   # flake8-comprehensions  
-    "PT",   # flake8-pytest-style
-    "SIM",  # flake8-simplify
-    "TID",  # flake8-tidy-imports
-    "D",    # pydocstyle
-    "RUF",  # Ruff-specific rules
-    "ERA",  # eradicate (commented code)
-    "PL",   # Pylint
-    "ARG",  # flake8-unused-arguments
+    "E",  # pycodestyle errors
+    "F",  # pyflakes
+    "I",  # isort
+    "UP", # pyupgrade
 ]
 ignore = [
     # Docstring formatting (Google style conflicts)
-    "D203",   # 1 blank line required before class docstring (conflicts with D211)
-    "D213",   # Multi-line docstring summary should start at the second line (conflicts with Google style)
-    "D107",   # Missing docstring in __init__ (often not needed for simple classes)
-    "D104",   # Missing docstring in public package (not always needed)
-    
+    "D203", # 1 blank line required before class docstring (conflicts with D211)
+    "D213", # Multi-line docstring summary should start at the second line (conflicts with Google style)
+    "D107", # Missing docstring in __init__ (often not needed for simple classes)
+    "D104", # Missing docstring in public package (not always needed)
+
     # Pylint rules that can be too strict
-    "PLR0913",  # Too many arguments to function call (sometimes necessary)
-    "PLR0912",  # Too many branches (sometimes necessary for business logic)
-    "PLR2004",  # Magic value used in comparison (constants can be clear in context)
-    
+    "PLR0913", # Too many arguments to function call (sometimes necessary)
+    "PLR0912", # Too many branches (sometimes necessary for business logic)
+    "PLR2004", # Magic value used in comparison (constants can be clear in context)
+
     # Security rules that can be too strict for local apps
-    "S605",   # Starting a process with a shell (needed for some CLI tools)
-    "S607",   # Starting a process with a partial executable path
-    
+    "S605", # Starting a process with a shell (needed for some CLI tools)
+    "S607", # Starting a process with a partial executable path
+
     # Complexity rules (keep some but not all)
-    "PLR0915",  # Too many statements (sometimes necessary)
+    "PLR0915", # Too many statements (sometimes necessary)
 ]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = [
-    "S101",     # assert usage (standard practice in pytest tests)
-    "ARG001",   # Unused function argument (fixtures often unused directly)
-    "PLR2004",  # Magic value used in comparison (test values are often magic)
-    "D103",     # Missing docstring in public function (test functions don't always need docs)
+    "S101",    # assert usage (standard practice in pytest tests)
+    "ARG001",  # Unused function argument (fixtures often unused directly)
+    "PLR2004", # Magic value used in comparison (test values are often magic)
+    "D103",    # Missing docstring in public function (test functions don't always need docs)
+]
+"test_*.py" = [
+    "S101",    # assert usage (standard practice in pytest tests)
+    "PLR2004", # Magic value used in comparison (test values are often magic)
+    "D103",    # Missing docstring in public function (test functions don't always need docs)
 ]
 "seed.py" = [
-    "T201",     # print found (acceptable in seed scripts)
+    "T201", # print found (acceptable in seed scripts)
 ]
 "app.py" = [
-    "PLR0915",  # Too many statements (Streamlit apps can be complex)
-    "S106",     # Possible hardcoded password (false positives in UI code)
+    "PLR0915", # Too many statements (Streamlit apps can be complex)
+    "S106",    # Possible hardcoded password (false positives in UI code)
 ]
 "__init__.py" = [
-    "N999",     # Invalid module name (package names can have dashes)
+    "N999", # Invalid module name (package names can have dashes)
 ]
 "tests/__init__.py" = [
-    "N999",     # Invalid module name (package names can have dashes)
+    "N999", # Invalid module name (package names can have dashes)
 ]
 
 [tool.ruff.lint.pydocstyle]
