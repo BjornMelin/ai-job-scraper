@@ -13,6 +13,7 @@ This document outlines the critical, prerequisite tasks for **Phase 0: Foundatio
 - **Release**: V0.0 (Prerequisite for V1.0)
 - **Priority**: **CRITICAL**
 - **Status**: **DONE**
+- **Requirements File**: `docs/planning/v0.0.0/REQUIREMENTS_V0.0.md`
 - **Related Requirements**: `DB-SCHEMA-01`, `DB-SCHEMA-02`, `DB-SCHEMA-03`, `NFR-MAINT-01`
 - **Libraries**: `sqlmodel==0.0.24`, `sqlalchemy==2.0.42`
 - **Description**: This task unifies database access to a standard synchronous model, which is more stable and less complex within the Streamlit environment. It also upgrades the database models to support all planned features, fixing a critical data structure gap.
@@ -67,6 +68,7 @@ This document outlines the critical, prerequisite tasks for **Phase 0: Foundatio
 - **Release**: V0.0 (Prerequisite for V1.0)
 - **Priority**: **CRITICAL**
 - **Status**: **IN PROGRESS**
+- **Requirements File**: `docs/planning/v0.0.0/REQUIREMENTS_V0.0.md`
 - **Related Requirements**: `SYS-ARCH-01`, `SYS-ARCH-02`, `SYS-ARCH-03`
 - **Libraries**: `streamlit==1.47.1`
 - **Description**: This task implements the planned component-based architecture by deconstructing the monolithic `app.py` file into a modular and maintainable structure.
@@ -74,20 +76,20 @@ This document outlines the critical, prerequisite tasks for **Phase 0: Foundatio
 
 - **Architecture Diagram**:
 
-    ```mermaid
-    graph TD
-        A[src/main.py] -- Manages --> B(Page Routing);
-        B -- Renders --> C[src/ui/pages/jobs.py];
-        C -- Uses --> D[src/ui/components/sidebar.py];
-        C -- Uses --> E[src/ui/components/cards/job_card.py];
-        A -- Initializes --> F[src/ui/state/app_state.py];
-    ```
+  ```mermaid
+  graph TD
+      A[src/main.py] -- Manages --> B(Page Routing);
+      B -- Renders --> C[src/ui/pages/jobs.py];
+      C -- Uses --> D[src/ui/components/sidebar.py];
+      C -- Uses --> E[src/ui/components/cards/job_card.py];
+      A -- Initializes --> F[src/ui/state/app_state.py];
+  ```
 
 - **Sub-tasks & Instructions**:
   - **T0.2.1: Execute Foundational Architecture Setup**:
-    - **Instructions**: Create the directory structure: `mkdir -p src/ui/{pages,components,state,styles,utils}` and subdirectories for `components`.
+    - **Instructions**: Create the directory structure: `mkdir -p src/ui/{pages,components,state,styles,utils}` and subdirectories for `components/cards` and `components/layouts`.
     - **Instructions**: Create `src/ui/state/app_state.py` with the `StateManager` singleton.
-    - **Instructions**: Create `src/ui/styles/theme.py` (or similar) to hold the CSS content.
+    - **Instructions**: Create `src/ui/styles/theme.py` (or similar) to hold the CSS content from `static/css/main.css` and any future styles.
     - **Instructions**: Create a new entrypoint file, `src/main.py`, which will handle page config, style loading, and sidebar navigation.
     - **Success Criteria**: A runnable, empty, multi-page application structure exists.
   - **T0.2.2: Migrate UI Logic into Components**:
@@ -103,6 +105,7 @@ This document outlines the critical, prerequisite tasks for **Phase 0: Foundatio
 - **Release**: V0.0 (Prerequisite for V1.0)
 - **Priority**: **CRITICAL**
 - **Status**: **PENDING**
+- **Requirements File**: `docs/planning/v0.0.0/REQUIREMENTS_V0.0.md`
 - **Related Requirements**: `DB-SYNC-01`, `DB-SYNC-02`, `DB-SYNC-03`, `DB-SYNC-04`
 - **Libraries**: `hashlib`, `json`
 - **Description**: Decouple the data extraction logic from the database writing logic. Replace the old, destructive `update_db` function with the robust `SmartSyncEngine`.
