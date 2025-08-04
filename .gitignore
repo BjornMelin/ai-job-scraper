@@ -57,7 +57,7 @@ node_modules/
 tasks.json
 tasks/ 
 .taskmaster/state.json
-
+.taskmaster/
 .cursor/
 .gemini/
 .github/instructions/
