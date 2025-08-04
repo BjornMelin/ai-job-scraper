@@ -12,7 +12,7 @@ This document outlines the tasks for the **V1.0 "Job Hunter's MVP" Release**. It
 
 - **Release**: V1.0
 - **Priority**: **High**
-- **Status**: **In Progress**
+- **Status**: **Done**
 - **Prerequisites**: `T0.1`, `T0.2`, `T0.3`
 - **Requirements File**: `docs/planning/v1.0.0/REQUIREMENTS_V1.0.md`
 - **Related Requirements**: `UI-JOBS-01`, `UI-JOBS-02`, `UI-JOBS-03`, `UI-JOBS-04`, `UI-TRACK-01`
@@ -42,7 +42,7 @@ This document outlines the tasks for the **V1.0 "Job Hunter's MVP" Release**. It
 
 - **Release**: V1.0
 - **Priority**: **High**
-- **Status**: **PENDING**
+- **Status**: **In Progress**
 - **Prerequisites**: `T0.3`
 - **Requirements File**: `docs/planning/v1.0.0/REQUIREMENTS_V1.0.md`
 - **Related Requirements**: `SYS-ARCH-04`, `SCR-PROG-01`, `UI-PROG-01`, `SCR-CTRL-01`
