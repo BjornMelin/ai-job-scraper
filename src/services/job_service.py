@@ -97,20 +97,14 @@ class JobService:
 
                 # Apply date filters
                 if date_from := filters.get("date_from"):
-                    date_from = (
-                        datetime.fromisoformat(date_from)
-                        if isinstance(date_from, str)
-                        else date_from
-                    )
-                    query = query.filter(JobSQL.posted_date >= date_from)
+                    date_from = JobService._parse_date(date_from)
+                    if date_from:
+                        query = query.filter(JobSQL.posted_date >= date_from)
 
                 if date_to := filters.get("date_to"):
-                    date_to = (
-                        datetime.fromisoformat(date_to)
-                        if isinstance(date_to, str)
-                        else date_to
-                    )
-                    query = query.filter(JobSQL.posted_date <= date_to)
+                    date_to = JobService._parse_date(date_to)
+                    if date_to:
+                        query = query.filter(JobSQL.posted_date <= date_to)
 
                 # Apply favorites filter
                 if filters.get("favorites_only", False):
@@ -290,3 +284,58 @@ class JobService:
         except Exception as e:
             logger.error(f"Failed to get job counts: {e}")
             raise
+
+    @staticmethod
+    def _parse_date(date_input: str | datetime | None) -> datetime | None:
+        """Parse date input into datetime object.
+
+        Supports common formats encountered when scraping job sites:
+        - ISO format (2024-12-31)
+        - US format (12/31/2024)
+        - EU format (31/12/2024)
+        - Human readable (December 31, 2024)
+
+        Args:
+            date_input: Date as string, datetime object, or None.
+
+        Returns:
+            Parsed datetime object or None if input is None/invalid.
+        """
+        if date_input is None:
+            return None
+
+        if isinstance(date_input, datetime):
+            return date_input
+
+        if isinstance(date_input, str):
+            date_input = date_input.strip()
+            if not date_input:
+                return None
+
+            # Try ISO format first (most common for APIs)
+            try:
+                return datetime.fromisoformat(date_input.replace("Z", "+00:00"))
+            except ValueError:
+                pass
+
+            # Try common formats found in job site scraping
+            date_formats = [
+                "%Y-%m-%d",  # 2024-12-31 (ISO date)
+                "%m/%d/%Y",  # 12/31/2024 (US format)
+                "%d/%m/%Y",  # 31/12/2024 (EU format)
+                "%B %d, %Y",  # December 31, 2024
+                "%d %B %Y",  # 31 December 2024
+            ]
+
+            for date_format in date_formats:
+                try:
+                    return datetime.strptime(date_input, date_format)
+                except ValueError:
+                    continue
+
+            # If all formats fail, log warning and return None
+            logger.warning(f"Could not parse date: {date_input}")
+            return None
+
+        logger.warning(f"Unsupported date type: {type(date_input)}")
+        return None
