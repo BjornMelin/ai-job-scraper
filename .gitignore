@@ -1,69 +1,317 @@
-# Python-generated files
+# =============================================================================
+# PYTHON CORE
+# =============================================================================
+
+# Byte-compiled / optimized / DLL files
 __pycache__/
-*.py[oc]
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
 build/
+develop-eggs/
 dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
 wheels/
-*.egg-info
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
 
-# Virtual environments
-.venv
+# PyInstaller
+*.manifest
+*.spec
 
-# Cache files
-cache/
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
 
-# Database files
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# =============================================================================
+# UV PACKAGE MANAGER
+# =============================================================================
+
+# uv virtual environments
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# uv cache and lock files
+uv.lock
+.uv-cache/
+
+# =============================================================================
+# RUFF LINTER & FORMATTER
+# =============================================================================
+
+# Ruff cache
+.ruff_cache/
+
+# Pre-commit hooks
+.pre-commit-config.yaml.bak
+
+# =============================================================================
+# DEVELOPMENT TOOLS
+# =============================================================================
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# IPython
+profile_default/
+ipython_config.py
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# =============================================================================
+# DATABASE & CACHING
+# =============================================================================
+
+# SQLite databases
 *.db
+*.sqlite
+*.sqlite3
 jobs.db
 
-# Environment files
+# Application cache
+cache/
+.cache/
+
+# =============================================================================
+# ENVIRONMENT & CONFIGURATION
+# =============================================================================
+
+# Environment variables
 .env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Configuration files with secrets
+config.local.yaml
+config.local.json
+secrets.yaml
+secrets.json
+
+# API keys and credentials
+.api_keys
+.credentials
+.secrets
+
+# =============================================================================
+# LOGGING & OUTPUT
+# =============================================================================
+
+# Application logs
+*.log
+logs/
+streamlit.log
+streamlit_test.log
+dev-debug.log
 
 # Test outputs
 test_screenshots/
-*.log
-streamlit.log
-streamlit_test.log
+test-results/
+test_output/
 
-# Playwright artifacts
+# =============================================================================
+# TESTING FRAMEWORKS
+# =============================================================================
+
+# Playwright
 playwright-report/
 test-results/
+playwright/.auth/
 
-repomix-output.md
-.archived/
-.ruff_cache/
+# Pytest
+.pytest_cache/
+pytest.ini.bak
 
-# Logs
-logs
+# Coverage reports
+htmlcov/
+.coverage
+coverage.xml
+
+# =============================================================================
+# WEB DEVELOPMENT (if applicable)
+# =============================================================================
+
+# Node.js dependencies
+node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-dev-debug.log
-# Dependency directories
-node_modules/
-# Environment variables
-# Editor directories and files
-.idea
-.vscode
+
+# Frontend build outputs
+/static/
+/public/build/
+
+# =============================================================================
+# EDITOR & IDE
+# =============================================================================
+
+# VSCode
+.vscode/
+*.code-workspace
+
+# PyCharm / IntelliJ
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# Other editors
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
-# OS specific
-.DS_Store
 
-# Task files
-tasks.json
-tasks/ 
-.taskmaster/state.json
-.taskmaster/
-.cursor/
-.gemini/
-.github/instructions/
-.roo/
-.roomodes
-CLAUDE.md
-GEMINI.md
-AGENTS.md
+# =============================================================================
+# OPERATING SYSTEMS
+# =============================================================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.directory
+.Trash-*
+
+# =============================================================================
+# AI DEVELOPMENT TOOLS
+# =============================================================================
+
+# Claude Code
 .claude/
+
+# Gemini CLI
+.gemini/
+
+# Cursor
+.cursor/
+
+# =============================================================================
+# PROJECT SPECIFIC
+# =============================================================================
+
+# Archived files
+.archived/
+
+# Documentation generation
+repomix-output.md
+
+# Temporary files
+temp/
+tmp/
+*.tmp
+
+# Backup files
+*.bak
+*.backup
+*.orig
+
+# =============================================================================
+# DOCKER & DEPLOYMENT
+# =============================================================================
+
+# Docker
+.dockerignore.bak
+docker-compose.override.yml
+
+# =============================================================================
+# MONITORING & ANALYTICS
+# =============================================================================
+
+# Performance monitoring
+.profiling/
+*.prof
+
+# Analytics data
+analytics/
+metrics/
