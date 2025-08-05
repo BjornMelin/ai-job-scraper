@@ -18,12 +18,16 @@ from .background_tasks import (
 
 __all__ = [
     "BackgroundTaskManager",
+    "CompanyProgress",
     "ProgressInfo",
     "StreamlitTaskManager",
     "TaskInfo",
     "get_scraping_progress",
+    "get_scraping_results",
     "get_task_manager",
     "is_scraping_active",
+    "render_scraping_controls",
     "start_background_scraping",
+    "start_scraping",
     "stop_all_scraping",
 ]
