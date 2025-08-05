@@ -12,7 +12,7 @@ This document outlines the tasks for the **V1.0 "Job Hunter's MVP" Release**. It
 
 - **Release**: V1.0
 - **Priority**: **High**
-- **Status**: **Done**
+- **Status**: **DONE**
 - **Prerequisites**: `T0.1`, `T0.2`, `T0.3`
 - **Requirements File**: `docs/planning/v1.0.0/REQUIREMENTS_V1.0.md`
 - **Related Requirements**: `UI-JOBS-01`, `UI-JOBS-02`, `UI-JOBS-03`, `UI-JOBS-04`, `UI-TRACK-01`
@@ -38,32 +38,40 @@ This document outlines the tasks for the **V1.0 "Job Hunter's MVP" Release**. It
     - **Instructions**: If it matches, render an `st.expander("Details")` directly below its card. Inside the expander, display `st.markdown(job.description)` and a `st.text_area("Notes", value=job.notes)`. The text area's `on_change` callback should save the notes to the database via the `JobService.update_notes` method.
     - **Success Criteria**: Clicking "View Details" reveals the job description and notes area below the card. Editing notes persists the changes.
 
-### **T1.2: Implement Background Scraping Integration**
+### **T1.2: Implement Background Scraping & Progress Dashboard**
 
 - **Release**: V1.0
 - **Priority**: **High**
-- **Status**: **Done**
+- **Status**: **DONE**
 - **Prerequisites**: `T0.3`
 - **Requirements File**: `docs/planning/v1.0.0/REQUIREMENTS_V1.0.md`
-- **Related Requirements**: `SYS-ARCH-04`, `SCR-PROG-01`, `UI-PROG-01`, `SCR-CTRL-01`
-- **Libraries**: `asyncio`
-- **Description**: Connect the refactored, data-safe scraper from Phase 0 to the user interface, allowing users to trigger scrapes and see real-time progress.
-- **Developer Context**: This task involves creating the background task utility and building the UI on the `scraping.py` page.
+- **Related Requirements**: `SYS-ARCH-04`, `SCR-PROG-01`, `UI-PROG-02`, `SCR-CTRL-01`
+- **Libraries**: `asyncio`, `streamlit==1.47.1`
+- **Description**: Connect the refactored scraper to the UI, allowing users to trigger scrapes and see a rich, real-time progress dashboard with calculated metrics.
+- **Developer Context**: This task combines the original background task integration with the enhanced dashboard from the V1.1 plan, as they are functionally codependent.
 
 - **Sub-tasks & Instructions**:
   - **T1.2.1: Implement `BackgroundTaskManager`**:
-    - **Instructions**: Create `src/ui/utils/background_tasks.py`. Implement the `BackgroundTaskManager` and `StreamlitTaskManager` classes as defined in `02-technical-architecture.md`. The `update_progress` callback in `StreamlitTaskManager` is the key mechanism for communicating with the UI.
+    - **Instructions**: Create `src/ui/utils/background_tasks.py`. Implement the `BackgroundTaskManager` and `StreamlitTaskManager` classes. The `update_progress` callback is the key communication mechanism. Ensure the progress data structure includes `start_time` for each company.
     - **Success Criteria**: The utility is created and can launch the `scrape_all` function from `src/scraper.py` in a separate thread or async task.
-  - **T1.2.2: Build the Scraping Page UI**:
-    - **Instructions**: In `src/ui/pages/scraping.py`, create the UI with a "Start Scraping" button. When this button is clicked, call `StreamlitTaskManager.start_background_scraping`.
-    - **Instructions**: Add a UI section that is only visible when `st.session_state.get("scraping_active", False)`. Inside this section, display an overall `st.progress` bar. Iterate through `st.session_state.progress_data` and display the status of each company being scraped using simple `st.text` elements (e.g., `st.text(f"{company_name}: {progress_info.status}")`).
-    - **Success Criteria**: The user can start a scrape from the UI. The UI remains responsive, and the progress section updates in real-time to show which part of the scraping process is currently running.
+  - **T1.2.2: Create Progress Formatting Utilities**:
+    - **Instructions**: Create a new file `src/ui/utils/formatters.py`. Inside, create utility functions: `calculate_scraping_speed(jobs_found, start_time, end_time)` which returns jobs/minute, and `calculate_eta(total_companies, completed_companies, time_elapsed)` which returns a formatted time string.
+    - **Success Criteria**: The utility functions correctly calculate and format the required metrics.
+  - **T1.2.3: Create the Company Progress Card Component**:
+    - **Instructions**: Create `src/ui/components/progress/company_progress_card.py`. This component will take a company's progress info as input.
+    - **Instructions**: Inside the card (using `st.container` with a border), display the company name, a `st.progress` bar, and use `st.metric` to display "Jobs Found" and "Scraping Speed".
+    - **Success Criteria**: A reusable card component is created that can visually represent the progress of a single company.
+  - **T1.2.4: Build the Enhanced Scraping Page UI**:
+    - **Instructions**: In `src/ui/pages/scraping.py`, create the UI with a "Start Scraping" button that calls the `StreamlitTaskManager`.
+    - **Instructions**: In the progress section, use `st.columns` to create a responsive grid. In a loop, instantiate and render your new `CompanyProgressCard` for each company in `st.session_state.progress_data`.
+    - **Instructions**: Above the grid, add `st.metric` displays for the overall "ETA" and "Total Jobs Found", calculated using the new formatter utilities.
+    - **Success Criteria**: The user can start a scrape and see a grid of professional-looking progress cards. The metrics for speed and ETA update in real-time during a scraping session.
 
 ### **T1.3: Implement Essential Company & Settings Management**
 
 - **Release**: V1.0
 - **Priority**: **Medium**
-- **Status**: **Done**
+- **Status**: **DONE**
 - **Prerequisites**: `T0.1`, `T0.2`
 - **Requirements File**: `docs/planning/v1.0.0/REQUIREMENTS_V1.0.md`
 - **Related Requirements**: `UI-COMP-01`, `UI-COMP-02`, `UI-SETT-01`, `SYS-ARCH-05`

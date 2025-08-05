@@ -25,9 +25,9 @@ This document lists the specific requirements that will be fulfilled by completi
 - **UI-JOBS-04: Filtering and Search**: The job browser must provide functionality to filter jobs by a text search term, company, and application status.
 - **UI-COMP-01: Company Management**: The application must have a dedicated page for users to add, view, and activate/deactivate companies for scraping.
 - **UI-COMP-02: Company Status Indicators**: The company management interface must visually indicate the active/inactive status of each company.
-- **UI-SETT-01: Settings Configuration**: The application must have a settings page allowing users to manage API keys for LLM providers.
-- **UI-PROG-01: Scraping Dashboard**: A dedicated page must display the real-time progress of active scraping sessions in a simple, text-based format.
+- **UI-SETT-01: Settings Configuration**: The application must have a settings page allowing users to manage API keys for LLM providers and set scraping limits.
 - **UI-TRACK-01: Application Status Tracking**: The UI must allow users to set and update the status of their job applications for each job posting (e.g., "New", "Interested", "Applied", "Rejected").
+- **UI-PROG-02: Enhanced Progress Dashboard**: The real-time scraping dashboard must be enhanced to display rich, calculated metrics, including scraping speed (jobs/minute) and an estimated time of arrival (ETA). The layout must be upgraded to a more organized card-based grid. *(Moved from V1.1)*
 
 ## 4. Non-Functional Requirements (NFR)
 
