@@ -23,10 +23,12 @@ class CompanySQL(SQLModel, table=True):
     """
 
     id: int | None = Field(default=None, primary_key=True)
-    name: str = Field(unique=True)
+    name: str = Field(unique=True, index=True)  # Explicit index for name
     url: str
-    active: bool = True
-    last_scraped: datetime | None = None
+    active: bool = Field(default=True, index=True)  # Index for active status filtering
+    last_scraped: datetime | None = Field(
+        default=None, index=True
+    )  # Index for scraping recency
     scrape_count: int = Field(default=0)
     success_rate: float = Field(default=1.0)
 
@@ -76,18 +78,6 @@ class JobSQL(SQLModel, table=True):
 
     # Relationships
     company_relation: "CompanySQL" = Relationship(back_populates="jobs")
-
-    # Additional indexes for performance optimization
-    class Config:
-        """Model configuration for performance optimization."""
-
-        # Composite index suggestions for common query patterns
-        # These would be created via Alembic migrations:
-        # 1. Index on (company_id, archived, application_status) for filtered queries
-        # 2. Index on (posted_date DESC) for chronological sorting
-        # 3. Index on (last_seen) for stale job detection
-        # 4. Index on (archived, application_status) for status filtering
-        pass
 
     @computed_field  # type: ignore[misc]
     @property

@@ -4,6 +4,7 @@ This module contains event listeners for tracking database query performance,
 logging slow queries, and providing performance insights for optimization.
 """
 
+import functools
 import logging
 import time
 
@@ -11,6 +12,51 @@ logger = logging.getLogger(__name__)
 
 # Performance monitoring threshold for slow queries
 SLOW_QUERY_THRESHOLD = 1.0  # Log queries taking longer than 1 second
+
+
+def performance_monitor(func):
+    """Decorator to monitor database operation performance.
+
+    This decorator logs the execution time of database service methods,
+    providing insights into query performance and helping identify
+    performance bottlenecks.
+
+    Args:
+        func: The function to monitor.
+
+    Returns:
+        Wrapped function with performance monitoring.
+    """
+
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        start_time = time.time()
+        func_name = f"{func.__module__}.{func.__qualname__}"
+
+        try:
+            result = func(*args, **kwargs)
+            execution_time = time.time() - start_time
+
+            if execution_time > SLOW_QUERY_THRESHOLD:
+                logger.warning(
+                    f"Slow database operation: {func_name} took {execution_time:.3f}s"
+                )
+            elif execution_time > 0.1:  # Log operations over 100ms as debug
+                logger.debug(
+                    f"Database operation: {func_name} took {execution_time:.3f}s"
+                )
+
+            return result
+
+        except Exception as e:
+            execution_time = time.time() - start_time
+            logger.error(
+                f"Database operation failed: {func_name} failed after "
+                f"{execution_time:.3f}s with error: {e}"
+            )
+            raise
+
+    return wrapper
 
 
 def start_timer(conn, cursor, stmt, params, ctx, many):
