@@ -308,6 +308,5 @@ def show_settings_page() -> None:
             st.markdown(f"GROQ_API_KEY: {env_groq}")
 
 
-if __name__ == "__main__":
-    # For testing the page standalone
-    show_settings_page()
+# Execute page when loaded by st.navigation()
+show_settings_page()

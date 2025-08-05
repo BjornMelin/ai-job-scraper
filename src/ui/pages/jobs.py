@@ -18,7 +18,7 @@ from src.models import CompanySQL, JobSQL
 from src.scraper import scrape_all, update_db
 from src.services.job_service import JobService
 from src.ui.components.cards.job_card import render_jobs_list
-from src.ui.state.app_state import StateManager
+from src.ui.components.sidebar import render_sidebar
 
 logger = logging.getLogger(__name__)
 
@@ -75,16 +75,17 @@ def render_jobs_page() -> None:
     This function orchestrates the rendering of the jobs page including
     the header, action bar, job tabs, and statistics dashboard.
     """
-    state_manager = StateManager()
+    # Render sidebar for Jobs page (moved from main.py for st.navigation compatibility)
+    render_sidebar()
 
     # Render page header
     _render_page_header()
 
     # Render action bar
-    _render_action_bar(state_manager)
+    _render_action_bar()
 
     # Get filtered jobs data
-    jobs = _get_filtered_jobs(state_manager)
+    jobs = _get_filtered_jobs()
 
     if not jobs:
         st.info(
@@ -93,7 +94,7 @@ def render_jobs_page() -> None:
         return
 
     # Render job tabs
-    _render_job_tabs(jobs, state_manager)
+    _render_job_tabs(jobs)
 
     # Render statistics dashboard
     _render_statistics_dashboard(jobs)
@@ -127,12 +128,8 @@ def _render_page_header() -> None:
         )
 
 
-def _render_action_bar(state_manager: StateManager) -> None:
-    """Render the action bar with refresh button and status info.
-
-    Args:
-        state_manager: State manager for accessing last scrape time.
-    """
+def _render_action_bar() -> None:
+    """Render the action bar with refresh button and status info."""
     main_container = st.container()
 
     with main_container:
@@ -145,21 +142,17 @@ def _render_action_bar(state_manager: StateManager) -> None:
                 type="primary",
                 help="Scrape latest job postings from all active companies",
             ):
-                _handle_refresh_jobs(state_manager)
+                _handle_refresh_jobs()
 
         with action_col2:
-            _render_last_refresh_status(state_manager)
+            _render_last_refresh_status()
 
         with action_col3:
             _render_active_sources_metric()
 
 
-def _handle_refresh_jobs(state_manager: StateManager) -> None:
-    """Handle the job refresh operation.
-
-    Args:
-        state_manager: State manager to update last scrape time.
-    """
+def _handle_refresh_jobs() -> None:
+    """Handle the job refresh operation."""
     with st.spinner("🔍 Searching for new jobs..."):
         try:
             # Proper async task management for Streamlit
@@ -174,7 +167,7 @@ def _handle_refresh_jobs(state_manager: StateManager) -> None:
             # Execute scraping with proper event loop handling
             jobs_df = _execute_scraping_safely()
             update_db(jobs_df)
-            state_manager.last_scrape = datetime.now()
+            st.session_state.last_scrape = datetime.now()
 
             st.success(f"✅ Success! Found {len(jobs_df)} jobs from active companies.")
             st.rerun()
@@ -184,14 +177,10 @@ def _handle_refresh_jobs(state_manager: StateManager) -> None:
             logger.error(f"UI scrape failed: {e}")
 
 
-def _render_last_refresh_status(state_manager: StateManager) -> None:
-    """Render the last refresh status information.
-
-    Args:
-        state_manager: State manager for accessing last scrape time.
-    """
-    if state_manager.last_scrape:
-        time_diff = datetime.now() - state_manager.last_scrape
+def _render_last_refresh_status() -> None:
+    """Render the last refresh status information."""
+    if st.session_state.last_scrape:
+        time_diff = datetime.now() - st.session_state.last_scrape
 
         if time_diff.total_seconds() < 3600:
             minutes = int(time_diff.total_seconds() / 60)
@@ -216,23 +205,20 @@ def _render_active_sources_metric() -> None:
         session.close()
 
 
-def _get_filtered_jobs(state_manager: StateManager) -> list[JobSQL]:
+def _get_filtered_jobs() -> list[JobSQL]:
     """Get jobs filtered by current filter settings.
-
-    Args:
-        state_manager: State manager with current filter settings.
 
     Returns:
         List of filtered job objects.
     """
     try:
-        # Convert state manager filters to JobService format
+        # Convert session state filters to JobService format
         filters = {
-            "text_search": state_manager.filters.get("keyword", ""),
-            "company": state_manager.filters.get("company", []),
+            "text_search": st.session_state.filters.get("keyword", ""),
+            "company": st.session_state.filters.get("company", []),
             "application_status": [],  # We'll handle status filtering in tabs
-            "date_from": state_manager.filters.get("date_from"),
-            "date_to": state_manager.filters.get("date_to"),
+            "date_from": st.session_state.filters.get("date_from"),
+            "date_to": st.session_state.filters.get("date_to"),
             "favorites_only": False,
             "include_archived": False,
         }
@@ -244,12 +230,11 @@ def _get_filtered_jobs(state_manager: StateManager) -> list[JobSQL]:
         return []
 
 
-def _render_job_tabs(jobs: list[JobSQL], state_manager: StateManager) -> None:
+def _render_job_tabs(jobs: list[JobSQL]) -> None:
     """Render the job tabs with filtered content.
 
     Args:
         jobs: List of all jobs to organize into tabs.
-        state_manager: State manager for view mode settings.
     """
     # Calculate tab counts
     favorites_count = sum(j.favorite for j in jobs)
@@ -266,7 +251,7 @@ def _render_job_tabs(jobs: list[JobSQL], state_manager: StateManager) -> None:
 
     # Render each tab
     with tab1:
-        _render_job_display(jobs, "all", state_manager)
+        _render_job_display(jobs, "all")
 
     with tab2:
         favorites = [j for j in jobs if j.favorite]
@@ -276,7 +261,7 @@ def _render_job_tabs(jobs: list[JobSQL], state_manager: StateManager) -> None:
                 "to see them here!"
             )
         else:
-            _render_job_display(favorites, "favorites", state_manager)
+            _render_job_display(favorites, "favorites")
 
     with tab3:
         applied = [j for j in jobs if j.status == "Applied"]
@@ -286,18 +271,15 @@ def _render_job_tabs(jobs: list[JobSQL], state_manager: StateManager) -> None:
                 "to track them here!"
             )
         else:
-            _render_job_display(applied, "applied", state_manager)
+            _render_job_display(applied, "applied")
 
 
-def _render_job_display(
-    jobs: list[JobSQL], tab_key: str, state_manager: StateManager
-) -> None:
+def _render_job_display(jobs: list[JobSQL], tab_key: str) -> None:
     """Render job display for a specific tab.
 
     Args:
         jobs: List of jobs to display.
         tab_key: Unique key for the tab.
-        state_manager: State manager for view mode settings.
     """
     if not jobs:
         return
@@ -629,3 +611,7 @@ def _render_progress_visualization(
         """,
             unsafe_allow_html=True,
         )
+
+
+# Execute page when loaded by st.navigation()
+render_jobs_page()

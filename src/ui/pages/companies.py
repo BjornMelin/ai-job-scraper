@@ -161,6 +161,5 @@ def show_companies_page() -> None:
         logger.error(f"Failed to load company statistics: {e}", exc_info=True)
 
 
-if __name__ == "__main__":
-    # For testing the page standalone
-    show_companies_page()
+# Execute page when loaded by st.navigation()
+show_companies_page()
