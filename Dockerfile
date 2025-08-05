@@ -23,7 +23,7 @@ RUN pip install --no-cache-dir uv
 FROM base AS dependencies
 
 # Copy dependency files first for better layer caching
-COPY pyproject.toml uv.lock* ./
+COPY pyproject.toml uv.lock* README.md ./
 
 # Install dependencies with UV
 RUN uv sync --frozen --no-dev
@@ -35,10 +35,7 @@ RUN uv run python -m playwright install chromium
 FROM dependencies AS app
 
 # Copy application code
-COPY src/ ./src/
-COPY app.py scraper.py seed.py ./
-COPY utils/ ./utils/
-COPY static/ ./static/
+COPY . .
 
 # Create directory for database persistence
 RUN mkdir -p /app/db
