@@ -429,3 +429,8 @@ ignored-modules = [
     "langchain_groq",
     "langgraph",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest-cov>=6.2.1",
+]

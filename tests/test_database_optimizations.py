@@ -7,10 +7,12 @@ background task system and Streamlit integration.
 """
 
 import logging
-import sys
 import time
+import uuid
 
 from concurrent.futures import ThreadPoolExecutor
+
+import pytest
 
 from src.database import create_db_and_tables, get_connection_pool_status
 from src.models import CompanySQL
@@ -26,6 +28,12 @@ from src.ui.utils.database_utils import (
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def setup_database():
+    """Initialize database for all tests."""
+    create_db_and_tables()
 
 
 def test_database_health_monitoring():
@@ -51,18 +59,22 @@ def test_streamlit_session_management():
     """Test Streamlit-optimized session management."""
     logger.info("Testing Streamlit session management...")
 
+    # Generate unique company name to avoid conflicts
+    unique_id = str(uuid.uuid4())[:8]
+    company_name = f"Test Company Session {unique_id}"
+
     # Test streamlit_db_session context manager
     with streamlit_db_session() as session:
         # Create a test company
         test_company = CompanySQL(
-            name="Test Company Session", url="https://test.com", active=True
+            name=company_name, url=f"https://test-{unique_id}.com", active=True
         )
         session.add(test_company)
         # Session should auto-commit on exit
 
     # Verify the company was created
     companies = CompanyService.get_all_companies()
-    test_companies = [c for c in companies if c.name == "Test Company Session"]
+    test_companies = [c for c in companies if c.name == company_name]
     assert test_companies
 
     print("✅ Streamlit session management tests passed")
@@ -72,13 +84,17 @@ def test_background_task_session():
     """Test background task session management."""
     logger.info("Testing background task session management...")
 
-    def background_db_operation():
+    # Generate unique test ID for this test run
+    test_id = str(uuid.uuid4())[:8]
+
+    def background_db_operation(thread_num):
         """Simulate a database operation in a background thread."""
         with background_task_session() as session:
-            # Create a test company
+            # Create a test company with unique name
+            unique_name = f"Background Test Company {test_id}-{thread_num}"
             test_company = CompanySQL(
-                name="Background Test Company",
-                url="https://background-test.com",
+                name=unique_name,
+                url=f"https://background-test-{test_id}-{thread_num}.com",
                 active=True,
             )
             session.add(test_company)
@@ -87,14 +103,16 @@ def test_background_task_session():
 
     # Run background operation in a thread
     with ThreadPoolExecutor(max_workers=2) as executor:
-        futures = [executor.submit(background_db_operation) for _ in range(2)]
+        futures = [executor.submit(background_db_operation, i) for i in range(2)]
 
         results = [future.result() for future in futures]
         assert all("completed" in result for result in results)
 
     # Verify companies were created
     companies = CompanyService.get_all_companies()
-    bg_companies = [c for c in companies if "Background Test" in c.name]
+    bg_companies = [
+        c for c in companies if f"Background Test Company {test_id}" in c.name
+    ]
     assert len(bg_companies) >= 2
 
     print("✅ Background task session tests passed")
@@ -154,15 +172,29 @@ def test_performance_monitoring():
     """Test performance monitoring capabilities."""
     logger.info("Testing performance monitoring...")
 
+    # Generate unique test ID for this test run
+    test_id = str(uuid.uuid4())[:8]
+
     # Create some test data to measure performance
     start_time = time.time()
+    created_companies = []
 
-    # Test bulk company creation through service
+    # Test bulk company creation through service - attempt creation, skip if exists
     for i in range(10):
-        CompanyService.add_company(f"Perf Test Company {i}", f"https://test{i}.com")
+        company_name = f"Perf Test Company {test_id}-{i}"
+        try:
+            CompanyService.add_company(company_name, f"https://test{test_id}-{i}.com")
+            created_companies.append(company_name)
+        except ValueError as e:
+            if "already exists" in str(e):
+                logger.info("Company %s already exists, skipping...", company_name)
+                continue
+            raise
 
     creation_time = time.time() - start_time
-    logger.info("Created 10 companies in %.3fs", creation_time)
+    logger.info(
+        "Created/attempted %d companies in %.3fs", len(created_companies), creation_time
+    )
 
     # Test bulk job queries
     start_time = time.time()
@@ -177,40 +209,3 @@ def test_performance_monitoring():
     assert query_time < 2.0  # Should query jobs in under 2 seconds
 
     print("✅ Performance monitoring tests passed")
-
-
-def main():
-    """Run all database optimization tests."""
-    print("🧪 Testing Database Optimizations After Library-First Changes")
-    print("=" * 60)
-
-    # Initialize database
-    create_db_and_tables()
-
-    try:
-        test_database_health_monitoring()
-        test_streamlit_session_management()
-        test_background_task_session()
-        test_session_state_validation()
-        test_concurrent_database_access()
-        test_performance_monitoring()
-
-        print("\n🎉 All database optimization tests passed!")
-        print("\nDatabase optimizations are working correctly with:")
-        print("✅ Streamlit-optimized session management")
-        print("✅ Background task session handling")
-        print("✅ Connection pool monitoring")
-        print("✅ Session state validation")
-        print("✅ Concurrent access patterns")
-        print("✅ Performance monitoring integration")
-
-    except Exception as e:
-        logger.exception("Test failed")
-        print(f"\n❌ Tests failed: {e}")
-        return 1
-
-    return 0
-
-
-if __name__ == "__main__":
-    sys.exit(main())

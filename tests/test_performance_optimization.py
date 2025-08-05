@@ -11,9 +11,17 @@ import time
 
 from concurrent.futures import ThreadPoolExecutor
 
+import pytest
+
 from src.database import SessionLocal, create_db_and_tables
 from src.models import CompanySQL
 from src.scraper import bulk_get_or_create_companies
+
+
+@pytest.fixture(scope="session", autouse=True)
+def setup_database():
+    """Initialize database for all tests."""
+    create_db_and_tables()
 
 
 def test_thread_safety():
@@ -91,55 +99,3 @@ def test_session_context_management():
         print(f"Session context management failed: {e}")
         return False
     return True
-
-
-def main():
-    """Run all performance tests."""
-    print("=== Database Performance Optimization Validation ===\n")
-
-    # Ensure database and tables exist
-    create_db_and_tables()
-
-    # Run tests
-    tests = [
-        ("Thread Safety", test_thread_safety),
-        ("Bulk Performance", test_bulk_company_performance),
-        ("Session Management", test_session_context_management),
-    ]
-
-    results = []
-    for test_name, test_func in tests:
-        print(f"\n--- {test_name} Test ---")
-        try:
-            result = test_func()
-            results.append((test_name, result))
-            status = "PASS" if result else "FAIL"
-            print(f"{test_name}: {status}")
-        except Exception as e:
-            print(f"{test_name}: FAIL - {e}")
-            results.append((test_name, False))
-
-    # Summary
-    print("\n=== Test Results ===")
-    passed = sum(result for _, result in results)
-    total = len(results)
-
-    for test_name, result in results:
-        status = "✅ PASS" if result else "❌ FAIL"
-        print(f"{test_name}: {status}")
-
-    print(f"\nOverall: {passed}/{total} tests passed")
-
-    if passed == total:
-        print("🎉 All optimizations validated successfully!")
-        print("\nOptimizations implemented:")
-        print("- Thread-safe SQLite configuration with StaticPool")
-        print("- N+1 query elimination with bulk operations")
-        print("- SQLite WAL mode and performance pragmas")
-        print("- Proper session lifecycle management")
-    else:
-        print("⚠️  Some optimizations need attention")
-
-
-if __name__ == "__main__":
-    main()
