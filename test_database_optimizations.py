@@ -7,10 +7,11 @@ background task system and Streamlit integration.
 """
 
 import logging
-import sys
 import time
 
 from concurrent.futures import ThreadPoolExecutor
+
+import pytest
 
 from src.database import create_db_and_tables, get_connection_pool_status
 from src.models import CompanySQL
@@ -26,6 +27,12 @@ from src.ui.utils.database_utils import (
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def setup_database():
+    """Initialize database for all tests."""
+    create_db_and_tables()
 
 
 def test_database_health_monitoring():
@@ -177,40 +184,3 @@ def test_performance_monitoring():
     assert query_time < 2.0  # Should query jobs in under 2 seconds
 
     print("✅ Performance monitoring tests passed")
-
-
-def main():
-    """Run all database optimization tests."""
-    print("🧪 Testing Database Optimizations After Library-First Changes")
-    print("=" * 60)
-
-    # Initialize database
-    create_db_and_tables()
-
-    try:
-        test_database_health_monitoring()
-        test_streamlit_session_management()
-        test_background_task_session()
-        test_session_state_validation()
-        test_concurrent_database_access()
-        test_performance_monitoring()
-
-        print("\n🎉 All database optimization tests passed!")
-        print("\nDatabase optimizations are working correctly with:")
-        print("✅ Streamlit-optimized session management")
-        print("✅ Background task session handling")
-        print("✅ Connection pool monitoring")
-        print("✅ Session state validation")
-        print("✅ Concurrent access patterns")
-        print("✅ Performance monitoring integration")
-
-    except Exception as e:
-        logger.exception("Test failed")
-        print(f"\n❌ Tests failed: {e}")
-        return 1
-
-    return 0
-
-
-if __name__ == "__main__":
-    sys.exit(main())
