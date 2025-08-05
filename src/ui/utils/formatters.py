@@ -194,10 +194,7 @@ def format_timestamp(dt: datetime | None, format_str: str = "%H:%M:%S") -> str:
         "15:30:45"
     """
     try:
-        if dt is None:
-            return "N/A"
-
-        return dt.strftime(format_str)
+        return "N/A" if dt is None else dt.strftime(format_str)
 
     except Exception as e:
         logger.warning(f"Error formatting timestamp: {e}")
@@ -259,10 +256,7 @@ def format_jobs_count(count: int, singular: str = "job", plural: str = "jobs") -
         if not isinstance(count, int):
             count = 0
 
-        if count == 1:
-            return f"{count} {singular}"
-        else:
-            return f"{count} {plural}"
+        return f"{count} {singular}" if count == 1 else f"{count} {plural}"  
 
     except Exception as e:
         logger.warning(f"Error formatting jobs count: {e}")
