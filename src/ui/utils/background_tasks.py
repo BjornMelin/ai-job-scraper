@@ -543,14 +543,12 @@ class StreamlitTaskManager(BackgroundTaskManager):
         Returns:
             True if any scraping tasks are running.
         """
-        for task_id, task_info in self.get_all_tasks().items():
-            if (
-                task_info.status in ("pending", "running")
-                and st.session_state.background_tasks.get(task_id, {}).get("type")
-                == "scraping"
-            ):
-                return True
-        return False
+        return any(
+            task_info.status in ("pending", "running")
+            and st.session_state.background_tasks.get(task_id, {}).get("type")
+            == "scraping"
+            for task_id, task_info in self.get_all_tasks().items()
+        )
 
     def stop_all_scraping(self) -> int:
         """Stop all active scraping tasks.
@@ -558,14 +556,16 @@ class StreamlitTaskManager(BackgroundTaskManager):
         Returns:
             Number of tasks that were cancelled.
         """
-        cancelled = 0
-        for task_id, task_info in self.get_all_tasks().items():
+        cancelled = sum(
+            1
+            for task_id, task_info in self.get_all_tasks().items()
             if (
                 task_info.status in ("pending", "running")
                 and st.session_state.background_tasks.get(task_id, {}).get("type")
                 == "scraping"
-            ) and self.cancel_task(task_id):
-                cancelled += 1
+                and self.cancel_task(task_id)
+            )
+        )
 
         if cancelled > 0:
             logger.info(f"Cancelled {cancelled} scraping tasks")

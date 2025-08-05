@@ -107,7 +107,7 @@ def _render_control_section() -> None:
     with col1:
         # Start Scraping button
         # Disable start button if no active companies
-        start_disabled = is_scraping or len(active_companies) == 0
+        start_disabled = is_scraping or not active_companies
 
         if st.button(
             "🚀 Start Scraping",
@@ -115,7 +115,7 @@ def _render_control_section() -> None:
             use_container_width=True,
             type="primary",
             help="Begin scraping jobs from all active company sources"
-            if len(active_companies) > 0
+            if active_companies
             else "No active companies configured",
         ):
             try:
@@ -151,7 +151,7 @@ def _render_control_section() -> None:
                 else:
                     st.info("ℹ️ No active scraping tasks found to stop")
             except Exception as e:
-                st.error(f"❌ Error stopping scraping: {str(e)}")
+                st.error(f"❌ Error stopping scraping: {e}")
                 logger.error(f"Error stopping scraping: {e}", exc_info=True)
 
     with col3:
@@ -179,7 +179,7 @@ def _render_control_section() -> None:
                 )
                 st.rerun()
             except Exception as e:
-                st.error(f"❌ Error resetting progress: {str(e)}")
+                st.error(f"❌ Error resetting progress: {e}")
                 logger.error(f"Error resetting progress: {e}", exc_info=True)
 
     with col4:
@@ -277,8 +277,11 @@ class EnhancedProgressData:
             self.is_complete = self.overall_progress >= 100.0
 
             # Extract job count from message if available
-            job_match = re.search(r"Found (\d+)", self.current_stage)
-            self.total_jobs_found = int(job_match.group(1)) if job_match else 0
+            self.total_jobs_found = (
+                int(job_match[1])
+                if (job_match := re.search(r"Found (\d+)", self.current_stage))
+                else 0
+            )
 
             # Create sample company data for demonstration
             # In a real implementation, this would come from session state
@@ -357,7 +360,7 @@ def _render_overall_metrics(progress_data):
         if hasattr(progress_data, "companies") and progress_data.companies:
             total_companies = len(progress_data.companies)
             completed_companies = sum(
-                bool(c.status == "Completed") for c in progress_data.companies
+                c.status == "Completed" for c in progress_data.companies
             )
 
             if progress_data.start_time:
@@ -375,9 +378,7 @@ def _render_overall_metrics(progress_data):
     with col3:
         # Active Companies
         if hasattr(progress_data, "companies"):
-            active_count = sum(
-                bool(c.status == "Scraping") for c in progress_data.companies
-            )
+            active_count = sum(c.status == "Scraping" for c in progress_data.companies)
             total_count = len(progress_data.companies)
             companies_text = f"{active_count}/{total_count}"
         else:
