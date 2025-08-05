@@ -106,7 +106,7 @@ def calculate_eta(
         if not isinstance(completed_companies, int) or completed_companies < 0:
             return "Unknown"
 
-        if not isinstance(time_elapsed, int | float) or time_elapsed < 0:
+        if not isinstance(time_elapsed, (int, float)) or time_elapsed < 0:  # noqa: UP038
             return "Unknown"
 
         # Check if already complete
@@ -148,7 +148,7 @@ def format_duration(seconds: float) -> str:
         "1h 1m"
     """
     try:
-        if not isinstance(seconds, int | float) or seconds < 0:
+        if not isinstance(seconds, (int, float)) or seconds < 0:  # noqa: UP038
             return "0s"
 
         # Convert to integer seconds
