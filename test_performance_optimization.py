@@ -90,8 +90,7 @@ def test_session_context_management():
     except Exception as e:
         print(f"Session context management failed: {e}")
         return False
-    else:
-        return True
+    return True
 
 
 def main():
