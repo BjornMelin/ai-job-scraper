@@ -357,7 +357,7 @@ def _render_overall_metrics(progress_data):
         if hasattr(progress_data, "companies") and progress_data.companies:
             total_companies = len(progress_data.companies)
             completed_companies = sum(
-                1 for c in progress_data.companies if c.status == "Completed"
+                bool(c.status == "Completed") for c in progress_data.companies
             )
 
             if progress_data.start_time:
@@ -376,7 +376,7 @@ def _render_overall_metrics(progress_data):
         # Active Companies
         if hasattr(progress_data, "companies"):
             active_count = sum(
-                1 for c in progress_data.companies if c.status == "Scraping"
+                bool(c.status == "Scraping") for c in progress_data.companies
             )
             total_count = len(progress_data.companies)
             companies_text = f"{active_count}/{total_count}"
