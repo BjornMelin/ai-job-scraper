@@ -284,7 +284,7 @@ def scrape_company_pages() -> list[JobSQL]:
     companies = load_active_companies()
     if not companies:
         logger.info("No active companies to scrape.")
-        return None
+        return []
 
     workflow = StateGraph(State)
     workflow.add_node("extract_lists", extract_job_lists)
