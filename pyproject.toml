@@ -194,6 +194,9 @@ ignore = [
     
     # Import conventions that may not apply to all libraries
     "ICN001", # Import conventions for certain packages
+    
+    # DateTime compatibility - prefer backward compatible timezone.utc
+    "UP017", # Use datetime.UTC alias (we prefer timezone.utc for compatibility)
 
     # Formatter conflicts
     "COM812", # trailing comma (conflicts with formatter)
@@ -203,11 +206,10 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = [
     "S101",    # assert usage (standard practice in pytest tests)
-    "ARG001",  # Unused function argument (fixtures often unused directly)
     "PLR2004", # Magic value used in comparison (test values are often magic)
     "D103",    # Missing docstring in public function (test functions don't always need docs)
 ]
-"test_*.py" = [
+"**/test_*.py" = [
     "S101",    # assert usage (standard practice in pytest tests)
     "PLR2004", # Magic value used in comparison (test values are often magic)
     "D103",    # Missing docstring in public function (test functions don't always need docs)
@@ -337,7 +339,7 @@ directory = "htmlcov"
 
 # Pylint configuration
 [tool.pylint.main]
-source-roots = "src"
+source-roots = ["src", "tests", "utils"]
 py-version = "3.12"
 jobs = 0  # Auto-detect CPU cores for parallel processing
 recursive = true
