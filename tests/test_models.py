@@ -1,59 +1,113 @@
-"""Tests for database models and Pydantic validation."""
+"""Tests for database models and Pydantic validation.
+
+This module contains comprehensive tests for SQLModel database models including:
+- Model creation and validation
+- Database constraint enforcement
+- Pydantic field validation and parsing
+- Salary parsing and normalization
+- Unique constraint testing
+"""
 
 from datetime import datetime, timezone
+from typing import Any
 
 import pytest
 
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import select
+from sqlmodel import Session, select
 from src.models import CompanySQL, JobSQL
 
 
-@pytest.mark.asyncio
-async def test_company_sql_creation(temp_db):
-    """Test creating and querying CompanySQL."""
-    company = CompanySQL(name="Test Co", url="https://test.co/careers", active=True)
-    temp_db.add(company)
-    await temp_db.commit()
-    await temp_db.refresh(company)
+def create_test_job_data(**overrides: Any) -> dict[str, Any]:
+    """Create test job data with optional field overrides.
 
-    result = await temp_db.exec(select(CompanySQL).where(CompanySQL.name == "Test Co"))
+    Args:
+        **overrides: Fields to override in the default job data
+
+    Returns:
+        Dictionary with job data for testing
+    """
+    default_data = {
+        "company": "Test Co",
+        "title": "Test Job",
+        "description": "Test description",
+        "link": "https://test.com/job",
+        "location": "Test Location",
+        "salary": (None, None),
+    }
+    default_data.update(overrides)
+    return default_data
+
+
+def create_and_save_job(session: Session, **overrides: Any) -> JobSQL:
+    """Create, validate, save and refresh a test job.
+
+    Args:
+        session: Database session
+        **overrides: Fields to override in the default job data
+
+    Returns:
+        Created and saved JobSQL instance
+    """
+    job_data = create_test_job_data(**overrides)
+    job = JobSQL.model_validate(job_data)
+    session.add(job)
+    session.commit()
+    session.refresh(job)
+    return job
+
+
+def test_company_sql_creation(session: Session) -> None:
+    """Test creating and querying CompanySQL models.
+
+    Validates that CompanySQL instances can be created, persisted to
+    the database, and retrieved with all fields intact.
+    """
+    company = CompanySQL(name="Test Co", url="https://test.co/careers", active=True)
+    session.add(company)
+    session.commit()
+    session.refresh(company)
+
+    result = session.exec(select(CompanySQL).where(CompanySQL.name == "Test Co"))
     retrieved = result.first()
     assert retrieved.name == "Test Co"
     assert retrieved.active is True
 
 
-@pytest.mark.asyncio
-async def test_company_unique_name(temp_db):
-    """Test company name uniqueness."""
+def test_company_unique_name(session: Session) -> None:
+    """Test company name uniqueness constraint.
+
+    Verifies that attempting to create companies with duplicate names
+    raises an IntegrityError due to unique constraint violation.
+    """
     company1 = CompanySQL(name="Unique Co", url="https://unique1.co", active=True)
-    temp_db.add(company1)
-    await temp_db.commit()
+    session.add(company1)
+    session.commit()
 
     company2 = CompanySQL(name="Unique Co", url="https://unique2.co", active=False)
-    temp_db.add(company2)
+    session.add(company2)
     with pytest.raises(IntegrityError):
-        await temp_db.commit()
+        session.commit()
 
 
-@pytest.mark.asyncio
-async def test_job_sql_creation(temp_db):
-    """Test creating and querying JobSQL."""
-    job_data = {
-        "company": "Test Co",
-        "title": "AI Engineer",
-        "description": "AI role",
-        "link": "https://test.co/job",
-        "location": "Remote",
-        "posted_date": datetime.now(timezone.utc),
-        "salary": "$100k-150k",
-    }
-    job = JobSQL.model_validate(job_data)
-    temp_db.add(job)
-    await temp_db.commit()
-    await temp_db.refresh(job)
+def test_job_sql_creation(session: Session) -> None:
+    """Test creating and querying JobSQL models with Pydantic validation.
 
-    result = await temp_db.exec(select(JobSQL).where(JobSQL.title == "AI Engineer"))
+    Tests JobSQL model creation using model_validate() to ensure
+    Pydantic validation works correctly and salary parsing converts
+    string formats to proper tuple structures.
+    """
+    create_and_save_job(
+        session,
+        title="AI Engineer",
+        description="AI role",
+        link="https://test.co/job",
+        location="Remote",
+        posted_date=datetime.now(timezone.utc),
+        salary="$100k-150k",
+    )
+
+    result = session.exec(select(JobSQL).where(JobSQL.title == "AI Engineer"))
     retrieved = result.first()
     assert retrieved.company == "Test Co"
     assert list(retrieved.salary) == [
@@ -62,33 +116,32 @@ async def test_job_sql_creation(temp_db):
     ]  # JSON column converts tuple to list
 
 
-@pytest.mark.asyncio
-async def test_job_unique_link(temp_db):
-    """Test job link uniqueness."""
-    job1_data = {
-        "company": "Test Co",
-        "title": "Job1",
-        "description": "Desc1",
-        "link": "https://test.co/job",
-        "location": "Remote",
-        "salary": (None, None),
-    }
-    job1 = JobSQL.model_validate(job1_data)
-    temp_db.add(job1)
-    await temp_db.commit()
+def test_job_unique_link(session: Session) -> None:
+    """Test job link uniqueness constraint.
 
-    job2_data = {
-        "company": "Test Co",
-        "title": "Job2",
-        "description": "Desc2",
-        "link": "https://test.co/job",
-        "location": "Office",
-        "salary": (None, None),
-    }
+    Verifies that attempting to create jobs with duplicate links
+    raises an IntegrityError due to unique constraint violation.
+    """
+    # Create first job
+    create_and_save_job(
+        session,
+        title="Job1",
+        description="Desc1",
+        link="https://test.co/job",
+        location="Remote",
+    )
+
+    # Attempt to create second job with same link
+    job2_data = create_test_job_data(
+        title="Job2",
+        description="Desc2",
+        link="https://test.co/job",
+        location="Office",
+    )
     job2 = JobSQL.model_validate(job2_data)
-    temp_db.add(job2)
+    session.add(job2)
     with pytest.raises(IntegrityError):
-        await temp_db.commit()
+        session.commit()
 
 
 @pytest.mark.parametrize(
@@ -107,15 +160,22 @@ async def test_job_unique_link(temp_db):
         ("From $90,000 a year", (90000, None)),
     ],
 )
-def test_salary_parsing(salary_input, expected):
-    """Test salary parsing validator, revealing potential issue with mixed scales."""
-    job_data = {
-        "company": "Test Co",
-        "title": "Test Job",
-        "description": "Test description",
-        "link": "https://test.com/job",
-        "location": "Test Location",
-        "salary": salary_input,
-    }
+def test_salary_parsing(
+    salary_input: Any, expected: tuple[int | None, int | None]
+) -> None:
+    """Test salary parsing validator with various input formats.
+
+    Validates that the JobSQL salary field parser correctly handles:
+    - Currency symbols and formats ($, £)
+    - Range notation (100k-150k)
+    - Single values (100k)
+    - Invalid inputs (returns None, None)
+    - Various formatting edge cases
+
+    Args:
+        salary_input: Input salary in various formats
+        expected: Expected parsed tuple (min_salary, max_salary)
+    """
+    job_data = create_test_job_data(salary=salary_input)
     job = JobSQL.model_validate(job_data)
     assert job.salary == expected

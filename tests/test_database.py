@@ -1,55 +1,72 @@
-"""Tests for database operations and integration."""
+"""Tests for database operations and integration.
 
-from datetime import datetime, timezone
+This module contains comprehensive tests for database functionality including:
+- Basic connection testing
+- CRUD operations for companies and jobs
+- Database constraints and integrity testing
+- Transaction rollback testing
+- Query filtering and data retrieval
+"""
+
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import select
-from sqlmodel.ext.asyncio.session import AsyncSession
+from sqlmodel import Session, select
 from src.models import CompanySQL, JobSQL
 
 
-@pytest.mark.asyncio
-async def test_database_connection(temp_db: AsyncSession):
-    """Test async database connection."""
-    result = await temp_db.exec(select(1))
+def test_database_connection(session: Session):
+    """Test basic database connection functionality.
+
+    Verifies that the database session can execute a simple query
+    and return expected results.
+    """
+    result = session.exec(select(1))
     assert result.first() == 1
 
 
-@pytest.mark.asyncio
-async def test_company_crud_operations(temp_db: AsyncSession):
-    """Test async CRUD for companies."""
+def test_company_crud_operations(session: Session):
+    """Test Create, Read, Update, Delete operations for companies.
+
+    Validates that companies can be properly created, retrieved,
+    updated, and deleted from the database with correct data persistence.
+    """
     company = CompanySQL(name="CRUD Co", url="https://crud.co", active=True)
-    temp_db.add(company)
-    await temp_db.commit()
-    await temp_db.refresh(company)
+    session.add(company)
+    session.commit()
+    session.refresh(company)
 
     retrieved = (
-        await temp_db.exec(select(CompanySQL).where(CompanySQL.name == "CRUD Co"))
+        session.exec(select(CompanySQL).where(CompanySQL.name == "CRUD Co"))
     ).first()
     assert retrieved.url == "https://crud.co"
 
     retrieved.active = False
-    await temp_db.commit()
+    session.commit()
 
     updated = (
-        await temp_db.exec(select(CompanySQL).where(CompanySQL.name == "CRUD Co"))
+        session.exec(select(CompanySQL).where(CompanySQL.name == "CRUD Co"))
     ).first()
     assert updated.active is False
 
-    await temp_db.delete(updated)
-    await temp_db.commit()
+    session.delete(updated)
+    session.commit()
 
     deleted = (
-        await temp_db.exec(select(CompanySQL).where(CompanySQL.name == "CRUD Co"))
+        session.exec(select(CompanySQL).where(CompanySQL.name == "CRUD Co"))
     ).first()
     assert deleted is None
 
 
-@pytest.mark.asyncio
-async def test_job_crud_operations(temp_db: AsyncSession):
-    """Test async CRUD for jobs."""
+def test_job_crud_operations(session: Session):
+    """Test Create, Read, Update, Delete operations for jobs.
+
+    Validates that jobs can be properly created, retrieved, updated,
+    and deleted from the database with proper field handling including
+    salary tuples and user-specific fields like favorites and notes.
+    """
     job = JobSQL(
         company="CRUD Co",
         title="CRUD Job",
@@ -59,38 +76,36 @@ async def test_job_crud_operations(temp_db: AsyncSession):
         posted_date=datetime.now(timezone.utc),
         salary=(100000, 150000),
     )
-    temp_db.add(job)
-    await temp_db.commit()
-    await temp_db.refresh(job)
+    session.add(job)
+    session.commit()
+    session.refresh(job)
 
-    retrieved = (
-        await temp_db.exec(select(JobSQL).where(JobSQL.title == "CRUD Job"))
-    ).first()
+    retrieved = (session.exec(select(JobSQL).where(JobSQL.title == "CRUD Job"))).first()
     assert retrieved.location == "Remote"
 
     retrieved.favorite = True
     retrieved.notes = "Updated"
-    await temp_db.commit()
+    session.commit()
 
-    updated = (
-        await temp_db.exec(select(JobSQL).where(JobSQL.title == "CRUD Job"))
-    ).first()
+    updated = (session.exec(select(JobSQL).where(JobSQL.title == "CRUD Job"))).first()
     assert updated.favorite is True
 
-    await temp_db.delete(updated)
-    await temp_db.commit()
+    session.delete(updated)
+    session.commit()
 
-    deleted = (
-        await temp_db.exec(select(JobSQL).where(JobSQL.title == "CRUD Job"))
-    ).first()
+    deleted = (session.exec(select(JobSQL).where(JobSQL.title == "CRUD Job"))).first()
     assert deleted is None
 
 
-@pytest.mark.asyncio
-async def test_job_filtering_queries(temp_db: AsyncSession):
-    """Test async job filtering queries."""
+def test_job_filtering_queries(session: Session):
+    """Test database query filtering capabilities.
+
+    Creates sample jobs with different attributes and tests
+    filtering by company name and date ranges to ensure
+    query operations work correctly.
+    """
     now = datetime.now(timezone.utc)
-    yesterday = now - datetime.timedelta(days=1)
+    yesterday = now - timedelta(days=1)
 
     jobs = [
         JobSQL(
@@ -112,30 +127,33 @@ async def test_job_filtering_queries(temp_db: AsyncSession):
             salary=(None, None),
         ),
     ]
-    temp_db.add_all(jobs)
-    await temp_db.commit()
+    session.add_all(jobs)
+    session.commit()
 
-    company_a = (await temp_db.exec(select(JobSQL).where(JobSQL.company == "A"))).all()
+    company_a = (session.exec(select(JobSQL).where(JobSQL.company == "A"))).all()
     assert len(company_a) == 1
 
-    recent = (
-        await temp_db.exec(select(JobSQL).where(JobSQL.posted_date >= yesterday))
-    ).all()
+    recent = (session.exec(select(JobSQL).where(JobSQL.posted_date >= yesterday))).all()
     assert len(recent) == 2
 
 
-@pytest.mark.asyncio
-async def test_database_constraints(temp_db: AsyncSession):
-    """Test database integrity constraints async."""
+def test_database_constraints(session: Session):
+    """Test database integrity constraints and unique field validation.
+
+    Verifies that unique constraints are properly enforced for:
+    - Company names (must be unique)
+    - Job links (must be unique)
+    Ensures IntegrityError is raised when constraints are violated.
+    """
     company1 = CompanySQL(name="Const Co", url="https://const1.co", active=True)
-    temp_db.add(company1)
-    await temp_db.commit()
+    session.add(company1)
+    session.commit()
 
     company2 = CompanySQL(name="Const Co", url="https://const2.co", active=False)
-    temp_db.add(company2)
+    session.add(company2)
     with pytest.raises(IntegrityError):
-        await temp_db.commit()
-    await temp_db.rollback()
+        session.commit()
+    session.rollback()
 
     job1 = JobSQL(
         company="Const Co",
@@ -145,8 +163,8 @@ async def test_database_constraints(temp_db: AsyncSession):
         location="Loc",
         salary=(None, None),
     )
-    temp_db.add(job1)
-    await temp_db.commit()
+    session.add(job1)
+    session.commit()
 
     job2 = JobSQL(
         company="Const Co",
@@ -156,17 +174,21 @@ async def test_database_constraints(temp_db: AsyncSession):
         location="Loc2",
         salary=(None, None),
     )
-    temp_db.add(job2)
+    session.add(job2)
     with pytest.raises(IntegrityError):
-        await temp_db.commit()
+        session.commit()
 
 
-@pytest.mark.asyncio
-async def test_database_rollback(temp_db: AsyncSession):
-    """Test async transaction rollback."""
+def test_database_rollback(session: Session):
+    """Test transaction rollback functionality.
+
+    Creates a company, then attempts to insert jobs that violate
+    constraints. Verifies that failed transactions are properly
+    rolled back without affecting previously committed data.
+    """
     company = CompanySQL(name="Rollback Co", url="https://rollback.co", active=True)
-    temp_db.add(company)
-    await temp_db.commit()
+    session.add(company)
+    session.commit()
 
     try:
         job = JobSQL(
@@ -177,7 +199,7 @@ async def test_database_rollback(temp_db: AsyncSession):
             location="Loc",
             salary=(None, None),
         )
-        temp_db.add(job)
+        session.add(job)
 
         invalid_job = JobSQL(
             company="Rollback Co",
@@ -187,17 +209,15 @@ async def test_database_rollback(temp_db: AsyncSession):
             location="Invalid",
             salary=(None, None),
         )
-        temp_db.add(invalid_job)
-        await temp_db.commit()  # Fails
+        session.add(invalid_job)
+        session.commit()  # Fails
     except Exception:
-        await temp_db.rollback()
+        session.rollback()
 
-    jobs = (
-        await temp_db.exec(select(JobSQL).where(JobSQL.company == "Rollback Co"))
-    ).all()
+    jobs = (session.exec(select(JobSQL).where(JobSQL.company == "Rollback Co"))).all()
     assert len(jobs) == 0
 
     companies = (
-        await temp_db.exec(select(CompanySQL).where(CompanySQL.name == "Rollback Co"))
+        session.exec(select(CompanySQL).where(CompanySQL.name == "Rollback Co"))
     ).all()
     assert len(companies) == 1

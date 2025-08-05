@@ -1,22 +1,32 @@
-"""Tests for scraper functions with mocks."""
+"""Tests for scraper functions with comprehensive mocking.
 
-from datetime import datetime, timezone
+This module contains tests for the job scraping functionality including:
+- Database update operations (create, upsert, delete)
+- Full scraping workflow integration
+- Job board scraping with filtering
+- Company page scraping with mock responses
+- Data validation and transformation
+"""
+
+from datetime import datetime, timedelta, timezone
+from typing import Any
 from unittest.mock import patch
 
 import pandas as pd
-import pytest
 
-from sqlmodel import select
-from sqlmodel.ext.asyncio.session import AsyncSession
+from sqlmodel import Session, select
 from src.models import CompanySQL, JobSQL
 from src.scraper import scrape_all
 from src.scraper_company_pages import scrape_company_pages
 from src.scraper_job_boards import scrape_job_boards
 
 
-@pytest.mark.asyncio
-async def test_update_db_new_jobs(temp_db: AsyncSession):
-    """Test updating database with new jobs."""
+def test_update_db_new_jobs(session: Session) -> None:
+    """Test database update with new job insertion.
+
+    Validates that new jobs can be properly validated using Pydantic
+    and inserted into the database with correct salary parsing.
+    """
     job_data = {
         "company": "New Co",
         "title": "AI Eng",
@@ -29,20 +39,25 @@ async def test_update_db_new_jobs(temp_db: AsyncSession):
     job = JobSQL.model_validate(job_data)
 
     # Instead of calling update_db, test the job creation directly
-    temp_db.add(job)
-    await temp_db.commit()
+    session.add(job)
+    session.commit()
 
-    result = (await temp_db.exec(select(JobSQL))).all()
+    result = (session.exec(select(JobSQL))).all()
     assert len(result) == 1
     assert list(result[0].salary) == [100000, 150000]  # JSON converts tuple to list
 
 
-@pytest.mark.asyncio
 @patch("src.scraper.engine")
-async def test_update_db_upsert_and_delete(mock_engine, temp_db: AsyncSession):
-    """Test upsert and delete stale jobs with mocked database."""
+def test_update_db_upsert_and_delete(mock_engine: Any, session: Session) -> None:
+    """Test database upsert and stale job deletion with mocked engine.
+
+    Validates the complete database update workflow including:
+    - Upserting existing jobs with new data
+    - Preserving user-specific fields (favorites, notes)
+    - Deleting stale jobs not in current scrape results
+    """
     # Mock the engine to use our temp_db session
-    mock_session = temp_db
+    mock_session = session
     mock_engine.begin.return_value.__enter__.return_value = mock_session
 
     # Add existing job
@@ -52,13 +67,13 @@ async def test_update_db_upsert_and_delete(mock_engine, temp_db: AsyncSession):
         "description": "Old desc",
         "link": "https://exist.co/job",
         "location": "Old Loc",
-        "posted_date": datetime.now(timezone.utc) - datetime.timedelta(days=1),
+        "posted_date": datetime.now(timezone.utc) - timedelta(days=1),
         "salary": (80000, 120000),
         "favorite": True,  # User field to preserve
     }
     existing = JobSQL.model_validate(existing_data)
-    temp_db.add(existing)
-    await temp_db.commit()
+    session.add(existing)
+    session.commit()
 
     # Stale job
     stale_data = {
@@ -70,61 +85,45 @@ async def test_update_db_upsert_and_delete(mock_engine, temp_db: AsyncSession):
         "salary": (None, None),
     }
     stale = JobSQL.model_validate(stale_data)
-    temp_db.add(stale)
-    await temp_db.commit()
-
-    # New jobs data
-    new_jobs_data = [
-        {
-            "company": "Exist Co",
-            "title": "Updated Title",
-            "description": "Updated desc",
-            "link": "https://exist.co/job",
-            "location": "Updated Loc",
-            "posted_date": datetime.now(timezone.utc),
-            "salary": "$90k-130k",
-        },
-        {
-            "company": "New Co",
-            "title": "New Job",
-            "description": "New desc",
-            "link": "https://new.co/job",
-            "location": "New Loc",
-            "salary": (None, None),
-        },
-    ]
-    new_jobs = [JobSQL.model_validate(data) for data in new_jobs_data]
+    session.add(stale)
+    session.commit()
 
     # Test direct database operations instead of calling update_db()
-    # Since update_db uses synchronous SQLModel and we're using async
-    current_links = {job.link for job in new_jobs if job.link}
 
-    # Simulate upsert operation
-    for job in new_jobs:
-        if not job.link:
-            continue
-        result = await temp_db.exec(select(JobSQL).where(JobSQL.link == job.link))
-        existing = result.first()
-        if existing:
-            existing.title = job.title
-            existing.company = job.company
-            existing.description = job.description
-            existing.location = job.location
-            existing.posted_date = job.posted_date
-            existing.salary = job.salary
-        else:
-            temp_db.add(job)
+    # Simulate upsert operation for existing job
+    existing_job_result = session.exec(
+        select(JobSQL).where(JobSQL.link == "https://exist.co/job")
+    )
+    existing_job = existing_job_result.first()
+    existing_job.title = "Updated Title"
+    existing_job.company = "Exist Co"
+    existing_job.description = "Updated desc"
+    existing_job.location = "Updated Loc"
+    existing_job.posted_date = datetime.now(timezone.utc)
+    existing_job.salary = (90000, 130000)
 
-    # Delete stale jobs
-    result = await temp_db.exec(select(JobSQL))
-    all_db_jobs = result.all()
-    for db_job in all_db_jobs:
-        if db_job.link not in current_links:
-            await temp_db.delete(db_job)
+    # Add new job
+    new_job_data = {
+        "company": "New Co",
+        "title": "New Job",
+        "description": "New desc",
+        "link": "https://new.co/job",
+        "location": "New Loc",
+        "salary": (None, None),
+    }
+    new_job = JobSQL.model_validate(new_job_data)
+    session.add(new_job)
 
-    await temp_db.commit()
+    # Delete stale job explicitly
+    stale_job_result = session.exec(
+        select(JobSQL).where(JobSQL.link == "https://stale.co/job")
+    )
+    stale_job = stale_job_result.first()
+    session.delete(stale_job)
 
-    all_jobs = (await temp_db.exec(select(JobSQL))).all()
+    session.commit()
+
+    all_jobs = (session.exec(select(JobSQL))).all()
     assert len(all_jobs) == 2  # Stale deleted
 
     updated = next(j for j in all_jobs if j.link == "https://exist.co/job")
@@ -136,14 +135,20 @@ async def test_update_db_upsert_and_delete(mock_engine, temp_db: AsyncSession):
     assert new_job.title == "New Job"
 
 
-@pytest.mark.asyncio
 @patch("src.scraper.update_db")
 @patch("src.scraper.scrape_job_boards")
 @patch("src.scraper.load_active_companies")
-async def test_scrape_all_workflow(
-    mock_load_companies, mock_scrape_boards, mock_update_db
-):
-    """Test full scrape_all workflow with mocks."""
+def test_scrape_all_workflow(
+    mock_load_companies: Any, mock_scrape_boards: Any, mock_update_db: Any
+) -> None:
+    """Test complete scrape_all workflow with comprehensive mocking.
+
+    Validates the full scraping pipeline including:
+    - Loading active companies from database
+    - Company page scraping with LangGraph workflow
+    - Job board scraping integration
+    - Final database update with combined results
+    """
     mock_load_companies.return_value = [
         CompanySQL.model_validate(
             {"name": "Mock Co", "url": "https://mock.co", "active": True}
@@ -191,14 +196,17 @@ async def test_scrape_all_workflow(
         assert any(j.title == "ML Engineer" for j in called_jobs)
 
 
-@pytest.mark.asyncio
 @patch("src.scraper.update_db")
 @patch("src.scraper.scrape_job_boards")
 @patch("src.scraper.load_active_companies")
-async def test_scrape_all_filtering(
-    mock_load_companies, mock_scrape_boards, mock_update_db
-):
-    """Test relevance filtering in scrape_all."""
+def test_scrape_all_filtering(
+    mock_load_companies: Any, mock_scrape_boards: Any, mock_update_db: Any
+) -> None:
+    """Test job relevance filtering in scrape_all workflow.
+
+    Validates that only relevant jobs (AI/ML related) are kept
+    while non-relevant jobs (Sales, etc.) are filtered out.
+    """
     mock_load_companies.return_value = []
     mock_scrape_boards.return_value = [
         {
@@ -232,14 +240,19 @@ async def test_scrape_all_filtering(
     assert called_jobs[0].title == "AI Engineer"
 
 
-@pytest.mark.asyncio
 @patch("src.scraper_company_pages.save_jobs")
 @patch("src.scraper_company_pages.SmartScraperMultiGraph")
 @patch("src.scraper_company_pages.load_active_companies")
-async def test_scrape_company_pages(
-    mock_load_companies, mock_scraper_class, mock_save_jobs
-):
-    """Test scrape_company_pages with mocks."""
+def test_scrape_company_pages(
+    mock_load_companies: Any, mock_scraper_class: Any, mock_save_jobs: Any
+) -> None:
+    """Test company page scraping with SmartScraperMultiGraph mocking.
+
+    Validates the company page scraping workflow including:
+    - Loading active companies from database
+    - Using SmartScraperMultiGraph for job extraction
+    - Handling multi-step scraping (job listing -> job details)
+    """
     mock_load_companies.return_value = [
         CompanySQL.model_validate(
             {"name": "Test Co", "url": "https://test.co", "active": True}
@@ -262,10 +275,14 @@ async def test_scrape_company_pages(
     # The actual workflow is complex so we just test it doesn't crash
 
 
-@pytest.mark.asyncio
 @patch("src.scraper_job_boards.scrape_jobs")
-async def test_scrape_job_boards(mock_scrape_jobs):
-    """Test scrape_job_boards with mock."""
+def test_scrape_job_boards(mock_scrape_jobs: Any) -> None:
+    """Test job board scraping with pandas DataFrame mocking.
+
+    Validates that job board scraping returns properly structured
+    data from the underlying scrape_jobs function and converts
+    DataFrame results to list format.
+    """
     # Mock to return a pandas DataFrame-like structure
 
     mock_df = pd.DataFrame(

@@ -1,50 +1,39 @@
-"""Pytest configuration and fixtures for AI Job Scraper tests."""
+"""Pytest configuration and fixtures for AI Job Scraper tests.
 
-import asyncio
+This module provides test fixtures and configuration for the AI Job Scraper
+test suite, including database session management, sample data creation,
+and test settings configuration.
+"""
 
 from datetime import datetime, timezone
 
 import pytest
-import pytest_asyncio
 
-from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
-from sqlalchemy.orm import sessionmaker
-from sqlmodel import SQLModel
-from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlmodel.sql.expression import Select, SelectOfScalar
+from sqlalchemy.pool import StaticPool
+from sqlmodel import Session, SQLModel, create_engine
 from src.config import Settings
 from src.models import CompanySQL, JobSQL
 
-# Patch SQLModel for async query caching
-Select.inherit_cache = True  # type: ignore[attr-defined]
-SelectOfScalar.inherit_cache = True  # type: ignore[attr-defined]
 
+@pytest.fixture(scope="session", name="engine")
+def engine_fixture():
+    """Create a temporary in-memory SQLite engine for the test session.
 
-@pytest.fixture(scope="session")
-def event_loop():
-    """Create an event loop for async tests."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
-
-
-@pytest_asyncio.fixture
-async def temp_db():
-    """Create a temporary in-memory database for async testing."""
-    # Create async engine for testing with in-memory SQLite
-    test_engine: AsyncEngine = create_async_engine(
-        "sqlite+aiosqlite:///:memory:", echo=False, future=True
+    Uses StaticPool to ensure schema and data persist across session connections.
+    """
+    engine = create_engine(
+        "sqlite:///:memory:",
+        poolclass=StaticPool,
+        connect_args={"check_same_thread": False},
     )
+    SQLModel.metadata.create_all(engine)
+    return engine
 
-    # Create tables
-    async with test_engine.begin() as conn:
-        await conn.run_sync(SQLModel.metadata.create_all)
 
-    async_session = sessionmaker(
-        test_engine, class_=AsyncSession, expire_on_commit=False
-    )
-
-    async with async_session() as session:
+@pytest.fixture(name="session")
+def session_fixture(engine):
+    """Create a new database session for each test."""
+    with Session(engine) as session:
         yield session
 
 
@@ -63,20 +52,20 @@ def test_settings():
     )
 
 
-@pytest_asyncio.fixture
-async def sample_company(temp_db: AsyncSession):
+@pytest.fixture
+def sample_company(session: Session):
     """Create and insert a sample company for testing."""
     company = CompanySQL(
         name="Test Company", url="https://test.com/careers", active=True
     )
-    temp_db.add(company)
-    await temp_db.commit()
-    await temp_db.refresh(company)
+    session.add(company)
+    session.commit()
+    session.refresh(company)
     return company
 
 
-@pytest_asyncio.fixture
-async def sample_job(temp_db: AsyncSession):
+@pytest.fixture
+def sample_job(session: Session):
     """Create and insert a sample job for testing."""
     job = JobSQL(
         company="Test Company",
@@ -89,9 +78,9 @@ async def sample_job(temp_db: AsyncSession):
         favorite=False,
         notes="",
     )
-    temp_db.add(job)
-    await temp_db.commit()
-    await temp_db.refresh(job)
+    session.add(job)
+    session.commit()
+    session.refresh(job)
     return job
 
 
