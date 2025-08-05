@@ -45,9 +45,7 @@ def _render_search_filters() -> None:
         selected_companies = st.multiselect(
             "Filter by Company",
             options=companies,
-            default=st.session_state.filters["company"]
-            if st.session_state.filters["company"]
-            else None,
+            default=st.session_state.filters["company"] or None,
             placeholder="All companies",
             help="Select one or more companies to filter jobs",
         )
