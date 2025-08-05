@@ -508,7 +508,7 @@ def _render_recent_results_section() -> None:
         if progress_data.start_time and progress_data.end_time:
             duration = progress_data.end_time - progress_data.start_time
             duration_text = f"{duration.total_seconds():.1f}s"
-        elif progress_data.start_time and not progress_data.end_time:
+        elif progress_data.start_time:
             duration_text = "Running..."
         else:
             duration_text = "N/A"
