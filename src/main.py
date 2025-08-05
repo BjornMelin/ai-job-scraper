@@ -8,7 +8,7 @@ built-in st.navigation() for optimal performance and maintainability.
 import streamlit as st
 
 from src.ui.state.session_state import init_session_state
-from src.ui.styles.optimized_theme import load_theme
+from src.ui.styles.theme import load_theme
 from src.ui.utils.database_utils import render_database_health_widget
 
 

@@ -15,7 +15,10 @@ Key improvements:
 
 import logging
 import threading
+import uuid
 
+from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any
 
 import streamlit as st
@@ -30,6 +33,61 @@ logger = logging.getLogger(__name__)
 
 # Suppress SQLAlchemy warnings common in Streamlit context
 suppress_sqlalchemy_warnings()
+
+
+@dataclass
+class CompanyProgress:
+    """Individual company scraping progress tracking."""
+
+    name: str
+    status: str = "Pending"
+    jobs_found: int = 0
+    start_time: datetime | None = None
+    end_time: datetime | None = None
+    error: str | None = None
+
+
+@dataclass
+class ProgressInfo:
+    """Progress information for background tasks."""
+
+    progress: float
+    message: str
+    timestamp: datetime
+
+
+@dataclass
+class TaskInfo:
+    """Task information for background tasks."""
+
+    task_id: str
+    status: str
+    progress: float
+    message: str
+    timestamp: datetime
+
+
+class BackgroundTaskManager:
+    """Simple background task manager for compatibility."""
+
+    def __init__(self):
+        self.tasks = {}
+
+    def add_task(self, task_id: str, task_info: TaskInfo) -> None:
+        """Add a task to tracking."""
+        self.tasks[task_id] = task_info
+
+    def get_task(self, task_id: str) -> TaskInfo | None:
+        """Get task information."""
+        return self.tasks.get(task_id)
+
+    def remove_task(self, task_id: str) -> None:
+        """Remove a task from tracking."""
+        self.tasks.pop(task_id, None)
+
+
+class StreamlitTaskManager(BackgroundTaskManager):
+    """Streamlit-specific task manager."""
 
 
 def render_scraping_controls() -> None:
@@ -114,3 +172,50 @@ def is_scraping_active() -> bool:
 def get_scraping_results() -> dict[str, Any]:
     """Get results from the last scraping operation."""
     return st.session_state.get("scraping_results", {})
+
+
+# Compatibility functions for existing code
+def get_task_manager() -> StreamlitTaskManager:
+    """Get or create the task manager instance."""
+    if "task_manager" not in st.session_state:
+        st.session_state.task_manager = StreamlitTaskManager()
+    return st.session_state.task_manager
+
+
+def start_background_scraping() -> str:
+    """Start background scraping and return task ID."""
+    task_id = str(uuid.uuid4())
+
+    # Initialize session state
+    if "scraping_active" not in st.session_state:
+        st.session_state.scraping_active = False
+    if "task_progress" not in st.session_state:
+        st.session_state.task_progress = {}
+
+    # Store in session state
+    st.session_state.task_progress[task_id] = ProgressInfo(
+        progress=0.0,
+        message="Starting scraping...",
+        timestamp=datetime.now(timezone.utc),
+    )
+    st.session_state.scraping_active = True
+    st.session_state.task_id = task_id
+
+    # Start the actual scraping (delegate to existing function)
+    start_scraping()
+
+    return task_id
+
+
+def stop_all_scraping() -> int:
+    """Stop all scraping operations."""
+    stopped_count = 0
+    if st.session_state.get("scraping_active", False):
+        st.session_state.scraping_active = False
+        stopped_count = 1
+    return stopped_count
+
+
+def get_scraping_progress() -> dict[str, ProgressInfo]:
+    """Get current scraping progress."""
+    return st.session_state.get("task_progress", {})
