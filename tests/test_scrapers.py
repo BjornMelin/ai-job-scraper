@@ -24,7 +24,7 @@ async def test_update_db_new_jobs(temp_db: AsyncSession):
         "description": "AI role",
         "link": "https://new.co/job1",
         "location": "Remote",
-        "posted_date": datetime.datetime.now(datetime.UTC),
+        "posted_date": datetime.datetime.now(datetime.timezone.utc),
         "salary": "$100k-150k",
     }
     job = JobSQL.model_validate(job_data)
@@ -53,7 +53,8 @@ async def test_update_db_upsert_and_delete(mock_engine, temp_db: AsyncSession):
         "description": "Old desc",
         "link": "https://exist.co/job",
         "location": "Old Loc",
-        "posted_date": datetime.datetime.now(datetime.UTC) - datetime.timedelta(days=1),
+        "posted_date": datetime.datetime.now(datetime.timezone.utc)
+        - datetime.timedelta(days=1),
         "salary": (80000, 120000),
         "favorite": True,  # User field to preserve
     }
@@ -82,7 +83,7 @@ async def test_update_db_upsert_and_delete(mock_engine, temp_db: AsyncSession):
             "description": "Updated desc",
             "link": "https://exist.co/job",
             "location": "Updated Loc",
-            "posted_date": datetime.datetime.now(datetime.UTC),
+            "posted_date": datetime.datetime.now(datetime.timezone.utc),
             "salary": "$90k-130k",
         },
         {
@@ -142,7 +143,7 @@ async def test_update_db_upsert_and_delete(mock_engine, temp_db: AsyncSession):
 @patch("src.scraper.scrape_job_boards")
 @patch("src.scraper.load_active_companies")
 async def test_scrape_all_workflow(
-    mock_load_companies, mock_scrape_boards, mock_update_db, temp_db: AsyncSession
+    mock_load_companies, mock_scrape_boards, mock_update_db
 ):
     """Test full scrape_all workflow with mocks."""
     mock_load_companies.return_value = [
@@ -176,7 +177,7 @@ async def test_scrape_all_workflow(
                 "description": "ML role",
                 "job_url": "https://board.co/job2",
                 "location": "Office",
-                "date_posted": datetime.datetime.now(datetime.UTC),
+                "date_posted": datetime.datetime.now(datetime.timezone.utc),
                 "min_amount": 100000,
                 "max_amount": 150000,
             }
@@ -197,7 +198,7 @@ async def test_scrape_all_workflow(
 @patch("src.scraper.scrape_job_boards")
 @patch("src.scraper.load_active_companies")
 async def test_scrape_all_filtering(
-    mock_load_companies, mock_scrape_boards, mock_update_db, temp_db: AsyncSession
+    mock_load_companies, mock_scrape_boards, mock_update_db
 ):
     """Test relevance filtering in scrape_all."""
     mock_load_companies.return_value = []
@@ -238,7 +239,7 @@ async def test_scrape_all_filtering(
 @patch("src.scraper_company_pages.SmartScraperMultiGraph")
 @patch("src.scraper_company_pages.load_active_companies")
 async def test_scrape_company_pages(
-    mock_load_companies, mock_scraper_class, mock_save_jobs, temp_db: AsyncSession
+    mock_load_companies, mock_scraper_class, mock_save_jobs
 ):
     """Test scrape_company_pages with mocks."""
     mock_load_companies.return_value = [

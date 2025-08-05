@@ -45,7 +45,7 @@ async def test_job_sql_creation(temp_db):
         "description": "AI role",
         "link": "https://test.co/job",
         "location": "Remote",
-        "posted_date": datetime.datetime.now(datetime.UTC),
+        "posted_date": datetime.datetime.now(datetime.timezone.utc),
         "salary": "$100k-150k",
     }
     job = JobSQL.model_validate(job_data)

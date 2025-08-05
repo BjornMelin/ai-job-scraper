@@ -84,7 +84,7 @@ async def sample_job(temp_db: AsyncSession):
         description="We are looking for an experienced AI engineer to join our team.",
         link="https://test.com/careers/ai-engineer-123",
         location="San Francisco, CA",
-        posted_date=datetime.now(datetime.UTC),
+        posted_date=datetime.now(datetime.timezone.utc),
         salary=(100000, 150000),
         favorite=False,
         notes="",
@@ -104,6 +104,6 @@ def sample_job_dict():
         "description": "We are looking for an experienced AI engineer.",
         "link": "https://test.com/careers/ai-engineer-123",
         "location": "San Francisco, CA",
-        "posted_date": datetime.now(datetime.UTC),
+        "posted_date": datetime.now(datetime.timezone.utc),
         "salary": "$100k-150k",
     }
