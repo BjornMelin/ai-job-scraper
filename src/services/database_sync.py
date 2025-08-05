@@ -14,8 +14,8 @@ from datetime import datetime, timedelta
 from sqlalchemy import func
 from sqlmodel import Session, select
 
-from ..database import SessionLocal
-from ..models import JobSQL
+from src.database import SessionLocal
+from src.models import JobSQL
 
 logger = logging.getLogger(__name__)
 
@@ -376,6 +376,7 @@ class SmartSyncEngine:
             content_parts.append(job.posted_date.isoformat())
 
         content = "".join(content_parts)
+        # MD5 is safe for non-cryptographic content fingerprinting/change detection
         return hashlib.md5(content.encode("utf-8")).hexdigest()
 
     def get_sync_statistics(self) -> dict[str, int]:

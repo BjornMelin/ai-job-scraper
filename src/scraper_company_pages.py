@@ -1,5 +1,4 @@
-"""Module implementing an agentic workflow for scraping job listings
-from company career pages.
+"""Module for scraping job listings from company career pages via agentic workflow.
 
 This module uses ScrapeGraphAI for prompt-based extraction and LangGraph to
 orchestrate multi-step scraping: first extracting job lists with URLs, then
@@ -231,7 +230,7 @@ def normalize_jobs(state: State) -> dict[str, list[JobSQL]]:
 
             # Create content hash
             content = f"{raw['title']}{raw.get('description', '')}{raw['company']}"
-            content_hash = hashlib.md5(content.encode()).hexdigest()
+            content_hash = hashlib.sha256(content.encode()).hexdigest()
 
             job = JobSQL(
                 company_id=company_id,

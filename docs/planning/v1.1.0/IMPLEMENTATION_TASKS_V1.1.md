@@ -110,7 +110,7 @@ This plan details the tasks for the **V1.1 "Power User" Upgrade**. It assumes a 
 
 - **Release**: V1.1
 - **Priority**: **Medium**
-- **Status**: **PENDING**
+- **Status**: **Done**
 - **Prerequisites**: `T1.4` (Core Progress Dashboard)
 - **Related Requirements**: `UI-PROG-02`
 - **Libraries**: `streamlit==1.47.1`

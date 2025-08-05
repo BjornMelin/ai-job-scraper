@@ -89,9 +89,12 @@ async def test_seed_data_integrity(expected_companies):
     """Test seeded data integrity."""
     assert len(expected_companies) > 0
     for comp in expected_companies:
-        assert isinstance(comp["name"], str) and len(comp["name"]) > 0
-        assert comp["url"].startswith("https://")
-        assert comp["active"] is True
+        assert isinstance(comp["name"], str), "Company name should be a string"
+        assert len(comp["name"]) > 0, "Company name should not be empty"
+        assert comp["url"].startswith("https://"), (
+            "Company URL should start with https://"
+        )
+        assert comp["active"] is True, "Company should be active"
 
 
 def test_seed_cli_execution(temp_db):

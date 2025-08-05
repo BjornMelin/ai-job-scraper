@@ -252,8 +252,8 @@ def _render_job_tabs(jobs: list[JobSQL], state_manager: StateManager) -> None:
         state_manager: State manager for view mode settings.
     """
     # Calculate tab counts
-    favorites_count = sum(1 for j in jobs if j.favorite)
-    applied_count = sum(1 for j in jobs if j.status == "Applied")
+    favorites_count = sum(j.favorite for j in jobs)
+    applied_count = sum(j.status == "Applied" for j in jobs)
 
     # Create tabs with counts
     tab1, tab2, tab3 = st.tabs(
@@ -463,11 +463,11 @@ def _render_statistics_dashboard(jobs: list[JobSQL]) -> None:
 
     # Calculate statistics
     total_jobs = len(jobs)
-    favorites = sum(1 for j in jobs if j.favorite)
-    applied = sum(1 for j in jobs if j.status == "Applied")
-    interested = sum(1 for j in jobs if j.status == "Interested")
-    new_jobs = sum(1 for j in jobs if j.status == "New")
-    rejected = sum(1 for j in jobs if j.status == "Rejected")
+    favorites = sum(j.favorite for j in jobs)
+    applied = sum(j.status == "Applied" for j in jobs)
+    interested = sum(j.status == "Interested" for j in jobs)
+    new_jobs = sum(j.status == "New" for j in jobs)
+    rejected = sum(j.status == "Rejected" for j in jobs)
 
     # Render metric cards
     _render_metric_cards(total_jobs, new_jobs, interested, applied, favorites, rejected)
