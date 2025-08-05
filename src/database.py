@@ -8,6 +8,9 @@ and SQLite optimization for concurrent access patterns.
 
 import logging
 
+from collections.abc import Generator
+from contextlib import contextmanager
+
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -20,7 +23,7 @@ settings = Settings()
 logger = logging.getLogger(__name__)
 
 
-def _attach_sqlite_listeners(engine):
+def _attach_sqlite_listeners(db_engine):
     """Attach SQLite event listeners for pragmas and optional performance monitoring.
 
     This function uses modular event listeners organized by responsibility:
@@ -28,15 +31,15 @@ def _attach_sqlite_listeners(engine):
     - Monitoring listeners: Track query performance and log slow queries
 
     Args:
-        engine: SQLAlchemy engine instance to attach listeners to.
+        db_engine: SQLAlchemy engine instance to attach listeners to.
     """
     # Always attach pragma handler for SQLite optimization
-    event.listen(engine, "connect", apply_pragmas)
+    event.listen(db_engine, "connect", apply_pragmas)
 
     # Only attach performance monitoring if enabled in settings
     if settings.db_monitoring:
-        event.listen(engine, "before_cursor_execute", start_timer)
-        event.listen(engine, "after_cursor_execute", log_slow)
+        event.listen(db_engine, "before_cursor_execute", start_timer)
+        event.listen(db_engine, "after_cursor_execute", log_slow)
 
 
 # Create thread-safe SQLAlchemy engine with optimized configuration
@@ -98,6 +101,35 @@ def get_session() -> Session:
     return Session(engine)
 
 
+@contextmanager
+def db_session() -> Generator[Session, None, None]:
+    """Database session context manager with automatic lifecycle management.
+
+    Provides automatic session commit/rollback and cleanup for service operations.
+    This eliminates the duplicate session management pattern across services.
+
+    Yields:
+        Session: SQLModel database session.
+
+    Example:
+        ```python
+        with db_session() as session:
+            job = session.get(JobSQL, job_id)
+            job.status = "completed"
+            # Automatic commit on success, rollback on exception
+        ```
+    """
+    session = get_session()
+    try:
+        yield session
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+
+
 def get_connection_pool_status() -> dict:
     """Get current database connection pool status for monitoring.
 
@@ -134,7 +166,7 @@ def get_connection_pool_status() -> dict:
             "overflow": overflow,
             "invalid": invalid,
             "pool_type": pool.__class__.__name__,
-            "engine_url": str(engine.url).split("@")[-1]
+            "engine_url": str(engine.url).rsplit("@", maxsplit=1)[-1]
             if "@" in str(engine.url)
             else str(engine.url),
         }
