@@ -97,13 +97,12 @@ def load_settings() -> dict[str, Any]:
     Returns:
         Dictionary containing current settings.
     """
-    settings = {
+    return {
         "openai_api_key": os.getenv("OPENAI_API_KEY", ""),
         "groq_api_key": os.getenv("GROQ_API_KEY", ""),
         "llm_provider": st.session_state.get("llm_provider", "OpenAI"),
         "max_jobs_per_company": st.session_state.get("max_jobs_per_company", 50),
     }
-    return settings
 
 
 def save_settings(settings: dict[str, Any]) -> None:
