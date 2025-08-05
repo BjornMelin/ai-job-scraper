@@ -16,7 +16,6 @@ import streamlit as st
 
 from src.models import JobSQL
 from src.services.job_service import JobService
-from src.ui.state.app_state import StateManager
 
 logger = logging.getLogger(__name__)
 
@@ -262,18 +261,18 @@ def render_job_cards_grid(jobs_df: pd.DataFrame, tab_key: str) -> None:
     if jobs_df.empty:
         return
 
-    from src.ui.state.app_state import StateManager
+    from src.ui.state.session_state import init_session_state
 
-    state_manager = StateManager()
+    init_session_state()
 
     # Sorting controls
-    _render_sorting_controls(state_manager, tab_key)
+    _render_sorting_controls(tab_key)
 
     # Apply sorting to DataFrame
-    sorted_df = _apply_sorting(jobs_df, state_manager)
+    sorted_df = _apply_sorting(jobs_df)
 
     # Pagination controls
-    page_num = _render_pagination_controls(sorted_df, tab_key, state_manager)
+    page_num = _render_pagination_controls(sorted_df, tab_key)
 
     # Get paginated data
     paginated_df = _get_paginated_data(sorted_df, page_num)
@@ -282,11 +281,10 @@ def render_job_cards_grid(jobs_df: pd.DataFrame, tab_key: str) -> None:
     _render_cards_grid(paginated_df, tab_key, page_num)
 
 
-def _render_sorting_controls(state_manager: StateManager, tab_key: str) -> None:
+def _render_sorting_controls(tab_key: str) -> None:
     """Render sorting controls for the job cards.
 
     Args:
-        state_manager: State manager for accessing sort settings.
         tab_key: Tab key for unique widget keys.
     """
     sort_options = {"Posted": "Posted", "Title": "Title", "Company": "Company"}
@@ -297,48 +295,44 @@ def _render_sorting_controls(state_manager: StateManager, tab_key: str) -> None:
         selected_sort = st.selectbox(
             "Sort By",
             list(sort_options.values()),
-            index=list(sort_options.values()).index(state_manager.sort_by),
+            index=list(sort_options.values()).index(st.session_state.sort_by),
             key=f"sort_by_{tab_key}",
         )
-        state_manager.sort_by = selected_sort
+        st.session_state.sort_by = selected_sort
 
     with col2:
         sort_asc = st.checkbox(
             "Ascending",
-            state_manager.sort_asc,
+            st.session_state.sort_asc,
             key=f"sort_asc_{tab_key}",
         )
-        state_manager.sort_asc = sort_asc
+        st.session_state.sort_asc = sort_asc
 
 
-def _apply_sorting(df: pd.DataFrame, state_manager: StateManager) -> pd.DataFrame:
+def _apply_sorting(df: pd.DataFrame) -> pd.DataFrame:
     """Apply sorting to the DataFrame.
 
     Args:
         df: DataFrame to sort.
-        state_manager: State manager with sort settings.
 
     Returns:
         Sorted DataFrame.
     """
     sort_options = {"Posted": "Posted", "Title": "Title", "Company": "Company"}
     sort_key = next(
-        (k for k, v in sort_options.items() if v == state_manager.sort_by),
+        (k for k, v in sort_options.items() if v == st.session_state.sort_by),
         "Posted",
     )
 
-    return df.sort_values(by=sort_key, ascending=state_manager.sort_asc)
+    return df.sort_values(by=sort_key, ascending=st.session_state.sort_asc)
 
 
-def _render_pagination_controls(
-    df: pd.DataFrame, tab_key: str, state_manager: StateManager
-) -> int:
+def _render_pagination_controls(df: pd.DataFrame, tab_key: str) -> int:
     """Render pagination controls and return current page.
 
     Args:
         df: DataFrame for pagination calculation.
         tab_key: Tab key for state management.
-        state_manager: State manager for page state.
 
     Returns:
         Current page number.
@@ -346,14 +340,17 @@ def _render_pagination_controls(
     cards_per_page = 9
     total_pages = (len(df) + cards_per_page - 1) // cards_per_page
 
-    current_page = state_manager.get_tab_page(tab_key)
+    page_key = f"{tab_key}_page"
+    if page_key not in st.session_state:
+        st.session_state[page_key] = 0
+    current_page = st.session_state[page_key]
     current_page = max(0, min(current_page, total_pages - 1))
 
     col1, col2, col3 = st.columns(3)
 
     with col1:
         if st.button("Previous Page", key=f"prev_{tab_key}") and current_page > 0:
-            state_manager.set_tab_page(tab_key, current_page - 1)
+            st.session_state[page_key] = current_page - 1
             st.rerun()
 
     with col2:
@@ -364,7 +361,7 @@ def _render_pagination_controls(
             st.button("Next Page", key=f"next_{tab_key}")
             and current_page < total_pages - 1
         ):
-            state_manager.set_tab_page(tab_key, current_page + 1)
+            st.session_state[page_key] = current_page + 1
             st.rerun()
 
     return current_page

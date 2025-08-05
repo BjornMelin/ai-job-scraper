@@ -14,7 +14,6 @@ from sqlalchemy.orm import Session
 
 from src.database import SessionLocal
 from src.models import CompanySQL
-from src.ui.state.app_state import StateManager
 
 logger = logging.getLogger(__name__)
 
@@ -26,22 +25,16 @@ def render_sidebar() -> None:
     search filters, view settings, and company management. It manages the
     application state and handles user interactions within the sidebar.
     """
-    state_manager = StateManager()
-
     with st.sidebar:
-        _render_search_filters(state_manager)
+        _render_search_filters()
         st.divider()
-        _render_view_settings(state_manager)
+        _render_view_settings()
         st.divider()
         _render_company_management()
 
 
-def _render_search_filters(state_manager: StateManager) -> None:
-    """Render the search and filter section of the sidebar.
-
-    Args:
-        state_manager: State manager instance for accessing and updating filters.
-    """
+def _render_search_filters() -> None:
+    """Render the search and filter section of the sidebar."""
     st.markdown("### 🔍 Search & Filter")
 
     with st.container():
@@ -52,30 +45,28 @@ def _render_search_filters(state_manager: StateManager) -> None:
         selected_companies = st.multiselect(
             "Filter by Company",
             options=companies,
-            default=state_manager.filters["company"]
-            if state_manager.filters["company"]
-            else None,
+            default=st.session_state.filters["company"] or None,
             placeholder="All companies",
             help="Select one or more companies to filter jobs",
         )
 
         # Update filters in state manager
-        current_filters = state_manager.filters.copy()
+        current_filters = st.session_state.filters.copy()
         current_filters["company"] = selected_companies
-        state_manager.filters = current_filters
+        st.session_state.filters = current_filters
 
         # Keyword search with placeholder
         keyword_value = st.text_input(
             "Search Keywords",
-            value=state_manager.filters["keyword"],
+            value=st.session_state.filters["keyword"],
             placeholder="e.g., Python, Machine Learning, Remote",
             help="Search in job titles and descriptions",
         )
 
         # Update keyword in filters
-        current_filters = state_manager.filters.copy()
+        current_filters = st.session_state.filters.copy()
         current_filters["keyword"] = keyword_value
-        state_manager.filters = current_filters
+        st.session_state.filters = current_filters
 
         # Date range with column layout
         st.markdown("**Date Range**")
@@ -84,35 +75,33 @@ def _render_search_filters(state_manager: StateManager) -> None:
         with col1:
             date_from = st.date_input(
                 "From",
-                value=state_manager.filters["date_from"],
+                value=st.session_state.filters["date_from"],
                 help="Show jobs posted after this date",
             )
 
         with col2:
             date_to = st.date_input(
                 "To",
-                value=state_manager.filters["date_to"],
+                value=st.session_state.filters["date_to"],
                 help="Show jobs posted before this date",
             )
 
         # Update date filters
-        current_filters = state_manager.filters.copy()
+        current_filters = st.session_state.filters.copy()
         current_filters["date_from"] = date_from
         current_filters["date_to"] = date_to
-        state_manager.filters = current_filters
+        st.session_state.filters = current_filters
 
         # Clear filters button
         if st.button("Clear All Filters", use_container_width=True):
-            state_manager.clear_filters()
+            from src.ui.state.session_state import clear_filters
+
+            clear_filters()
             st.rerun()
 
 
-def _render_view_settings(state_manager: StateManager) -> None:
-    """Render the view settings section of the sidebar.
-
-    Args:
-        state_manager: State manager instance for accessing and updating view mode.
-    """
+def _render_view_settings() -> None:
+    """Render the view settings section of the sidebar."""
     st.markdown("### 👁️ View Settings")
 
     view_col1, view_col2 = st.columns(2)
@@ -121,18 +110,18 @@ def _render_view_settings(state_manager: StateManager) -> None:
         if st.button(
             "📋 List View",
             use_container_width=True,
-            type="secondary" if state_manager.view_mode == "Card" else "primary",
+            type="secondary" if st.session_state.view_mode == "Card" else "primary",
         ):
-            state_manager.view_mode = "List"
+            st.session_state.view_mode = "List"
             st.rerun()
 
     with view_col2:
         if st.button(
             "🎴 Card View",
             use_container_width=True,
-            type="secondary" if state_manager.view_mode == "List" else "primary",
+            type="secondary" if st.session_state.view_mode == "List" else "primary",
         ):
-            state_manager.view_mode = "Card"
+            st.session_state.view_mode = "Card"
             st.rerun()
 
 

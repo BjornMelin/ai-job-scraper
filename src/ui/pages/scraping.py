@@ -548,3 +548,7 @@ def _render_recent_results_section() -> None:
                 },
             }
         )
+
+
+# Execute page when loaded by st.navigation()
+render_scraping_page()

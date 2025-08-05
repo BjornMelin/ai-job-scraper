@@ -72,6 +72,7 @@ SessionLocal = sessionmaker(
     autoflush=False,
     bind=engine,
     expire_on_commit=False,  # Prevent lazy loading issues in background threads
+    class_=Session,  # Use SQLModel Session class
 )
 
 
@@ -114,11 +115,26 @@ def get_connection_pool_status() -> dict:
     """
     try:
         pool = engine.pool
+
+        # Handle StaticPool which doesn't have all the same methods
+        if hasattr(pool, "size"):
+            pool_size = pool.size()
+            checked_out = pool.checkedout()
+            overflow = pool.overflow()
+            invalid = pool.invalid()
+        else:
+            # StaticPool case - provide static information
+            pool_size = 1  # StaticPool always uses 1 connection
+            checked_out = 1 if hasattr(pool, "_connection") and pool._connection else 0
+            overflow = 0  # StaticPool doesn't overflow
+            invalid = 0  # StaticPool doesn't track invalid connections
+
         return {
-            "pool_size": pool.size(),
-            "checked_out": pool.checkedout(),
-            "overflow": pool.overflow(),
-            "invalid": pool.invalid(),
+            "pool_size": pool_size,
+            "checked_out": checked_out,
+            "overflow": overflow,
+            "invalid": invalid,
+            "pool_type": pool.__class__.__name__,
             "engine_url": str(engine.url).split("@")[-1]
             if "@" in str(engine.url)
             else str(engine.url),
@@ -130,5 +146,6 @@ def get_connection_pool_status() -> dict:
             "checked_out": "unknown",
             "overflow": "unknown",
             "invalid": "unknown",
+            "pool_type": "unknown",
             "error": str(e),
         }
