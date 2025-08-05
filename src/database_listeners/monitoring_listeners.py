@@ -39,22 +39,27 @@ def performance_monitor(func):
 
             if execution_time > SLOW_QUERY_THRESHOLD:
                 logger.warning(
-                    f"Slow database operation: {func_name} took {execution_time:.3f}s"
+                    "Slow database operation: %s took %s",
+                    func_name,
+                    execution_time,
                 )
             elif execution_time > 0.1:  # Log operations over 100ms as debug
                 logger.debug(
-                    f"Database operation: {func_name} took {execution_time:.3f}s"
+                    "Database operation: %s took %s",
+                    func_name,
+                    execution_time,
                 )
 
-            return result
-
-        except Exception as e:
+        except Exception:
             execution_time = time.time() - start_time
-            logger.error(
-                f"Database operation failed: {func_name} failed after "
-                f"{execution_time:.3f}s with error: {e}"
+            logger.exception(
+                "Database operation failed: %s failed after %s",
+                func_name,
+                execution_time,
             )
             raise
+        else:
+            return result
 
     return wrapper
 
@@ -101,6 +106,6 @@ def log_slow(conn, cursor, stmt, params, ctx, many):
     dt = time.time() - ctx._query_start
     if dt > SLOW_QUERY_THRESHOLD:
         preview = f"{stmt[:200]}..." if len(stmt) > 200 else stmt
-        logger.warning(f"Slow query {dt:.3f}s – {preview}")
+        logger.warning("Slow query %s - %s", dt, preview)
     elif dt > 0.1:  # Log queries over 100ms as debug
-        logger.debug(f"Query took {dt:.3f}s")
+        logger.debug("Query took %s", dt)

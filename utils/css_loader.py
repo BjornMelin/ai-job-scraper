@@ -20,9 +20,10 @@ def load_css(css_file: str) -> None:
     """
     css_path = Path(css_file)
     if not css_path.exists():
-        raise FileNotFoundError(f"CSS file not found: {css_file}")
+        msg = f"CSS file not found: {css_file}"
+        raise FileNotFoundError(msg)
 
-    with open(css_path) as f:
+    with Path(css_path).open() as f:
         css_content = f.read()
 
     st.markdown(f"<style>{css_content}</style>", unsafe_allow_html=True)

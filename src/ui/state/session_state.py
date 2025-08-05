@@ -20,8 +20,8 @@ def init_session_state() -> None:
         "filters": {
             "company": [],
             "keyword": "",
-            "date_from": datetime.now() - timedelta(days=30),
-            "date_to": datetime.now(),
+            "date_from": datetime.now(datetime.UTC) - timedelta(days=30),
+            "date_to": datetime.now(datetime.UTC),
         },
         "view_mode": "Card",  # Default to more visual card view
         "card_page": 0,
@@ -40,8 +40,8 @@ def clear_filters() -> None:
     st.session_state.filters = {
         "company": [],
         "keyword": "",
-        "date_from": datetime.now() - timedelta(days=30),
-        "date_to": datetime.now(),
+        "date_from": datetime.now(datetime.UTC) - timedelta(days=30),
+        "date_to": datetime.now(datetime.UTC),
     }
 
 

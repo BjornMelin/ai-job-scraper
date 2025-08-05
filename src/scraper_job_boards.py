@@ -60,7 +60,7 @@ def scrape_job_boards(
         return []
 
     all_jobs = pd.concat(all_dfs, ignore_index=True)
-    all_jobs.drop_duplicates(subset=["job_url"], inplace=True)
+    all_jobs = all_jobs.drop_duplicates(subset=["job_url"])
 
     filtered_jobs = all_jobs[all_jobs["title"].str.contains(AI_REGEX, na=False)]
 
