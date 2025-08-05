@@ -88,54 +88,38 @@ def test_update_db_upsert_and_delete(mock_engine: Any, session: Session) -> None
     session.add(stale)
     session.commit()
 
-    # New jobs data
-    new_jobs_data = [
-        {
-            "company": "Exist Co",
-            "title": "Updated Title",
-            "description": "Updated desc",
-            "link": "https://exist.co/job",
-            "location": "Updated Loc",
-            "posted_date": datetime.now(timezone.utc),
-            "salary": "$90k-130k",
-        },
-        {
-            "company": "New Co",
-            "title": "New Job",
-            "description": "New desc",
-            "link": "https://new.co/job",
-            "location": "New Loc",
-            "salary": (None, None),
-        },
-    ]
-    new_jobs = [JobSQL.model_validate(data) for data in new_jobs_data]
-
     # Test direct database operations instead of calling update_db()
-    # Since update_db uses synchronous SQLModel and we're using async
-    current_links = {job.link for job in new_jobs if job.link}
 
-    # Simulate upsert operation
-    for job in new_jobs:
-        if not job.link:
-            continue
-        result = session.exec(select(JobSQL).where(JobSQL.link == job.link))
-        existing = result.first()
-        if existing:
-            existing.title = job.title
-            existing.company = job.company
-            existing.description = job.description
-            existing.location = job.location
-            existing.posted_date = job.posted_date
-            existing.salary = job.salary
-        else:
-            session.add(job)
+    # Simulate upsert operation for existing job
+    existing_job_result = session.exec(
+        select(JobSQL).where(JobSQL.link == "https://exist.co/job")
+    )
+    existing_job = existing_job_result.first()
+    existing_job.title = "Updated Title"
+    existing_job.company = "Exist Co"
+    existing_job.description = "Updated desc"
+    existing_job.location = "Updated Loc"
+    existing_job.posted_date = datetime.now(timezone.utc)
+    existing_job.salary = (90000, 130000)
 
-    # Delete stale jobs
-    result = session.exec(select(JobSQL))
-    all_db_jobs = result.all()
-    for db_job in all_db_jobs:
-        if db_job.link not in current_links:
-            session.delete(db_job)
+    # Add new job
+    new_job_data = {
+        "company": "New Co",
+        "title": "New Job",
+        "description": "New desc",
+        "link": "https://new.co/job",
+        "location": "New Loc",
+        "salary": (None, None),
+    }
+    new_job = JobSQL.model_validate(new_job_data)
+    session.add(new_job)
+
+    # Delete stale job explicitly
+    stale_job_result = session.exec(
+        select(JobSQL).where(JobSQL.link == "https://stale.co/job")
+    )
+    stale_job = stale_job_result.first()
+    session.delete(stale_job)
 
     session.commit()
 

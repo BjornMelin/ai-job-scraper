@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 
 import pytest
 
+from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine
 from src.config import Settings
 from src.models import CompanySQL, JobSQL
@@ -16,8 +17,15 @@ from src.models import CompanySQL, JobSQL
 
 @pytest.fixture(scope="session", name="engine")
 def engine_fixture():
-    """Create a temporary in-memory SQLite engine for the test session."""
-    engine = create_engine("sqlite:///:memory:")
+    """Create a temporary in-memory SQLite engine for the test session.
+
+    Uses StaticPool to ensure schema and data persist across session connections.
+    """
+    engine = create_engine(
+        "sqlite:///:memory:",
+        poolclass=StaticPool,
+        connect_args={"check_same_thread": False},
+    )
     SQLModel.metadata.create_all(engine)
     return engine
 

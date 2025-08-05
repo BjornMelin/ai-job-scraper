@@ -18,6 +18,45 @@ from sqlmodel import Session, select
 from src.models import CompanySQL, JobSQL
 
 
+def create_test_job_data(**overrides: Any) -> dict[str, Any]:
+    """Create test job data with optional field overrides.
+
+    Args:
+        **overrides: Fields to override in the default job data
+
+    Returns:
+        Dictionary with job data for testing
+    """
+    default_data = {
+        "company": "Test Co",
+        "title": "Test Job",
+        "description": "Test description",
+        "link": "https://test.com/job",
+        "location": "Test Location",
+        "salary": (None, None),
+    }
+    default_data.update(overrides)
+    return default_data
+
+
+def create_and_save_job(session: Session, **overrides: Any) -> JobSQL:
+    """Create, validate, save and refresh a test job.
+
+    Args:
+        session: Database session
+        **overrides: Fields to override in the default job data
+
+    Returns:
+        Created and saved JobSQL instance
+    """
+    job_data = create_test_job_data(**overrides)
+    job = JobSQL.model_validate(job_data)
+    session.add(job)
+    session.commit()
+    session.refresh(job)
+    return job
+
+
 def test_company_sql_creation(session: Session) -> None:
     """Test creating and querying CompanySQL models.
 
@@ -58,19 +97,15 @@ def test_job_sql_creation(session: Session) -> None:
     Pydantic validation works correctly and salary parsing converts
     string formats to proper tuple structures.
     """
-    job_data = {
-        "company": "Test Co",
-        "title": "AI Engineer",
-        "description": "AI role",
-        "link": "https://test.co/job",
-        "location": "Remote",
-        "posted_date": datetime.now(timezone.utc),
-        "salary": "$100k-150k",
-    }
-    job = JobSQL.model_validate(job_data)
-    session.add(job)
-    session.commit()
-    session.refresh(job)
+    create_and_save_job(
+        session,
+        title="AI Engineer",
+        description="AI role",
+        link="https://test.co/job",
+        location="Remote",
+        posted_date=datetime.now(timezone.utc),
+        salary="$100k-150k",
+    )
 
     result = session.exec(select(JobSQL).where(JobSQL.title == "AI Engineer"))
     retrieved = result.first()
@@ -87,26 +122,22 @@ def test_job_unique_link(session: Session) -> None:
     Verifies that attempting to create jobs with duplicate links
     raises an IntegrityError due to unique constraint violation.
     """
-    job1_data = {
-        "company": "Test Co",
-        "title": "Job1",
-        "description": "Desc1",
-        "link": "https://test.co/job",
-        "location": "Remote",
-        "salary": (None, None),
-    }
-    job1 = JobSQL.model_validate(job1_data)
-    session.add(job1)
-    session.commit()
+    # Create first job
+    create_and_save_job(
+        session,
+        title="Job1",
+        description="Desc1",
+        link="https://test.co/job",
+        location="Remote",
+    )
 
-    job2_data = {
-        "company": "Test Co",
-        "title": "Job2",
-        "description": "Desc2",
-        "link": "https://test.co/job",
-        "location": "Office",
-        "salary": (None, None),
-    }
+    # Attempt to create second job with same link
+    job2_data = create_test_job_data(
+        title="Job2",
+        description="Desc2",
+        link="https://test.co/job",
+        location="Office",
+    )
     job2 = JobSQL.model_validate(job2_data)
     session.add(job2)
     with pytest.raises(IntegrityError):
@@ -145,13 +176,6 @@ def test_salary_parsing(
         salary_input: Input salary in various formats
         expected: Expected parsed tuple (min_salary, max_salary)
     """
-    job_data = {
-        "company": "Test Co",
-        "title": "Test Job",
-        "description": "Test description",
-        "link": "https://test.com/job",
-        "location": "Test Location",
-        "salary": salary_input,
-    }
+    job_data = create_test_job_data(salary=salary_input)
     job = JobSQL.model_validate(job_data)
     assert job.salary == expected

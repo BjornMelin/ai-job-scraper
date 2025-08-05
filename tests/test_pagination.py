@@ -92,13 +92,13 @@ def update_url_with_pagination(
     )
 
 
-async def detect_pagination_elements(
-    page_content: str, _company: str
+def detect_pagination_elements(
+    page_content: str | None, _company: str
 ) -> dict[str, Any] | None:
     """Mock implementation of pagination detection.
 
     Args:
-        page_content: HTML content of the page to analyze
+        page_content: HTML content of the page to analyze (can be None)
         _company: Company name (unused in mock)
 
     Returns:
@@ -353,12 +353,18 @@ class TestPaginationDetection:
 
     def test_detect_pagination_elements_error_handling(self):
         """Test that pagination detection handles errors gracefully."""
-        # Test with invalid input
-        # Note: This test is temporarily synchronous since we're moving to sync tests
-        # The actual function would be updated to be synchronous as well
-        result = None  # Mock result for now
-        # Should return None on error (based on function implementation)
-        assert result is None or isinstance(result, dict)
+        # Test with invalid input (empty content)
+        result = detect_pagination_elements("", "test_company")
+        assert result is None
+
+        # Test with None input
+        result = detect_pagination_elements(None, "test_company")
+        assert result is None
+
+        # Test with valid content
+        result = detect_pagination_elements("<html>content</html>", "test_company")
+        assert isinstance(result, dict)
+        assert result["has_pagination"] is True
 
 
 class TestJobDataNormalization:
