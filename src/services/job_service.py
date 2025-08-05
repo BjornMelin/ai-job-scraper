@@ -15,7 +15,6 @@ from typing import Any
 from sqlalchemy import func, or_
 from sqlalchemy.orm import joinedload
 from sqlmodel import Session, select
-
 from src.database import get_session
 from src.models import CompanySQL, JobSQL
 
@@ -119,11 +118,11 @@ class JobService:
 
                 jobs = session.exec(query).all()
 
-                logger.info(f"Retrieved {len(jobs)} jobs with filters: {filters}")
+                logger.info("Retrieved %d jobs with filters: %s", len(jobs), filters)
                 return jobs
 
-        except Exception as e:
-            logger.error(f"Failed to get filtered jobs: {e}")
+        except Exception:
+            logger.exception("Failed to get filtered jobs")
             raise
 
     @staticmethod
@@ -144,7 +143,7 @@ class JobService:
             with db_session() as session:
                 job = session.exec(select(JobSQL).filter_by(id=job_id)).first()
                 if not job:
-                    logger.warning(f"Job with ID {job_id} not found")
+                    logger.warning("Job with ID %s not found", job_id)
                     return False
 
                 old_status = job.application_status
@@ -157,15 +156,18 @@ class JobService:
                     and old_status != "Applied"
                     and job.application_date is None
                 ):
-                    job.application_date = datetime.now()
+                    job.application_date = datetime.now(datetime.UTC)
 
                 logger.info(
-                    f"Updated job {job_id} status from '{old_status}' to '{status}'"
+                    "Updated job %s status from '%s' to '%s'",
+                    job_id,
+                    old_status,
+                    status,
                 )
                 return True
 
-        except Exception as e:
-            logger.error(f"Failed to update job status for job {job_id}: {e}")
+        except Exception:
+            logger.exception("Failed to update job status for job %s", job_id)
             raise
 
     @staticmethod
@@ -185,16 +187,16 @@ class JobService:
             with db_session() as session:
                 job = session.exec(select(JobSQL).filter_by(id=job_id)).first()
                 if not job:
-                    logger.warning(f"Job with ID {job_id} not found")
+                    logger.warning("Job with ID %s not found", job_id)
                     return False
 
                 job.favorite = not job.favorite
 
-                logger.info(f"Toggled favorite for job {job_id} to {job.favorite}")
+                logger.info("Toggled favorite for job %s to %s", job_id, job.favorite)
                 return job.favorite
 
-        except Exception as e:
-            logger.error(f"Failed to toggle favorite for job {job_id}: {e}")
+        except Exception:
+            logger.exception("Failed to toggle favorite for job %s", job_id)
             raise
 
     @staticmethod
@@ -215,16 +217,16 @@ class JobService:
             with db_session() as session:
                 job = session.exec(select(JobSQL).filter_by(id=job_id)).first()
                 if not job:
-                    logger.warning(f"Job with ID {job_id} not found")
+                    logger.warning("Job with ID %s not found", job_id)
                     return False
 
                 job.notes = notes
 
-                logger.info(f"Updated notes for job {job_id}")
+                logger.info("Updated notes for job %s", job_id)
                 return True
 
-        except Exception as e:
-            logger.error(f"Failed to update notes for job {job_id}: {e}")
+        except Exception:
+            logger.exception("Failed to update notes for job %s", job_id)
             raise
 
     @staticmethod
@@ -249,14 +251,14 @@ class JobService:
                 ).first()
 
                 if job:
-                    logger.info(f"Retrieved job {job_id}: {job.title}")
+                    logger.info("Retrieved job %s: %s", job_id, job.title)
                 else:
-                    logger.warning(f"Job with ID {job_id} not found")
+                    logger.warning("Job with ID %s not found", job_id)
 
                 return job
 
-        except Exception as e:
-            logger.error(f"Failed to get job {job_id}: {e}")
+        except Exception:
+            logger.exception("Failed to get job %s", job_id)
             raise
 
     @staticmethod
@@ -278,11 +280,11 @@ class JobService:
                 ).all()
 
                 counts = dict(results)
-                logger.info(f"Job counts by status: {counts}")
+                logger.info("Job counts by status: %s", counts)
                 return counts
 
-        except Exception as e:
-            logger.error(f"Failed to get job counts: {e}")
+        except Exception:
+            logger.exception("Failed to get job counts")
             raise
 
     @staticmethod
@@ -306,11 +308,11 @@ class JobService:
 
                 company_names = session.exec(query).all()
 
-                logger.info(f"Retrieved {len(company_names)} active companies")
+                logger.info("Retrieved %d active companies", len(company_names))
                 return list(company_names)
 
-        except Exception as e:
-            logger.error(f"Failed to get active companies: {e}")
+        except Exception:
+            logger.exception("Failed to get active companies")
             raise
 
     @staticmethod
@@ -329,12 +331,6 @@ class JobService:
         Returns:
             Parsed datetime object or None if input is None/invalid.
         """
-        if date_input is None:
-            return None
-
-        if isinstance(date_input, datetime):
-            return date_input
-
         if isinstance(date_input, str):
             date_input = date_input.strip()
             if not date_input:
@@ -342,7 +338,7 @@ class JobService:
 
             # Try ISO format first (most common for APIs)
             try:
-                return datetime.fromisoformat(date_input.replace("Z", "+00:00"))
+                return datetime.fromisoformat(date_input)
             except ValueError:
                 pass
 
@@ -357,13 +353,16 @@ class JobService:
 
             for date_format in date_formats:
                 try:
-                    return datetime.strptime(date_input, date_format)
+                    return datetime.strptime(date_input, date_format).replace(
+                        tzinfo=datetime.UTC
+                    )
+
                 except ValueError:
                     continue
 
-            # If all formats fail, log warning and return None
-            logger.warning(f"Could not parse date: {date_input}")
-            return None
+            # If all formats fail, log warning
+            logger.warning("Could not parse date: %s", date_input)
+        elif date_input is not None and not isinstance(date_input, datetime):
+            logger.warning("Unsupported date type: %s", type(date_input))
 
-        logger.warning(f"Unsupported date type: {type(date_input)}")
         return None

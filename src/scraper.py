@@ -99,7 +99,7 @@ def bulk_get_or_create_companies(
             session.flush()  # Get IDs without committing transaction
             # Add new companies to the mapping
             company_map |= {comp.name: comp.id for comp in new_companies}
-            logger.info(f"Bulk created {len(missing_names)} new companies")
+            logger.info("Bulk created %d new companies", len(missing_names))
         except sqlalchemy.exc.IntegrityError:
             # Handle race condition: another process created some companies
             # Roll back and re-query to get the actual IDs
@@ -122,8 +122,8 @@ def bulk_get_or_create_companies(
                 session.flush()
                 company_map |= {comp.name: comp.id for comp in remaining_companies}
                 logger.info(
-                    f"Bulk created {len(still_missing)} new companies "
-                    f"(after handling race condition)"
+                    "Bulk created %d new companies (after handling race condition)",
+                    len(still_missing),
                 )
             else:
                 logger.info(
@@ -131,8 +131,10 @@ def bulk_get_or_create_companies(
                 )
 
     logger.debug(
-        f"Bulk processed {len(company_names)} companies: "
-        f"{len(existing_companies)} existing, {len(missing_names)} new"
+        "Bulk processed %d companies: %d existing, %d new",
+        len(company_names),
+        len(existing_companies),
+        len(missing_names),
     )
 
     return company_map
@@ -158,9 +160,9 @@ def scrape_all() -> dict[str, int]:
     logger.info("Scraping company career pages...")
     try:
         company_jobs = scrape_company_pages()
-        logger.info(f"Retrieved {len(company_jobs)} jobs from company pages")
-    except Exception as e:
-        logger.error(f"Company scraping failed: {e}")
+        logger.info("Retrieved %d jobs from company pages", len(company_jobs))
+    except Exception:
+        logger.exception("Company scraping failed")
         company_jobs = []
 
     random_delay()
@@ -169,14 +171,14 @@ def scrape_all() -> dict[str, int]:
     logger.info("Scraping job boards...")
     try:
         board_jobs_raw = scrape_job_boards(SEARCH_KEYWORDS, SEARCH_LOCATIONS)
-        logger.info(f"Retrieved {len(board_jobs_raw)} raw jobs from job boards")
-    except Exception as e:
-        logger.error(f"Job board scraping failed: {e}")
+        logger.info("Retrieved %d raw jobs from job boards", len(board_jobs_raw))
+    except Exception:
+        logger.exception("Job board scraping failed")
         board_jobs_raw = []
 
     # Step 3: Normalize board jobs to JobSQL objects
     board_jobs = _normalize_board_jobs(board_jobs_raw)
-    logger.info(f"Normalized {len(board_jobs)} jobs from job boards")
+    logger.info("Normalized %d jobs from job boards", len(board_jobs))
 
     # Step 4: Safety guard against mass-archiving when both scrapers fail
     if not company_jobs and not board_jobs:
@@ -191,19 +193,20 @@ def scrape_all() -> dict[str, int]:
     total_scraped = len(company_jobs) + len(board_jobs)
     if total_scraped < 5:  # Configurable threshold
         logger.warning(
-            f"Only {total_scraped} jobs scraped total, which is suspiciously low. "
-            "This might indicate scraping issues. Proceeding with caution..."
+            "Only %d jobs scraped total, which is suspiciously low. "
+            "This might indicate scraping issues. Proceeding with caution...",
+            total_scraped,
         )
 
     # Step 5: Combine and filter relevant jobs
     all_jobs = company_jobs + board_jobs
     filtered_jobs = [job for job in all_jobs if AI_REGEX.search(job.title)]
-    logger.info(f"Filtered to {len(filtered_jobs)} AI/ML relevant jobs")
+    logger.info("Filtered to %d AI/ML relevant jobs", len(filtered_jobs))
 
     # Step 6: Deduplicate by link, keeping the last occurrence
     job_dict = {job.link: job for job in filtered_jobs if job.link}
     dedup_jobs = list(job_dict.values())
-    logger.info(f"Deduplicated to {len(dedup_jobs)} unique jobs")
+    logger.info("Deduplicated to %d unique jobs", len(dedup_jobs))
 
     # Step 7: Final safety check before sync
     if not dedup_jobs:
@@ -251,7 +254,7 @@ def _normalize_board_jobs(board_jobs_raw: list[dict]) -> list[JobSQL]:
 
         # Step 2: Bulk get or create companies (eliminates N+1 queries)
         company_map = bulk_get_or_create_companies(session, company_names)
-        logger.info(f"Bulk processed {len(company_names)} unique companies")
+        logger.info("Bulk processed %d unique companies", len(company_names))
 
         # Step 3: Process jobs with O(1) company lookups
         for raw in board_jobs_raw:
@@ -273,7 +276,8 @@ def _normalize_board_jobs(board_jobs_raw: list[dict]) -> list[JobSQL]:
 
                 if company_id is None:
                     logger.warning(
-                        f"No company ID found for '{company_name}', skipping job"
+                        "No company ID found for '%s', skipping job",
+                        company_name,
                     )
                     continue
 
@@ -297,19 +301,19 @@ def _normalize_board_jobs(board_jobs_raw: list[dict]) -> list[JobSQL]:
                     salary=salary,
                     content_hash=content_hash,
                     application_status="New",
-                    last_seen=datetime.now(),
+                    last_seen=datetime.now(datetime.UTC),
                 )
                 board_jobs.append(job)
 
-            except Exception as e:
-                logger.error(f"Failed to normalize board job {raw.get('job_url')}: {e}")
+            except Exception:
+                logger.exception("Failed to normalize board job %s", raw.get("job_url"))
 
         # Step 4: Commit company changes before returning jobs
         session.commit()
-        logger.info(f"Successfully normalized {len(board_jobs)} board jobs")
+        logger.info("Successfully normalized %d board jobs", len(board_jobs))
 
-    except Exception as e:
-        logger.error(f"Failed to normalize board jobs: {e}")
+    except Exception:
+        logger.exception("Failed to normalize board jobs")
         session.rollback()
         raise
     finally:

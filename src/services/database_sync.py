@@ -13,7 +13,6 @@ from datetime import datetime, timedelta
 
 from sqlalchemy import func
 from sqlmodel import Session, select
-
 from src.database import SessionLocal
 from src.models import JobSQL
 
@@ -94,7 +93,7 @@ class SmartSyncEngine:
         stats = {"inserted": 0, "updated": 0, "archived": 0, "deleted": 0, "skipped": 0}
 
         try:
-            logger.info(f"Starting sync of {len(jobs)} jobs")
+            logger.info("Starting sync of %d jobs", len(jobs))
 
             # Step 1: Bulk load existing jobs to avoid N+1 query pattern
             current_links = {job.link for job in jobs if job.link}
@@ -103,14 +102,14 @@ class SmartSyncEngine:
                     select(JobSQL).where(JobSQL.link.in_(current_links))
                 )
                 existing_jobs_map = {job.link: job for job in existing_jobs_query}
-                logger.debug(f"Bulk loaded {len(existing_jobs_map)} existing jobs")
+                logger.debug("Bulk loaded %d existing jobs", len(existing_jobs_map))
             else:
                 existing_jobs_map = {}
 
             # Step 2: Process incoming jobs (insert/update) using bulk-loaded data
             for job in jobs:
                 if not job.link:
-                    logger.warning(f"Skipping job without link: {job.title}")
+                    logger.warning("Skipping job without link: %s", job.title)
                     continue
 
                 operation = self._sync_single_job_optimized(
@@ -127,20 +126,24 @@ class SmartSyncEngine:
             session.commit()
 
             logger.info(
-                f"Sync completed successfully. "
-                f"Inserted: {stats['inserted']}, "
-                f"Updated: {stats['updated']}, "
-                f"Archived: {stats['archived']}, "
-                f"Deleted: {stats['deleted']}, "
-                f"Skipped: {stats['skipped']}"
+                "Sync completed successfully. "
+                "Inserted: %d, "
+                "Updated: %d, "
+                "Archived: %d, "
+                "Deleted: %d, "
+                "Skipped: %d",
+                stats["inserted"],
+                stats["updated"],
+                stats["archived"],
+                stats["deleted"],
+                stats["skipped"],
             )
-
-            return stats
-
-        except Exception as e:
-            logger.error(f"Sync failed, rolling back transaction: {e}")
+        except Exception:
+            logger.exception("Sync failed, rolling back transaction")
             session.rollback()
             raise
+        else:
+            return stats
         finally:
             self._close_session_if_owned(session)
 
@@ -158,8 +161,7 @@ class SmartSyncEngine:
             select(JobSQL).where(JobSQL.link == job.link)
         ).first():
             return self._update_existing_job(session, existing, job)
-        else:
-            return self._insert_new_job(session, job)
+        return self._insert_new_job(session, job)
 
     def _sync_single_job_optimized(
         self, session: Session, job: JobSQL, existing_jobs_map: dict[str, JobSQL]
@@ -181,8 +183,7 @@ class SmartSyncEngine:
 
         if existing:
             return self._update_existing_job(session, existing, job)
-        else:
-            return self._insert_new_job(session, job)
+        return self._insert_new_job(session, job)
 
     def _insert_new_job(self, session: Session, job: JobSQL) -> str:
         """Insert a new job into the database.
@@ -195,14 +196,14 @@ class SmartSyncEngine:
             str: Always returns 'inserted'.
         """
         # Ensure required fields are set
-        job.last_seen = datetime.now()
+        job.last_seen = datetime.now(datetime.UTC)
         if not job.application_status:
             job.application_status = "New"
         if not job.content_hash:
             job.content_hash = self._generate_content_hash(job)
 
         session.add(job)
-        logger.debug(f"Inserting new job: {job.title} at {job.link}")
+        logger.debug("Inserting new job: %s at %s", job.title, job.link)
         return "inserted"
 
     def _update_existing_job(
@@ -227,17 +228,17 @@ class SmartSyncEngine:
         # Check if content has actually changed
         if existing.content_hash == new_content_hash:
             # Content unchanged, just update last_seen and skip
-            existing.last_seen = datetime.now()
+            existing.last_seen = datetime.now(datetime.UTC)
             # Unarchive if it was archived (job is back!)
             if existing.archived:
                 existing.archived = False
-                logger.info(f"Unarchiving job that returned: {existing.title}")
+                logger.info("Unarchiving job that returned: %s", existing.title)
                 return "updated"
             return "skipped"
 
         # Content changed, update scraped fields while preserving user data
         self._update_scraped_fields(existing, new_job, new_content_hash)
-        logger.debug(f"Updating job with content changes: {existing.title}")
+        logger.debug("Updating job with content changes: %s", existing.title)
         return "updated"
 
     def _update_scraped_fields(
@@ -261,12 +262,12 @@ class SmartSyncEngine:
         existing.posted_date = new_job.posted_date
         existing.salary = new_job.salary
         existing.content_hash = new_content_hash
-        existing.last_seen = datetime.now()
+        existing.last_seen = datetime.now(datetime.UTC)
 
         # Unarchive if it was archived (job is back!)
         if existing.archived:
             existing.archived = False
-            logger.info(f"Unarchiving job that returned: {existing.title}")
+            logger.info("Unarchiving job that returned: %s", existing.title)
 
         # PRESERVE user-editable fields (do not modify):
         # - existing.favorite
@@ -305,12 +306,12 @@ class SmartSyncEngine:
                 # Archive jobs with user interaction
                 job.archived = True
                 stats["archived"] += 1
-                logger.debug(f"Archiving job with user data: {job.title}")
+                logger.debug("Archiving job with user data: %s", job.title)
             else:
                 # Delete jobs without user interaction
                 session.delete(job)
                 stats["deleted"] += 1
-                logger.debug(f"Deleting job without user data: {job.title}")
+                logger.debug("Deleting job without user data: %s", job.title)
 
         return stats
 
@@ -438,7 +439,7 @@ class SmartSyncEngine:
         """
         session = self._get_session()
         try:
-            cutoff_date = datetime.now() - timedelta(days=days_threshold)
+            cutoff_date = datetime.now(datetime.UTC) - timedelta(days=days_threshold)
 
             # Find archived jobs that haven't been seen in a long time
             # and don't have recent application activity
@@ -457,12 +458,12 @@ class SmartSyncEngine:
                 count += 1
 
             session.commit()
-            logger.info(f"Cleaned up {count} old archived jobs")
-            return count
-
-        except Exception as e:
-            logger.error(f"Cleanup failed: {e}")
+            logger.info("Cleaned up %d old archived jobs", count)
+        except Exception:
+            logger.exception("Cleanup failed")
             session.rollback()
             raise
+        else:
+            return count
         finally:
             self._close_session_if_owned(session)

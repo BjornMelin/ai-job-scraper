@@ -12,7 +12,6 @@ from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel
-
 from src.config import Settings
 from src.database_listeners.monitoring_listeners import log_slow, start_timer
 from src.database_listeners.pragma_listeners import apply_pragmas
@@ -140,7 +139,7 @@ def get_connection_pool_status() -> dict:
             else str(engine.url),
         }
     except Exception as e:
-        logger.warning(f"Could not get connection pool status: {e}")
+        logger.warning("Could not get connection pool status")
         return {
             "pool_size": "unknown",
             "checked_out": "unknown",

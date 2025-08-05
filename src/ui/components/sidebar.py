@@ -11,9 +11,9 @@ import pandas as pd
 import streamlit as st
 
 from sqlalchemy.orm import Session
-
 from src.database import SessionLocal
-from src.models import CompanySQL
+from src.models import CompanySQL, JobSQL
+from src.ui.state.session_state import clear_filters
 
 logger = logging.getLogger(__name__)
 
@@ -94,8 +94,6 @@ def _render_search_filters() -> None:
 
         # Clear filters button
         if st.button("Clear All Filters", use_container_width=True):
-            from src.ui.state.session_state import clear_filters
-
             clear_filters()
             st.rerun()
 
@@ -183,18 +181,16 @@ def _get_company_list() -> list[str]:
 
     try:
         # Get unique company names through relationship
-        from src.models import JobSQL
 
         jobs_with_companies = (
             session.query(JobSQL)
             .join(CompanySQL, JobSQL.company_id == CompanySQL.id)
             .all()
         )
-        companies = sorted({job.company for job in jobs_with_companies})
-        return companies
+        return sorted({job.company for job in jobs_with_companies})
 
-    except Exception as e:
-        logger.error(f"Failed to get company list: {e}")
+    except Exception:
+        logger.exception("Failed to get company list")
         return []
 
     finally:
@@ -216,8 +212,8 @@ def _save_company_changes(session: Session, edited_comp: pd.DataFrame) -> None:
         session.commit()
         st.success("✅ Company settings saved!")
 
-    except Exception as e:
-        logger.error(f"Save companies failed: {e}")
+    except Exception:
+        logger.exception("Save companies failed")
         st.error("❌ Save failed. Please try again.")
 
 
@@ -269,6 +265,6 @@ def _handle_add_company(session: Session, name: str, url: str) -> None:
         st.success(f"✅ Added {name} successfully!")
         st.rerun()
 
-    except Exception as e:
-        logger.error(f"Add company failed: {e}")
+    except Exception:
+        logger.exception("Add company failed")
         st.error("❌ Failed to add company. Name might already exist.")

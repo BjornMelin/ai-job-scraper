@@ -138,6 +138,6 @@ class JobSQL(SQLModel, table=True):
 
         if len(parsed_nums) == 1:
             return (parsed_nums[0], None)
-        elif len(parsed_nums) >= 2:
+        if len(parsed_nums) >= 2:
             return (min(parsed_nums), max(parsed_nums))
         return (None, None)

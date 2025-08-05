@@ -16,6 +16,7 @@ import streamlit as st
 
 from src.models import JobSQL
 from src.services.job_service import JobService
+from src.ui.state.session_state import init_session_state
 
 logger = logging.getLogger(__name__)
 
@@ -118,18 +119,19 @@ def _format_posted_date(posted_date: Any) -> str:
     if pd.notna(posted_date):
         if isinstance(posted_date, str):
             try:
-                posted_date = datetime.strptime(posted_date, "%Y-%m-%d")
+                posted_date = datetime.strptime(posted_date, "%Y-%m-%d").replace(
+                    tzinfo=datetime.UTC
+                )
             except ValueError:
                 return ""
 
-        days_ago = (datetime.now() - posted_date).days
+        days_ago = (datetime.now(datetime.UTC) - posted_date).days
 
         if days_ago == 0:
             return "Today"
-        elif days_ago == 1:
+        if days_ago == 1:
             return "Yesterday"
-        else:
-            return f"{days_ago} days ago"
+        return f"{days_ago} days ago"
 
     return ""
 
@@ -144,8 +146,8 @@ def _handle_status_change(job_id: int) -> None:
         if new_status := st.session_state.get(f"status_{job_id}"):
             JobService.update_job_status(job_id, new_status)
             st.rerun()
-    except Exception as e:
-        logger.error(f"Failed to update job status: {e}")
+    except Exception:
+        logger.exception("Failed to update job status")
         st.error("Failed to update job status")
 
 
@@ -158,8 +160,8 @@ def _handle_favorite_toggle(job_id: int) -> None:
     try:
         JobService.toggle_favorite(job_id)
         st.rerun()
-    except Exception as e:
-        logger.error(f"Failed to toggle favorite: {e}")
+    except Exception:
+        logger.exception("Failed to toggle favorite")
         st.error("Failed to toggle favorite")
 
 
@@ -213,11 +215,11 @@ def _handle_notes_save(job_id: int, notes: str) -> None:
     """
     try:
         JobService.update_notes(job_id, notes)
-        logger.info(f"Updated notes for job {job_id}")
+        logger.info("Updated notes for job %s", job_id)
         st.success("Notes saved successfully!")
         st.rerun()
-    except Exception as e:
-        logger.error(f"Failed to update notes: {e}")
+    except Exception:
+        logger.exception("Failed to update notes")
         st.error("Failed to update notes")
 
 
@@ -225,7 +227,6 @@ def _handle_notes_save(job_id: int, notes: str) -> None:
 def _render_card_controls(job_data: pd.Series, tab_key: str, page_num: int) -> None:
     """Legacy function for backward compatibility with existing grid rendering."""
     # This function is kept for compatibility with the existing grid rendering system
-    pass
 
 
 def render_jobs_list(jobs: list[JobSQL]) -> None:
@@ -260,8 +261,6 @@ def render_job_cards_grid(jobs_df: pd.DataFrame, tab_key: str) -> None:
     """
     if jobs_df.empty:
         return
-
-    from src.ui.state.session_state import init_session_state
 
     init_session_state()
 

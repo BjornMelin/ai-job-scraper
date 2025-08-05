@@ -75,7 +75,7 @@ def _render_page_header() -> None:
             f"""
             <div style='text-align: right; padding-top: 20px;'>
                 <small style='color: var(--text-muted);'>
-                    Current time: {datetime.now().strftime("%H:%M:%S")}
+                    Current time: {datetime.now(datetime.UTC).strftime("%H:%M:%S")}
                 </small>
             </div>
         """,
@@ -96,8 +96,8 @@ def _render_control_section() -> None:
     # Get active companies from database
     try:
         active_companies = JobService.get_active_companies()
-    except Exception as e:
-        logger.error(f"Failed to get active companies: {e}")
+    except Exception:
+        logger.exception("Failed to get active companies")
         active_companies = []
         st.error(
             "⚠️ Failed to load company configuration. Please check the database "
@@ -126,10 +126,9 @@ def _render_control_section() -> None:
                     f"active companies. Task ID: {task_id[:8]}..."
                 )
                 st.rerun()  # Refresh to show progress section
-            except Exception as e:
-                error_msg = str(e)
-                st.error(f"❌ Failed to start scraping: {error_msg}")
-                logger.error(f"Failed to start scraping: {error_msg}", exc_info=True)
+            except Exception:
+                logger.exception("Failed to start scraping")
+                st.error("❌ Failed to start scraping")
 
     with col2:
         # Stop Scraping button
@@ -149,10 +148,10 @@ def _render_control_section() -> None:
                     )
                     st.rerun()
                 else:
-                    st.info("ℹ️ No active scraping tasks found to stop")
-            except Exception as e:
-                st.error(f"❌ Error stopping scraping: {e}")
-                logger.error(f"Error stopping scraping: {e}", exc_info=True)
+                    st.info("ℹ️ No active scraping tasks found to stop")  # noqa: RUF001
+            except Exception:
+                logger.exception("Error stopping scraping")
+                st.error("❌ Error stopping scraping")
 
     with col3:
         # Reset Progress button
@@ -178,17 +177,17 @@ def _render_control_section() -> None:
                     "task records."
                 )
                 st.rerun()
-            except Exception as e:
-                st.error(f"❌ Error resetting progress: {e}")
-                logger.error(f"Error resetting progress: {e}", exc_info=True)
+            except Exception:
+                logger.exception("Error resetting progress")
+                st.error("❌ Error resetting progress")
 
     with col4:
         # Status indicator
         if is_scraping:
             st.markdown(
                 """
-                <div style='text-align: center; padding: 10px; 
-                           background-color: #d4edda; border-radius: 5px; 
+                <div style='text-align: center; padding: 10px;
+                           background-color: #d4edda; border-radius: 5px;
                            border: 1px solid #c3e6cb;'>
                     <strong style='color: #155724;'>🟢 ACTIVE</strong>
                 </div>
@@ -198,8 +197,8 @@ def _render_control_section() -> None:
         else:
             st.markdown(
                 """
-                <div style='text-align: center; padding: 10px; 
-                           background-color: #f8f9fa; border-radius: 5px; 
+                <div style='text-align: center; padding: 10px;
+                           background-color: #f8f9fa; border-radius: 5px;
                            border: 1px solid #dee2e6;'>
                     <strong style='color: #6c757d;'>⚪ IDLE</strong>
                 </div>
@@ -365,7 +364,7 @@ def _render_overall_metrics(progress_data):
 
             if progress_data.start_time:
                 time_elapsed = (
-                    datetime.now() - progress_data.start_time
+                    datetime.now(datetime.UTC) - progress_data.start_time
                 ).total_seconds()
                 eta = calculate_eta(total_companies, completed_companies, time_elapsed)
             else:
@@ -455,7 +454,7 @@ def _render_company_status(company_progress: CompanyProgress) -> None:
             duration = company_progress.end_time - company_progress.start_time
             timing_info = f" ({duration.total_seconds():.1f}s)"
         else:
-            elapsed = datetime.now() - company_progress.start_time
+            elapsed = datetime.now(datetime.UTC) - company_progress.start_time
             timing_info = f" ({elapsed.total_seconds():.1f}s elapsed)"
 
     # Construct status text

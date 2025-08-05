@@ -31,7 +31,6 @@ import copy
 import inspect
 import logging
 import threading
-import traceback
 
 from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
@@ -42,10 +41,10 @@ from uuid import uuid4
 
 import streamlit as st
 
-from streamlit.runtime.scriptrunner import add_script_run_ctx, get_script_run_ctx
 
 # Import the scraper function we need to launch in background
 from src.scraper import scrape_all
+from streamlit.runtime.scriptrunner import add_script_run_ctx, get_script_run_ctx
 
 logger = logging.getLogger(__name__)
 
@@ -111,7 +110,9 @@ class BackgroundTaskManager:
         # Register cleanup handlers
         atexit.register(self.shutdown)
 
-        logger.info(f"BackgroundTaskManager initialized with {max_workers} max workers")
+        logger.info(
+            "BackgroundTaskManager initialized with %d max workers", max_workers
+        )
 
     def start_task(
         self,
@@ -139,7 +140,10 @@ class BackgroundTaskManager:
 
         # Create task info
         task_info = TaskInfo(
-            id=task_id, name=task_name, status="pending", started_at=datetime.now()
+            id=task_id,
+            name=task_name,
+            status="pending",
+            started_at=datetime.now(datetime.UTC),
         )
 
         with self._lock:
@@ -173,14 +177,17 @@ class BackgroundTaskManager:
                 with self._lock:
                     if task_id in self.active_tasks:
                         self.active_tasks[task_id].result = result
-                        self.active_tasks[task_id].completed_at = datetime.now()
+                        self.active_tasks[task_id].completed_at = datetime.now(
+                            datetime.UTC
+                        )
 
-                logger.info(f"Task {task_id} ({task_name}) completed successfully")
+                logger.info("Task %s (%s) completed successfully", task_id, task_name)
 
             except Exception as e:
-                error_msg = f"Task failed: {str(e)}"
-                logger.error(f"Task {task_id} ({task_name}) failed: {error_msg}")
-                logger.error(traceback.format_exc())
+                error_msg = f"Task failed: {e!s}"
+                logger.exception(
+                    "Task %s (%s) failed: %s", task_id, task_name, error_msg
+                )
 
                 # Mark as failed
                 self._update_task_status(task_id, "failed", None, error_msg)
@@ -188,14 +195,16 @@ class BackgroundTaskManager:
                 with self._lock:
                     if task_id in self.active_tasks:
                         self.active_tasks[task_id].error = error_msg
-                        self.active_tasks[task_id].completed_at = datetime.now()
+                        self.active_tasks[task_id].completed_at = datetime.now(
+                            datetime.UTC
+                        )
 
                 # Call error callback if provided
                 if error_callback:
                     try:
                         error_callback(task_id, error_msg)
-                    except Exception as cb_error:
-                        logger.error(f"Error callback failed: {cb_error}")
+                    except Exception:
+                        logger.exception("Error callback failed")
 
         # Submit task to thread pool
         future = self.executor.submit(task_wrapper)
@@ -203,7 +212,7 @@ class BackgroundTaskManager:
         with self._lock:
             self.active_tasks[task_id].future = future
 
-        logger.info(f"Started background task {task_id} ({task_name})")
+        logger.info("Started background task %s (%s)", task_id, task_name)
         return task_id
 
     def get_task_status(self, task_id: str) -> TaskInfo | None:
@@ -245,8 +254,8 @@ class BackgroundTaskManager:
                 cancelled = task_info.future.cancel()
                 if cancelled:
                     task_info.status = "cancelled"
-                    task_info.completed_at = datetime.now()
-                    logger.info(f"Cancelled task {task_id}")
+                    task_info.completed_at = datetime.now(datetime.UTC)
+                    logger.info("Cancelled task %s", task_id)
                 return cancelled
 
         return False
@@ -260,7 +269,7 @@ class BackgroundTaskManager:
         Returns:
             Number of tasks cleaned up.
         """
-        cutoff = datetime.now().timestamp() - (max_age_hours * 3600)
+        cutoff = datetime.now(datetime.UTC).timestamp() - (max_age_hours * 3600)
         cleaned = 0
 
         with self._lock:
@@ -301,7 +310,7 @@ class BackgroundTaskManager:
                     cleaned += 1
 
         if cleaned > 0:
-            logger.info(f"Cleaned up {cleaned} old completed tasks")
+            logger.info("Cleaned up %d old completed tasks", cleaned)
 
         return cleaned
 
@@ -364,7 +373,7 @@ class BackgroundTaskManager:
             self.shutdown(wait=False)
         except Exception as e:
             # Don't raise exceptions in destructor
-            logger.warning(f"Error during BackgroundTaskManager cleanup: {e}")
+            logger.warning("Error during BackgroundTaskManager cleanup: %s", e)
 
 
 class StreamlitTaskManager(BackgroundTaskManager):
@@ -434,7 +443,9 @@ class StreamlitTaskManager(BackgroundTaskManager):
             if update_ui:
                 # Update session state (this is thread-safe)
                 st.session_state.task_progress[task_id] = ProgressInfo(
-                    progress=progress, message=message, timestamp=datetime.now()
+                    progress=progress,
+                    message=message,
+                    timestamp=datetime.now(datetime.UTC),
                 )
 
                 # DO NOT call st.rerun() from background threads - not thread-safe
@@ -442,17 +453,17 @@ class StreamlitTaskManager(BackgroundTaskManager):
 
         def error_callback(task_id: str, error_message: str) -> None:
             """Handle task errors."""
-            logger.error(f"Scraping task {task_id} failed: {error_message}")
+            logger.error("Scraping task %s failed: %s", task_id, error_message)
             if update_ui:
                 st.session_state.task_progress[task_id] = ProgressInfo(
                     progress=0.0,
                     message=f"Error: {error_message}",
-                    timestamp=datetime.now(),
+                    timestamp=datetime.now(datetime.UTC),
                 )
                 try:
                     st.rerun()
                 except Exception as e:
-                    logger.warning(f"Could not trigger UI rerun: {e}")
+                    logger.warning("Could not trigger UI rerun: %s", e)
 
         # Start the scraping task
         task_id = self.start_task(
@@ -467,11 +478,11 @@ class StreamlitTaskManager(BackgroundTaskManager):
         # Store task reference in session state
         st.session_state.background_tasks[task_id] = {
             "type": "scraping",
-            "started_at": datetime.now(),
+            "started_at": datetime.now(datetime.UTC),
             "company_ids": company_ids,
         }
 
-        logger.info(f"Started scraping task {task_id}")
+        logger.info("Started scraping task %s", task_id)
         return task_id
 
     def _scraping_task_wrapper(
@@ -518,13 +529,13 @@ class StreamlitTaskManager(BackgroundTaskManager):
                     "", 100.0, f"Scraping completed! Found {total_jobs} total jobs."
                 )
 
-            return result
-
         except Exception as e:
-            logger.error(f"Scraping task failed: {e}")
+            logger.exception("Scraping task failed")
             if progress_callback:
-                progress_callback("", 0.0, f"Scraping failed: {str(e)}")
+                progress_callback("", 0.0, "Scraping failed: %s", e)
             raise
+        else:
+            return result
 
     def get_scraping_progress(self, task_id: str) -> ProgressInfo | None:
         """Get progress information for a scraping task.
@@ -568,7 +579,7 @@ class StreamlitTaskManager(BackgroundTaskManager):
         )
 
         if cancelled > 0:
-            logger.info(f"Cancelled {cancelled} scraping tasks")
+            logger.info("Cancelled %d scraping tasks", cancelled)
 
         return cancelled
 
@@ -587,7 +598,7 @@ class StreamlitTaskManager(BackgroundTaskManager):
         ):
             return {"progress_cleaned": 0, "tasks_cleaned": 0, "manager_cleaned": 0}
 
-        cutoff = datetime.now().timestamp() - (max_age_hours * 3600)
+        cutoff = datetime.now(datetime.UTC).timestamp() - (max_age_hours * 3600)
         progress_cleaned = 0
         tasks_cleaned = 0
 
@@ -632,7 +643,7 @@ class StreamlitTaskManager(BackgroundTaskManager):
         }
 
         if sum(cleanup_stats.values()) > 0:
-            logger.info(f"Session state cleanup completed: {cleanup_stats}")
+            logger.info("Session state cleanup completed: %s", cleanup_stats)
 
         return cleanup_stats
 
@@ -641,7 +652,7 @@ class StreamlitTaskManager(BackgroundTaskManager):
         try:
             self.cleanup_session_state()
         except Exception as e:
-            logger.warning(f"Error during Streamlit cleanup: {e}")
+            logger.warning("Error during Streamlit cleanup: %s", e)
 
     def get_memory_usage_stats(self) -> dict[str, int]:
         """Get current memory usage statistics for monitoring.
@@ -693,8 +704,6 @@ def get_task_manager(session_id: str | None = None) -> StreamlitTaskManager:
     Returns:
         StreamlitTaskManager: Global task manager instance.
     """
-    global _task_managers
-
     # Use default session if none provided
     if session_id is None:
         session_id = "default"
@@ -704,7 +713,7 @@ def get_task_manager(session_id: str | None = None) -> StreamlitTaskManager:
             _task_managers[session_id] = StreamlitTaskManager(
                 max_workers=2, max_task_history=50, max_progress_entries=25
             )
-            logger.info(f"Initialized StreamlitTaskManager for session: {session_id}")
+            logger.info("Initialized StreamlitTaskManager for session: %s", session_id)
 
         return _task_managers[session_id]
 
@@ -715,8 +724,6 @@ def cleanup_all_task_managers() -> dict[str, dict[str, int]]:
     Returns:
         Dictionary mapping session IDs to their cleanup statistics.
     """
-    global _task_managers
-
     cleanup_stats = {}
 
     with _task_manager_lock:
@@ -725,7 +732,7 @@ def cleanup_all_task_managers() -> dict[str, dict[str, int]]:
                 stats = manager.cleanup_session_state()
                 cleanup_stats[session_id] = stats
             except Exception as e:
-                logger.error(f"Error cleaning up task manager {session_id}: {e}")
+                logger.exception("Error cleaning up task manager %s", session_id)
                 cleanup_stats[session_id] = {"error": str(e)}
 
     return cleanup_stats
@@ -737,15 +744,15 @@ def shutdown_all_task_managers(wait: bool = True) -> None:
     Args:
         wait: Whether to wait for running tasks to complete.
     """
-    global _task_managers
+    global _task_managers  # noqa: PLW0602
 
     with _task_manager_lock:
         for session_id, manager in _task_managers.items():
             try:
                 manager.shutdown(wait=wait)
-                logger.info(f"Shutdown task manager for session: {session_id}")
-            except Exception as e:
-                logger.error(f"Error shutting down task manager {session_id}: {e}")
+                logger.info("Shutdown task manager for session: %s", session_id)
+            except Exception:
+                logger.exception("Error shutting down task manager %s", session_id)
 
         _task_managers.clear()
 

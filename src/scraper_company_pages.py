@@ -99,7 +99,7 @@ def extract_job_lists(state: State) -> dict[str, list[dict]]:
     for source_url, extracted in result.items():
         # Validate extracted data is in expected format
         if not isinstance(extracted, dict) or "jobs" not in extracted:
-            logger.warning(f"Failed to extract jobs from {source_url}")
+            logger.warning("Failed to extract jobs from %s", source_url)
             continue
 
         company = company_map[source_url]
@@ -161,7 +161,7 @@ def extract_details(state: State) -> dict[str, list[dict]]:
     for url, details in result.items():
         # Skip if details not in expected dict format
         if not isinstance(details, dict):
-            logger.warning(f"Failed to extract details from {url}")
+            logger.warning("Failed to extract details from %s", url)
             continue
 
         partial = partial_map.get(url)
@@ -196,12 +196,14 @@ def normalize_jobs(state: State) -> dict[str, list[JobSQL]]:
             # Try parsing with each format until success
             for fmt in date_formats:
                 try:
-                    posted = datetime.strptime(posted_str, fmt)
+                    posted = datetime.strptime(posted_str, fmt).replace(
+                        tzinfo=datetime.UTC
+                    )
                     break
                 except ValueError:
                     pass
             if not posted:
-                logger.warning(f"Could not parse date: {posted_str}")
+                logger.warning("Could not parse date: %s", posted_str)
 
         # Use JobSQL validator for salary parsing and new schema
         try:
@@ -242,11 +244,11 @@ def normalize_jobs(state: State) -> dict[str, list[JobSQL]]:
                 salary=raw.get("salary", ""),
                 content_hash=content_hash,
                 application_status="New",
-                last_seen=datetime.now(),
+                last_seen=datetime.now(datetime.UTC),
             )
             normalized.append(job)
-        except Exception as e:
-            logger.error(f"Failed to normalize job {raw.get('url')}: {e}")
+        except Exception:
+            logger.exception("Failed to normalize job %s", raw.get("url"))
 
     return {"normalized_jobs": normalized}
 
@@ -282,7 +284,7 @@ def scrape_company_pages() -> list[JobSQL]:
     companies = load_active_companies()
     if not companies:
         logger.info("No active companies to scrape.")
-        return
+        return None
 
     workflow = StateGraph(State)
     workflow.add_node("extract_lists", extract_job_lists)
@@ -307,6 +309,6 @@ def scrape_company_pages() -> list[JobSQL]:
     try:
         final_state = graph.invoke(initial_state)
         return final_state.get("normalized_jobs", [])
-    except Exception as e:
-        logger.error(f"Workflow failed: {e}")
+    except Exception:
+        logger.exception("Workflow failed")
         return []

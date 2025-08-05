@@ -11,11 +11,10 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import datetime
 
-from sqlmodel import Session, select
-
+from sqlmodel import Session, func, select
 from src.database import get_session
 from src.database_listeners.monitoring_listeners import performance_monitor
-from src.models import CompanySQL
+from src.models import CompanySQL, JobSQL
 
 logger = logging.getLogger(__name__)
 
@@ -85,11 +84,11 @@ class CompanyService:
                     select(CompanySQL).order_by(CompanySQL.name)
                 ).all()
 
-                logger.info(f"Retrieved {len(companies)} companies")
+                logger.info("Retrieved %d companies", len(companies))
                 return list(companies)
 
-        except Exception as e:
-            logger.error(f"Failed to get all companies: {e}")
+        except Exception:
+            logger.exception("Failed to get all companies")
             raise
 
     @staticmethod
@@ -134,14 +133,14 @@ class CompanyService:
                 session.add(company)
                 session.flush()  # Get the ID without committing
 
-                logger.info(f"Added new company: {name} (ID: {company.id})")
+                logger.info("Added new company: %s (ID: %s)", name, company.id)
                 return company
 
         except ValueError:
             # Re-raise validation errors as-is
             raise
-        except Exception as e:
-            logger.error(f"Failed to add company '{name}': {e}")
+        except Exception:
+            logger.exception("Failed to add company '%s'", name)
             raise
 
     @staticmethod
@@ -170,17 +169,19 @@ class CompanyService:
                 company.active = not company.active
 
                 logger.info(
-                    f"Toggled company '{company.name}' active status from "
-                    f"{old_status} to {company.active}"
+                    "Toggled company '%s' active status from %s to %s",
+                    company.name,
+                    old_status,
+                    company.active,
                 )
                 return company.active
 
         except ValueError:
             # Re-raise validation errors as-is
             raise
-        except Exception as e:
-            logger.error(
-                f"Failed to toggle company active status for ID {company_id}: {e}"
+        except Exception:
+            logger.exception(
+                "Failed to toggle company active status for ID %s", company_id
             )
             raise
 
@@ -203,11 +204,11 @@ class CompanyService:
                     .order_by(CompanySQL.name)
                 ).all()
 
-                logger.info(f"Retrieved {len(companies)} active companies")
+                logger.info("Retrieved %d active companies", len(companies))
                 return list(companies)
 
-        except Exception as e:
-            logger.error(f"Failed to get active companies: {e}")
+        except Exception:
+            logger.exception("Failed to get active companies")
             raise
 
     @staticmethod
@@ -230,7 +231,7 @@ class CompanyService:
         """
         try:
             if last_scraped is None:
-                last_scraped = datetime.now()
+                last_scraped = datetime.now(datetime.UTC)
 
             with db_session() as session:
                 company = session.exec(
@@ -250,18 +251,19 @@ class CompanyService:
                 company.last_scraped = last_scraped
 
                 logger.info(
-                    f"Updated scrape stats for '{company.name}': "
-                    f"count={company.scrape_count}, "
-                    f"success_rate={company.success_rate:.2f}"
+                    "Updated scrape stats for '%s': count=%d, success_rate=%.2f",
+                    company.name,
+                    company.scrape_count,
+                    company.success_rate,
                 )
                 return True
 
         except ValueError:
             # Re-raise validation errors as-is
             raise
-        except Exception as e:
-            logger.error(
-                f"Failed to update scrape stats for company ID {company_id}: {e}"
+        except Exception:
+            logger.exception(
+                "Failed to update scrape stats for company ID %s", company_id
             )
             raise
 
@@ -286,14 +288,14 @@ class CompanyService:
                 ).first()
 
                 if company:
-                    logger.info(f"Retrieved company {company_id}: {company.name}")
+                    logger.info("Retrieved company %s: %s", company_id, company.name)
                 else:
-                    logger.warning(f"Company with ID {company_id} not found")
+                    logger.warning("Company with ID %s not found", company_id)
 
                 return company
 
-        except Exception as e:
-            logger.error(f"Failed to get company {company_id}: {e}")
+        except Exception:
+            logger.exception("Failed to get company %s", company_id)
             raise
 
     @staticmethod
@@ -320,14 +322,16 @@ class CompanyService:
                 ).first()
 
                 if company:
-                    logger.info(f"Retrieved company by name '{name}': ID {company.id}")
+                    logger.info(
+                        "Retrieved company by name '%s': ID %s", name, company.id
+                    )
                 else:
-                    logger.info(f"Company with name '{name}' not found")
+                    logger.info("Company with name '%s' not found", name)
 
                 return company
 
-        except Exception as e:
-            logger.error(f"Failed to get company by name '{name}': {e}")
+        except Exception:
+            logger.exception("Failed to get company by name '%s'", name)
             raise
 
     @staticmethod
@@ -348,9 +352,6 @@ class CompanyService:
             with db_session() as session:
                 # Use LEFT JOIN to get companies with job counts in single query
                 # This avoids N+1 queries when displaying company statistics
-                from sqlmodel import func
-
-                from src.models import JobSQL
 
                 query = (
                     select(
@@ -377,12 +378,13 @@ class CompanyService:
                 ]
 
                 logger.info(
-                    f"Retrieved {len(companies_with_stats)} companies with job counts"
+                    "Retrieved %d companies with job counts",
+                    len(companies_with_stats),
                 )
                 return companies_with_stats
 
-        except Exception as e:
-            logger.error(f"Failed to get companies with job counts: {e}")
+        except Exception:
+            logger.exception("Failed to get companies with job counts")
             raise
 
     @staticmethod
@@ -413,7 +415,9 @@ class CompanyService:
                 for update in updates:
                     company_id = update["company_id"]
                     success = update["success"]
-                    last_scraped = update.get("last_scraped", datetime.now())
+                    last_scraped = update.get(
+                        "last_scraped", datetime.now(datetime.UTC)
+                    )
 
                     company = session.exec(
                         select(CompanySQL).filter_by(id=company_id)
@@ -429,9 +433,9 @@ class CompanyService:
 
                         company.last_scraped = last_scraped
 
-                logger.info(f"Updated scrape stats for {len(updates)} companies")
+                logger.info("Updated scrape stats for %d companies", len(updates))
                 return len(updates)
 
-        except Exception as e:
-            logger.error(f"Failed to bulk update scrape stats: {e}")
+        except Exception:
+            logger.exception("Failed to bulk update scrape stats")
             raise

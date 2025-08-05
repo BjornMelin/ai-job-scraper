@@ -33,38 +33,42 @@ def test_api_connection(provider: str, api_key: str) -> tuple[bool, str]:
     if not api_key or not api_key.strip():
         return False, "API key is required"
 
+    success = False
+    message = ""
+
     try:
         if provider == "OpenAI":
             # Basic format validation first
             if not api_key.startswith("sk-"):
-                return False, "Invalid OpenAI API key format (should start with 'sk-')"
-
-            # Test actual API connectivity using lightweight models.list() endpoint
-            client = OpenAI(api_key=api_key)
-            models = client.models.list()
-            model_count = len(models.data) if models.data else 0
-            return True, f"✅ Connected successfully. {model_count} models available"
+                message = "Invalid OpenAI API key format (should start with 'sk-')"
+            else:
+                # Test actual API connectivity using lightweight models.list() endpoint
+                client = OpenAI(api_key=api_key)
+                models = client.models.list()
+                model_count = len(models.data) if models.data else 0
+                success = True
+                message = f"✅ Connected successfully. {model_count} models available"
 
         elif provider == "Groq":
             # Basic format validation first
             if len(api_key) < 20:
-                return False, "Groq API key appears to be too short"
-
-            # Test actual API connectivity using minimal chat completion
-            client = Groq(api_key=api_key)
-            completion = client.chat.completions.create(
-                model="llama3-8b-8192",
-                messages=[{"role": "user", "content": "ping"}],
-                max_tokens=1,
-            )
-            completion_id = completion.id[:8] if completion.id else "unknown"
-            return True, f"✅ Connected successfully. Response ID: {completion_id}"
-
+                message = "Groq API key appears to be too short"
+            else:
+                # Test actual API connectivity using minimal chat completion
+                client = Groq(api_key=api_key)
+                completion = client.chat.completions.create(
+                    model="llama3-8b-8192",
+                    messages=[{"role": "user", "content": "ping"}],
+                    max_tokens=1,
+                )
+                completion_id = completion.id[:8] if completion.id else "unknown"
+                success = True
+                message = f"✅ Connected successfully. Response ID: {completion_id}"
         else:
-            return False, f"Unknown provider: {provider}"
+            message = f"Unknown provider: {provider}"
 
     except Exception as e:
-        logger.error(f"API connection test failed for {provider}: {e}")
+        logger.exception("API connection test failed for %s", provider)
 
         # Provide more specific error messages based on exception type
         error_msg = str(e).lower()
@@ -73,22 +77,23 @@ def test_api_connection(provider: str, api_key: str) -> tuple[bool, str]:
             or "unauthorized" in error_msg
             or "401" in error_msg
         ):
-            return False, "❌ Authentication failed. Please check your API key"
+            message = "❌ Authentication failed. Please check your API key"
         elif (
             "connection" in error_msg
             or "network" in error_msg
             or "timeout" in error_msg
         ):
-            return (
-                False,
-                "❌ Network connection failed. Please check your internet connection",
+            message = (
+                "❌ Network connection failed. Please check your internet connection"
             )
         elif "rate" in error_msg or "quota" in error_msg or "429" in error_msg:
-            return False, "❌ Rate limit exceeded. Please try again later"
+            message = "❌ Rate limit exceeded. Please try again later"
         elif "not found" in error_msg or "404" in error_msg:
-            return False, "❌ API endpoint not found. Service may be unavailable"
+            message = "❌ API endpoint not found. Service may be unavailable"
         else:
-            return False, f"❌ Connection failed: {str(e)}"
+            message = f"❌ Connection failed: {e!s}"
+
+    return success, message
 
 
 def load_settings() -> dict[str, Any]:
@@ -118,8 +123,9 @@ def save_settings(settings: dict[str, Any]) -> None:
     # Note: In a production app, you would save API keys securely
     # For now, we'll just note that they should be set as environment variables
     logger.info(
-        f"Settings updated: LLM Provider={settings['llm_provider']}, "
-        f"Max Jobs={settings['max_jobs_per_company']}"
+        "Settings updated: LLM Provider=%s, Max Jobs=%s",
+        settings["llm_provider"],
+        settings["max_jobs_per_company"],
     )
 
 
@@ -274,9 +280,9 @@ def show_settings_page() -> None:
                         "(OPENAI_API_KEY, GROQ_API_KEY) for security in production."
                     )
 
-            except Exception as e:
+            except Exception:
                 st.error("❌ Failed to save settings. Please try again.")
-                logger.error(f"Failed to save settings: {e}", exc_info=True)
+                logger.exception("Failed to save settings")
 
     # Current Settings Summary
     st.markdown("### 📋 Current Settings Summary")
