@@ -26,6 +26,7 @@ Example usage:
     stop_all_scraping()
 """
 
+import atexit
 import copy
 import inspect
 import logging
@@ -94,15 +95,22 @@ class BackgroundTaskManager:
     background tasks, with support for progress callbacks and error handling.
     """
 
-    def __init__(self, max_workers: int = 3):
+    def __init__(self, max_workers: int = 3, max_task_history: int = 100):
         """Initialize the task manager.
 
         Args:
             max_workers: Maximum number of concurrent background tasks.
+            max_task_history: Maximum number of completed tasks to keep in memory.
         """
         self.active_tasks: dict[str, TaskInfo] = {}
         self.executor = ThreadPoolExecutor(max_workers=max_workers)
         self._lock = threading.Lock()
+        self.max_task_history = max_task_history
+        self._shutdown = False
+
+        # Register cleanup handlers
+        atexit.register(self.shutdown)
+
         logger.info(f"BackgroundTaskManager initialized with {max_workers} max workers")
 
     def start_task(
@@ -256,19 +264,41 @@ class BackgroundTaskManager:
         cleaned = 0
 
         with self._lock:
-            task_ids_to_remove = [
-                task_id
+            # Get all completed tasks
+            completed_tasks = [
+                (task_id, task_info)
                 for task_id, task_info in self.active_tasks.items()
-                if (
-                    task_info.status in ("completed", "failed", "cancelled")
-                    and task_info.completed_at
-                    and task_info.completed_at.timestamp() < cutoff
-                )
+                if task_info.status in ("completed", "failed", "cancelled")
             ]
 
-            for task_id in task_ids_to_remove:
-                del self.active_tasks[task_id]
-                cleaned += 1
+            # Sort by completion time (newest first)
+            completed_tasks.sort(
+                key=lambda x: x[1].completed_at.timestamp() if x[1].completed_at else 0,
+                reverse=True,
+            )
+
+            # Remove old tasks beyond max_task_history limit
+            task_ids_to_remove = []
+
+            # First, remove tasks older than max_age_hours
+            for task_id, task_info in completed_tasks:
+                if (
+                    task_info.completed_at
+                    and task_info.completed_at.timestamp() < cutoff
+                ):
+                    task_ids_to_remove.append(task_id)
+
+            # Then, if we still have too many tasks, remove oldest ones
+            if len(completed_tasks) > self.max_task_history:
+                excess_tasks = completed_tasks[self.max_task_history :]
+                task_ids_to_remove.extend([task_id for task_id, _ in excess_tasks])
+
+            # Remove duplicates and actually delete tasks
+            unique_ids_to_remove = list(set(task_ids_to_remove))
+            for task_id in unique_ids_to_remove:
+                if task_id in self.active_tasks:
+                    del self.active_tasks[task_id]
+                    cleaned += 1
 
         if cleaned > 0:
             logger.info(f"Cleaned up {cleaned} old completed tasks")
@@ -297,12 +327,44 @@ class BackgroundTaskManager:
                 if progress is not None:
                     task_info.progress = progress
 
-    def shutdown(self) -> None:
-        """Shutdown the task manager and cleanup resources."""
+    def shutdown(self, wait: bool = True) -> None:
+        """Shutdown the task manager and cleanup resources.
+
+        Args:
+            wait: Whether to wait for running tasks to complete.
+        """
+        if self._shutdown:
+            return
+
         logger.info("Shutting down BackgroundTaskManager")
-        self.executor.shutdown(wait=True)
+        self._shutdown = True
+
+        # Cancel all pending tasks
+        with self._lock:
+            pending_tasks = [
+                task_id
+                for task_id, task_info in self.active_tasks.items()
+                if task_info.status in ("pending", "running")
+            ]
+
+        for task_id in pending_tasks:
+            self.cancel_task(task_id)
+
+        # Shutdown executor
+        self.executor.shutdown(wait=wait)
+
         with self._lock:
             self.active_tasks.clear()
+
+        logger.info("BackgroundTaskManager shutdown complete")
+
+    def __del__(self) -> None:
+        """Cleanup resources when object is destroyed."""
+        try:
+            self.shutdown(wait=False)
+        except Exception as e:
+            # Don't raise exceptions in destructor
+            logger.warning(f"Error during BackgroundTaskManager cleanup: {e}")
 
 
 class StreamlitTaskManager(BackgroundTaskManager):
@@ -313,14 +375,33 @@ class StreamlitTaskManager(BackgroundTaskManager):
     ScriptRunContext properly to enable Streamlit commands from background threads.
     """
 
-    def __init__(self, max_workers: int = 3):
+    def __init__(
+        self,
+        max_workers: int = 3,
+        max_task_history: int = 100,
+        max_progress_entries: int = 50,
+    ):
         """Initialize the Streamlit task manager.
 
         Args:
             max_workers: Maximum number of concurrent background tasks.
+            max_task_history: Maximum number of completed tasks to keep in memory.
+            max_progress_entries: Maximum number of progress entries to keep in
+                session state.
         """
-        super().__init__(max_workers)
+        super().__init__(max_workers, max_task_history)
+        self.max_progress_entries = max_progress_entries
         self._ensure_session_state_keys()
+
+        # Register Streamlit cleanup callback if available
+        try:
+            # This will work in newer versions of Streamlit
+            st.runtime.get_instance().add_script_run_ctx_cleanup_callback(
+                self._streamlit_cleanup
+            )
+        except (AttributeError, Exception):
+            # Fallback for older versions or if callback system is not available
+            logger.debug("Streamlit cleanup callback not available, relying on atexit")
 
     def _ensure_session_state_keys(self) -> None:
         """Ensure required session state keys exist."""
@@ -491,42 +572,186 @@ class StreamlitTaskManager(BackgroundTaskManager):
 
         return cancelled
 
-    def cleanup_session_state(self) -> None:
-        """Clean up old task data from session state."""
-        # Clean up completed task progress data older than 1 hour
-        cutoff = datetime.now().timestamp() - 3600
+    def cleanup_session_state(self, max_age_hours: int = 1) -> dict[str, int]:
+        """Clean up old task data from session state to prevent memory bloat.
 
-        task_ids_to_remove = [
-            task_id
-            for task_id, progress_info in st.session_state.task_progress.items()
-            if progress_info.timestamp.timestamp() < cutoff
-        ]
+        Args:
+            max_age_hours: Maximum age in hours for progress entries.
 
+        Returns:
+            Dictionary with cleanup statistics.
+        """
+        if (
+            "task_progress" not in st.session_state
+            or "background_tasks" not in st.session_state
+        ):
+            return {"progress_cleaned": 0, "tasks_cleaned": 0, "manager_cleaned": 0}
+
+        cutoff = datetime.now().timestamp() - (max_age_hours * 3600)
+        progress_cleaned = 0
+        tasks_cleaned = 0
+
+        # Clean up old progress entries
+        progress_items = list(st.session_state.task_progress.items())
+
+        # Sort by timestamp (newest first)
+        progress_items.sort(
+            key=lambda x: x[1].timestamp.timestamp()
+            if hasattr(x[1], "timestamp")
+            else 0,
+            reverse=True,
+        )
+
+        # Remove old entries and enforce max_progress_entries limit
+        task_ids_to_remove = []
+
+        for i, (task_id, progress_info) in enumerate(progress_items):
+            # Remove if too old
+            if (
+                hasattr(progress_info, "timestamp")
+                and progress_info.timestamp.timestamp() < cutoff
+            ) or i >= self.max_progress_entries:
+                task_ids_to_remove.append(task_id)
+
+        # Actually remove the entries
         for task_id in task_ids_to_remove:
-            del st.session_state.task_progress[task_id]
+            if task_id in st.session_state.task_progress:
+                del st.session_state.task_progress[task_id]
+                progress_cleaned += 1
             if task_id in st.session_state.background_tasks:
                 del st.session_state.background_tasks[task_id]
+                tasks_cleaned += 1
 
         # Clean up completed tasks from manager
-        self.cleanup_completed_tasks(max_age_hours=1)
+        manager_cleaned = self.cleanup_completed_tasks(max_age_hours=max_age_hours)
+
+        cleanup_stats = {
+            "progress_cleaned": progress_cleaned,
+            "tasks_cleaned": tasks_cleaned,
+            "manager_cleaned": manager_cleaned,
+        }
+
+        if sum(cleanup_stats.values()) > 0:
+            logger.info(f"Session state cleanup completed: {cleanup_stats}")
+
+        return cleanup_stats
+
+    def _streamlit_cleanup(self) -> None:
+        """Cleanup callback for Streamlit context cleanup."""
+        try:
+            self.cleanup_session_state()
+        except Exception as e:
+            logger.warning(f"Error during Streamlit cleanup: {e}")
+
+    def get_memory_usage_stats(self) -> dict[str, int]:
+        """Get current memory usage statistics for monitoring.
+
+        Returns:
+            Dictionary with current usage counts.
+        """
+        with self._lock:
+            active_count = len(
+                [
+                    task
+                    for task in self.active_tasks.values()
+                    if task.status in ("pending", "running")
+                ]
+            )
+            completed_count = len(
+                [
+                    task
+                    for task in self.active_tasks.values()
+                    if task.status in ("completed", "failed", "cancelled")
+                ]
+            )
+
+        progress_count = len(st.session_state.get("task_progress", {}))
+        session_tasks_count = len(st.session_state.get("background_tasks", {}))
+
+        return {
+            "active_tasks": active_count,
+            "completed_tasks": completed_count,
+            "total_tasks": len(self.active_tasks),
+            "progress_entries": progress_count,
+            "session_tasks": session_tasks_count,
+        }
 
 
 # Global task manager instance for the application
 # This should be initialized once and reused across the Streamlit app
-_task_manager: StreamlitTaskManager | None = None
+# Using WeakValueDictionary to allow proper cleanup
+_task_managers: dict[str, StreamlitTaskManager] = {}
+_task_manager_lock = threading.Lock()
 
 
-def get_task_manager() -> StreamlitTaskManager:
+def get_task_manager(session_id: str | None = None) -> StreamlitTaskManager:
     """Get the global task manager instance.
+
+    Args:
+        session_id: Optional session ID for session-specific managers.
 
     Returns:
         StreamlitTaskManager: Global task manager instance.
     """
-    global _task_manager
-    if _task_manager is None:
-        _task_manager = StreamlitTaskManager(max_workers=2)
-        logger.info("Initialized global StreamlitTaskManager")
-    return _task_manager
+    global _task_managers
+
+    # Use default session if none provided
+    if session_id is None:
+        session_id = "default"
+
+    with _task_manager_lock:
+        if session_id not in _task_managers:
+            _task_managers[session_id] = StreamlitTaskManager(
+                max_workers=2, max_task_history=50, max_progress_entries=25
+            )
+            logger.info(f"Initialized StreamlitTaskManager for session: {session_id}")
+
+        return _task_managers[session_id]
+
+
+def cleanup_all_task_managers() -> dict[str, dict[str, int]]:
+    """Cleanup all task managers and return statistics.
+
+    Returns:
+        Dictionary mapping session IDs to their cleanup statistics.
+    """
+    global _task_managers
+
+    cleanup_stats = {}
+
+    with _task_manager_lock:
+        for session_id, manager in _task_managers.items():
+            try:
+                stats = manager.cleanup_session_state()
+                cleanup_stats[session_id] = stats
+            except Exception as e:
+                logger.error(f"Error cleaning up task manager {session_id}: {e}")
+                cleanup_stats[session_id] = {"error": str(e)}
+
+    return cleanup_stats
+
+
+def shutdown_all_task_managers(wait: bool = True) -> None:
+    """Shutdown all task managers.
+
+    Args:
+        wait: Whether to wait for running tasks to complete.
+    """
+    global _task_managers
+
+    with _task_manager_lock:
+        for session_id, manager in _task_managers.items():
+            try:
+                manager.shutdown(wait=wait)
+                logger.info(f"Shutdown task manager for session: {session_id}")
+            except Exception as e:
+                logger.error(f"Error shutting down task manager {session_id}: {e}")
+
+        _task_managers.clear()
+
+
+# Register global cleanup
+atexit.register(lambda: shutdown_all_task_managers(wait=False))
 
 
 def start_background_scraping(

@@ -14,7 +14,7 @@ Functions:
     random_delay: Pauses execution for a random duration.
 """
 
-import secrets
+import random
 import time
 
 from groq import Groq
@@ -67,7 +67,7 @@ def get_proxy() -> str | None:
     """
     if not settings.use_proxies or not settings.proxy_pool:
         return None
-    return secrets.choice(settings.proxy_pool)
+    return random.choice(settings.proxy_pool)
 
 
 def random_user_agent() -> str:
@@ -113,7 +113,7 @@ def random_user_agent() -> str:
             "(KHTML, like Gecko) Chrome/91.0.4472.114 Mobile Safari/537.36"
         ),
     ]
-    return secrets.choice(user_agents)
+    return random.choice(user_agents)
 
 
 def random_delay(min_sec: float = 1.0, max_sec: float = 5.0) -> None:
@@ -128,4 +128,4 @@ def random_delay(min_sec: float = 1.0, max_sec: float = 5.0) -> None:
         min_sec: The minimum delay duration in seconds (default is 1.0).
         max_sec: The maximum delay duration in seconds (default is 5.0).
     """
-    time.sleep(min_sec + secrets.randbelow(int((max_sec - min_sec) * 100)) / 100)
+    time.sleep(random.uniform(min_sec, max_sec))

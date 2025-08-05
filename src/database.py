@@ -13,9 +13,9 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel
 
-from .config import Settings
-from .database.monitoring_listeners import log_slow, start_timer
-from .database.pragma_listeners import apply_pragmas
+from src.config import Settings
+from src.database_listeners.monitoring_listeners import log_slow, start_timer
+from src.database_listeners.pragma_listeners import apply_pragmas
 
 settings = Settings()
 logger = logging.getLogger(__name__)

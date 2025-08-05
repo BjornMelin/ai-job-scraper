@@ -280,11 +280,13 @@ def _normalize_board_jobs(board_jobs_raw: list[dict]) -> list[JobSQL]:
                     continue
 
                 # Create content hash for change detection
+                # Using MD5 for non-cryptographic fingerprinting
+                # (performance over security)
                 title = raw.get("title", "")
                 description = raw.get("description", "")
                 company = raw.get("company", "")
                 content = f"{title}{description}{company}"
-                content_hash = hashlib.sha256(content.encode()).hexdigest()
+                content_hash = hashlib.md5(content.encode()).hexdigest()  # noqa: S324
 
                 # Create JobSQL object
                 job = JobSQL(

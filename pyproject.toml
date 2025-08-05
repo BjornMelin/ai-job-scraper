@@ -82,6 +82,7 @@ ignore = [
     "PLR2004", # Magic value used in comparison (constants can be clear in context)
 
     # Security rules that can be too strict for local apps
+    "S311", # Standard pseudo-random generators are not suitable for crypto
     "S605", # Starting a process with a shell (needed for some CLI tools)
     "S607", # Starting a process with a partial executable path
 
