@@ -1,0 +1,175 @@
+# ==============================================================================
+# .dockerignore for AI Job Scraper Project
+# Excludes files and directories from Docker build context for better performance,
+# security, and maintainability. Based on Docker best practices for Python/FastAPI.
+# ==============================================================================
+
+# ==============================================================================
+# Python-specific files
+# ==============================================================================
+# Byte-compiled / optimized / DLL files
+**/__pycache__/
+**/*.py[cod]
+**/*$py.class
+**/*.so
+
+# Distribution / packaging artifacts
+**/build/
+**/develop-eggs/
+**/dist/
+**/downloads/
+**/eggs/
+**/.eggs/
+**/lib/
+**/lib64/
+**/parts/
+**/sdist/
+**/var/
+**/wheels/
+**/share/python-wheels/
+**/*.egg-info/
+**/.installed.cfg
+**/*.egg
+**/MANIFEST
+
+# ==============================================================================
+# Virtual environments and dependency management
+# ==============================================================================
+**/.env
+**/.venv/
+**/env/
+**/venv/
+**/ENV/
+**/env.bak/
+**/venv.bak/
+
+# ==============================================================================
+# Testing and coverage
+# ==============================================================================
+**/htmlcov/
+**/.tox/
+**/.nox/
+**/.coverage
+**/.coverage.*
+**/.cache
+**/nosetests.xml
+**/coverage.xml
+**/*.cover
+**/*.py,cover
+**/.hypothesis/
+**/.pytest_cache/
+**/cover/
+**/reports/
+**/test_*.py
+tests/
+
+# ==============================================================================
+# Documentation (not needed in production container)
+# ==============================================================================
+docs/
+# Exclude all markdown files except README.md (needed for package install)
+**/*.md
+!README.md
+**/*.rst
+
+# ==============================================================================
+# Development tools and IDE files
+# ==============================================================================
+**/.vscode/
+**/.idea/
+**/.DS_Store
+**/Thumbs.db
+**/*.swp
+**/*.swo
+**/*~
+**/.project
+**/.pydevproject
+**/.settings/
+**/.classpath
+
+# ==============================================================================
+# Version control and CI/CD
+# ==============================================================================
+**/.git/
+**/.gitignore
+**/.github/
+**/.gitlab-ci.yml
+**/.travis.yml
+**/circle.yml
+**/.circleci/
+
+# ==============================================================================
+# Docker and container files (avoid recursive copying)
+# ==============================================================================
+**/Dockerfile*
+**/.dockerignore
+**/docker-compose*.yml
+**/compose.yaml
+**/compose.yml
+
+# ==============================================================================
+# Environment and configuration files (security)
+# ==============================================================================
+**/.env*
+!**/.env.example
+**/secrets.yaml
+**/secrets.yml
+**/*secret*
+**/*password*
+**/*key*
+CLAUDE.local.md
+
+# ==============================================================================
+# Logs and temporary files
+# ==============================================================================
+**/*.log
+**/logs/
+**/tmp/
+**/.tmp/
+**/temp/
+**/.cache/
+cache/
+
+# ==============================================================================
+# Database and data files (use volumes for persistence)
+# ==============================================================================
+**/*.db
+**/*.sqlite
+**/*.sqlite3
+jobs.db
+
+# ==============================================================================
+# Build artifacts and generated files
+# ==============================================================================
+**/target/
+**/obj/
+**/bin/
+**/.mypy_cache/
+**/.dmypy.json
+**/dmypy.json
+**/.pyre/
+**/.pytype/
+**/cython_debug/
+**/repomix-output.md
+
+# ==============================================================================
+# Package manager files (keep uv.lock for Docker build)
+# ==============================================================================
+# uv.lock is needed for Docker build, so don't exclude it
+**/package-lock.json
+**/yarn.lock
+**/pnpm-lock.yaml
+
+# ==============================================================================
+# Scripts and utilities not needed in container
+# ==============================================================================
+scripts/
+
+# ==============================================================================
+# Performance test outputs and benchmarks
+# ==============================================================================
+test_*.py
+**/performance_*.py
+**/benchmark_*.py
+**/*.prof
+**/*.pstats
