@@ -77,6 +77,18 @@ class ProgressInfo:
     details: dict[str, Any] = field(default_factory=dict)
 
 
+@dataclass
+class CompanyProgress:
+    """Progress information for individual company scraping."""
+
+    name: str
+    status: str = "Pending"  # Pending, Scraping, Completed, Error
+    jobs_found: int = 0
+    start_time: datetime | None = None
+    end_time: datetime | None = None
+    error: str | None = None
+
+
 class BackgroundTaskManager:
     """Base class for managing background tasks without blocking the UI.
 
@@ -133,6 +145,11 @@ class BackgroundTaskManager:
                 # Update status to running
                 self._update_task_status(task_id, "running", 0.0, "Starting task...")
 
+                # Create a copy of task_kwargs to prevent concurrent modification
+                import copy
+
+                safe_kwargs = copy.deepcopy(task_kwargs)
+
                 # Execute the actual task function
                 if progress_callback:
                     # Pass progress callback to task function if it accepts it
@@ -140,11 +157,11 @@ class BackgroundTaskManager:
 
                     sig = inspect.signature(task_func)
                     if "progress_callback" in sig.parameters:
-                        task_kwargs["progress_callback"] = (
+                        safe_kwargs["progress_callback"] = (
                             lambda p, msg="": progress_callback(task_id, p, msg)
                         )
 
-                result = task_func(**task_kwargs)
+                result = task_func(**safe_kwargs)
 
                 # Mark as completed
                 self._update_task_status(
@@ -333,18 +350,19 @@ class StreamlitTaskManager(BackgroundTaskManager):
         script_ctx = get_script_run_ctx()
 
         def progress_callback(task_id: str, progress: float, message: str = "") -> None:
-            """Update progress in session state and trigger UI refresh."""
+            """Update progress in session state safely from background thread.
+
+            Note: We do NOT call st.rerun() from this callback as it's not thread-safe.
+            The main UI thread will poll session state and update automatically.
+            """
             if update_ui:
-                # Update session state
+                # Update session state (this is thread-safe)
                 st.session_state.task_progress[task_id] = ProgressInfo(
                     progress=progress, message=message, timestamp=datetime.now()
                 )
 
-                # Trigger a rerun to update UI
-                try:
-                    st.rerun()
-                except Exception as e:
-                    logger.warning(f"Could not trigger UI rerun: {e}")
+                # DO NOT call st.rerun() from background threads - not thread-safe
+                # The main UI will detect session state changes and update naturally
 
         def error_callback(task_id: str, error_message: str) -> None:
             """Handle task errors."""

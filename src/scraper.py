@@ -11,6 +11,7 @@ import logging
 
 from datetime import datetime
 
+import sqlalchemy.exc
 import sqlmodel
 import typer
 
@@ -87,16 +88,40 @@ def bulk_get_or_create_companies(
     # Step 2: Identify missing companies
     missing_names = company_names - company_map.keys()
 
-    # Step 3: Bulk create missing companies if any
+    # Step 3: Bulk create missing companies if any, handling race conditions
     if missing_names:
         new_companies = [
             CompanySQL(name=name, url="", active=True) for name in missing_names
         ]
         session.add_all(new_companies)
-        session.flush()  # Get IDs without committing transaction
 
-        # Add new companies to the mapping
-        company_map.update({comp.name: comp.id for comp in new_companies})
+        try:
+            session.flush()  # Get IDs without committing transaction
+            # Add new companies to the mapping
+            company_map.update({comp.name: comp.id for comp in new_companies})
+        except sqlalchemy.exc.IntegrityError:
+            # Handle race condition: another process created some companies
+            # Roll back and re-query to get the actual IDs
+            session.rollback()
+
+            # Re-query for all companies that were supposed to be missing
+            retry_companies = session.exec(
+                sqlmodel.select(CompanySQL).where(CompanySQL.name.in_(missing_names))
+            ).all()
+
+            # Update the mapping with companies that were created by other processes
+            for comp in retry_companies:
+                company_map[comp.name] = comp.id
+
+            # Create only the companies that are still truly missing
+            still_missing = missing_names - {comp.name for comp in retry_companies}
+            if still_missing:
+                remaining_companies = [
+                    CompanySQL(name=name, url="", active=True) for name in still_missing
+                ]
+                session.add_all(remaining_companies)
+                session.flush()
+                company_map.update({comp.name: comp.id for comp in remaining_companies})
 
         logger.info(f"Bulk created {len(missing_names)} new companies")
 

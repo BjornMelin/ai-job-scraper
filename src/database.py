@@ -22,32 +22,22 @@ logger = logging.getLogger(__name__)
 # Performance monitoring for slow queries
 SLOW_QUERY_THRESHOLD = 1.0  # Log queries taking longer than 1 second
 
-# SQLite optimization pragmas for performance and concurrency
-SQLITE_PRAGMAS = [
-    "PRAGMA journal_mode = WAL",  # Write-Ahead Logging for better concurrency
-    "PRAGMA synchronous = NORMAL",  # Balanced safety/performance
-    "PRAGMA cache_size = 64000",  # 64MB cache (default is 2MB)
-    "PRAGMA temp_store = MEMORY",  # Store temp tables in memory
-    "PRAGMA mmap_size = 134217728",  # 128MB memory-mapped I/O
-    "PRAGMA foreign_keys = ON",  # Enable foreign key constraints
-    "PRAGMA optimize",  # Auto-optimize indexes
-]
 
+def _attach_sqlite_listeners(engine):
+    """Attach SQLite event listeners for pragmas and optional performance monitoring.
 
-def _configure_sqlite_engine() -> None:
-    """Configure SQLite engine with performance and threading optimizations.
+    This consolidated function handles both pragma application and optional
+    performance monitoring based on configuration settings.
 
-    Applies SQLite pragmas for:
-    - WAL mode for better concurrent access
-    - Optimized cache and memory settings
-    - Thread-safe configuration for background tasks
+    Args:
+        engine: SQLAlchemy engine instance to attach listeners to.
     """
 
     @event.listens_for(engine, "connect")
-    def set_sqlite_pragma(dbapi_connection, connection_record):
+    def _apply_pragmas(conn, _):
         """Apply SQLite pragmas on each new connection."""
-        cursor = dbapi_connection.cursor()
-        for pragma in SQLITE_PRAGMAS:
+        cursor = conn.cursor()
+        for pragma in settings.sqlite_pragmas:
             try:
                 cursor.execute(pragma)
                 logger.debug(f"Applied SQLite pragma: {pragma}")
@@ -55,34 +45,23 @@ def _configure_sqlite_engine() -> None:
                 logger.warning(f"Failed to apply pragma '{pragma}': {e}")
         cursor.close()
 
+    # Only attach performance monitoring if enabled in settings
+    if settings.db_monitoring:
 
-def _configure_performance_monitoring() -> None:
-    """Configure performance monitoring for database operations."""
+        @event.listens_for(engine, "before_cursor_execute")
+        def _start_timer(conn, cursor, stmt, params, ctx, many):
+            """Start timing for query execution."""
+            ctx._query_start = time.time()
 
-    @event.listens_for(engine, "before_cursor_execute")
-    def receive_before_cursor_execute(
-        conn, cursor, statement, parameters, context, executemany
-    ):
-        """Start timing for query execution."""
-        context._query_start_time = time.time()
-
-    @event.listens_for(engine, "after_cursor_execute")
-    def receive_after_cursor_execute(
-        conn, cursor, statement, parameters, context, executemany
-    ):
-        """Log slow queries and performance metrics."""
-        total_time = time.time() - context._query_start_time
-
-        if total_time > SLOW_QUERY_THRESHOLD:
-            # Truncate long statements for logging
-            statement_preview = (
-                statement[:200] + "..." if len(statement) > 200 else statement
-            )
-            logger.warning(
-                f"Slow query detected: {total_time:.3f}s - {statement_preview}"
-            )
-        elif total_time > 0.1:  # Log moderately slow queries at debug level
-            logger.debug(f"Query took {total_time:.3f}s")
+        @event.listens_for(engine, "after_cursor_execute")
+        def _log_slow(conn, cursor, stmt, params, ctx, many):
+            """Log slow queries and performance metrics."""
+            dt = time.time() - ctx._query_start
+            if dt > SLOW_QUERY_THRESHOLD:
+                preview = (stmt[:200] + "...") if len(stmt) > 200 else stmt
+                logger.warning(f"Slow query {dt:.3f}s – {preview}")
+            elif dt > 0.1:
+                logger.debug(f"Query took {dt:.3f}s")
 
 
 # Create thread-safe SQLAlchemy engine with optimized configuration
@@ -98,10 +77,8 @@ if settings.db_url.startswith("sqlite"):
         pool_pre_ping=True,  # Verify connections before use
         pool_recycle=3600,  # Refresh connections hourly
     )
-    # Configure SQLite optimizations
-    _configure_sqlite_engine()
-    # Configure performance monitoring (optional, can be disabled in production)
-    _configure_performance_monitoring()
+    # Configure SQLite optimizations and optional performance monitoring
+    _attach_sqlite_listeners(engine)
 else:
     # PostgreSQL or other database configuration
     engine = create_engine(
