@@ -1,6 +1,15 @@
-"""Tests for scraper functions with mocks."""
+"""Tests for scraper functions with comprehensive mocking.
+
+This module contains tests for the job scraping functionality including:
+- Database update operations (create, upsert, delete)
+- Full scraping workflow integration
+- Job board scraping with filtering
+- Company page scraping with mock responses
+- Data validation and transformation
+"""
 
 from datetime import datetime, timedelta, timezone
+from typing import Any
 from unittest.mock import patch
 
 import pandas as pd
@@ -12,8 +21,12 @@ from src.scraper_company_pages import scrape_company_pages
 from src.scraper_job_boards import scrape_job_boards
 
 
-def test_update_db_new_jobs(session: Session):
-    """Test updating database with new jobs."""
+def test_update_db_new_jobs(session: Session) -> None:
+    """Test database update with new job insertion.
+
+    Validates that new jobs can be properly validated using Pydantic
+    and inserted into the database with correct salary parsing.
+    """
     job_data = {
         "company": "New Co",
         "title": "AI Eng",
@@ -35,8 +48,14 @@ def test_update_db_new_jobs(session: Session):
 
 
 @patch("src.scraper.engine")
-def test_update_db_upsert_and_delete(mock_engine, session: Session):
-    """Test upsert and delete stale jobs with mocked database."""
+def test_update_db_upsert_and_delete(mock_engine: Any, session: Session) -> None:
+    """Test database upsert and stale job deletion with mocked engine.
+
+    Validates the complete database update workflow including:
+    - Upserting existing jobs with new data
+    - Preserving user-specific fields (favorites, notes)
+    - Deleting stale jobs not in current scrape results
+    """
     # Mock the engine to use our temp_db session
     mock_session = session
     mock_engine.begin.return_value.__enter__.return_value = mock_session
@@ -135,8 +154,17 @@ def test_update_db_upsert_and_delete(mock_engine, session: Session):
 @patch("src.scraper.update_db")
 @patch("src.scraper.scrape_job_boards")
 @patch("src.scraper.load_active_companies")
-def test_scrape_all_workflow(mock_load_companies, mock_scrape_boards, mock_update_db):
-    """Test full scrape_all workflow with mocks."""
+def test_scrape_all_workflow(
+    mock_load_companies: Any, mock_scrape_boards: Any, mock_update_db: Any
+) -> None:
+    """Test complete scrape_all workflow with comprehensive mocking.
+
+    Validates the full scraping pipeline including:
+    - Loading active companies from database
+    - Company page scraping with LangGraph workflow
+    - Job board scraping integration
+    - Final database update with combined results
+    """
     mock_load_companies.return_value = [
         CompanySQL.model_validate(
             {"name": "Mock Co", "url": "https://mock.co", "active": True}
@@ -187,8 +215,14 @@ def test_scrape_all_workflow(mock_load_companies, mock_scrape_boards, mock_updat
 @patch("src.scraper.update_db")
 @patch("src.scraper.scrape_job_boards")
 @patch("src.scraper.load_active_companies")
-def test_scrape_all_filtering(mock_load_companies, mock_scrape_boards, mock_update_db):
-    """Test relevance filtering in scrape_all."""
+def test_scrape_all_filtering(
+    mock_load_companies: Any, mock_scrape_boards: Any, mock_update_db: Any
+) -> None:
+    """Test job relevance filtering in scrape_all workflow.
+
+    Validates that only relevant jobs (AI/ML related) are kept
+    while non-relevant jobs (Sales, etc.) are filtered out.
+    """
     mock_load_companies.return_value = []
     mock_scrape_boards.return_value = [
         {
@@ -225,8 +259,16 @@ def test_scrape_all_filtering(mock_load_companies, mock_scrape_boards, mock_upda
 @patch("src.scraper_company_pages.save_jobs")
 @patch("src.scraper_company_pages.SmartScraperMultiGraph")
 @patch("src.scraper_company_pages.load_active_companies")
-def test_scrape_company_pages(mock_load_companies, mock_scraper_class, mock_save_jobs):
-    """Test scrape_company_pages with mocks."""
+def test_scrape_company_pages(
+    mock_load_companies: Any, mock_scraper_class: Any, mock_save_jobs: Any
+) -> None:
+    """Test company page scraping with SmartScraperMultiGraph mocking.
+
+    Validates the company page scraping workflow including:
+    - Loading active companies from database
+    - Using SmartScraperMultiGraph for job extraction
+    - Handling multi-step scraping (job listing -> job details)
+    """
     mock_load_companies.return_value = [
         CompanySQL.model_validate(
             {"name": "Test Co", "url": "https://test.co", "active": True}
@@ -250,8 +292,13 @@ def test_scrape_company_pages(mock_load_companies, mock_scraper_class, mock_save
 
 
 @patch("src.scraper_job_boards.scrape_jobs")
-def test_scrape_job_boards(mock_scrape_jobs):
-    """Test scrape_job_boards with mock."""
+def test_scrape_job_boards(mock_scrape_jobs: Any) -> None:
+    """Test job board scraping with pandas DataFrame mocking.
+
+    Validates that job board scraping returns properly structured
+    data from the underlying scrape_jobs function and converts
+    DataFrame results to list format.
+    """
     # Mock to return a pandas DataFrame-like structure
 
     mock_df = pd.DataFrame(

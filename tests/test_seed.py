@@ -1,18 +1,32 @@
-"""Tests for database seeding functionality."""
+"""Tests for database seeding functionality.
 
+This module contains comprehensive tests for the database seeding system including:
+- Initial seeding with predefined companies
+- Idempotent seeding (no duplicates on re-run)
+- Partial seeding with existing data preservation
+- Data integrity validation
+- CLI interface testing
+"""
+
+from typing import Any
 from unittest.mock import patch
 
 import pytest
 
-from sqlmodel import select
+from sqlmodel import Session, select
 from src.models import CompanySQL
 from src.seed import app, seed
 from typer.testing import CliRunner
 
 
 @pytest.fixture
-def expected_companies():
-    """Fixture providing expected seeded companies."""
+def expected_companies() -> list[dict[str, Any]]:
+    """Fixture providing expected seeded companies.
+
+    Returns:
+        List of company dictionaries with name, url, and active status
+        for the default companies that should be seeded into the database.
+    """
     return [
         {
             "name": "Anthropic",
@@ -40,8 +54,14 @@ def expected_companies():
     ]
 
 
-def test_seed_success(session, expected_companies):
-    """Test successful seeding."""
+def test_seed_success(
+    session: Session, expected_companies: list[dict[str, Any]]
+) -> None:
+    """Test successful database seeding with all expected companies.
+
+    Validates that all predefined companies are properly inserted
+    into the database with correct URLs and active status.
+    """
     with patch("src.seed.engine", session.bind):
         seed()
 
@@ -53,8 +73,14 @@ def test_seed_success(session, expected_companies):
             assert comp.active == expected["active"]
 
 
-def test_seed_idempotent(session, expected_companies):
-    """Test seeding idempotency."""
+def test_seed_idempotent(
+    session: Session, expected_companies: list[dict[str, Any]]
+) -> None:
+    """Test that seeding is idempotent (can be run multiple times safely).
+
+    Validates that running seed() multiple times doesn't create
+    duplicate entries due to unique constraints.
+    """
     with patch("src.seed.engine", session.bind):
         seed()
         seed()
@@ -63,8 +89,14 @@ def test_seed_idempotent(session, expected_companies):
         assert len(companies) == len(expected_companies)
 
 
-def test_seed_partial_existing(session, expected_companies):
-    """Test seeding with existing companies."""
+def test_seed_partial_existing(
+    session: Session, expected_companies: list[dict[str, Any]]
+) -> None:
+    """Test seeding behavior when some companies already exist.
+
+    Validates that existing company data is preserved (not overwritten)
+    when seeding runs with partial existing data.
+    """
     existing = CompanySQL(name="Anthropic", url="custom-url", active=False)
     session.add(existing)
     session.commit()
@@ -80,8 +112,14 @@ def test_seed_partial_existing(session, expected_companies):
         assert anthropic.active is False
 
 
-def test_seed_data_integrity(expected_companies):
-    """Test seeded data integrity."""
+def test_seed_data_integrity(expected_companies: list[dict[str, Any]]) -> None:
+    """Test integrity and validity of seeded company data.
+
+    Validates that all expected companies have:
+    - Non-empty string names
+    - HTTPS URLs
+    - Active status set to True
+    """
     assert len(expected_companies) > 0
     for comp in expected_companies:
         assert isinstance(comp["name"], str), "Company name should be a string"
@@ -92,8 +130,12 @@ def test_seed_data_integrity(expected_companies):
         assert comp["active"] is True, "Company should be active"
 
 
-def test_seed_cli_execution(session):
-    """Test CLI execution of seed."""
+def test_seed_cli_execution(session: Session) -> None:
+    """Test CLI interface for seed command execution.
+
+    Validates that the Typer CLI application properly executes
+    the seed command and returns successful exit code.
+    """
     runner = CliRunner()
     with patch("src.seed.engine", session.bind):
         result = runner.invoke(app, ["seed"])

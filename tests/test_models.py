@@ -1,16 +1,29 @@
-"""Tests for database models and Pydantic validation."""
+"""Tests for database models and Pydantic validation.
+
+This module contains comprehensive tests for SQLModel database models including:
+- Model creation and validation
+- Database constraint enforcement
+- Pydantic field validation and parsing
+- Salary parsing and normalization
+- Unique constraint testing
+"""
 
 from datetime import datetime, timezone
+from typing import Any
 
 import pytest
 
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import select
+from sqlmodel import Session, select
 from src.models import CompanySQL, JobSQL
 
 
-def test_company_sql_creation(session):
-    """Test creating and querying CompanySQL."""
+def test_company_sql_creation(session: Session) -> None:
+    """Test creating and querying CompanySQL models.
+
+    Validates that CompanySQL instances can be created, persisted to
+    the database, and retrieved with all fields intact.
+    """
     company = CompanySQL(name="Test Co", url="https://test.co/careers", active=True)
     session.add(company)
     session.commit()
@@ -22,8 +35,12 @@ def test_company_sql_creation(session):
     assert retrieved.active is True
 
 
-def test_company_unique_name(session):
-    """Test company name uniqueness."""
+def test_company_unique_name(session: Session) -> None:
+    """Test company name uniqueness constraint.
+
+    Verifies that attempting to create companies with duplicate names
+    raises an IntegrityError due to unique constraint violation.
+    """
     company1 = CompanySQL(name="Unique Co", url="https://unique1.co", active=True)
     session.add(company1)
     session.commit()
@@ -34,8 +51,13 @@ def test_company_unique_name(session):
         session.commit()
 
 
-def test_job_sql_creation(session):
-    """Test creating and querying JobSQL."""
+def test_job_sql_creation(session: Session) -> None:
+    """Test creating and querying JobSQL models with Pydantic validation.
+
+    Tests JobSQL model creation using model_validate() to ensure
+    Pydantic validation works correctly and salary parsing converts
+    string formats to proper tuple structures.
+    """
     job_data = {
         "company": "Test Co",
         "title": "AI Engineer",
@@ -59,8 +81,12 @@ def test_job_sql_creation(session):
     ]  # JSON column converts tuple to list
 
 
-def test_job_unique_link(session):
-    """Test job link uniqueness."""
+def test_job_unique_link(session: Session) -> None:
+    """Test job link uniqueness constraint.
+
+    Verifies that attempting to create jobs with duplicate links
+    raises an IntegrityError due to unique constraint violation.
+    """
     job1_data = {
         "company": "Test Co",
         "title": "Job1",
@@ -103,8 +129,22 @@ def test_job_unique_link(session):
         ("From $90,000 a year", (90000, None)),
     ],
 )
-def test_salary_parsing(salary_input, expected):
-    """Test salary parsing validator, revealing potential issue with mixed scales."""
+def test_salary_parsing(
+    salary_input: Any, expected: tuple[int | None, int | None]
+) -> None:
+    """Test salary parsing validator with various input formats.
+
+    Validates that the JobSQL salary field parser correctly handles:
+    - Currency symbols and formats ($, £)
+    - Range notation (100k-150k)
+    - Single values (100k)
+    - Invalid inputs (returns None, None)
+    - Various formatting edge cases
+
+    Args:
+        salary_input: Input salary in various formats
+        expected: Expected parsed tuple (min_salary, max_salary)
+    """
     job_data = {
         "company": "Test Co",
         "title": "Test Job",

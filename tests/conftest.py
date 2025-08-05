@@ -1,4 +1,9 @@
-"""Pytest configuration and fixtures for AI Job Scraper tests."""
+"""Pytest configuration and fixtures for AI Job Scraper tests.
+
+This module provides test fixtures and configuration for the AI Job Scraper
+test suite, including database session management, sample data creation,
+and test settings configuration.
+"""
 
 from datetime import datetime, timezone
 

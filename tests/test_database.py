@@ -1,4 +1,12 @@
-"""Tests for database operations and integration."""
+"""Tests for database operations and integration.
+
+This module contains comprehensive tests for database functionality including:
+- Basic connection testing
+- CRUD operations for companies and jobs
+- Database constraints and integrity testing
+- Transaction rollback testing
+- Query filtering and data retrieval
+"""
 
 from datetime import datetime, timedelta, timezone
 
@@ -10,13 +18,21 @@ from src.models import CompanySQL, JobSQL
 
 
 def test_database_connection(session: Session):
-    """Test database connection."""
+    """Test basic database connection functionality.
+
+    Verifies that the database session can execute a simple query
+    and return expected results.
+    """
     result = session.exec(select(1))
     assert result.first() == 1
 
 
 def test_company_crud_operations(session: Session):
-    """Test CRUD for companies."""
+    """Test Create, Read, Update, Delete operations for companies.
+
+    Validates that companies can be properly created, retrieved,
+    updated, and deleted from the database with correct data persistence.
+    """
     company = CompanySQL(name="CRUD Co", url="https://crud.co", active=True)
     session.add(company)
     session.commit()
@@ -45,7 +61,12 @@ def test_company_crud_operations(session: Session):
 
 
 def test_job_crud_operations(session: Session):
-    """Test CRUD for jobs."""
+    """Test Create, Read, Update, Delete operations for jobs.
+
+    Validates that jobs can be properly created, retrieved, updated,
+    and deleted from the database with proper field handling including
+    salary tuples and user-specific fields like favorites and notes.
+    """
     job = JobSQL(
         company="CRUD Co",
         title="CRUD Job",
@@ -77,7 +98,12 @@ def test_job_crud_operations(session: Session):
 
 
 def test_job_filtering_queries(session: Session):
-    """Test job filtering queries."""
+    """Test database query filtering capabilities.
+
+    Creates sample jobs with different attributes and tests
+    filtering by company name and date ranges to ensure
+    query operations work correctly.
+    """
     now = datetime.now(timezone.utc)
     yesterday = now - timedelta(days=1)
 
@@ -112,7 +138,13 @@ def test_job_filtering_queries(session: Session):
 
 
 def test_database_constraints(session: Session):
-    """Test database integrity constraints."""
+    """Test database integrity constraints and unique field validation.
+
+    Verifies that unique constraints are properly enforced for:
+    - Company names (must be unique)
+    - Job links (must be unique)
+    Ensures IntegrityError is raised when constraints are violated.
+    """
     company1 = CompanySQL(name="Const Co", url="https://const1.co", active=True)
     session.add(company1)
     session.commit()
@@ -148,7 +180,12 @@ def test_database_constraints(session: Session):
 
 
 def test_database_rollback(session: Session):
-    """Test transaction rollback."""
+    """Test transaction rollback functionality.
+
+    Creates a company, then attempts to insert jobs that violate
+    constraints. Verifies that failed transactions are properly
+    rolled back without affecting previously committed data.
+    """
     company = CompanySQL(name="Rollback Co", url="https://rollback.co", active=True)
     session.add(company)
     session.commit()

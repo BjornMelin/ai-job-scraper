@@ -7,6 +7,7 @@ and other pagination-related functionality.
 
 import inspect
 
+from typing import Any
 from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 import pytest
@@ -46,8 +47,19 @@ COMPANY_SCHEMAS = {
 }
 
 
-def update_url_with_pagination(base_url: str, pagination_type: str, **kwargs):
-    """Mock implementation of pagination URL building."""
+def update_url_with_pagination(
+    base_url: str, pagination_type: str, **kwargs: Any
+) -> str:
+    """Mock implementation of pagination URL building.
+
+    Args:
+        base_url: The base URL to add pagination parameters to
+        pagination_type: Type of pagination (page_param, offset_limit, workday)
+        **kwargs: Additional pagination parameters
+
+    Returns:
+        URL string with pagination parameters added
+    """
     parsed = urlparse(base_url)
     query_params = parse_qs(parsed.query)
 
@@ -80,15 +92,33 @@ def update_url_with_pagination(base_url: str, pagination_type: str, **kwargs):
     )
 
 
-async def detect_pagination_elements(page_content: str, _company: str):
-    """Mock implementation of pagination detection."""
+async def detect_pagination_elements(
+    page_content: str, _company: str
+) -> dict[str, Any] | None:
+    """Mock implementation of pagination detection.
+
+    Args:
+        page_content: HTML content of the page to analyze
+        _company: Company name (unused in mock)
+
+    Returns:
+        Dictionary with pagination info or None if no pagination found
+    """
     if not page_content:
         return None
     return {"has_pagination": True, "patterns_found": ["next_button"]}
 
 
-def normalize_job_data(job_data: dict, _company: str) -> dict:
-    """Mock implementation of job data normalization."""
+def normalize_job_data(job_data: dict[str, Any], _company: str) -> dict[str, Any]:
+    """Mock implementation of job data normalization.
+
+    Args:
+        job_data: Raw job data dictionary from scraping
+        _company: Company name (unused in mock)
+
+    Returns:
+        Normalized job data with standardized field names
+    """
     # Field mapping for normalization
     field_mapping = {
         "title": ["title", "jobTitle", "position", "role", "job_title"],
