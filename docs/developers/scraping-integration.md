@@ -82,7 +82,7 @@ class ScrapeProgress:
 | Start Scraping Button | `StreamlitTaskManager.start_background_scraping()` | `scraping.py:42` |
 | Active UI Section | `st.session_state.get("scraping_active", False)` | `scraping.py:67` |  
 | Progress Bar | `st.progress(progress_data.overall_progress / 100.0)` | `scraping.py:89` |
-| Company Status | Iterator through `st.session_state.progress_data` | `scraping.py:105` |
+| Company Status | Iterate through `st.session_state.progress_data` | `scraping.py:105` |
 | Real-time Updates | Non-blocking UI updates via `st.rerun()` | `background_tasks.py:156` |
 
 ### ✅ Enhanced Features
