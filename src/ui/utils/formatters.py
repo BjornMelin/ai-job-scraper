@@ -23,7 +23,7 @@ Example usage:
 
 import logging
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +58,7 @@ def calculate_scraping_speed(
             return 0.0
 
         # Use current time if end_time not provided
-        effective_end_time = end_time or datetime.now()
+        effective_end_time = end_time or datetime.now(timezone.utc)
 
         # Calculate duration in minutes
         duration = effective_end_time - start_time
@@ -74,8 +74,8 @@ def calculate_scraping_speed(
         # Round to 1 decimal place for display
         return round(speed, 1)
 
-    except Exception as e:
-        logger.warning(f"Error calculating scraping speed: {e}")
+    except Exception:
+        logger.exception("Error calculating scraping speed")
         return 0.0
 
 
@@ -98,38 +98,36 @@ def calculate_eta(
         >>> calculate_eta(10, 3, 300)  # 3 of 10 done in 5 minutes
         "7m 0s"
     """
+    result = "Unknown"
+
     try:
         # Validate inputs
-        if not isinstance(total_companies, int) or total_companies <= 0:
-            return "Unknown"
+        if (
+            not isinstance(total_companies, int)
+            or total_companies <= 0
+            or not isinstance(completed_companies, int)
+            or completed_companies < 0
+            or not isinstance(time_elapsed, int | float)
+            or time_elapsed < 0
+        ):
+            result = "Unknown"
+        elif completed_companies >= total_companies:
+            result = "Done"
+        elif completed_companies == 0 or time_elapsed == 0:
+            result = "Calculating..."
+        else:
+            # Calculate completion rate (companies per second)
+            completion_rate = completed_companies / time_elapsed
+            # Calculate remaining companies and estimated time
+            remaining_companies = total_companies - completed_companies
+            estimated_seconds = remaining_companies / completion_rate
+            # Format as human-readable duration
+            result = format_duration(estimated_seconds)
+    except Exception:
+        logger.exception("Error calculating ETA")
+        result = "Unknown"
 
-        if not isinstance(completed_companies, int) or completed_companies < 0:
-            return "Unknown"
-
-        if not isinstance(time_elapsed, (int, float)) or time_elapsed < 0:  # noqa: UP038
-            return "Unknown"
-
-        # Check if already complete
-        if completed_companies >= total_companies:
-            return "Done"
-
-        # Need at least some progress and elapsed time to calculate ETA
-        if completed_companies == 0 or time_elapsed == 0:
-            return "Calculating..."
-
-        # Calculate completion rate (companies per second)
-        completion_rate = completed_companies / time_elapsed
-
-        # Calculate remaining companies and estimated time
-        remaining_companies = total_companies - completed_companies
-        estimated_seconds = remaining_companies / completion_rate
-
-        # Format as human-readable duration
-        return format_duration(estimated_seconds)
-
-    except Exception as e:
-        logger.warning(f"Error calculating ETA: {e}")
-        return "Unknown"
+    return result
 
 
 def format_duration(seconds: float) -> str:
@@ -148,7 +146,7 @@ def format_duration(seconds: float) -> str:
         "1h 1m"
     """
     try:
-        if not isinstance(seconds, (int, float)) or seconds < 0:  # noqa: UP038
+        if not isinstance(seconds, int | float) or seconds < 0:
             return "0s"
 
         # Convert to integer seconds
@@ -161,15 +159,16 @@ def format_duration(seconds: float) -> str:
 
         # Format based on magnitude
         if hours > 0:
-            return f"{hours}h {minutes}m" if minutes > 0 else f"{hours}h"
+            formatted = f"{hours}h {minutes}m" if minutes > 0 else f"{hours}h"
         elif minutes > 0:
-            return f"{minutes}m {secs}s" if secs > 0 else f"{minutes}m"
+            formatted = f"{minutes}m {secs}s" if secs > 0 else f"{minutes}m"
         else:
-            return f"{secs}s"
-
-    except Exception as e:
-        logger.warning(f"Error formatting duration: {e}")
+            formatted = f"{secs}s"
+    except Exception:
+        logger.exception("Error formatting duration")
         return "0s"
+    else:
+        return formatted
 
 
 def format_timestamp(dt: datetime | None, format_str: str = "%H:%M:%S") -> str:
@@ -190,8 +189,8 @@ def format_timestamp(dt: datetime | None, format_str: str = "%H:%M:%S") -> str:
     try:
         return "N/A" if dt is None else dt.strftime(format_str)
 
-    except Exception as e:
-        logger.warning(f"Error formatting timestamp: {e}")
+    except Exception:
+        logger.exception("Error formatting timestamp")
         return "N/A"
 
 
@@ -224,8 +223,8 @@ def calculate_progress_percentage(
 
         return round(percentage, 1)
 
-    except Exception as e:
-        logger.warning(f"Error calculating progress percentage: {e}")
+    except Exception:
+        logger.exception("Error calculating progress percentage")
         return 0.0
 
 
@@ -246,12 +245,13 @@ def format_jobs_count(count: int, singular: str = "job", plural: str = "jobs") -
         >>> format_jobs_count(5)
         "5 jobs"
     """
+    result = f"0 {plural}"
+
     try:
         if not isinstance(count, int):
             count = 0
+        result = f"{count} {singular}" if count == 1 else f"{count} {plural}"
+    except Exception:
+        logger.exception("Error formatting jobs count")
 
-        return f"{count} {singular}" if count == 1 else f"{count} {plural}"
-
-    except Exception as e:
-        logger.warning(f"Error formatting jobs count: {e}")
-        return f"0 {plural}"
+    return result

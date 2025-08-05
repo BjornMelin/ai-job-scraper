@@ -20,6 +20,7 @@ from typing import Any
 
 import streamlit as st
 
+from src.scraper import scrape_all
 from src.ui.utils.database_utils import (
     clean_session_state,
     suppress_sqlalchemy_warnings,
@@ -65,8 +66,6 @@ def render_scraping_controls() -> None:
 
 def start_scraping() -> None:
     """Start background scraping with Streamlit status tracking."""
-    from src.scraper import scrape_all
-
     st.session_state.scraping_active = True
 
     # Create status container for progress tracking
@@ -95,11 +94,11 @@ def start_scraping() -> None:
                 st.session_state.scraping_results = result
                 st.session_state.scraping_active = False
 
-        except Exception as e:
+        except Exception:
             with status_container.container():
-                st.error(f"❌ Scraping failed: {str(e)}")
+                st.error("❌ Scraping failed")
             st.session_state.scraping_active = False
-            logger.error(f"Scraping failed: {e}", exc_info=True)
+            logger.exception("Scraping failed")
 
     # Start background thread (preserves non-blocking behavior)
     thread = threading.Thread(target=scraping_task, daemon=True)

@@ -5,7 +5,7 @@ replacing the custom StateManager singleton with direct st.session_state usage
 for better performance and maintainability.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import streamlit as st
 
@@ -20,8 +20,8 @@ def init_session_state() -> None:
         "filters": {
             "company": [],
             "keyword": "",
-            "date_from": datetime.now() - timedelta(days=30),
-            "date_to": datetime.now(),
+            "date_from": datetime.now(timezone.utc) - timedelta(days=30),
+            "date_to": datetime.now(timezone.utc),
         },
         "view_mode": "Card",  # Default to more visual card view
         "card_page": 0,
@@ -40,8 +40,8 @@ def clear_filters() -> None:
     st.session_state.filters = {
         "company": [],
         "keyword": "",
-        "date_from": datetime.now() - timedelta(days=30),
-        "date_to": datetime.now(),
+        "date_from": datetime.now(timezone.utc) - timedelta(days=30),
+        "date_to": datetime.now(timezone.utc),
     }
 
 

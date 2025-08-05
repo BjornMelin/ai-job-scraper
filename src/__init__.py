@@ -13,7 +13,9 @@ from src.constants import AI_REGEX, RELEVANT_PHRASES, SEARCH_KEYWORDS, SEARCH_LO
 from src.database import (
     SessionLocal,
     create_db_and_tables,
+    db_session,
     engine,
+    get_session,
 )
 
 # Models
@@ -44,39 +46,40 @@ from src.utils import (
 )
 
 __all__ = [
-    # Configuration
-    "Settings",
-    # Database
-    "engine",
-    "SessionLocal",
-    "create_db_and_tables",
-    "get_session",
-    # Models
-    "CompanySQL",
-    "JobSQL",
     # Constants
     "AI_REGEX",
     "RELEVANT_PHRASES",
     "SEARCH_KEYWORDS",
     "SEARCH_LOCATIONS",
+    # Models
+    "CompanySQL",
+    "JobSQL",
+    "SessionLocal",
+    # Configuration
+    "Settings",
+    # Company pages scraper
+    "State",
+    "create_db_and_tables",
+    # Database
+    "db_session",
+    "engine",
+    "extract_details",
+    "extract_job_lists",
     # Utilities
     "get_extraction_model",
     "get_llm_client",
     "get_proxy",
+    "get_session",
+    "load_active_companies",
+    "normalize_jobs",
     "random_delay",
     "random_user_agent",
     # Main scraper functions
     "scrape",
     "scrape_all",
+    "scrape_company_pages",
     # Job board scraper
     "scrape_job_boards",
-    # Company pages scraper
-    "State",
-    "load_active_companies",
-    "extract_job_lists",
-    "extract_details",
-    "normalize_jobs",
-    "scrape_company_pages",
     # Seed
     "seed",
 ]

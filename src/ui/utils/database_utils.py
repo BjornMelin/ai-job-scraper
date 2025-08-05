@@ -16,7 +16,6 @@ import streamlit as st
 
 from sqlalchemy.orm.base import instance_state
 from sqlmodel import Session
-
 from src.database import get_connection_pool_status, get_session
 
 logger = logging.getLogger(__name__)
@@ -63,9 +62,9 @@ def streamlit_db_session() -> Generator[Session, None, None]:
     try:
         yield session
         session.commit()
-    except Exception as e:
+    except Exception:
         session.rollback()
-        logger.error(f"Database session error: {e}", exc_info=True)
+        logger.exception("Database session error")
         raise
     finally:
         session.close()
@@ -85,7 +84,9 @@ def validate_session_state() -> list[str]:
         ```python
         contaminated_keys = validate_session_state()
         if contaminated_keys:
-            st.warning(f"Database objects found in session state: {contaminated_keys}")
+            st.warning(
+                f"Database objects found in session state: {contaminated_keys}"
+            )
         ```
     """
     contaminated_keys = []
@@ -137,7 +138,9 @@ def clean_session_state() -> int:
         ```python
         cleaned_count = clean_session_state()
         if cleaned_count > 0:
-            st.info(f"Cleaned {cleaned_count} database objects from session state")
+            st.info(
+                f"Cleaned {cleaned_count} database objects from session state"
+            )
         ```
     """
     contaminated_keys = validate_session_state()
@@ -147,10 +150,10 @@ def clean_session_state() -> int:
         if "[" in key:
             main_key = key.split("[")[0]
             if main_key in st.session_state:
-                logger.warning(f"Removing contaminated session state key: {key}")
+                logger.warning("Removing contaminated session state key: %s", key)
                 del st.session_state[main_key]
         elif key in st.session_state:
-            logger.warning(f"Removing contaminated session state key: {key}")
+            logger.warning("Removing contaminated session state key: %s", key)
             del st.session_state[key]
 
     return len(contaminated_keys)
@@ -183,10 +186,8 @@ def get_database_health() -> dict[str, Any]:
             if pool_status["overflow"] > 0:
                 pool_status["health"] = "critical"
 
-        return pool_status
-
     except Exception as e:
-        logger.error(f"Failed to get database health: {e}")
+        logger.exception("Failed to get database health")
         return {
             "health": "error",
             "error": str(e),
@@ -195,6 +196,8 @@ def get_database_health() -> dict[str, Any]:
             "overflow": "unknown",
             "invalid": "unknown",
         }
+    else:
+        return pool_status
 
 
 def render_database_health_widget() -> None:
@@ -237,7 +240,7 @@ def render_database_health_widget() -> None:
                 st.metric("Overflow", health.get("overflow", "N/A"))
                 st.metric("Invalid", health.get("invalid", "N/A"))
         else:
-            st.error(f"Database Error: {health['error']}")
+            st.error("Database Error: %s", health["error"])
 
         # Session state validation
         if contaminated_keys := validate_session_state():
@@ -277,9 +280,9 @@ def background_task_session() -> Generator[Session, None, None]:
         yield session
         session.commit()
         logger.debug("Background task database session committed successfully")
-    except Exception as e:
+    except Exception:
         session.rollback()
-        logger.error(f"Background task database session error: {e}", exc_info=True)
+        logger.exception("Background task database session error")
         raise
     finally:
         session.close()

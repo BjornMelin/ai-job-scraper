@@ -20,7 +20,7 @@ Example usage:
 
 import logging
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 import streamlit as st
 
@@ -94,8 +94,8 @@ class CompanyProgressCard:
                 if company_progress.error and company_progress.status == "Error":
                     st.error(f"Error: {company_progress.error}")
 
-        except Exception as e:
-            logger.error(f"Error rendering company progress card: {e}")
+        except Exception:
+            logger.exception("Error rendering company progress card")
             st.error(f"Error displaying progress for {company_progress.name}")
 
     def _render_card_header(
@@ -120,10 +120,10 @@ class CompanyProgressCard:
             # Status badge
             st.markdown(
                 f"""
-                <div style='text-align: right; padding: 2px 8px; 
-                           background-color: {status_info["bg_color"]}; 
-                           border: 1px solid {status_info["border_color"]}; 
-                           border-radius: 12px; font-size: 12px; 
+                <div style='text-align: right; padding: 2px 8px;
+                           background-color: {status_info["bg_color"]};
+                           border: 1px solid {status_info["border_color"]};
+                           border-radius: 12px; font-size: 12px;
                            color: {status_info["color"]};'>
                     <strong>{company_progress.status.upper()}</strong>
                 </div>
@@ -145,7 +145,7 @@ class CompanyProgressCard:
             # For active scraping, show animated progress
             # Since we don't have granular progress data, use time-based estimation
             if company_progress.start_time:
-                elapsed = datetime.now() - company_progress.start_time
+                elapsed = datetime.now(timezone.utc) - company_progress.start_time
                 # Estimate progress based on elapsed time (max 90% until completion)
                 estimated_progress = min(
                     0.9, elapsed.total_seconds() / 120.0
@@ -217,7 +217,7 @@ class CompanyProgressCard:
                     (f"Completed: {end_str}", f"Duration: {duration_str}")
                 )
             elif company_progress.status == "Scraping":
-                elapsed = datetime.now() - company_progress.start_time
+                elapsed = datetime.now(timezone.utc) - company_progress.start_time
                 elapsed_str = format_duration(elapsed.total_seconds())
                 timing_parts.append(f"Elapsed: {elapsed_str}")
 

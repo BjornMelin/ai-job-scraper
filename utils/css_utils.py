@@ -20,7 +20,7 @@ def load_multiple_css(css_files: list[str]) -> None:
     for css_file in css_files:
         css_path = Path(css_file)
         if css_path.exists():
-            with open(css_path) as f:
+            with Path(css_path).open() as f:
                 combined_css += f.read() + "\n"
         else:
             st.warning(f"CSS file not found: {css_file}")

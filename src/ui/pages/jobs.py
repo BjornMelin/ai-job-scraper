@@ -8,7 +8,7 @@ with tab-based organization for different job categories.
 import asyncio
 import logging
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pandas as pd
 import streamlit as st
@@ -29,7 +29,7 @@ def _run_async_scraping_task() -> str:
     Returns:
         Task ID for tracking the scraping operation.
     """
-    task_id = f"scraping_{datetime.now().timestamp()}"
+    task_id = f"scraping_{datetime.now(timezone.utc).timestamp()}"
 
     # Initialize task tracking in session state
     if "active_tasks" not in st.session_state:
@@ -57,16 +57,16 @@ def _execute_scraping_safely():
     try:
         # Run the async scraping function
         return loop.run_until_complete(scrape_all())
-    except Exception as e:
-        logger.error(f"Scraping execution failed: {e}")
+    except Exception:
+        logger.exception("Scraping execution failed")
         raise
     finally:
         # Clean up if we created the loop
         if not loop.is_running():
             try:
                 loop.close()
-            except Exception as cleanup_error:
-                logger.warning(f"Loop cleanup warning: {cleanup_error}")
+            except Exception:
+                logger.warning("Loop cleanup warning")
 
 
 def render_jobs_page() -> None:
@@ -120,10 +120,10 @@ def _render_page_header() -> None:
             f"""
             <div style='text-align: right; padding-top: 20px;'>
                 <small style='color: var(--text-muted);'>
-                    Last updated: {datetime.now().strftime("%Y-%m-%d %H:%M")}
+                    Last updated: {datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")}
                 </small>
             </div>
-        """,
+            """,  # noqa: E501
             unsafe_allow_html=True,
         )
 
@@ -167,20 +167,20 @@ def _handle_refresh_jobs() -> None:
             # Execute scraping with proper event loop handling
             jobs_df = _execute_scraping_safely()
             update_db(jobs_df)
-            st.session_state.last_scrape = datetime.now()
+            st.session_state.last_scrape = datetime.now(timezone.utc)
 
             st.success(f"✅ Success! Found {len(jobs_df)} jobs from active companies.")
             st.rerun()
 
-        except Exception as e:
-            st.error(f"❌ Scrape failed: {e!s}")
-            logger.error(f"UI scrape failed: {e}")
+        except Exception:
+            st.error("❌ Scrape failed")
+            logger.exception("UI scrape failed")
 
 
 def _render_last_refresh_status() -> None:
     """Render the last refresh status information."""
     if st.session_state.last_scrape:
-        time_diff = datetime.now() - st.session_state.last_scrape
+        time_diff = datetime.now(timezone.utc) - st.session_state.last_scrape
 
         if time_diff.total_seconds() < 3600:
             minutes = int(time_diff.total_seconds() / 60)
@@ -225,8 +225,8 @@ def _get_filtered_jobs() -> list[JobSQL]:
 
         return JobService.get_filtered_jobs(filters)
 
-    except Exception as e:
-        logger.error(f"Job query failed: {e}")
+    except Exception:
+        logger.exception("Job query failed")
         return []
 
 
@@ -426,9 +426,9 @@ def _save_list_view_changes(edited_df: pd.DataFrame) -> None:
         session.commit()
         st.success("Saved!")
 
-    except Exception as e:
+    except Exception:
         st.error("Save failed.")
-        logger.error(f"Save failed: {e}")
+        logger.exception("Save failed")
 
     finally:
         session.close()

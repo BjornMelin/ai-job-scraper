@@ -184,4 +184,3 @@ def apply_custom_styles() -> None:
     """
     # Additional custom styling can be added here
     # For example, responsive design adjustments or theme variations
-    pass

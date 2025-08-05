@@ -36,13 +36,13 @@ def test_database_health_monitoring():
     pool_status = get_connection_pool_status()
     assert isinstance(pool_status, dict)
     assert "pool_size" in pool_status
-    logger.info(f"Connection pool status: {pool_status}")
+    logger.info("Connection pool status: %s", pool_status)
 
     # Test health assessment
     health = get_database_health()
     assert isinstance(health, dict)
     assert "health" in health
-    logger.info(f"Database health: {health}")
+    logger.info("Database health: %s", health)
 
     print("✅ Database health monitoring tests passed")
 
@@ -141,8 +141,8 @@ def test_concurrent_database_access():
 
     end_time = time.time()
 
-    logger.info(f"10 concurrent queries completed in {end_time - start_time:.2f}s")
-    logger.info(f"Query results: {results}")
+    logger.info("10 concurrent queries completed in %.2fs", end_time - start_time)
+    logger.info("Query results: %s", results)
 
     # All queries should succeed
     assert all(isinstance(result, int) for result in results)
@@ -162,7 +162,7 @@ def test_performance_monitoring():
         CompanyService.add_company(f"Perf Test Company {i}", f"https://test{i}.com")
 
     creation_time = time.time() - start_time
-    logger.info(f"Created 10 companies in {creation_time:.3f}s")
+    logger.info("Created 10 companies in %.3fs", creation_time)
 
     # Test bulk job queries
     start_time = time.time()
@@ -170,7 +170,7 @@ def test_performance_monitoring():
     jobs = JobService.get_filtered_jobs(filters)
     query_time = time.time() - start_time
 
-    logger.info(f"Queried {len(jobs)} jobs in {query_time:.3f}s")
+    logger.info("Queried %d jobs in %.3fs", len(jobs), query_time)
 
     # Performance should be reasonable
     assert creation_time < 5.0  # Should create 10 companies in under 5 seconds
@@ -205,7 +205,7 @@ def main():
         print("✅ Performance monitoring integration")
 
     except Exception as e:
-        logger.error(f"Test failed: {e}", exc_info=True)
+        logger.exception("Test failed")
         print(f"\n❌ Tests failed: {e}")
         return 1
 

@@ -30,7 +30,7 @@ def apply_pragmas(conn, _):
     for pragma in settings.sqlite_pragmas:
         try:
             cursor.execute(pragma)
-            logger.debug(f"Applied SQLite pragma: {pragma}")
-        except Exception as e:
-            logger.warning(f"Failed to apply pragma '{pragma}': {e}")
+            logger.debug("Applied SQLite pragma: %s", pragma)
+        except Exception:
+            logger.warning("Failed to apply pragma '%s'", pragma)
     cursor.close()

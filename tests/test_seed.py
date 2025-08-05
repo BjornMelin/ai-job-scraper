@@ -5,10 +5,9 @@ from unittest.mock import patch
 import pytest
 
 from sqlmodel import select
-from typer.testing import CliRunner
-
 from src.models import CompanySQL
 from src.seed import app, seed
+from typer.testing import CliRunner
 
 
 @pytest.fixture

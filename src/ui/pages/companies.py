@@ -25,7 +25,7 @@ def show_companies_page() -> None:
     st.markdown("Manage companies for job scraping")
 
     # Add new company section
-    with st.expander("➕ Add New Company", expanded=False), st.form("add_company_form"):
+    with st.expander("➕ Add New Company", expanded=False), st.form("add_company_form"):  # noqa: RUF001
         st.markdown("### Add a New Company")
 
         col1, col2 = st.columns(2)
@@ -56,14 +56,14 @@ def show_companies_page() -> None:
                         name=company_name.strip(), url=company_url.strip()
                     )
                     st.success(f"✅ Successfully added company: {company.name}")
-                    logger.info(f"User added new company: {company.name}")
+                    logger.info("User added new company: %s", company.name)
                     st.rerun()
                 except ValueError as e:
-                    st.error(f"❌ {str(e)}")
-                    logger.warning(f"Failed to add company due to validation: {e}")
-                except Exception as e:
+                    st.error(f"❌ {e!s}")
+                    logger.warning("Failed to add company due to validation: %s", e)
+                except Exception:
                     st.error("❌ Failed to add company. Please try again.")
-                    logger.error(f"Failed to add company: {e}", exc_info=True)
+                    logger.exception("Failed to add company")
 
     # Display all companies
     st.markdown("### Companies")
@@ -124,19 +124,18 @@ def show_companies_page() -> None:
                             else:
                                 st.info(f"⏸️ Disabled scraping for {company.name}")
                             logger.info(
-                                f"User toggled {company.name} active status to "
-                                f"{new_status}"
+                                "User toggled %s active status to %s",
+                                company.name,
+                                new_status,
                             )
                             st.rerun()
-                        except Exception as e:
+                        except Exception:
                             st.error(f"❌ Failed to update {company.name} status")
-                            logger.error(
-                                f"Failed to toggle company status: {e}", exc_info=True
-                            )
+                            logger.exception("Failed to toggle company status")
 
-    except Exception as e:
+    except Exception:
         st.error("❌ Failed to load companies. Please refresh the page.")
-        logger.error(f"Failed to load companies: {e}", exc_info=True)
+        logger.exception("Failed to load companies")
 
     # Show summary statistics
     try:
@@ -157,8 +156,8 @@ def show_companies_page() -> None:
             inactive_count = total_companies - active_count
             st.metric("Inactive Companies", inactive_count)
 
-    except Exception as e:
-        logger.error(f"Failed to load company statistics: {e}", exc_info=True)
+    except Exception:
+        logger.exception("Failed to load company statistics")
 
 
 # Execute page when loaded by st.navigation()

@@ -87,11 +87,10 @@ def test_session_context_management():
 
         # Session should be properly closed here
         print("Session context management: OK")
-        return True
-
     except Exception as e:
         print(f"Session context management failed: {e}")
         return False
+    return True
 
 
 def main():

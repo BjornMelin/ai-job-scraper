@@ -8,7 +8,6 @@ from pathlib import Path
 import pytest
 
 from pydantic import ValidationError
-
 from src.config import Settings
 
 
@@ -89,7 +88,7 @@ class TestSettings:
                 "EXTRACTION_MODEL=gpt-3.5\n"
             )
 
-            original_cwd = os.getcwd()
+            original_cwd = str(Path.cwd())
             try:
                 os.chdir(temp_dir)
                 settings = Settings()
@@ -116,7 +115,7 @@ class TestSettings:
             os.environ["OPENAI_API_KEY"] = "env-openai"
             os.environ["GROQ_API_KEY"] = "env-groq"
 
-            original_cwd = os.getcwd()
+            original_cwd = str(Path.cwd())
             try:
                 os.chdir(temp_dir)
                 settings = Settings()
