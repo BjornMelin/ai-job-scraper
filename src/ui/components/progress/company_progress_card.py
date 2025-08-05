@@ -213,8 +213,9 @@ class CompanyProgressCard:
                 end_str = format_timestamp(company_progress.end_time)
                 duration = company_progress.end_time - company_progress.start_time
                 duration_str = format_duration(duration.total_seconds())
-                timing_parts.append(f"Completed: {end_str}")
-                timing_parts.append(f"Duration: {duration_str}")
+                timing_parts.extend(
+                    (f"Completed: {end_str}", f"Duration: {duration_str}")
+                )
             elif company_progress.status == "Scraping":
                 elapsed = datetime.now() - company_progress.start_time
                 elapsed_str = format_duration(elapsed.total_seconds())
@@ -231,11 +232,6 @@ def render_company_progress_card(company_progress: CompanyProgress) -> None:
     Args:
         company_progress: CompanyProgress object with company status info.
 
-    Example:
-        >>> progress = CompanyProgress(
-        ...     name="Example Company", status="Scraping", jobs_found=15
-        ... )
-        >>> render_company_progress_card(progress)
     """
     card = CompanyProgressCard()
     card.render(company_progress)
