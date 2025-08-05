@@ -120,12 +120,12 @@ def _format_posted_date(posted_date: Any) -> str:
         if isinstance(posted_date, str):
             try:
                 posted_date = datetime.strptime(posted_date, "%Y-%m-%d").replace(
-                    tzinfo=datetime.UTC
+                    tzinfo=datetime.timezone.utc
                 )
             except ValueError:
                 return ""
 
-        days_ago = (datetime.now(datetime.UTC) - posted_date).days
+        days_ago = (datetime.now(datetime.timezone.utc) - posted_date).days
 
         if days_ago == 0:
             return "Today"

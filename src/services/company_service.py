@@ -119,7 +119,8 @@ class CompanyService:
             with db_session() as session:
                 # Check if company already exists
                 if session.exec(select(CompanySQL).filter_by(name=name)).first():
-                    raise ValueError(f"Company '{name}' already exists")
+                    error_msg = f"Company '{name}' already exists"
+                    raise ValueError(error_msg)
 
                 # Create new company
                 company = CompanySQL(
@@ -163,7 +164,8 @@ class CompanyService:
                     select(CompanySQL).filter_by(id=company_id)
                 ).first()
                 if not company:
-                    raise ValueError(f"Company with ID {company_id} not found")
+                    error_msg = f"Company with ID {company_id} not found"
+                    raise ValueError(error_msg)
 
                 old_status = company.active
                 company.active = not company.active
@@ -231,14 +233,15 @@ class CompanyService:
         """
         try:
             if last_scraped is None:
-                last_scraped = datetime.now(datetime.UTC)
+                last_scraped = datetime.now(datetime.timezone.utc)
 
             with db_session() as session:
                 company = session.exec(
                     select(CompanySQL).filter_by(id=company_id)
                 ).first()
                 if not company:
-                    raise ValueError(f"Company with ID {company_id} not found")
+                    error_msg = f"Company with ID {company_id} not found"
+                    raise ValueError(error_msg)
 
                 # Update scrape count
                 company.scrape_count += 1
@@ -416,7 +419,7 @@ class CompanyService:
                     company_id = update["company_id"]
                     success = update["success"]
                     last_scraped = update.get(
-                        "last_scraped", datetime.now(datetime.UTC)
+                        "last_scraped", datetime.now(datetime.timezone.utc)
                     )
 
                     company = session.exec(

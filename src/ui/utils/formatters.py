@@ -58,7 +58,7 @@ def calculate_scraping_speed(
             return 0.0
 
         # Use current time if end_time not provided
-        effective_end_time = end_time or datetime.now(datetime.UTC)
+        effective_end_time = end_time or datetime.now(datetime.timezone.utc)
 
         # Calculate duration in minutes
         duration = effective_end_time - start_time

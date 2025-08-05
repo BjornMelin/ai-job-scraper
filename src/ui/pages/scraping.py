@@ -75,7 +75,9 @@ def _render_page_header() -> None:
             f"""
             <div style='text-align: right; padding-top: 20px;'>
                 <small style='color: var(--text-muted);'>
-                    Current time: {datetime.now(datetime.UTC).strftime("%H:%M:%S")}
+                    Current time: {
+                datetime.now(datetime.timezone.utc).strftime("%H:%M:%S")
+            }
                 </small>
             </div>
         """,
@@ -364,7 +366,7 @@ def _render_overall_metrics(progress_data):
 
             if progress_data.start_time:
                 time_elapsed = (
-                    datetime.now(datetime.UTC) - progress_data.start_time
+                    datetime.now(datetime.timezone.utc) - progress_data.start_time
                 ).total_seconds()
                 eta = calculate_eta(total_companies, completed_companies, time_elapsed)
             else:
@@ -454,7 +456,7 @@ def _render_company_status(company_progress: CompanyProgress) -> None:
             duration = company_progress.end_time - company_progress.start_time
             timing_info = f" ({duration.total_seconds():.1f}s)"
         else:
-            elapsed = datetime.now(datetime.UTC) - company_progress.start_time
+            elapsed = datetime.now(datetime.timezone.utc) - company_progress.start_time
             timing_info = f" ({elapsed.total_seconds():.1f}s elapsed)"
 
     # Construct status text

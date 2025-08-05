@@ -197,7 +197,7 @@ def normalize_jobs(state: State) -> dict[str, list[JobSQL]]:
             for fmt in date_formats:
                 try:
                     posted = datetime.strptime(posted_str, fmt).replace(
-                        tzinfo=datetime.UTC
+                        tzinfo=datetime.timezone.utc
                     )
                     break
                 except ValueError:
@@ -244,7 +244,7 @@ def normalize_jobs(state: State) -> dict[str, list[JobSQL]]:
                 salary=raw.get("salary", ""),
                 content_hash=content_hash,
                 application_status="New",
-                last_seen=datetime.now(datetime.UTC),
+                last_seen=datetime.now(datetime.timezone.utc),
             )
             normalized.append(job)
         except Exception:

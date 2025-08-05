@@ -143,7 +143,7 @@ class BackgroundTaskManager:
             id=task_id,
             name=task_name,
             status="pending",
-            started_at=datetime.now(datetime.UTC),
+            started_at=datetime.now(datetime.timezone.utc),
         )
 
         with self._lock:
@@ -178,7 +178,7 @@ class BackgroundTaskManager:
                     if task_id in self.active_tasks:
                         self.active_tasks[task_id].result = result
                         self.active_tasks[task_id].completed_at = datetime.now(
-                            datetime.UTC
+                            datetime.timezone.utc
                         )
 
                 logger.info("Task %s (%s) completed successfully", task_id, task_name)
@@ -196,7 +196,7 @@ class BackgroundTaskManager:
                     if task_id in self.active_tasks:
                         self.active_tasks[task_id].error = error_msg
                         self.active_tasks[task_id].completed_at = datetime.now(
-                            datetime.UTC
+                            datetime.timezone.utc
                         )
 
                 # Call error callback if provided
@@ -254,7 +254,7 @@ class BackgroundTaskManager:
                 cancelled = task_info.future.cancel()
                 if cancelled:
                     task_info.status = "cancelled"
-                    task_info.completed_at = datetime.now(datetime.UTC)
+                    task_info.completed_at = datetime.now(datetime.timezone.utc)
                     logger.info("Cancelled task %s", task_id)
                 return cancelled
 
@@ -269,7 +269,9 @@ class BackgroundTaskManager:
         Returns:
             Number of tasks cleaned up.
         """
-        cutoff = datetime.now(datetime.UTC).timestamp() - (max_age_hours * 3600)
+        cutoff = datetime.now(datetime.timezone.utc).timestamp() - (
+            max_age_hours * 3600
+        )
         cleaned = 0
 
         with self._lock:
@@ -335,6 +337,8 @@ class BackgroundTaskManager:
                 task_info.status = status
                 if progress is not None:
                     task_info.progress = progress
+                if message:
+                    task_info.message = message
 
     def shutdown(self, wait: bool = True) -> None:
         """Shutdown the task manager and cleanup resources.
@@ -445,7 +449,7 @@ class StreamlitTaskManager(BackgroundTaskManager):
                 st.session_state.task_progress[task_id] = ProgressInfo(
                     progress=progress,
                     message=message,
-                    timestamp=datetime.now(datetime.UTC),
+                    timestamp=datetime.now(datetime.timezone.utc),
                 )
 
                 # DO NOT call st.rerun() from background threads - not thread-safe
@@ -458,7 +462,7 @@ class StreamlitTaskManager(BackgroundTaskManager):
                 st.session_state.task_progress[task_id] = ProgressInfo(
                     progress=0.0,
                     message=f"Error: {error_message}",
-                    timestamp=datetime.now(datetime.UTC),
+                    timestamp=datetime.now(datetime.timezone.utc),
                 )
                 try:
                     st.rerun()
@@ -471,14 +475,14 @@ class StreamlitTaskManager(BackgroundTaskManager):
             task_name="Job Scraping",
             progress_callback=progress_callback,
             error_callback=error_callback,
-            company_ids=company_ids,
+            _company_ids=company_ids,
             script_ctx=script_ctx,
         )
 
         # Store task reference in session state
         st.session_state.background_tasks[task_id] = {
             "type": "scraping",
-            "started_at": datetime.now(datetime.UTC),
+            "started_at": datetime.now(datetime.timezone.utc),
             "company_ids": company_ids,
         }
 
@@ -487,14 +491,14 @@ class StreamlitTaskManager(BackgroundTaskManager):
 
     def _scraping_task_wrapper(
         self,
-        company_ids: list[int] | None = None,
+        _company_ids: list[int] | None = None,
         script_ctx=None,
         progress_callback: Callable[[str, float, str], None] | None = None,
     ) -> dict[str, int]:
         """Wrapper function for scraping task that handles Streamlit context.
 
         Args:
-            company_ids: Optional list of company IDs to scrape.
+            _company_ids: Optional list of company IDs to scrape (unused - TODO).
             script_ctx: Streamlit script context for UI updates.
             progress_callback: Callback for progress updates.
 
@@ -598,7 +602,9 @@ class StreamlitTaskManager(BackgroundTaskManager):
         ):
             return {"progress_cleaned": 0, "tasks_cleaned": 0, "manager_cleaned": 0}
 
-        cutoff = datetime.now(datetime.UTC).timestamp() - (max_age_hours * 3600)
+        cutoff = datetime.now(datetime.timezone.utc).timestamp() - (
+            max_age_hours * 3600
+        )
         progress_cleaned = 0
         tasks_cleaned = 0
 

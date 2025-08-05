@@ -301,7 +301,7 @@ def _normalize_board_jobs(board_jobs_raw: list[dict]) -> list[JobSQL]:
                     salary=salary,
                     content_hash=content_hash,
                     application_status="New",
-                    last_seen=datetime.now(datetime.UTC),
+                    last_seen=datetime.now(datetime.timezone.utc),
                 )
                 board_jobs.append(job)
 

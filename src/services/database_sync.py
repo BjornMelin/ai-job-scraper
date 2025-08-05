@@ -160,7 +160,7 @@ class SmartSyncEngine:
         if existing := session.exec(
             select(JobSQL).where(JobSQL.link == job.link)
         ).first():
-            return self._update_existing_job(session, existing, job)
+            return self._update_existing_job(existing, job)
         return self._insert_new_job(session, job)
 
     def _sync_single_job_optimized(
@@ -182,7 +182,7 @@ class SmartSyncEngine:
         existing = existing_jobs_map.get(job.link)
 
         if existing:
-            return self._update_existing_job(session, existing, job)
+            return self._update_existing_job(existing, job)
         return self._insert_new_job(session, job)
 
     def _insert_new_job(self, session: Session, job: JobSQL) -> str:
@@ -196,7 +196,7 @@ class SmartSyncEngine:
             str: Always returns 'inserted'.
         """
         # Ensure required fields are set
-        job.last_seen = datetime.now(datetime.UTC)
+        job.last_seen = datetime.now(datetime.timezone.utc)
         if not job.application_status:
             job.application_status = "New"
         if not job.content_hash:
@@ -206,9 +206,7 @@ class SmartSyncEngine:
         logger.debug("Inserting new job: %s at %s", job.title, job.link)
         return "inserted"
 
-    def _update_existing_job(
-        self, session: Session, existing: JobSQL, new_job: JobSQL
-    ) -> str:
+    def _update_existing_job(self, existing: JobSQL, new_job: JobSQL) -> str:
         """Update an existing job while preserving user data.
 
         This method implements the core user data preservation logic per
@@ -216,7 +214,6 @@ class SmartSyncEngine:
         all user-editable fields intact.
 
         Args:
-            session: Database session for operations.
             existing: Existing JobSQL object in database.
             new_job: New JobSQL object from scraper.
 
@@ -228,7 +225,7 @@ class SmartSyncEngine:
         # Check if content has actually changed
         if existing.content_hash == new_content_hash:
             # Content unchanged, just update last_seen and skip
-            existing.last_seen = datetime.now(datetime.UTC)
+            existing.last_seen = datetime.now(datetime.timezone.utc)
             # Unarchive if it was archived (job is back!)
             if existing.archived:
                 existing.archived = False
@@ -262,7 +259,7 @@ class SmartSyncEngine:
         existing.posted_date = new_job.posted_date
         existing.salary = new_job.salary
         existing.content_hash = new_content_hash
-        existing.last_seen = datetime.now(datetime.UTC)
+        existing.last_seen = datetime.now(datetime.timezone.utc)
 
         # Unarchive if it was archived (job is back!)
         if existing.archived:
@@ -439,7 +436,9 @@ class SmartSyncEngine:
         """
         session = self._get_session()
         try:
-            cutoff_date = datetime.now(datetime.UTC) - timedelta(days=days_threshold)
+            cutoff_date = datetime.now(datetime.timezone.utc) - timedelta(
+                days=days_threshold
+            )
 
             # Find archived jobs that haven't been seen in a long time
             # and don't have recent application activity

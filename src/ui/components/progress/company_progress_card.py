@@ -145,7 +145,9 @@ class CompanyProgressCard:
             # For active scraping, show animated progress
             # Since we don't have granular progress data, use time-based estimation
             if company_progress.start_time:
-                elapsed = datetime.now(datetime.UTC) - company_progress.start_time
+                elapsed = (
+                    datetime.now(datetime.timezone.utc) - company_progress.start_time
+                )
                 # Estimate progress based on elapsed time (max 90% until completion)
                 estimated_progress = min(
                     0.9, elapsed.total_seconds() / 120.0
@@ -217,7 +219,9 @@ class CompanyProgressCard:
                     (f"Completed: {end_str}", f"Duration: {duration_str}")
                 )
             elif company_progress.status == "Scraping":
-                elapsed = datetime.now(datetime.UTC) - company_progress.start_time
+                elapsed = (
+                    datetime.now(datetime.timezone.utc) - company_progress.start_time
+                )
                 elapsed_str = format_duration(elapsed.total_seconds())
                 timing_parts.append(f"Elapsed: {elapsed_str}")
 

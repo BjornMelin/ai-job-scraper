@@ -156,7 +156,7 @@ class JobService:
                     and old_status != "Applied"
                     and job.application_date is None
                 ):
-                    job.application_date = datetime.now(datetime.UTC)
+                    job.application_date = datetime.now(datetime.timezone.utc)
 
                 logger.info(
                     "Updated job %s status from '%s' to '%s'",
@@ -354,7 +354,7 @@ class JobService:
             for date_format in date_formats:
                 try:
                     return datetime.strptime(date_input, date_format).replace(
-                        tzinfo=datetime.UTC
+                        tzinfo=datetime.timezone.utc
                     )
 
                 except ValueError:
