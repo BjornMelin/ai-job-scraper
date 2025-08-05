@@ -286,6 +286,34 @@ class JobService:
             raise
 
     @staticmethod
+    def get_active_companies() -> list[str]:
+        """Get list of active company names for scraping.
+
+        Returns:
+            List of active company names.
+
+        Raises:
+            Exception: If database query fails.
+        """
+        try:
+            with db_session() as session:
+                # Query for active companies, ordered by name for consistency
+                query = (
+                    select(CompanySQL.name)
+                    .filter(CompanySQL.active.is_(True))
+                    .order_by(CompanySQL.name)
+                )
+
+                company_names = session.exec(query).all()
+
+                logger.info(f"Retrieved {len(company_names)} active companies")
+                return list(company_names)
+
+        except Exception as e:
+            logger.error(f"Failed to get active companies: {e}")
+            raise
+
+    @staticmethod
     def _parse_date(date_input: str | datetime | None) -> datetime | None:
         """Parse date input into datetime object.
 

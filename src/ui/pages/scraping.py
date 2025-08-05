@@ -11,6 +11,7 @@ from datetime import datetime
 
 import streamlit as st
 
+from src.services.job_service import JobService
 from src.ui.utils.background_tasks import (
     CompanyProgress,
     get_task_manager,
@@ -84,25 +85,44 @@ def _render_control_section() -> None:
 
     # Get current scraping status
     is_scraping = is_scraping_active()
-    # Note: get_active_companies method doesn't exist, using empty list for now
-    active_companies = []
+
+    # Get active companies from database
+    try:
+        active_companies = JobService.get_active_companies()
+    except Exception as e:
+        logger.error(f"Failed to get active companies: {e}")
+        active_companies = []
+        st.error(
+            "⚠️ Failed to load company configuration. Please check the database "
+            "connection."
+        )
 
     with col1:
         # Start Scraping button
+        # Disable start button if no active companies
+        start_disabled = is_scraping or len(active_companies) == 0
+
         if st.button(
             "🚀 Start Scraping",
-            disabled=is_scraping,
+            disabled=start_disabled,
             use_container_width=True,
             type="primary",
-            help="Begin scraping jobs from all active company sources",
+            help="Begin scraping jobs from all active company sources"
+            if len(active_companies) > 0
+            else "No active companies configured",
         ):
             try:
                 task_id = start_background_scraping()
-                st.success(f"✅ Scraping started! Task ID: {task_id}")
+                company_count = len(active_companies)
+                st.success(
+                    f"✅ Scraping started successfully! Monitoring {company_count} "
+                    f"active companies. Task ID: {task_id[:8]}..."
+                )
                 st.rerun()  # Refresh to show progress section
             except Exception as e:
-                st.error(f"❌ Failed to start scraping: {e}")
-                logger.error(f"Failed to start scraping: {e}")
+                error_msg = str(e)
+                st.error(f"❌ Failed to start scraping: {error_msg}")
+                logger.error(f"Failed to start scraping: {error_msg}", exc_info=True)
 
     with col2:
         # Stop Scraping button
@@ -113,11 +133,19 @@ def _render_control_section() -> None:
             type="secondary",
             help="Stop the current scraping operation",
         ):
-            if stop_all_scraping() > 0:
-                st.warning("⚠️ Scraping stopped by user")
-                st.rerun()
-            else:
-                st.info("ℹ️ No active scraping to stop")
+            try:
+                stopped_count = stop_all_scraping()
+                if stopped_count > 0:
+                    st.warning(
+                        f"⚠️ Scraping stopped by user. {stopped_count} task(s) "
+                        "cancelled."
+                    )
+                    st.rerun()
+                else:
+                    st.info("ℹ️ No active scraping tasks found to stop")
+            except Exception as e:
+                st.error(f"❌ Error stopping scraping: {str(e)}")
+                logger.error(f"Error stopping scraping: {e}", exc_info=True)
 
     with col3:
         # Reset Progress button
@@ -127,11 +155,25 @@ def _render_control_section() -> None:
             use_container_width=True,
             help="Clear progress data and reset dashboard",
         ):
-            # Clear progress data from session state
-            if "task_progress" in st.session_state:
-                st.session_state.task_progress.clear()
-            st.info("✨ Progress data reset")
-            st.rerun()
+            try:
+                # Clear progress data from session state
+                progress_count = 0
+                if "task_progress" in st.session_state:
+                    progress_count = len(st.session_state.task_progress)
+                    st.session_state.task_progress.clear()
+
+                # Clear background tasks data
+                if "background_tasks" in st.session_state:
+                    st.session_state.background_tasks.clear()
+
+                st.success(
+                    f"✨ Progress data reset successfully! Cleared {progress_count} "
+                    "task records."
+                )
+                st.rerun()
+            except Exception as e:
+                st.error(f"❌ Error resetting progress: {str(e)}")
+                logger.error(f"Error resetting progress: {e}", exc_info=True)
 
     with col4:
         # Status indicator
