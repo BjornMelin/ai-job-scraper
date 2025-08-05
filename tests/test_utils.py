@@ -297,7 +297,7 @@ class TestRandomDelay:
             delays.append(end_time - start_time)
 
         # Should have some variability in delays (not all exactly the same)
-        unique_delays = len(set(round(delay, 2) for delay in delays))
+        unique_delays = len({round(delay, 2) for delay in delays})
         assert unique_delays >= 2  # Should have at least some variation
 
 

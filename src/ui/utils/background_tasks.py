@@ -44,11 +44,7 @@ import streamlit as st
 from streamlit.runtime.scriptrunner import add_script_run_ctx, get_script_run_ctx
 
 # Import the scraper function we need to launch in background
-try:
-    from ...scraper import scrape_all
-except ImportError:
-    # Fallback import path if needed
-    from src.scraper import scrape_all
+from src.scraper import scrape_all
 
 logger = logging.getLogger(__name__)
 
@@ -260,14 +256,15 @@ class BackgroundTaskManager:
         cleaned = 0
 
         with self._lock:
-            task_ids_to_remove = []
-            for task_id, task_info in self.active_tasks.items():
+            task_ids_to_remove = [
+                task_id
+                for task_id, task_info in self.active_tasks.items()
                 if (
                     task_info.status in ("completed", "failed", "cancelled")
                     and task_info.completed_at
                     and task_info.completed_at.timestamp() < cutoff
-                ):
-                    task_ids_to_remove.append(task_id)
+                )
+            ]
 
             for task_id in task_ids_to_remove:
                 del self.active_tasks[task_id]
@@ -486,9 +483,8 @@ class StreamlitTaskManager(BackgroundTaskManager):
                 task_info.status in ("pending", "running")
                 and st.session_state.background_tasks.get(task_id, {}).get("type")
                 == "scraping"
-            ):
-                if self.cancel_task(task_id):
-                    cancelled += 1
+            ) and self.cancel_task(task_id):
+                cancelled += 1
 
         if cancelled > 0:
             logger.info(f"Cancelled {cancelled} scraping tasks")
@@ -500,10 +496,11 @@ class StreamlitTaskManager(BackgroundTaskManager):
         # Clean up completed task progress data older than 1 hour
         cutoff = datetime.now().timestamp() - 3600
 
-        task_ids_to_remove = []
-        for task_id, progress_info in st.session_state.task_progress.items():
-            if progress_info.timestamp.timestamp() < cutoff:
-                task_ids_to_remove.append(task_id)
+        task_ids_to_remove = [
+            task_id
+            for task_id, progress_info in st.session_state.task_progress.items()
+            if progress_info.timestamp.timestamp() < cutoff
+        ]
 
         for task_id in task_ids_to_remove:
             del st.session_state.task_progress[task_id]

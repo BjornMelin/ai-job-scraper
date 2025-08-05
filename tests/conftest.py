@@ -52,7 +52,7 @@ async def temp_db():
 @pytest.fixture
 def test_settings():
     """Create test settings with temporary values."""
-    yield Settings(
+    return Settings(
         openai_api_key="test-key-123",
         groq_api_key="test-groq-key",
         use_groq=False,

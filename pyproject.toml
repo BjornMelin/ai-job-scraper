@@ -59,6 +59,15 @@ select = [
     "F",  # pyflakes
     "I",  # isort
     "UP", # pyupgrade
+    "N", # naming
+    "S", # complexity
+    "B", # bugbear
+    "A", # all
+    "C4", # complexity
+    "PT", # performance
+    "SIM", # simplicit
+    "TID", # complexity
+    "D", # complexity
 ]
 ignore = [
     # Docstring formatting (Google style conflicts)
@@ -104,6 +113,12 @@ ignore = [
 ]
 "tests/__init__.py" = [
     "N999", # Invalid module name (package names can have dashes)
+]
+"src/services/database_sync.py" = [
+    "S324", # Use of insecure MD5 hash function (acceptable for non-cryptographic content fingerprinting)
+]
+"src/app_cli.py" = [
+    "S603", # subprocess call with controlled input (safe CLI launcher)
 ]
 
 [tool.ruff.lint.pydocstyle]

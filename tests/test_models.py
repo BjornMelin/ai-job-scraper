@@ -93,7 +93,7 @@ async def test_job_unique_link(temp_db):
 
 
 @pytest.mark.parametrize(
-    "salary_input, expected",
+    ("salary_input", "expected"),
     [
         ("$100k-150k", (100000, 150000)),
         ("£80,000 - £120,000", (80000, 120000)),

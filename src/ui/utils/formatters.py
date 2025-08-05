@@ -161,15 +161,9 @@ def format_duration(seconds: float) -> str:
 
         # Format based on magnitude
         if hours > 0:
-            if minutes > 0:
-                return f"{hours}h {minutes}m"
-            else:
-                return f"{hours}h"
+            return f"{hours}h {minutes}m" if minutes > 0 else f"{hours}h"
         elif minutes > 0:
-            if secs > 0:
-                return f"{minutes}m {secs}s"
-            else:
-                return f"{minutes}m"
+            return f"{minutes}m {secs}s" if secs > 0 else f"{minutes}m"
         else:
             return f"{secs}s"
 
@@ -256,7 +250,7 @@ def format_jobs_count(count: int, singular: str = "job", plural: str = "jobs") -
         if not isinstance(count, int):
             count = 0
 
-        return f"{count} {singular}" if count == 1 else f"{count} {plural}"  
+        return f"{count} {singular}" if count == 1 else f"{count} {plural}"
 
     except Exception as e:
         logger.warning(f"Error formatting jobs count: {e}")

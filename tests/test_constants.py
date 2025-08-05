@@ -52,7 +52,7 @@ class TestAIRegex:
         assert isinstance(AI_REGEX, re.Pattern)
 
     @pytest.mark.parametrize(
-        "test_title, should_match",
+        ("test_title", "should_match"),
         [
             ("Senior AI Engineer", True),
             ("Machine Learning Engineer", True),

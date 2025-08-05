@@ -6,12 +6,18 @@ operations.
 """
 
 import logging
+import re
+import secrets
+import time
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import streamlit as st
 
 from src.services.job_service import JobService
+from src.ui.components.progress.company_progress_card import (
+    render_company_progress_card,
+)
 from src.ui.utils.background_tasks import (
     CompanyProgress,
     get_task_manager,
@@ -19,6 +25,7 @@ from src.ui.utils.background_tasks import (
     start_background_scraping,
     stop_all_scraping,
 )
+from src.ui.utils.formatters import calculate_eta, format_jobs_count
 
 logger = logging.getLogger(__name__)
 
@@ -216,10 +223,6 @@ def _render_control_section() -> None:
 
 def _render_progress_section() -> None:
     """Render the enhanced progress monitoring section with card-based layout."""
-    from src.ui.utils.formatters import (
-        format_jobs_count,
-    )
-
     st.markdown("---")
     st.markdown("### 📊 Real-time Progress Dashboard")
 
@@ -253,8 +256,6 @@ def _render_progress_section() -> None:
     # Auto-refresh for real-time updates with throttling to prevent excessive reruns
     if not progress_data.is_complete and not progress_data.has_error:
         # Only rerun if enough time has passed since last update (~2 seconds)
-        import time
-
         current_time = time.time()
         last_rerun_time = st.session_state.get("last_rerun_time", 0)
 
@@ -276,8 +277,6 @@ class EnhancedProgressData:
             self.is_complete = self.overall_progress >= 100.0
 
             # Extract job count from message if available
-            import re
-
             job_match = re.search(r"Found (\d+)", self.current_stage)
             self.total_jobs_found = int(job_match.group(1)) if job_match else 0
 
@@ -303,10 +302,6 @@ def _get_enhanced_progress_data(task_progress: dict):
 
 def _create_sample_company_data(latest_progress):
     """Create sample company progress data for demonstration."""
-    import random
-
-    from datetime import timedelta
-
     # Sample companies (in a real implementation, this would come from database)
     sample_companies = ["TechCorp", "InnovateCo", "StartupXYZ", "MegaCorp", "DevStudio"]
     companies = []
@@ -320,12 +315,12 @@ def _create_sample_company_data(latest_progress):
             status = "Completed"
             start_time = base_time - timedelta(minutes=5 - i)
             end_time = base_time - timedelta(minutes=2 - i)
-            jobs_found = random.randint(10, 50)
+            jobs_found = secrets.randbelow(41) + 10  # 10-50
         elif progress_pct > i / len(sample_companies):
             status = "Scraping"
             start_time = base_time - timedelta(minutes=3 - i)
             end_time = None
-            jobs_found = random.randint(5, 25)
+            jobs_found = secrets.randbelow(21) + 5  # 5-25
         else:
             status = "Pending"
             start_time = None
@@ -347,8 +342,6 @@ def _create_sample_company_data(latest_progress):
 
 def _render_overall_metrics(progress_data):
     """Render overall metrics section with ETA and total jobs."""
-    from src.ui.utils.formatters import calculate_eta
-
     col1, col2, col3 = st.columns(3)
 
     with col1:
@@ -399,10 +392,6 @@ def _render_overall_metrics(progress_data):
 
 def _render_company_progress_grid(progress_data):
     """Render company progress using responsive card grid layout."""
-    from src.ui.components.progress.company_progress_card import (
-        render_company_progress_card,
-    )
-
     if not hasattr(progress_data, "companies") or not progress_data.companies:
         st.info("No company progress data available")
         return

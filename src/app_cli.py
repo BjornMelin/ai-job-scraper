@@ -15,8 +15,13 @@ def main() -> None:
     app_path = os.path.join(app_dir, "app.py")
 
     # Run streamlit with the app.py file
+    # nosec B603: Using subprocess with controlled input (hardcoded command)
     try:
-        subprocess.run([sys.executable, "-m", "streamlit", "run", app_path], check=True)
+        subprocess.run(
+            [sys.executable, "-m", "streamlit", "run", app_path],
+            check=True,
+            shell=False,
+        )
     except subprocess.CalledProcessError as e:
         print(f"Error running Streamlit app: {e}")
         sys.exit(1)
