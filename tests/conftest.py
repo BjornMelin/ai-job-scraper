@@ -12,7 +12,6 @@ from sqlalchemy.orm import sessionmaker
 from sqlmodel import SQLModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel.sql.expression import Select, SelectOfScalar
-
 from src.config import Settings
 from src.models import CompanySQL, JobSQL
 
@@ -85,7 +84,7 @@ async def sample_job(temp_db: AsyncSession):
         description="We are looking for an experienced AI engineer to join our team.",
         link="https://test.com/careers/ai-engineer-123",
         location="San Francisco, CA",
-        posted_date=datetime.now(),
+        posted_date=datetime.now(datetime.UTC),
         salary=(100000, 150000),
         favorite=False,
         notes="",
@@ -105,6 +104,6 @@ def sample_job_dict():
         "description": "We are looking for an experienced AI engineer.",
         "link": "https://test.com/careers/ai-engineer-123",
         "location": "San Francisco, CA",
-        "posted_date": datetime.now(),
+        "posted_date": datetime.now(datetime.UTC),
         "salary": "$100k-150k",
     }

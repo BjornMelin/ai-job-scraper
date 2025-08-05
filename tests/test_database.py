@@ -7,7 +7,6 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
-
 from src.models import CompanySQL, JobSQL
 
 
@@ -57,7 +56,7 @@ async def test_job_crud_operations(temp_db: AsyncSession):
         description="Test desc",
         link="https://crud.co/job",
         location="Remote",
-        posted_date=datetime.datetime.now(),
+        posted_date=datetime.datetime.now(datetime.UTC),
         salary=(100000, 150000),
     )
     temp_db.add(job)
@@ -90,7 +89,7 @@ async def test_job_crud_operations(temp_db: AsyncSession):
 @pytest.mark.asyncio
 async def test_job_filtering_queries(temp_db: AsyncSession):
     """Test async job filtering queries."""
-    now = datetime.datetime.now()
+    now = datetime.datetime.now(datetime.UTC)
     yesterday = now - datetime.timedelta(days=1)
 
     jobs = [

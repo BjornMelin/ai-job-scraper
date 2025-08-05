@@ -6,7 +6,6 @@ import pytest
 
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
-
 from src.models import CompanySQL, JobSQL
 
 
@@ -46,7 +45,7 @@ async def test_job_sql_creation(temp_db):
         "description": "AI role",
         "link": "https://test.co/job",
         "location": "Remote",
-        "posted_date": datetime.datetime.now(),
+        "posted_date": datetime.datetime.now(datetime.UTC),
         "salary": "$100k-150k",
     }
     job = JobSQL.model_validate(job_data)

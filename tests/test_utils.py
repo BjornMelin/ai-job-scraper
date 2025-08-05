@@ -6,7 +6,6 @@ from unittest.mock import MagicMock, patch
 
 from groq import Groq
 from openai import OpenAI
-
 from src.utils import (
     get_extraction_model,
     get_llm_client,
@@ -203,9 +202,7 @@ class TestRandomUserAgent:
 
     def test_random_user_agent_common_browsers(self):
         """Test that user agents represent common browsers."""
-        user_agents = []
-        for _ in range(50):  # Get a good sample
-            user_agents.append(random_user_agent())
+        user_agents = [random_user_agent() for _ in range(50)]  # Get a good sample
 
         # Check that we get user agents for different browsers/platforms
         has_chrome = any("Chrome" in ua for ua in user_agents)
