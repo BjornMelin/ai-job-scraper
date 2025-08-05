@@ -35,7 +35,7 @@ import threading
 from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
@@ -70,7 +70,7 @@ class ProgressInfo:
     """Progress information for UI updates."""
 
     progress: float
-    timestamp: datetime = field(default_factory=datetime.now)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     message: str = ""
     details: dict[str, Any] = field(default_factory=dict)
 
@@ -143,7 +143,7 @@ class BackgroundTaskManager:
             id=task_id,
             name=task_name,
             status="pending",
-            started_at=datetime.now(datetime.timezone.utc),
+            started_at=datetime.now(timezone.utc),
         )
 
         with self._lock:
@@ -178,7 +178,7 @@ class BackgroundTaskManager:
                     if task_id in self.active_tasks:
                         self.active_tasks[task_id].result = result
                         self.active_tasks[task_id].completed_at = datetime.now(
-                            datetime.timezone.utc
+                            timezone.utc
                         )
 
                 logger.info("Task %s (%s) completed successfully", task_id, task_name)
@@ -196,7 +196,7 @@ class BackgroundTaskManager:
                     if task_id in self.active_tasks:
                         self.active_tasks[task_id].error = error_msg
                         self.active_tasks[task_id].completed_at = datetime.now(
-                            datetime.timezone.utc
+                            timezone.utc
                         )
 
                 # Call error callback if provided
@@ -254,7 +254,7 @@ class BackgroundTaskManager:
                 cancelled = task_info.future.cancel()
                 if cancelled:
                     task_info.status = "cancelled"
-                    task_info.completed_at = datetime.now(datetime.timezone.utc)
+                    task_info.completed_at = datetime.now(timezone.utc)
                     logger.info("Cancelled task %s", task_id)
                 return cancelled
 
@@ -269,9 +269,7 @@ class BackgroundTaskManager:
         Returns:
             Number of tasks cleaned up.
         """
-        cutoff = datetime.now(datetime.timezone.utc).timestamp() - (
-            max_age_hours * 3600
-        )
+        cutoff = datetime.now(timezone.utc).timestamp() - (max_age_hours * 3600)
         cleaned = 0
 
         with self._lock:
@@ -449,7 +447,7 @@ class StreamlitTaskManager(BackgroundTaskManager):
                 st.session_state.task_progress[task_id] = ProgressInfo(
                     progress=progress,
                     message=message,
-                    timestamp=datetime.now(datetime.timezone.utc),
+                    timestamp=datetime.now(timezone.utc),
                 )
 
                 # DO NOT call st.rerun() from background threads - not thread-safe
@@ -462,7 +460,7 @@ class StreamlitTaskManager(BackgroundTaskManager):
                 st.session_state.task_progress[task_id] = ProgressInfo(
                     progress=0.0,
                     message=f"Error: {error_message}",
-                    timestamp=datetime.now(datetime.timezone.utc),
+                    timestamp=datetime.now(timezone.utc),
                 )
                 try:
                     st.rerun()
@@ -482,7 +480,7 @@ class StreamlitTaskManager(BackgroundTaskManager):
         # Store task reference in session state
         st.session_state.background_tasks[task_id] = {
             "type": "scraping",
-            "started_at": datetime.now(datetime.timezone.utc),
+            "started_at": datetime.now(timezone.utc),
             "company_ids": company_ids,
         }
 
@@ -602,9 +600,7 @@ class StreamlitTaskManager(BackgroundTaskManager):
         ):
             return {"progress_cleaned": 0, "tasks_cleaned": 0, "manager_cleaned": 0}
 
-        cutoff = datetime.now(datetime.timezone.utc).timestamp() - (
-            max_age_hours * 3600
-        )
+        cutoff = datetime.now(timezone.utc).timestamp() - (max_age_hours * 3600)
         progress_cleaned = 0
         tasks_cleaned = 0
 

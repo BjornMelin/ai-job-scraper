@@ -8,7 +8,7 @@ with tab-based organization for different job categories.
 import asyncio
 import logging
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pandas as pd
 import streamlit as st
@@ -29,7 +29,7 @@ def _run_async_scraping_task() -> str:
     Returns:
         Task ID for tracking the scraping operation.
     """
-    task_id = f"scraping_{datetime.now(datetime.timezone.utc).timestamp()}"
+    task_id = f"scraping_{datetime.now(timezone.utc).timestamp()}"
 
     # Initialize task tracking in session state
     if "active_tasks" not in st.session_state:
@@ -120,7 +120,7 @@ def _render_page_header() -> None:
             f"""
             <div style='text-align: right; padding-top: 20px;'>
                 <small style='color: var(--text-muted);'>
-                    Last updated: {datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M")}
+                    Last updated: {datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")}
                 </small>
             </div>
             """,  # noqa: E501
@@ -167,7 +167,7 @@ def _handle_refresh_jobs() -> None:
             # Execute scraping with proper event loop handling
             jobs_df = _execute_scraping_safely()
             update_db(jobs_df)
-            st.session_state.last_scrape = datetime.now(datetime.timezone.utc)
+            st.session_state.last_scrape = datetime.now(timezone.utc)
 
             st.success(f"✅ Success! Found {len(jobs_df)} jobs from active companies.")
             st.rerun()
@@ -180,7 +180,7 @@ def _handle_refresh_jobs() -> None:
 def _render_last_refresh_status() -> None:
     """Render the last refresh status information."""
     if st.session_state.last_scrape:
-        time_diff = datetime.now(datetime.timezone.utc) - st.session_state.last_scrape
+        time_diff = datetime.now(timezone.utc) - st.session_state.last_scrape
 
         if time_diff.total_seconds() < 3600:
             minutes = int(time_diff.total_seconds() / 60)

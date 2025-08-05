@@ -9,7 +9,7 @@ implements smart archiving rules.
 import hashlib
 import logging
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import func
 from sqlmodel import Session, select
@@ -196,7 +196,7 @@ class SmartSyncEngine:
             str: Always returns 'inserted'.
         """
         # Ensure required fields are set
-        job.last_seen = datetime.now(datetime.timezone.utc)
+        job.last_seen = datetime.now(timezone.utc)
         if not job.application_status:
             job.application_status = "New"
         if not job.content_hash:
@@ -225,7 +225,7 @@ class SmartSyncEngine:
         # Check if content has actually changed
         if existing.content_hash == new_content_hash:
             # Content unchanged, just update last_seen and skip
-            existing.last_seen = datetime.now(datetime.timezone.utc)
+            existing.last_seen = datetime.now(timezone.utc)
             # Unarchive if it was archived (job is back!)
             if existing.archived:
                 existing.archived = False
@@ -259,7 +259,7 @@ class SmartSyncEngine:
         existing.posted_date = new_job.posted_date
         existing.salary = new_job.salary
         existing.content_hash = new_content_hash
-        existing.last_seen = datetime.now(datetime.timezone.utc)
+        existing.last_seen = datetime.now(timezone.utc)
 
         # Unarchive if it was archived (job is back!)
         if existing.archived:
@@ -436,9 +436,7 @@ class SmartSyncEngine:
         """
         session = self._get_session()
         try:
-            cutoff_date = datetime.now(datetime.timezone.utc) - timedelta(
-                days=days_threshold
-            )
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_threshold)
 
             # Find archived jobs that haven't been seen in a long time
             # and don't have recent application activity

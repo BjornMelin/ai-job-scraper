@@ -11,7 +11,7 @@ import hashlib
 import logging
 import os
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TypedDict
 from urllib.parse import urljoin
 
@@ -197,7 +197,7 @@ def normalize_jobs(state: State) -> dict[str, list[JobSQL]]:
             for fmt in date_formats:
                 try:
                     posted = datetime.strptime(posted_str, fmt).replace(
-                        tzinfo=datetime.timezone.utc
+                        tzinfo=timezone.utc
                     )
                     break
                 except ValueError:
@@ -244,7 +244,7 @@ def normalize_jobs(state: State) -> dict[str, list[JobSQL]]:
                 salary=raw.get("salary", ""),
                 content_hash=content_hash,
                 application_status="New",
-                last_seen=datetime.now(datetime.timezone.utc),
+                last_seen=datetime.now(timezone.utc),
             )
             normalized.append(job)
         except Exception:

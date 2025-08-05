@@ -8,7 +8,7 @@ display and user interactions for individual job items in the card view.
 import html
 import logging
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import pandas as pd
@@ -120,12 +120,12 @@ def _format_posted_date(posted_date: Any) -> str:
         if isinstance(posted_date, str):
             try:
                 posted_date = datetime.strptime(posted_date, "%Y-%m-%d").replace(
-                    tzinfo=datetime.timezone.utc
+                    tzinfo=timezone.utc
                 )
             except ValueError:
                 return ""
 
-        days_ago = (datetime.now(datetime.timezone.utc) - posted_date).days
+        days_ago = (datetime.now(timezone.utc) - posted_date).days
 
         if days_ago == 0:
             return "Today"

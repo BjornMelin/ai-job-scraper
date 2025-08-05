@@ -23,7 +23,7 @@ Example usage:
 
 import logging
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +58,7 @@ def calculate_scraping_speed(
             return 0.0
 
         # Use current time if end_time not provided
-        effective_end_time = end_time or datetime.now(datetime.timezone.utc)
+        effective_end_time = end_time or datetime.now(timezone.utc)
 
         # Calculate duration in minutes
         duration = effective_end_time - start_time

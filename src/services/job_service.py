@@ -9,7 +9,7 @@ import logging
 
 from collections.abc import Generator
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy import func, or_
@@ -156,7 +156,7 @@ class JobService:
                     and old_status != "Applied"
                     and job.application_date is None
                 ):
-                    job.application_date = datetime.now(datetime.timezone.utc)
+                    job.application_date = datetime.now(timezone.utc)
 
                 logger.info(
                     "Updated job %s status from '%s' to '%s'",
@@ -338,9 +338,13 @@ class JobService:
 
             # Try ISO format first (most common for APIs)
             try:
-                return datetime.fromisoformat(date_input)
+                dt = datetime.fromisoformat(date_input)
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
             except ValueError:
                 pass
+            else:
+                return dt
 
             # Try common formats found in job site scraping
             date_formats = [
@@ -354,7 +358,7 @@ class JobService:
             for date_format in date_formats:
                 try:
                     return datetime.strptime(date_input, date_format).replace(
-                        tzinfo=datetime.timezone.utc
+                        tzinfo=timezone.utc
                     )
 
                 except ValueError:

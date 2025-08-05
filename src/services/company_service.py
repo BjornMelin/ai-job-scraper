@@ -9,7 +9,7 @@ import logging
 
 from collections.abc import Generator
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlmodel import Session, func, select
 from src.database import get_session
@@ -233,7 +233,7 @@ class CompanyService:
         """
         try:
             if last_scraped is None:
-                last_scraped = datetime.now(datetime.timezone.utc)
+                last_scraped = datetime.now(timezone.utc)
 
             with db_session() as session:
                 company = session.exec(
@@ -419,7 +419,7 @@ class CompanyService:
                     company_id = update["company_id"]
                     success = update["success"]
                     last_scraped = update.get(
-                        "last_scraped", datetime.now(datetime.timezone.utc)
+                        "last_scraped", datetime.now(timezone.utc)
                     )
 
                     company = session.exec(

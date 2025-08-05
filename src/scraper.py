@@ -9,7 +9,7 @@ user-defined fields like favorites during updates.
 import hashlib
 import logging
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 import sqlalchemy.exc
 import sqlmodel
@@ -301,7 +301,7 @@ def _normalize_board_jobs(board_jobs_raw: list[dict]) -> list[JobSQL]:
                     salary=salary,
                     content_hash=content_hash,
                     application_status="New",
-                    last_seen=datetime.now(datetime.timezone.utc),
+                    last_seen=datetime.now(timezone.utc),
                 )
                 board_jobs.append(job)
 

@@ -1,7 +1,6 @@
 """Tests for scraper functions with mocks."""
 
-import datetime
-
+from datetime import datetime, timezone
 from unittest.mock import patch
 
 import pandas as pd
@@ -24,7 +23,7 @@ async def test_update_db_new_jobs(temp_db: AsyncSession):
         "description": "AI role",
         "link": "https://new.co/job1",
         "location": "Remote",
-        "posted_date": datetime.datetime.now(datetime.timezone.utc),
+        "posted_date": datetime.now(timezone.utc),
         "salary": "$100k-150k",
     }
     job = JobSQL.model_validate(job_data)
@@ -53,8 +52,7 @@ async def test_update_db_upsert_and_delete(mock_engine, temp_db: AsyncSession):
         "description": "Old desc",
         "link": "https://exist.co/job",
         "location": "Old Loc",
-        "posted_date": datetime.datetime.now(datetime.timezone.utc)
-        - datetime.timedelta(days=1),
+        "posted_date": datetime.now(timezone.utc) - datetime.timedelta(days=1),
         "salary": (80000, 120000),
         "favorite": True,  # User field to preserve
     }
@@ -83,7 +81,7 @@ async def test_update_db_upsert_and_delete(mock_engine, temp_db: AsyncSession):
             "description": "Updated desc",
             "link": "https://exist.co/job",
             "location": "Updated Loc",
-            "posted_date": datetime.datetime.now(datetime.timezone.utc),
+            "posted_date": datetime.now(timezone.utc),
             "salary": "$90k-130k",
         },
         {
@@ -177,7 +175,7 @@ async def test_scrape_all_workflow(
                 "description": "ML role",
                 "job_url": "https://board.co/job2",
                 "location": "Office",
-                "date_posted": datetime.datetime.now(datetime.timezone.utc),
+                "date_posted": datetime.now(timezone.utc),
                 "min_amount": 100000,
                 "max_amount": 150000,
             }
