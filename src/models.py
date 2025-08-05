@@ -79,20 +79,6 @@ class JobSQL(SQLModel, table=True):
     # Relationships
     company_relation: "CompanySQL" = Relationship(back_populates="jobs")
 
-    # Additional indexes for performance optimization
-    class Config:
-        """Model configuration for performance optimization."""
-
-        # Composite index suggestions for common query patterns
-        # These would be created via Alembic migrations:
-        # 1. Index on (company_id, archived, application_status) for filtered queries
-        # 2. Index on (posted_date DESC) for chronological sorting
-        # 3. Index on (last_seen) for stale job detection
-        # 4. Index on (archived, application_status) for status filtering
-        # 5. Index on (company_id, archived) for company job counts
-        # 6. Index on (company_id, application_status) for status filtering by company
-        pass
-
     @computed_field  # type: ignore[misc]
     @property
     def company(self) -> str:

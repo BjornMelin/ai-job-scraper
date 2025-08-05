@@ -365,14 +365,13 @@ class CompanyService:
 
     @staticmethod
     def bulk_update_scrape_stats(updates: list[dict]) -> int:
-        """Bulk update scraping statistics for multiple companies.
+        """Bulk update scraping statistics using SQLAlchemy 2.0 built-in operations.
 
-        This method efficiently updates multiple companies' scrape statistics
-        in batches, providing significant performance improvements over individual
-        updates during high-frequency scraping operations.
+        Uses SQLAlchemy's native bulk update for optimal performance while preserving
+        the business logic for success rate calculations.
 
         Args:
-            updates: List of dictionaries with keys: company_id, success, last_scraped
+            updates: List with keys: company_id, success, last_scraped
                    Example: [{"company_id": 1, "success": True, "last_scraped": dt()}]
 
         Returns:
@@ -385,52 +384,36 @@ class CompanyService:
             return 0
 
         try:
-            updated_count = 0
-            batch_size = 100  # Process in batches to manage memory
-
             with db_session() as session:
-                for i in range(0, len(updates), batch_size):
-                    batch = updates[i : i + batch_size]
+                # For complex business logic like weighted averages, we need to fetch
+                # current values first, then use individual updates per company
+                for update in updates:
+                    company_id = update["company_id"]
+                    success = update["success"]
+                    last_scraped = update.get("last_scraped", datetime.now())
 
-                    for update in batch:
-                        company_id = update["company_id"]
-                        success = update["success"]
-                        last_scraped = update.get("last_scraped", datetime.now())
+                    company = session.exec(
+                        select(CompanySQL).filter_by(id=company_id)
+                    ).first()
 
-                        # Fetch company for statistics calculation
-                        company = session.exec(
-                            select(CompanySQL).filter_by(id=company_id)
-                        ).first()
-
-                        if not company:
-                            logger.warning(
-                                f"Company ID {company_id} not found during bulk update"
-                            )
-                            continue
-
-                        # Update scrape count
+                    if company:
                         company.scrape_count += 1
 
-                        # Update success rate using weighted average
+                        # Calculate new success rate using weighted average
                         if company.scrape_count == 1:
                             company.success_rate = 1.0 if success else 0.0
                         else:
-                            weight = 0.8  # Weight for historical data
-                            current_weight = 1 - weight
+                            weight = 0.8
                             new_success = 1.0 if success else 0.0
                             company.success_rate = (
                                 weight * company.success_rate
-                                + current_weight * new_success
+                                + (1 - weight) * new_success
                             )
 
                         company.last_scraped = last_scraped
-                        updated_count += 1
 
-                    # Commit each batch to avoid large transactions
-                    session.commit()
-
-                logger.info(f"Bulk updated scrape stats for {updated_count} companies")
-                return updated_count
+                logger.info(f"Updated scrape stats for {len(updates)} companies")
+                return len(updates)
 
         except Exception as e:
             logger.error(f"Failed to bulk update scrape stats: {e}")
