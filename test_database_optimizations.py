@@ -7,6 +7,7 @@ background task system and Streamlit integration.
 """
 
 import logging
+import sys
 import time
 
 from concurrent.futures import ThreadPoolExecutor
@@ -62,7 +63,7 @@ def test_streamlit_session_management():
     # Verify the company was created
     companies = CompanyService.get_all_companies()
     test_companies = [c for c in companies if c.name == "Test Company Session"]
-    assert len(test_companies) > 0
+    assert test_companies
 
     print("✅ Streamlit session management tests passed")
 
@@ -212,4 +213,4 @@ def main():
 
 
 if __name__ == "__main__":
-    exit(main())
+    sys.exit(main())

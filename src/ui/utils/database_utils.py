@@ -149,10 +149,9 @@ def clean_session_state() -> int:
             if main_key in st.session_state:
                 logger.warning(f"Removing contaminated session state key: {key}")
                 del st.session_state[main_key]
-        else:
-            if key in st.session_state:
-                logger.warning(f"Removing contaminated session state key: {key}")
-                del st.session_state[key]
+        elif key in st.session_state:
+            logger.warning(f"Removing contaminated session state key: {key}")
+            del st.session_state[key]
 
     return len(contaminated_keys)
 
@@ -241,8 +240,7 @@ def render_database_health_widget() -> None:
             st.error(f"Database Error: {health['error']}")
 
         # Session state validation
-        contaminated_keys = validate_session_state()
-        if contaminated_keys:
+        if contaminated_keys := validate_session_state():
             st.warning(f"⚠️ {len(contaminated_keys)} contaminated session keys")
             if st.button("🧹 Clean Session State"):
                 cleaned = clean_session_state()
