@@ -122,7 +122,7 @@ def main():
 
     # Summary
     print("\n=== Test Results ===")
-    passed = sum(1 for _, result in results if result)
+    passed = sum(result for _, result in results)
     total = len(results)
 
     for test_name, result in results:

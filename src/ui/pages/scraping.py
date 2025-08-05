@@ -6,8 +6,8 @@ operations.
 """
 
 import logging
+import random
 import re
-import secrets
 import time
 
 from datetime import datetime, timedelta
@@ -315,12 +315,12 @@ def _create_sample_company_data(latest_progress):
             status = "Completed"
             start_time = base_time - timedelta(minutes=5 - i)
             end_time = base_time - timedelta(minutes=2 - i)
-            jobs_found = secrets.randbelow(41) + 10  # 10-50
+            jobs_found = random.randint(10, 50)  # 10-50
         elif progress_pct > i / len(sample_companies):
             status = "Scraping"
             start_time = base_time - timedelta(minutes=3 - i)
             end_time = None
-            jobs_found = secrets.randbelow(21) + 5  # 5-25
+            jobs_found = random.randint(5, 25)  # 5-25
         else:
             status = "Pending"
             start_time = None
@@ -410,17 +410,16 @@ def _render_company_progress_grid(progress_data):
         cols = st.columns(cols_per_row, gap="medium")
 
         for j in range(cols_per_row):
-            if i + j < len(companies):
-                with cols[j]:
+            with cols[j]:
+                if i + j < len(companies):
                     render_company_progress_card(companies[i + j])
-            else:
-                # Empty column for the last row if odd number of companies
-                with cols[j]:
+                else:
+                    # Empty column for the last row if odd number of companies
                     st.empty()
 
     # Summary statistics
-    completed = sum(1 for c in companies if c.status == "Completed")
-    active = sum(1 for c in companies if c.status == "Scraping")
+    completed = sum(c.status == "Completed" for c in companies)
+    active = sum(c.status == "Scraping" for c in companies)
     total_companies = len(companies)
 
     st.markdown("---")
