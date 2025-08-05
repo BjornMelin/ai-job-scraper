@@ -250,45 +250,55 @@ def _render_progress_section() -> None:
     # Enhanced company-specific progress with card grid
     _render_company_progress_grid(progress_data)
 
-    # Auto-refresh for real-time updates
+    # Auto-refresh for real-time updates with throttling to prevent excessive reruns
     if not progress_data.is_complete and not progress_data.has_error:
-        st.rerun()
+        # Only rerun if enough time has passed since last update (~2 seconds)
+        import time
+
+        current_time = time.time()
+        last_rerun_time = st.session_state.get("last_rerun_time", 0)
+
+        if current_time - last_rerun_time >= 2.0:  # 2 second throttle
+            st.session_state.last_rerun_time = current_time
+            st.rerun()
+
+
+class EnhancedProgressData:
+    """Enhanced progress data with better company tracking."""
+
+    def __init__(self, task_progress: dict):
+        if task_progress:
+            latest_progress = max(task_progress.values(), key=lambda x: x.timestamp)
+            self.overall_progress = latest_progress.progress
+            self.current_stage = latest_progress.message or "Running..."
+            self.has_error = "Error:" in self.current_stage
+            self.error_message = self.current_stage if self.has_error else ""
+            self.is_complete = self.overall_progress >= 100.0
+
+            # Extract job count from message if available
+            import re
+
+            job_match = re.search(r"Found (\d+)", self.current_stage)
+            self.total_jobs_found = int(job_match.group(1)) if job_match else 0
+
+            # Create sample company data for demonstration
+            # In a real implementation, this would come from session state
+            self.companies = _create_sample_company_data(latest_progress)
+            self.start_time = latest_progress.timestamp
+        else:
+            self.overall_progress = 0.0
+            self.current_stage = "No active tasks"
+            self.has_error = False
+            self.error_message = ""
+            self.is_complete = True
+            self.total_jobs_found = 0
+            self.companies = []
+            self.start_time = None
 
 
 def _get_enhanced_progress_data(task_progress: dict):
     """Create enhanced progress data with better company tracking."""
-
-    class EnhancedProgressData:
-        def __init__(self):
-            if task_progress:
-                latest_progress = max(task_progress.values(), key=lambda x: x.timestamp)
-                self.overall_progress = latest_progress.progress
-                self.current_stage = latest_progress.message or "Running..."
-                self.has_error = "Error:" in self.current_stage
-                self.error_message = self.current_stage if self.has_error else ""
-                self.is_complete = self.overall_progress >= 100.0
-
-                # Extract job count from message if available
-                import re
-
-                job_match = re.search(r"Found (\d+)", self.current_stage)
-                self.total_jobs_found = int(job_match.group(1)) if job_match else 0
-
-                # Create sample company data for demonstration
-                # In a real implementation, this would come from session state
-                self.companies = _create_sample_company_data(latest_progress)
-                self.start_time = latest_progress.timestamp
-            else:
-                self.overall_progress = 0.0
-                self.current_stage = "No active tasks"
-                self.has_error = False
-                self.error_message = ""
-                self.is_complete = True
-                self.total_jobs_found = 0
-                self.companies = []
-                self.start_time = None
-
-    return EnhancedProgressData()
+    return EnhancedProgressData(task_progress)
 
 
 def _create_sample_company_data(latest_progress):
@@ -486,25 +496,7 @@ def _render_recent_results_section() -> None:
     task_progress = st.session_state.get("task_progress", {})
 
     # Create a simple progress data object (reusing the same logic)
-    class ProgressData:
-        def __init__(self):
-            if task_progress:
-                latest_progress = max(task_progress.values(), key=lambda x: x.timestamp)
-                self.overall_progress = latest_progress.progress
-                self.current_stage = latest_progress.message or "Running..."
-                self.has_error = False
-                self.error_message = ""
-                self.is_complete = self.overall_progress >= 100.0
-                self.total_jobs_found = 0
-            else:
-                self.overall_progress = 0.0
-                self.current_stage = "No active tasks"
-                self.has_error = False
-                self.error_message = ""
-                self.is_complete = True
-                self.total_jobs_found = 0
-
-    progress_data = ProgressData()
+    progress_data = EnhancedProgressData(task_progress)
 
     col1, col2, col3 = st.columns(3)
 

@@ -233,7 +233,7 @@ def render_company_progress_card(company_progress: CompanyProgress) -> None:
 
     Example:
         >>> progress = CompanyProgress(
-        ...     name="TechCorp", status="Scraping", jobs_found=15
+        ...     name="Example Company", status="Scraping", jobs_found=15
         ... )
         >>> render_company_progress_card(progress)
     """

@@ -99,6 +99,7 @@ def bulk_get_or_create_companies(
             session.flush()  # Get IDs without committing transaction
             # Add new companies to the mapping
             company_map.update({comp.name: comp.id for comp in new_companies})
+            logger.info(f"Bulk created {len(missing_names)} new companies")
         except sqlalchemy.exc.IntegrityError:
             # Handle race condition: another process created some companies
             # Roll back and re-query to get the actual IDs
@@ -122,8 +123,14 @@ def bulk_get_or_create_companies(
                 session.add_all(remaining_companies)
                 session.flush()
                 company_map.update({comp.name: comp.id for comp in remaining_companies})
-
-        logger.info(f"Bulk created {len(missing_names)} new companies")
+                logger.info(
+                    f"Bulk created {len(still_missing)} new companies "
+                    f"(after handling race condition)"
+                )
+            else:
+                logger.info(
+                    "No new companies to create (all were created by other processes)"
+                )
 
     logger.debug(
         f"Bulk processed {len(company_names)} companies: "

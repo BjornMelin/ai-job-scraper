@@ -113,8 +113,8 @@ def calculate_eta(
         if completed_companies >= total_companies:
             return "Done"
 
-        # Need at least some progress to calculate ETA
-        if completed_companies == 0:
+        # Need at least some progress and elapsed time to calculate ETA
+        if completed_companies == 0 or time_elapsed == 0:
             return "Calculating..."
 
         # Calculate completion rate (companies per second)
