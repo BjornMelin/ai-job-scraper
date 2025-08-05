@@ -58,50 +58,53 @@ def performance_monitor(func):
                 execution_time,
             )
             raise
-        else:
-            return result
+
+        return result
 
     return wrapper
 
 
-def start_timer(conn, cursor, stmt, params, ctx, many):
+def start_timer(_conn, _cursor, _stmt, _params, ctx, _many):
     """Start timing for query execution.
 
     This function is called before each SQL query execution to record
     the start time for performance monitoring.
 
     Args:
-        conn: Database connection
-        cursor: Database cursor
-        stmt: SQL statement being executed
-        params: Query parameters
+        _conn: Database connection (unused but required by SQLAlchemy event API)
+        _cursor: Database cursor (unused but required by SQLAlchemy event API)
+        _stmt: SQL statement executed (unused but required by SQLAlchemy event API)
+        _params: Query parameters (unused but required by SQLAlchemy event API)
         ctx: Execution context (used to store timing info)
-        many: Whether this is a bulk operation
+        _many: Bulk operation flag (unused but required by SQLAlchemy event API)
 
     Note:
         The start time is stored in ctx._query_start for later retrieval
-        by the log_slow function.
+        by the log_slow function. Arguments prefixed with underscore are
+        required by SQLAlchemy's event API but not used in this implementation.
     """
     ctx._query_start = time.time()
 
 
-def log_slow(conn, cursor, stmt, params, ctx, many):
+def log_slow(_conn, _cursor, stmt, _params, ctx, _many):
     """Log slow queries and performance metrics.
 
     This function is called after each SQL query execution to calculate
     execution time and log performance warnings for slow queries.
 
     Args:
-        conn: Database connection
-        cursor: Database cursor
+        _conn: Database connection (unused but required by SQLAlchemy event API)
+        _cursor: Database cursor (unused but required by SQLAlchemy event API)
         stmt: SQL statement that was executed
-        params: Query parameters
+        _params: Query parameters (unused but required by SQLAlchemy event API)
         ctx: Execution context (contains timing info)
-        many: Whether this was a bulk operation
+        _many: Bulk operation flag (unused but required by SQLAlchemy event API)
 
     Note:
         Queries exceeding SLOW_QUERY_THRESHOLD are logged as warnings,
         while queries over 100ms are logged as debug information.
+        Arguments prefixed with underscore are required by SQLAlchemy's
+        event API but not used in this implementation.
     """
     dt = time.time() - ctx._query_start
     if dt > SLOW_QUERY_THRESHOLD:

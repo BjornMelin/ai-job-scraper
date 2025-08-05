@@ -5,11 +5,15 @@ pagination detection, job duplicate filtering across pages, empty page detection
 and other pagination-related functionality.
 """
 
+import inspect
+
 from urllib.parse import parse_qs, urlparse
 
 import pytest
 
 from scraper import (
+    COMPANY_SCHEMAS,
+    PAGINATION_PATTERNS,
     detect_pagination_elements,
     normalize_job_data,
     update_url_with_pagination,
@@ -175,8 +179,6 @@ class TestPaginationDetection:
 
     def test_pagination_patterns_available(self):
         """Test that pagination patterns are defined in the scraper module."""
-        from scraper import PAGINATION_PATTERNS
-
         assert "next_button" in PAGINATION_PATTERNS
         assert "load_more_button" in PAGINATION_PATTERNS
         assert "page_numbers" in PAGINATION_PATTERNS
@@ -198,8 +200,6 @@ class TestPaginationDetection:
 
     def test_pagination_function_signature(self):
         """Test that detect_pagination_elements function has correct signature."""
-        import inspect
-
         sig = inspect.signature(detect_pagination_elements)
         params = list(sig.parameters.keys())
 
@@ -434,8 +434,6 @@ class TestPaginationIntegration:
 
     def test_pagination_config_validation(self):
         """Test that pagination configurations are valid."""
-        from scraper import COMPANY_SCHEMAS
-
         for company, config in COMPANY_SCHEMAS.items():
             if "pagination" in config:
                 pagination = config["pagination"]

@@ -13,7 +13,9 @@ from src.constants import AI_REGEX, RELEVANT_PHRASES, SEARCH_KEYWORDS, SEARCH_LO
 from src.database import (
     SessionLocal,
     create_db_and_tables,
+    db_session,
     engine,
+    get_session,
 )
 
 # Models
@@ -59,6 +61,7 @@ __all__ = [
     "State",
     "create_db_and_tables",
     # Database
+    "db_session",
     "engine",
     "extract_details",
     "extract_job_lists",
