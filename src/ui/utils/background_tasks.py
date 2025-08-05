@@ -100,11 +100,17 @@ def render_scraping_controls() -> None:
     # Clean any contaminated database objects from session state
     clean_session_state()
 
-    # Initialize scraping state
+    # Initialize scraping state and status to prevent UI flicker
     if "scraping_active" not in st.session_state:
         st.session_state.scraping_active = False
     if "scraping_results" not in st.session_state:
         st.session_state.scraping_results = None
+    if "scraping_status" not in st.session_state:
+        st.session_state.scraping_status = "Ready to start scraping..."
+
+    # Create persistent status container to prevent flicker
+    status_container = st.empty()
+    status_container.info(st.session_state.scraping_status)
 
     col1, col2 = st.columns([1, 1])
 
@@ -112,54 +118,66 @@ def render_scraping_controls() -> None:
         if not st.session_state.scraping_active and st.button(
             "🔍 Start Scraping", type="primary"
         ):
-            start_scraping()
+            start_scraping(status_container)
 
     with col2:
         if st.session_state.scraping_active and st.button(
             "⏹️ Stop Scraping", type="secondary"
         ):
             st.session_state.scraping_active = False
+            st.session_state.scraping_status = "Scraping stopped"
             st.rerun()
 
 
-def start_scraping() -> None:
+def start_scraping(status_container=None) -> None:
     """Start background scraping with Streamlit status tracking."""
     st.session_state.scraping_active = True
+    st.session_state.scraping_status = "Initializing scraping..."
 
-    # Create status container for progress tracking
-    status_container = st.empty()
+    # Use provided container or create new one
+    if status_container is None:
+        status_container = st.empty()
 
     def scraping_task():
         try:
+            # Update session state status for persistent display
+            st.session_state.scraping_status = "🔍 Scraping job listings..."
+
             with (
                 status_container.container(),
                 st.status("🔍 Scraping job listings...", expanded=True) as status,
             ):
                 # Update progress during scraping
                 st.write("📊 Initializing scraping workflow...")
+                st.session_state.scraping_status = "📊 Running scraper..."
 
                 # Execute scraping (preserves existing scraper.py logic)
                 result = scrape_all()
 
                 # Show completion
                 total_jobs = sum(result.values()) if result else 0
+                completion_msg = f"✅ Scraping Complete! Found {total_jobs} jobs"
                 status.update(
-                    label=f"✅ Scraping Complete! Found {total_jobs} jobs",
+                    label=completion_msg,
                     state="complete",
                 )
+                st.session_state.scraping_status = completion_msg
 
                 # Store results
                 st.session_state.scraping_results = result
                 st.session_state.scraping_active = False
 
-        except Exception:
+        except Exception as e:
+            error_msg = f"❌ Scraping failed: {e}"
             with status_container.container():
-                st.error("❌ Scraping failed")
+                st.error(error_msg)
+            st.session_state.scraping_status = error_msg
             st.session_state.scraping_active = False
             logger.exception("Scraping failed")
 
-    # Start background thread (preserves non-blocking behavior)
-    thread = threading.Thread(target=scraping_task, daemon=True)
+    # Store thread reference for proper cleanup
+    thread = threading.Thread(target=scraping_task, daemon=False)
+    st.session_state.scraping_thread = thread
     thread.start()
 
 
@@ -208,10 +226,19 @@ def start_background_scraping() -> str:
 
 
 def stop_all_scraping() -> int:
-    """Stop all scraping operations."""
+    """Stop all scraping operations with proper thread cleanup."""
     stopped_count = 0
     if st.session_state.get("scraping_active", False):
         st.session_state.scraping_active = False
+        st.session_state.scraping_status = "Scraping stopped"
+
+        # Clean up thread reference if exists
+        if hasattr(st.session_state, "scraping_thread"):
+            thread = st.session_state.scraping_thread
+            if thread and thread.is_alive():
+                # Thread will terminate when it checks scraping_active
+                thread.join(timeout=5.0)  # Wait up to 5 seconds
+            delattr(st.session_state, "scraping_thread")
         stopped_count = 1
     return stopped_count
 
