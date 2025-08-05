@@ -70,10 +70,24 @@ class JobSQL(SQLModel, table=True):
     application_status: str = Field(default="New", index=True)
     application_date: datetime | None = None
     archived: bool = Field(default=False, index=True)
-    last_seen: datetime | None = None
+    last_seen: datetime | None = Field(
+        default=None, index=True
+    )  # Index for stale job queries
 
     # Relationships
     company_relation: "CompanySQL" = Relationship(back_populates="jobs")
+
+    # Additional indexes for performance optimization
+    class Config:
+        """Model configuration for performance optimization."""
+
+        # Composite index suggestions for common query patterns
+        # These would be created via Alembic migrations:
+        # 1. Index on (company_id, archived, application_status) for filtered queries
+        # 2. Index on (posted_date DESC) for chronological sorting
+        # 3. Index on (last_seen) for stale job detection
+        # 4. Index on (archived, application_status) for status filtering
+        pass
 
     @computed_field  # type: ignore[misc]
     @property

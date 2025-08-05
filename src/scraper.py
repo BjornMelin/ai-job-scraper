@@ -35,6 +35,10 @@ def get_or_create_company(session: sqlmodel.Session, company_name: str) -> int:
 
     Returns:
         int: Company ID.
+
+    Note:
+        This function is kept for backward compatibility but should be avoided
+        in loops. Use bulk_get_or_create_companies() for better performance.
     """
     company = session.exec(
         sqlmodel.select(CompanySQL).where(CompanySQL.name == company_name)
@@ -52,6 +56,56 @@ def get_or_create_company(session: sqlmodel.Session, company_name: str) -> int:
         session.refresh(company)
 
     return company.id
+
+
+def bulk_get_or_create_companies(
+    session: sqlmodel.Session, company_names: set[str]
+) -> dict[str, int]:
+    """Efficiently get or create multiple companies in bulk.
+
+    This function eliminates N+1 query patterns by:
+    1. Bulk loading existing companies in a single query
+    2. Bulk creating missing companies
+    3. Returning a name->ID mapping for O(1) lookups
+
+    Args:
+        session: Database session.
+        company_names: Set of unique company names to process.
+
+    Returns:
+        dict[str, int]: Mapping of company names to their database IDs.
+    """
+    if not company_names:
+        return {}
+
+    # Step 1: Bulk load existing companies in single query
+    existing_companies = session.exec(
+        sqlmodel.select(CompanySQL).where(CompanySQL.name.in_(company_names))
+    ).all()
+    company_map = {comp.name: comp.id for comp in existing_companies}
+
+    # Step 2: Identify missing companies
+    missing_names = company_names - company_map.keys()
+
+    # Step 3: Bulk create missing companies if any
+    if missing_names:
+        new_companies = [
+            CompanySQL(name=name, url="", active=True) for name in missing_names
+        ]
+        session.add_all(new_companies)
+        session.flush()  # Get IDs without committing transaction
+
+        # Add new companies to the mapping
+        company_map.update({comp.name: comp.id for comp in new_companies})
+
+        logger.info(f"Bulk created {len(missing_names)} new companies")
+
+    logger.debug(
+        f"Bulk processed {len(company_names)} companies: "
+        f"{len(existing_companies)} existing, {len(missing_names)} new"
+    )
+
+    return company_map
 
 
 def scrape_all() -> dict[str, int]:
@@ -139,11 +193,11 @@ def scrape_all() -> dict[str, int]:
 
 
 def _normalize_board_jobs(board_jobs_raw: list[dict]) -> list[JobSQL]:
-    """Normalize raw job board data to JobSQL objects.
+    """Normalize raw job board data to JobSQL objects with optimized bulk operations.
 
     This function converts dictionaries from job board scrapers into properly
     structured JobSQL objects, handling company creation, salary formatting,
-    and content hashing.
+    and content hashing. Uses bulk operations to eliminate N+1 query patterns.
 
     Args:
         board_jobs_raw: List of raw job dictionaries from job board scrapers.
@@ -151,10 +205,25 @@ def _normalize_board_jobs(board_jobs_raw: list[dict]) -> list[JobSQL]:
     Returns:
         list[JobSQL]: List of normalized JobSQL objects ready for sync.
     """
+    if not board_jobs_raw:
+        return []
+
     board_jobs: list[JobSQL] = []
     session = SessionLocal()
 
     try:
+        # Step 1: Extract all unique company names for bulk processing
+        company_names = {
+            raw.get("company", "Unknown").strip()
+            for raw in board_jobs_raw
+            if raw.get("company", "Unknown").strip()
+        }
+
+        # Step 2: Bulk get or create companies (eliminates N+1 queries)
+        company_map = bulk_get_or_create_companies(session, company_names)
+        logger.info(f"Bulk processed {len(company_names)} unique companies")
+
+        # Step 3: Process jobs with O(1) company lookups
         for raw in board_jobs_raw:
             try:
                 # Format salary from min/max amounts
@@ -168,9 +237,15 @@ def _normalize_board_jobs(board_jobs_raw: list[dict]) -> list[JobSQL]:
                 elif max_amt:
                     salary = f"${max_amt}"
 
-                # Get or create company
-                company_name = raw.get("company", "Unknown")
-                company_id = get_or_create_company(session, company_name)
+                # Get company ID from pre-loaded mapping (O(1) lookup)
+                company_name = raw.get("company", "Unknown").strip() or "Unknown"
+                company_id = company_map.get(company_name, company_map.get("Unknown"))
+
+                if company_id is None:
+                    logger.warning(
+                        f"No company ID found for '{company_name}', skipping job"
+                    )
+                    continue
 
                 # Create content hash for change detection
                 title = raw.get("title", "")
@@ -197,6 +272,14 @@ def _normalize_board_jobs(board_jobs_raw: list[dict]) -> list[JobSQL]:
             except Exception as e:
                 logger.error(f"Failed to normalize board job {raw.get('job_url')}: {e}")
 
+        # Step 4: Commit company changes before returning jobs
+        session.commit()
+        logger.info(f"Successfully normalized {len(board_jobs)} board jobs")
+
+    except Exception as e:
+        logger.error(f"Failed to normalize board jobs: {e}")
+        session.rollback()
+        raise
     finally:
         session.close()
 
