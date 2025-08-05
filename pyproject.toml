@@ -171,6 +171,8 @@ ignore = [
     "D107", # Missing docstring in __init__ (often not needed for simple classes)
     "D104", # Missing docstring in public package (not always needed)
 
+    "EM101", # Exception must not use a string literal, assign to variable first
+
     # Pylint rules that can be too strict
     "PLR0913", # Too many arguments to function call (sometimes necessary)
     "PLR0912", # Too many branches (sometimes necessary for business logic)
@@ -185,6 +187,7 @@ ignore = [
     # Type checking that may be too strict for AI/ML code
     "PGH003", # Use specific rule codes when ignoring type issues
     "TRY003", # Avoid specifying long messages outside the exception class
+    "TRY301", # Abstract `raise` to an inner function
     
     # Performance rules that may conflict with readability
     "PERF203", # `try`-`except` within a loop incurs performance overhead
@@ -331,3 +334,96 @@ exclude_lines = [
 
 [tool.coverage.html]
 directory = "htmlcov"
+
+# Pylint configuration
+[tool.pylint.main]
+source-roots = "src"
+py-version = "3.12"
+jobs = 0  # Auto-detect CPU cores for parallel processing
+recursive = true
+
+[tool.pylint.messages_control]
+# Enable comprehensive checks while allowing reasonable exceptions
+disable = [
+    # Import and module issues (handled by ruff)
+    "import-error",  # Will be resolved by source-roots configuration
+    "wrong-import-position",  # Handled by ruff/isort
+    "relative-beyond-top-level",  # Relative imports in src layout
+    "no-name-in-module",     # Module name detection issues
+    
+    # Documentation (handled by ruff/pydocstyle)
+    "missing-module-docstring",
+    "missing-class-docstring", 
+    "missing-function-docstring",
+    
+    # Code style (handled by ruff/black)
+    "line-too-long",
+    "invalid-name",  # Variable naming handled by ruff
+    
+    # Overly restrictive checks
+    "too-few-public-methods",  # Pydantic models often have few methods
+    "too-many-arguments",      # Sometimes necessary for complex functions
+    "too-many-locals",         # Sometimes necessary for data processing
+    "too-many-branches",       # Sometimes necessary for business logic
+    "too-many-statements",     # Sometimes necessary for complex operations
+    
+    # Allow pragmatic exception handling patterns
+    "broad-exception-caught",  # Sometimes appropriate for robustness
+    
+    # Allow protected member access for SQLAlchemy patterns
+    "protected-access",        # Common pattern in SQLAlchemy and similar libraries
+    
+    # Disable singleton comparison warnings for SQLAlchemy/SQLModel
+    "singleton-comparison",    # SQLModel requires == True/False/None for queries
+    
+    # Disable no-member warnings for standard library modules
+    "no-member",              # datetime.timezone.utc is valid in Python 3.12+
+]
+
+enable = [
+    # Focus on logic and correctness issues
+    "unused-variable",
+    "unused-argument", 
+    "undefined-variable",
+    "attribute-defined-outside-init",
+    # Note: singleton-comparison disabled for SQLAlchemy/SQLModel patterns
+    # SQLModel requires == True/False/None for database queries, not is True/False/is None
+    "no-else-raise",
+    "no-else-return",
+    "use-maxsplit-arg",
+    "duplicate-code",
+]
+
+[tool.pylint.format]
+max-line-length = 88  # Match ruff configuration
+
+[tool.pylint.design]
+# Allow reasonable complexity for AI/ML applications
+max-args = 8
+max-locals = 20  
+max-branches = 15
+max-statements = 60
+max-public-methods = 25
+min-public-methods = 1  # Allow single-method classes
+
+[tool.pylint.similarities]
+min-similarity-lines = 6
+ignore-comments = true
+ignore-docstrings = true
+ignore-imports = true
+
+[tool.pylint.typecheck]
+# Ignore missing imports for third-party libraries without stubs
+ignored-modules = [
+    "scrapegraphai",
+    "python_jobspy", 
+    "proxies",
+    "streamlit",
+    "typer",
+    "pandas",
+    "polars",
+    "groq",
+    "openai",
+    "langchain_groq",
+    "langgraph",
+]
