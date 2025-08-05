@@ -26,6 +26,8 @@ Example usage:
     stop_all_scraping()
 """
 
+import copy
+import inspect
 import logging
 import threading
 import traceback
@@ -146,15 +148,11 @@ class BackgroundTaskManager:
                 self._update_task_status(task_id, "running", 0.0, "Starting task...")
 
                 # Create a copy of task_kwargs to prevent concurrent modification
-                import copy
-
                 safe_kwargs = copy.deepcopy(task_kwargs)
 
                 # Execute the actual task function
                 if progress_callback:
                     # Pass progress callback to task function if it accepts it
-                    import inspect
-
                     sig = inspect.signature(task_func)
                     if "progress_callback" in sig.parameters:
                         safe_kwargs["progress_callback"] = (
