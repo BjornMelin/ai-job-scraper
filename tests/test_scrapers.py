@@ -1,6 +1,6 @@
 """Tests for scraper functions with mocks."""
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 import pandas as pd
@@ -48,7 +48,7 @@ def test_update_db_upsert_and_delete(mock_engine, session: Session):
         "description": "Old desc",
         "link": "https://exist.co/job",
         "location": "Old Loc",
-        "posted_date": datetime.now(timezone.utc) - datetime.timedelta(days=1),
+        "posted_date": datetime.now(timezone.utc) - timedelta(days=1),
         "salary": (80000, 120000),
         "favorite": True,  # User field to preserve
     }

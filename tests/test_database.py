@@ -1,6 +1,6 @@
 """Tests for database operations and integration."""
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -79,7 +79,7 @@ def test_job_crud_operations(session: Session):
 def test_job_filtering_queries(session: Session):
     """Test job filtering queries."""
     now = datetime.now(timezone.utc)
-    yesterday = now - datetime.timedelta(days=1)
+    yesterday = now - timedelta(days=1)
 
     jobs = [
         JobSQL(
