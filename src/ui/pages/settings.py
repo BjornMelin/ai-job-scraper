@@ -11,11 +11,17 @@ from typing import Any
 
 import streamlit as st
 
+from groq import Groq
+from openai import OpenAI
+
 logger = logging.getLogger(__name__)
 
 
 def test_api_connection(provider: str, api_key: str) -> tuple[bool, str]:
     """Test API connection for the specified provider.
+
+    Makes actual API calls to validate connectivity and authentication.
+    Uses lightweight endpoints to minimize cost and latency.
 
     Args:
         provider: The LLM provider ("OpenAI" or "Groq").
@@ -29,27 +35,60 @@ def test_api_connection(provider: str, api_key: str) -> tuple[bool, str]:
 
     try:
         if provider == "OpenAI":
-            # Test OpenAI API connection
-            # In a real implementation, you would make a test API call
-            # For now, just validate the key format
+            # Basic format validation first
             if not api_key.startswith("sk-"):
                 return False, "Invalid OpenAI API key format (should start with 'sk-')"
-            return True, "OpenAI API key format is valid"
+
+            # Test actual API connectivity using lightweight models.list() endpoint
+            client = OpenAI(api_key=api_key)
+            models = client.models.list()
+            model_count = len(models.data) if models.data else 0
+            return True, f"✅ Connected successfully. {model_count} models available"
 
         elif provider == "Groq":
-            # Test Groq API connection
-            # In a real implementation, you would make a test API call
-            # For now, just validate the key format
+            # Basic format validation first
             if len(api_key) < 20:
                 return False, "Groq API key appears to be too short"
-            return True, "Groq API key format is valid"
+
+            # Test actual API connectivity using minimal chat completion
+            client = Groq(api_key=api_key)
+            completion = client.chat.completions.create(
+                model="llama3-8b-8192",
+                messages=[{"role": "user", "content": "ping"}],
+                max_tokens=1,
+            )
+            completion_id = completion.id[:8] if completion.id else "unknown"
+            return True, f"✅ Connected successfully. Response ID: {completion_id}"
 
         else:
             return False, f"Unknown provider: {provider}"
 
     except Exception as e:
-        logger.error(f"API connection test failed: {e}")
-        return False, f"Connection test failed: {str(e)}"
+        logger.error(f"API connection test failed for {provider}: {e}")
+
+        # Provide more specific error messages based on exception type
+        error_msg = str(e).lower()
+        if (
+            "authentication" in error_msg
+            or "unauthorized" in error_msg
+            or "401" in error_msg
+        ):
+            return False, "❌ Authentication failed. Please check your API key"
+        elif (
+            "connection" in error_msg
+            or "network" in error_msg
+            or "timeout" in error_msg
+        ):
+            return (
+                False,
+                "❌ Network connection failed. Please check your internet connection",
+            )
+        elif "rate" in error_msg or "quota" in error_msg or "429" in error_msg:
+            return False, "❌ Rate limit exceeded. Please try again later"
+        elif "not found" in error_msg or "404" in error_msg:
+            return False, "❌ API endpoint not found. Service may be unavailable"
+        else:
+            return False, f"❌ Connection failed: {str(e)}"
 
 
 def load_settings() -> dict[str, Any]:

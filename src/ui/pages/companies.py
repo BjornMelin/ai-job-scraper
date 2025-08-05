@@ -141,7 +141,7 @@ def show_companies_page() -> None:
     # Show summary statistics
     try:
         active_companies = CompanyService.get_active_companies()
-        total_companies = len(companies) if "companies" in locals() else 0
+        total_companies = len(companies)
         active_count = len(active_companies)
 
         st.markdown("---")

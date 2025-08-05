@@ -14,9 +14,32 @@ from datetime import datetime
 from sqlmodel import Session, select
 
 from src.database import get_session
+from src.database_listeners.monitoring_listeners import performance_monitor
 from src.models import CompanySQL
 
 logger = logging.getLogger(__name__)
+
+
+def calculate_weighted_success_rate(
+    current_rate: float, scrape_count: int, success: bool, weight: float = 0.8
+) -> float:
+    """Calculate weighted-average success rate for scraping statistics.
+
+    Args:
+        current_rate: Current success rate (0.0 to 1.0).
+        scrape_count: Total number of scrapes performed.
+        success: Whether the latest scrape was successful.
+        weight: Weight for historical data (default 0.8).
+
+    Returns:
+        New weighted-average success rate.
+    """
+    if scrape_count == 1:
+        return 1.0 if success else 0.0
+
+    current_weight = 1 - weight
+    new_success = 1.0 if success else 0.0
+    return weight * current_rate + current_weight * new_success
 
 
 @contextmanager
@@ -46,6 +69,7 @@ class CompanyService:
     """
 
     @staticmethod
+    @performance_monitor
     def get_all_companies() -> list[CompanySQL]:
         """Get all companies ordered by name.
 
@@ -69,6 +93,7 @@ class CompanyService:
             raise
 
     @staticmethod
+    @performance_monitor
     def add_company(name: str, url: str) -> CompanySQL:
         """Add a new company to the database.
 
@@ -94,8 +119,7 @@ class CompanyService:
 
             with db_session() as session:
                 # Check if company already exists
-                existing = session.exec(select(CompanySQL).filter_by(name=name)).first()
-                if existing:
+                if session.exec(select(CompanySQL).filter_by(name=name)).first():
                     raise ValueError(f"Company '{name}' already exists")
 
                 # Create new company
@@ -121,6 +145,7 @@ class CompanyService:
             raise
 
     @staticmethod
+    @performance_monitor
     def toggle_company_active(company_id: int) -> bool:
         """Toggle the active status of a company.
 
@@ -160,6 +185,7 @@ class CompanyService:
             raise
 
     @staticmethod
+    @performance_monitor
     def get_active_companies() -> list[CompanySQL]:
         """Get all active companies ordered by name.
 
@@ -185,6 +211,7 @@ class CompanyService:
             raise
 
     @staticmethod
+    @performance_monitor
     def update_company_scrape_stats(
         company_id: int, success: bool, last_scraped: datetime | None = None
     ) -> bool:
@@ -215,17 +242,10 @@ class CompanyService:
                 # Update scrape count
                 company.scrape_count += 1
 
-                # Update success rate using weighted average
-                # This provides a more stable success rate over time
-                if company.scrape_count == 1:
-                    company.success_rate = 1.0 if success else 0.0
-                else:
-                    weight = 0.8  # Weight for historical data
-                    current_weight = 1 - weight
-                    new_success = 1.0 if success else 0.0
-                    company.success_rate = (
-                        weight * company.success_rate + current_weight * new_success
-                    )
+                # Update success rate using weighted average helper
+                company.success_rate = calculate_weighted_success_rate(
+                    company.success_rate, company.scrape_count, success
+                )
 
                 company.last_scraped = last_scraped
 
@@ -246,6 +266,7 @@ class CompanyService:
             raise
 
     @staticmethod
+    @performance_monitor
     def get_company_by_id(company_id: int) -> CompanySQL | None:
         """Get a single company by its ID.
 
@@ -276,6 +297,7 @@ class CompanyService:
             raise
 
     @staticmethod
+    @performance_monitor
     def get_company_by_name(name: str) -> CompanySQL | None:
         """Get a company by its name.
 
@@ -309,6 +331,7 @@ class CompanyService:
             raise
 
     @staticmethod
+    @performance_monitor
     def get_companies_with_job_counts() -> list[dict]:
         """Get all companies with their job counts in a single optimized query.
 
@@ -344,15 +367,14 @@ class CompanyService:
 
                 results = session.exec(query).all()
 
-                companies_with_stats = []
-                for company, total_jobs, active_jobs in results:
-                    companies_with_stats.append(
-                        {
-                            "company": company,
-                            "total_jobs": total_jobs or 0,
-                            "active_jobs": active_jobs or 0,
-                        }
-                    )
+                companies_with_stats = [
+                    {
+                        "company": company,
+                        "total_jobs": total_jobs or 0,
+                        "active_jobs": active_jobs or 0,
+                    }
+                    for company, total_jobs, active_jobs in results
+                ]
 
                 logger.info(
                     f"Retrieved {len(companies_with_stats)} companies with job counts"
@@ -364,6 +386,7 @@ class CompanyService:
             raise
 
     @staticmethod
+    @performance_monitor
     def bulk_update_scrape_stats(updates: list[dict]) -> int:
         """Bulk update scraping statistics using SQLAlchemy 2.0 built-in operations.
 
@@ -399,16 +422,10 @@ class CompanyService:
                     if company:
                         company.scrape_count += 1
 
-                        # Calculate new success rate using weighted average
-                        if company.scrape_count == 1:
-                            company.success_rate = 1.0 if success else 0.0
-                        else:
-                            weight = 0.8
-                            new_success = 1.0 if success else 0.0
-                            company.success_rate = (
-                                weight * company.success_rate
-                                + (1 - weight) * new_success
-                            )
+                        # Calculate new success rate using weighted average helper
+                        company.success_rate = calculate_weighted_success_rate(
+                            company.success_rate, company.scrape_count, success
+                        )
 
                         company.last_scraped = last_scraped
 
