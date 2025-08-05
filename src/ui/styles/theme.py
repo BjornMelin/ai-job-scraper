@@ -30,6 +30,13 @@ OPTIMIZED_CSS = """
     --text-muted: #b0b0b0;
     --shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     --shadow-hover: 0 8px 24px rgba(0, 0, 0, 0.4);
+
+    /* Status badge color variables */
+    --status-new-bg: rgba(59, 130, 246, 0.2);
+    --status-new-fg: #60a5fa;
+    --status-applied-bg: rgba(34, 197, 94, 0.2);
+    --status-rejected-bg: rgba(239, 68, 68, 0.2);
+    --status-interview-bg: rgba(251, 191, 36, 0.2);
 }
 
 /* Base app styles */
@@ -98,10 +105,10 @@ a { color: var(--primary); }
 }
 
 /* Status badges */
-.status-new { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
-.status-applied { background: rgba(34, 197, 94, 0.2); color: var(--success); }
-.status-rejected { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
-.status-interview { background: rgba(251, 191, 36, 0.2); color: var(--warning); }
+.status-new { background: var(--status-new-bg); color: var(--status-new-fg); }
+.status-applied { background: var(--status-applied-bg); color: var(--success); }
+.status-rejected { background: var(--status-rejected-bg); color: var(--danger); }
+.status-interview { background: var(--status-interview-bg); color: var(--warning); }
 
 /* Metric cards */
 .metric-card {
