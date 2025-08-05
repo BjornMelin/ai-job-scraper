@@ -89,10 +89,46 @@ def get_session() -> Session:
     """Create a new database session.
 
     Returns:
-        Session: A new SQLAlchemy session for database operations.
+        Session: A new SQLModel session for database operations.
 
     Note:
         The caller is responsible for closing the session when done.
         Consider using a context manager or try/finally block.
     """
-    return SessionLocal()
+    return Session(engine)
+
+
+def get_connection_pool_status() -> dict:
+    """Get current database connection pool status for monitoring.
+
+    Returns:
+        Dictionary with connection pool statistics including:
+        - pool_size: Current pool size
+        - checked_out: Number of connections currently in use
+        - overflow: Number of overflow connections
+        - invalid: Number of invalid connections
+
+    Note:
+        This function is useful for monitoring database connection usage
+        and identifying potential connection pool exhaustion issues.
+    """
+    try:
+        pool = engine.pool
+        return {
+            "pool_size": pool.size(),
+            "checked_out": pool.checkedout(),
+            "overflow": pool.overflow(),
+            "invalid": pool.invalid(),
+            "engine_url": str(engine.url).split("@")[-1]
+            if "@" in str(engine.url)
+            else str(engine.url),
+        }
+    except Exception as e:
+        logger.warning(f"Could not get connection pool status: {e}")
+        return {
+            "pool_size": "unknown",
+            "checked_out": "unknown",
+            "overflow": "unknown",
+            "invalid": "unknown",
+            "error": str(e),
+        }

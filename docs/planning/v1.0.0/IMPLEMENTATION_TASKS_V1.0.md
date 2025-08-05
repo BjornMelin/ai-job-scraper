@@ -63,7 +63,7 @@ This document outlines the tasks for the **V1.0 "Job Hunter's MVP" Release**. It
 
 - **Release**: V1.0
 - **Priority**: **Medium**
-- **Status**: **In Progress**
+- **Status**: **Done**
 - **Prerequisites**: `T0.1`, `T0.2`
 - **Requirements File**: `docs/planning/v1.0.0/REQUIREMENTS_V1.0.md`
 - **Related Requirements**: `UI-COMP-01`, `UI-COMP-02`, `UI-SETT-01`, `SYS-ARCH-05`
