@@ -40,13 +40,12 @@ def expected_companies():
     ]
 
 
-@pytest.mark.asyncio
-async def test_seed_success(temp_db, expected_companies):
+def test_seed_success(session, expected_companies):
     """Test successful seeding."""
-    with patch("src.seed.engine", temp_db.bind):
+    with patch("src.seed.engine", session.bind):
         seed()
 
-        companies = (await temp_db.exec(select(CompanySQL))).all()
+        companies = (session.exec(select(CompanySQL))).all()
         assert len(companies) == len(expected_companies)
         for comp in companies:
             expected = next(e for e in expected_companies if e["name"] == comp.name)
@@ -54,28 +53,26 @@ async def test_seed_success(temp_db, expected_companies):
             assert comp.active == expected["active"]
 
 
-@pytest.mark.asyncio
-async def test_seed_idempotent(temp_db, expected_companies):
+def test_seed_idempotent(session, expected_companies):
     """Test seeding idempotency."""
-    with patch("src.seed.engine", temp_db.bind):
+    with patch("src.seed.engine", session.bind):
         seed()
         seed()
 
-        companies = (await temp_db.exec(select(CompanySQL))).all()
+        companies = (session.exec(select(CompanySQL))).all()
         assert len(companies) == len(expected_companies)
 
 
-@pytest.mark.asyncio
-async def test_seed_partial_existing(temp_db, expected_companies):
+def test_seed_partial_existing(session, expected_companies):
     """Test seeding with existing companies."""
     existing = CompanySQL(name="Anthropic", url="custom-url", active=False)
-    temp_db.add(existing)
-    await temp_db.commit()
+    session.add(existing)
+    session.commit()
 
-    with patch("src.seed.engine", temp_db.bind):
+    with patch("src.seed.engine", session.bind):
         seed()
 
-        companies = (await temp_db.exec(select(CompanySQL))).all()
+        companies = (session.exec(select(CompanySQL))).all()
         assert len(companies) == len(expected_companies)
 
         anthropic = next(c for c in companies if c.name == "Anthropic")
@@ -83,8 +80,7 @@ async def test_seed_partial_existing(temp_db, expected_companies):
         assert anthropic.active is False
 
 
-@pytest.mark.asyncio
-async def test_seed_data_integrity(expected_companies):
+def test_seed_data_integrity(expected_companies):
     """Test seeded data integrity."""
     assert len(expected_companies) > 0
     for comp in expected_companies:
@@ -96,10 +92,10 @@ async def test_seed_data_integrity(expected_companies):
         assert comp["active"] is True, "Company should be active"
 
 
-def test_seed_cli_execution(temp_db):
+def test_seed_cli_execution(session):
     """Test CLI execution of seed."""
     runner = CliRunner()
-    with patch("src.seed.engine", temp_db.bind):
+    with patch("src.seed.engine", session.bind):
         result = runner.invoke(app, ["seed"])
         assert result.exit_code == 0
         assert "Seeded" in result.output

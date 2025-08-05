@@ -9,35 +9,32 @@ from sqlmodel import select
 from src.models import CompanySQL, JobSQL
 
 
-@pytest.mark.asyncio
-async def test_company_sql_creation(temp_db):
+def test_company_sql_creation(session):
     """Test creating and querying CompanySQL."""
     company = CompanySQL(name="Test Co", url="https://test.co/careers", active=True)
-    temp_db.add(company)
-    await temp_db.commit()
-    await temp_db.refresh(company)
+    session.add(company)
+    session.commit()
+    session.refresh(company)
 
-    result = await temp_db.exec(select(CompanySQL).where(CompanySQL.name == "Test Co"))
+    result = session.exec(select(CompanySQL).where(CompanySQL.name == "Test Co"))
     retrieved = result.first()
     assert retrieved.name == "Test Co"
     assert retrieved.active is True
 
 
-@pytest.mark.asyncio
-async def test_company_unique_name(temp_db):
+def test_company_unique_name(session):
     """Test company name uniqueness."""
     company1 = CompanySQL(name="Unique Co", url="https://unique1.co", active=True)
-    temp_db.add(company1)
-    await temp_db.commit()
+    session.add(company1)
+    session.commit()
 
     company2 = CompanySQL(name="Unique Co", url="https://unique2.co", active=False)
-    temp_db.add(company2)
+    session.add(company2)
     with pytest.raises(IntegrityError):
-        await temp_db.commit()
+        session.commit()
 
 
-@pytest.mark.asyncio
-async def test_job_sql_creation(temp_db):
+def test_job_sql_creation(session):
     """Test creating and querying JobSQL."""
     job_data = {
         "company": "Test Co",
@@ -49,11 +46,11 @@ async def test_job_sql_creation(temp_db):
         "salary": "$100k-150k",
     }
     job = JobSQL.model_validate(job_data)
-    temp_db.add(job)
-    await temp_db.commit()
-    await temp_db.refresh(job)
+    session.add(job)
+    session.commit()
+    session.refresh(job)
 
-    result = await temp_db.exec(select(JobSQL).where(JobSQL.title == "AI Engineer"))
+    result = session.exec(select(JobSQL).where(JobSQL.title == "AI Engineer"))
     retrieved = result.first()
     assert retrieved.company == "Test Co"
     assert list(retrieved.salary) == [
@@ -62,8 +59,7 @@ async def test_job_sql_creation(temp_db):
     ]  # JSON column converts tuple to list
 
 
-@pytest.mark.asyncio
-async def test_job_unique_link(temp_db):
+def test_job_unique_link(session):
     """Test job link uniqueness."""
     job1_data = {
         "company": "Test Co",
@@ -74,8 +70,8 @@ async def test_job_unique_link(temp_db):
         "salary": (None, None),
     }
     job1 = JobSQL.model_validate(job1_data)
-    temp_db.add(job1)
-    await temp_db.commit()
+    session.add(job1)
+    session.commit()
 
     job2_data = {
         "company": "Test Co",
@@ -86,9 +82,9 @@ async def test_job_unique_link(temp_db):
         "salary": (None, None),
     }
     job2 = JobSQL.model_validate(job2_data)
-    temp_db.add(job2)
+    session.add(job2)
     with pytest.raises(IntegrityError):
-        await temp_db.commit()
+        session.commit()
 
 
 @pytest.mark.parametrize(
