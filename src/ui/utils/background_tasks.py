@@ -15,6 +15,7 @@ Key improvements:
 
 import logging
 import threading
+import time
 import uuid
 
 from dataclasses import dataclass
@@ -24,10 +25,12 @@ from typing import Any
 import streamlit as st
 
 from src.scraper import scrape_all
+from src.services.job_service import JobService
 from src.ui.utils.database_utils import (
     clean_session_state,
     suppress_sqlalchemy_warnings,
 )
+from src.ui.utils.validation_utils import safe_job_count
 
 logger = logging.getLogger(__name__)
 
@@ -129,8 +132,8 @@ def render_scraping_controls() -> None:
             st.rerun()
 
 
-def start_scraping(status_container=None) -> None:
-    """Start background scraping with Streamlit status tracking."""
+def start_scraping(status_container: Any | None = None) -> None:
+    """Start background scraping with real company progress tracking."""
     st.session_state.scraping_active = True
     st.session_state.scraping_status = "Initializing scraping..."
 
@@ -140,6 +143,32 @@ def start_scraping(status_container=None) -> None:
 
     def scraping_task():
         try:
+            # Get real active companies from database
+            active_companies = JobService.get_active_companies()
+
+            # Handle empty companies list early
+            if not active_companies:
+                status_msg = "⚠️ No active companies found to scrape"
+                st.session_state.scraping_status = status_msg
+                st.session_state.scraping_active = False
+                with status_container.container():
+                    st.warning(status_msg)
+                logger.warning("No active companies found for scraping")
+                return
+
+            # Initialize company progress tracking
+            st.session_state.company_progress = {}
+            start_time = datetime.now(timezone.utc)
+
+            for company_name in active_companies:
+                st.session_state.company_progress[company_name] = CompanyProgress(
+                    name=company_name,
+                    status="Pending",
+                    jobs_found=0,
+                    start_time=None,
+                    end_time=None,
+                )
+
             # Update session state status for persistent display
             st.session_state.scraping_status = "🔍 Scraping job listings..."
 
@@ -151,12 +180,54 @@ def start_scraping(status_container=None) -> None:
                 st.write("📊 Initializing scraping workflow...")
                 st.session_state.scraping_status = "📊 Running scraper..."
 
+                # Process companies sequentially with progress tracking
+                for i, company_name in enumerate(active_companies):
+                    # Mark current company as scraping
+                    if company_name in st.session_state.company_progress:
+                        st.session_state.company_progress[
+                            company_name
+                        ].status = "Scraping"
+                        st.session_state.company_progress[
+                            company_name
+                        ].start_time = datetime.now(timezone.utc)
+
+                    # Add small delay to show progression (configurable for demo)
+                    time.sleep(0.1)  # Reduced from 0.5s for better responsiveness
+
+                    # Update overall progress
+                    progress_pct = (i + 0.5) / len(active_companies) * 100
+                    st.session_state.scraping_status = (
+                        f"📊 Scraping {company_name}... ({progress_pct:.0f}%)"
+                    )
+
                 # Execute scraping (preserves existing scraper.py logic)
                 result = scrape_all()
 
+                # Update company progress with real results
+                for company_name in active_companies:
+                    if company_name in st.session_state.company_progress:
+                        company_progress = st.session_state.company_progress[
+                            company_name
+                        ]
+                        company_progress.status = "Completed"
+                        company_progress.end_time = datetime.now(timezone.utc)
+
+                        # Set real job count from scraper results with type safety
+                        raw_job_count = result.get(company_name, 0)
+                        company_progress.jobs_found = safe_job_count(
+                            raw_job_count, company_name
+                        )
+
+                        # If start_time wasn't set, estimate it
+                        if company_progress.start_time is None:
+                            company_progress.start_time = start_time
+
                 # Show completion
                 total_jobs = sum(result.values()) if result else 0
-                completion_msg = f"✅ Scraping Complete! Found {total_jobs} jobs"
+                completion_msg = (
+                    f"✅ Scraping Complete! Found {total_jobs} jobs across "
+                    f"{len(active_companies)} companies"
+                )
                 status.update(
                     label=completion_msg,
                     state="complete",
@@ -169,6 +240,17 @@ def start_scraping(status_container=None) -> None:
 
         except Exception as e:
             error_msg = f"❌ Scraping failed: {e}"
+
+            # Mark any scraping companies as error with safe attribute access
+            if hasattr(st.session_state, "company_progress"):
+                for company_progress in st.session_state.company_progress.values():
+                    if company_progress.status == "Scraping":
+                        company_progress.status = "Error"
+                        # Safe attribute assignment - error field exists in dataclass
+                        if hasattr(company_progress, "error"):
+                            company_progress.error = str(e)
+                        company_progress.end_time = datetime.now(timezone.utc)
+
             with status_container.container():
                 st.error(error_msg)
             st.session_state.scraping_status = error_msg
@@ -246,3 +328,12 @@ def stop_all_scraping() -> int:
 def get_scraping_progress() -> dict[str, ProgressInfo]:
     """Get current scraping progress."""
     return st.session_state.get("task_progress", {})
+
+
+def get_company_progress() -> dict[str, CompanyProgress]:
+    """Get current company-level scraping progress.
+
+    Returns:
+        Dictionary mapping company names to their CompanyProgress objects.
+    """
+    return st.session_state.get("company_progress", {})

@@ -6,11 +6,11 @@ operations.
 """
 
 import logging
-import random
 import re
 import time
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
+from typing import Any
 
 import streamlit as st
 
@@ -20,12 +20,14 @@ from src.ui.components.progress.company_progress_card import (
 )
 from src.ui.utils.background_tasks import (
     CompanyProgress,
+    get_company_progress,
     get_task_manager,
     is_scraping_active,
     start_background_scraping,
     stop_all_scraping,
 )
 from src.ui.utils.formatters import calculate_eta, format_jobs_count
+from src.ui.utils.validation_utils import safe_job_count
 
 logger = logging.getLogger(__name__)
 
@@ -221,15 +223,17 @@ def _render_control_section() -> None:
 
 
 def _render_progress_section() -> None:
-    """Render the enhanced progress monitoring section with card-based layout."""
+    """Render the real-time progress monitoring section with actual company data."""
     st.markdown("---")
     st.markdown("### 📊 Real-time Progress Dashboard")
 
     # Get progress data from session state
     task_progress = st.session_state.get("task_progress", {})
 
-    # Create enhanced progress data with better company tracking
-    progress_data = _get_enhanced_progress_data(task_progress)
+    company_progress = get_company_progress()
+
+    # Create real progress data with actual company tracking
+    progress_data = _get_real_progress_data(task_progress, company_progress)
 
     # Render overall metrics at the top
     _render_overall_metrics(progress_data)
@@ -263,10 +267,15 @@ def _render_progress_section() -> None:
             st.rerun()
 
 
-class EnhancedProgressData:
-    """Enhanced progress data with better company tracking."""
+class RealProgressData:
+    """Real progress data using actual company tracking."""
 
-    def __init__(self, task_progress: dict):
+    def __init__(
+        self,
+        task_progress: dict[str, Any],
+        company_progress: dict[str, CompanyProgress],
+    ):
+        # Get overall progress from task progress if available
         if task_progress:
             latest_progress = max(task_progress.values(), key=lambda x: x.timestamp)
             self.overall_progress = latest_progress.progress
@@ -274,6 +283,7 @@ class EnhancedProgressData:
             self.has_error = "Error:" in self.current_stage
             self.error_message = self.current_stage if self.has_error else ""
             self.is_complete = self.overall_progress >= 100.0
+            self.start_time = latest_progress.timestamp
 
             # Extract job count from message if available
             self.total_jobs_found = (
@@ -281,11 +291,6 @@ class EnhancedProgressData:
                 if (job_match := re.search(r"Found (\d+)", self.current_stage))
                 else 0
             )
-
-            # Create sample company data for demonstration
-            # In a real implementation, this would come from session state
-            self.companies = _create_sample_company_data(latest_progress)
-            self.start_time = latest_progress.timestamp
         else:
             self.overall_progress = 0.0
             self.current_stage = "No active tasks"
@@ -293,56 +298,31 @@ class EnhancedProgressData:
             self.error_message = ""
             self.is_complete = True
             self.total_jobs_found = 0
-            self.companies = []
             self.start_time = None
 
+        # Use real company progress data
+        self.companies = list(company_progress.values()) if company_progress else []
 
-def _get_enhanced_progress_data(task_progress: dict):
-    """Create enhanced progress data with better company tracking."""
-    return EnhancedProgressData(task_progress)
-
-
-def _create_sample_company_data(latest_progress):
-    """Create sample company progress data for demonstration."""
-    # Sample companies (in a real implementation, this would come from database)
-    sample_companies = ["TechCorp", "InnovateCo", "StartupXYZ", "MegaCorp", "DevStudio"]
-    companies = []
-
-    base_time = latest_progress.timestamp
-    progress_pct = latest_progress.progress / 100.0
-
-    for i, company_name in enumerate(sample_companies):
-        # Simulate different stages based on overall progress
-        if progress_pct > (i + 1) / len(sample_companies):
-            status = "Completed"
-            start_time = base_time - timedelta(minutes=5 - i)
-            end_time = base_time - timedelta(minutes=2 - i)
-            jobs_found = random.randint(10, 50)  # 10-50
-        elif progress_pct > i / len(sample_companies):
-            status = "Scraping"
-            start_time = base_time - timedelta(minutes=3 - i)
-            end_time = None
-            jobs_found = random.randint(5, 25)  # 5-25
-        else:
-            status = "Pending"
-            start_time = None
-            end_time = None
-            jobs_found = 0
-
-        companies.append(
-            CompanyProgress(
-                name=company_name,
-                status=status,
-                jobs_found=jobs_found,
-                start_time=start_time,
-                end_time=end_time,
+        # Calculate total jobs with proper precedence logic
+        # Company-level data takes precedence over task-level data when available
+        if self.companies:
+            company_total = sum(
+                safe_job_count(company.jobs_found, company.name)
+                for company in self.companies
             )
-        )
+            # Only use company data if it's more recent/reliable than task data
+            if company_total > 0 or self.total_jobs_found == 0:
+                self.total_jobs_found = company_total
 
-    return companies
+
+def _get_real_progress_data(
+    task_progress: dict[str, Any], company_progress: dict[str, CompanyProgress]
+) -> RealProgressData:
+    """Create real progress data with actual company tracking."""
+    return RealProgressData(task_progress, company_progress)
 
 
-def _render_overall_metrics(progress_data):
+def _render_overall_metrics(progress_data: RealProgressData) -> None:
     """Render overall metrics section with ETA and total jobs."""
     col1, col2, col3 = st.columns(3)
 
@@ -390,7 +370,7 @@ def _render_overall_metrics(progress_data):
         )
 
 
-def _render_company_progress_grid(progress_data):
+def _render_company_progress_grid(progress_data: RealProgressData) -> None:
     """Render company progress using responsive card grid layout."""
     if not hasattr(progress_data, "companies") or not progress_data.companies:
         st.info("No company progress data available")
@@ -483,8 +463,11 @@ def _render_recent_results_section() -> None:
     # Get progress data from session state
     task_progress = st.session_state.get("task_progress", {})
 
-    # Create a simple progress data object (reusing the same logic)
-    progress_data = EnhancedProgressData(task_progress)
+    # Import and get company progress data
+    company_progress = get_company_progress()
+
+    # Create real progress data object
+    progress_data = _get_real_progress_data(task_progress, company_progress)
 
     col1, col2, col3 = st.columns(3)
 
