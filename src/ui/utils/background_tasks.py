@@ -146,6 +146,16 @@ def start_scraping(status_container: Any | None = None) -> None:
             # Get real active companies from database
             active_companies = JobService.get_active_companies()
 
+            # Handle empty companies list early
+            if not active_companies:
+                status_msg = "⚠️ No active companies found to scrape"
+                st.session_state.scraping_status = status_msg
+                st.session_state.scraping_active = False
+                with status_container.container():
+                    st.warning(status_msg)
+                logger.warning("No active companies found for scraping")
+                return
+
             # Initialize company progress tracking
             st.session_state.company_progress = {}
             start_time = datetime.now(timezone.utc)
@@ -231,12 +241,14 @@ def start_scraping(status_container: Any | None = None) -> None:
         except Exception as e:
             error_msg = f"❌ Scraping failed: {e}"
 
-            # Mark any scraping companies as error
+            # Mark any scraping companies as error with safe attribute access
             if hasattr(st.session_state, "company_progress"):
                 for company_progress in st.session_state.company_progress.values():
                     if company_progress.status == "Scraping":
                         company_progress.status = "Error"
-                        company_progress.error = str(e)
+                        # Safe attribute assignment - error field exists in dataclass
+                        if hasattr(company_progress, "error"):
+                            company_progress.error = str(e)
                         company_progress.end_time = datetime.now(timezone.utc)
 
             with status_container.container():
