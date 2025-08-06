@@ -15,6 +15,7 @@ Key improvements:
 
 import logging
 import threading
+import time
 import uuid
 
 from dataclasses import dataclass
@@ -24,10 +25,12 @@ from typing import Any
 import streamlit as st
 
 from src.scraper import scrape_all
+from src.services.job_service import JobService
 from src.ui.utils.database_utils import (
     clean_session_state,
     suppress_sqlalchemy_warnings,
 )
+from src.ui.utils.validation_utils import safe_job_count
 
 logger = logging.getLogger(__name__)
 
@@ -129,12 +132,8 @@ def render_scraping_controls() -> None:
             st.rerun()
 
 
-def start_scraping(status_container=None) -> None:
+def start_scraping(status_container: Any | None = None) -> None:
     """Start background scraping with real company progress tracking."""
-    import time
-
-    from src.services.job_service import JobService
-
     st.session_state.scraping_active = True
     st.session_state.scraping_status = "Initializing scraping..."
 
@@ -171,7 +170,7 @@ def start_scraping(status_container=None) -> None:
                 st.write("📊 Initializing scraping workflow...")
                 st.session_state.scraping_status = "📊 Running scraper..."
 
-                # Simulate progressive company scraping
+                # Process companies sequentially with progress tracking
                 for i, company_name in enumerate(active_companies):
                     # Mark current company as scraping
                     if company_name in st.session_state.company_progress:
@@ -182,8 +181,8 @@ def start_scraping(status_container=None) -> None:
                             company_name
                         ].start_time = datetime.now(timezone.utc)
 
-                    # Add small delay to show progression
-                    time.sleep(0.5)
+                    # Add small delay to show progression (configurable for demo)
+                    time.sleep(0.1)  # Reduced from 0.5s for better responsiveness
 
                     # Update overall progress
                     progress_pct = (i + 0.5) / len(active_companies) * 100
@@ -203,8 +202,11 @@ def start_scraping(status_container=None) -> None:
                         company_progress.status = "Completed"
                         company_progress.end_time = datetime.now(timezone.utc)
 
-                        # Set real job count from scraper results
-                        company_progress.jobs_found = result.get(company_name, 0)
+                        # Set real job count from scraper results with type safety
+                        raw_job_count = result.get(company_name, 0)
+                        company_progress.jobs_found = safe_job_count(
+                            raw_job_count, company_name
+                        )
 
                         # If start_time wasn't set, estimate it
                         if company_progress.start_time is None:

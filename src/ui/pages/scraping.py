@@ -10,6 +10,7 @@ import re
 import time
 
 from datetime import datetime, timezone
+from typing import Any
 
 import streamlit as st
 
@@ -19,12 +20,14 @@ from src.ui.components.progress.company_progress_card import (
 )
 from src.ui.utils.background_tasks import (
     CompanyProgress,
+    get_company_progress,
     get_task_manager,
     is_scraping_active,
     start_background_scraping,
     stop_all_scraping,
 )
 from src.ui.utils.formatters import calculate_eta, format_jobs_count
+from src.ui.utils.validation_utils import safe_job_count
 
 logger = logging.getLogger(__name__)
 
@@ -227,9 +230,6 @@ def _render_progress_section() -> None:
     # Get progress data from session state
     task_progress = st.session_state.get("task_progress", {})
 
-    # Import function here to avoid import issues
-    from src.ui.utils.background_tasks import get_company_progress
-
     company_progress = get_company_progress()
 
     # Create real progress data with actual company tracking
@@ -270,7 +270,11 @@ def _render_progress_section() -> None:
 class RealProgressData:
     """Real progress data using actual company tracking."""
 
-    def __init__(self, task_progress: dict, company_progress: dict):
+    def __init__(
+        self,
+        task_progress: dict[str, Any],
+        company_progress: dict[str, CompanyProgress],
+    ):
         # Get overall progress from task progress if available
         if task_progress:
             latest_progress = max(task_progress.values(), key=lambda x: x.timestamp)
@@ -299,19 +303,26 @@ class RealProgressData:
         # Use real company progress data
         self.companies = list(company_progress.values()) if company_progress else []
 
-        # Calculate total jobs from real company data if available
+        # Calculate total jobs with proper precedence logic
+        # Company-level data takes precedence over task-level data when available
         if self.companies:
-            self.total_jobs_found = sum(
-                company.jobs_found for company in self.companies
+            company_total = sum(
+                safe_job_count(company.jobs_found, company.name)
+                for company in self.companies
             )
+            # Only use company data if it's more recent/reliable than task data
+            if company_total > 0 or self.total_jobs_found == 0:
+                self.total_jobs_found = company_total
 
 
-def _get_real_progress_data(task_progress: dict, company_progress: dict):
+def _get_real_progress_data(
+    task_progress: dict[str, Any], company_progress: dict[str, CompanyProgress]
+) -> RealProgressData:
     """Create real progress data with actual company tracking."""
     return RealProgressData(task_progress, company_progress)
 
 
-def _render_overall_metrics(progress_data):
+def _render_overall_metrics(progress_data: RealProgressData) -> None:
     """Render overall metrics section with ETA and total jobs."""
     col1, col2, col3 = st.columns(3)
 
@@ -359,7 +370,7 @@ def _render_overall_metrics(progress_data):
         )
 
 
-def _render_company_progress_grid(progress_data):
+def _render_company_progress_grid(progress_data: RealProgressData) -> None:
     """Render company progress using responsive card grid layout."""
     if not hasattr(progress_data, "companies") or not progress_data.companies:
         st.info("No company progress data available")
@@ -453,8 +464,6 @@ def _render_recent_results_section() -> None:
     task_progress = st.session_state.get("task_progress", {})
 
     # Import and get company progress data
-    from src.ui.utils.background_tasks import get_company_progress
-
     company_progress = get_company_progress()
 
     # Create real progress data object
