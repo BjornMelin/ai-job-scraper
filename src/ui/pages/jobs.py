@@ -38,11 +38,23 @@ def _run_async_scraping_task() -> str:
     return task_id
 
 
-def _execute_scraping_safely():
+def _execute_scraping_safely() -> dict[str, int]:
     """Execute scraping with proper event loop management.
 
+    This function handles async event loop management for Streamlit compatibility
+    and executes the complete scraping workflow including company pages and job boards.
+
     Returns:
-        DataFrame with scraped job data.
+        dict[str, int]: Synchronization statistics from SmartSyncEngine containing:
+            - 'inserted': Number of new jobs added to database
+            - 'updated': Number of existing jobs updated
+            - 'archived': Number of stale jobs archived (preserved user data)
+            - 'deleted': Number of stale jobs deleted (no user data)
+            - 'skipped': Number of jobs skipped (no changes detected)
+
+    Raises:
+        Exception: If scraping execution fails or event loop management encounters
+            errors.
     """
     # Proper event loop handling for Streamlit (2025 pattern)
     try:
@@ -167,6 +179,16 @@ def _handle_refresh_jobs() -> None:
             # Execute scraping with proper event loop handling (returns sync stats)
             sync_stats = _execute_scraping_safely()
             st.session_state.last_scrape = datetime.now(timezone.utc)
+
+            # Defensive validation: ensure we got a dict with sync stats
+            if not isinstance(sync_stats, dict):
+                logger.error(
+                    "Expected sync_stats dict, got %s: %s",
+                    type(sync_stats).__name__,
+                    sync_stats,
+                )
+                st.error("❌ Scrape completed but returned unexpected data format")
+                return
 
             # Display sync results from SmartSyncEngine
             total_processed = sync_stats.get("inserted", 0) + sync_stats.get(
