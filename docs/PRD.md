@@ -1,188 +1,99 @@
-# Product Requirements Document (PRD) for AI Job Scraper
-
-📋 **TOC**  
-
-1. Introduction  
-2. Goals and Objectives  
-3. User Personas  
-4. Functional Requirements  
-5. Non-Functional Requirements  
-6. Technical Stack  
-7. Risks and Mitigations  
-8. Timeline and Milestones  
-9. Acceptance Criteria  
-10. Appendices  
+# Product Requirements Document (PRD): AI Job Scraper
 
 ## 1. Introduction
 
 ### 1.1 Purpose
 
-This PRD outlines the requirements for AI Job Scraper, a local Python application that automates scraping, filtering, storage, and management of AI/ML job postings from top company websites. It enables users to track relevant roles efficiently while ensuring data privacy through offline processing. The document serves as a blueprint for development, aligning with architectural decisions (ADRs) for modularity and robustness.
+This document outlines the product requirements for the **AI Job Scraper**, a local-first, privacy-focused Python application designed to automate the scraping, filtering, and management of AI/ML job postings. It serves as the single source of truth for development, aligning business goals with technical implementation.
 
 ### 1.2 Scope
 
-In Scope: Scraping from configurable company sites using Crawl4AI, regex/LLM filtering for relevance, SQLite storage with update logic, Streamlit UI for viewing/editing/managing (tabs/views/search/sort/paginate/export/theme), Docker support, error handling/logging/retries/validation.
+* **In Scope:**
+  * Scraping from major job boards (LinkedIn, Indeed) and configurable company career pages.
+  * Hybrid scraping strategy using specialized libraries (`JobSpy`) and agentic workflows (`ScrapeGraphAI`, `LangGraph`).
+  * Intelligent, content-aware database synchronization (`SmartSyncEngine`) that preserves user data.
+  * A rich, interactive Streamlit UI for job browsing, filtering, and application tracking.
+  * Component-based, modular architecture for maintainability.
+  * Robust background task management for a non-blocking user experience.
+  * Production-ready deployment via Docker.
 
-Out of Scope: Real-time notifications, integration with job boards (e.g., LinkedIn API), advanced analytics (e.g., salary trends), mobile-native app.
+* **Out of Scope:**
+  * Real-time push notifications.
+  * Direct integration with third-party applicant tracking systems (ATS).
+  * A hosted, multi-tenant SaaS version.
+  * Mobile-native applications (the web UI will be mobile-responsive).
 
-### 1.3 Target Audience
+## 2. User Personas
 
-- Job Seekers: Individuals hunting for AI Engineer, MLOps, or similar roles, needing a tool to aggregate and track postings.
+* **Alex, the Job Seeker (Primary):** A mid-level AI engineer who is actively or passively looking for new opportunities. Alex is tech-savvy but time-constrained and needs an efficient way to aggregate relevant job postings without manually checking dozens of sites.
 
-- Recruiters/Talent Scouts: Monitor openings across companies.
+* **Sam, the Power User/Developer (Secondary):** An open-source contributor who wants to customize the tool, add new scraping sources, or integrate it into a larger workflow. Sam values clean, modular code and comprehensive documentation.
 
-- Developers: Extend with new sites/filters or integrate LLMs.
+## 3. Functional Requirements
 
-### 1.4 Assumptions and Dependencies
+### 3.1 Scraping & Data Processing
 
-- Users have Python 3.12+ or Docker installed.
+* **FR-SCR-01: Hybrid Scraping:** The system must use `JobSpy` for structured job boards and `ScrapeGraphAI` for unstructured company career pages.
 
-- Optional: OpenAI API key for enhanced extraction (fallback to CSS).
+* **FR-SCR-02: Background Execution:** All scraping operations must run in a non-blocking background task, allowing the user to continue interacting with the UI.
 
-- Company websites remain accessible and structured similarly.
+* **FR-SCR-03: Real-Time Progress:** The UI must display real-time, multi-level progress of scraping operations, including overall progress, per-company status, and jobs found.
 
-- Dependencies: Crawl4AI, Streamlit, SQLAlchemy, etc. (pinned versions in pyproject.toml).
+* **FR-SCR-04: Bot Evasion:** The system must employ bot evasion strategies, including proxy rotation and user-agent randomization.
 
-## 2. Goals and Objectives
+### 3.2 Database & Synchronization
 
-- **Primary Goal**: Provide an efficient, privacy-focused tool for aggregating and managing AI job postings from key companies.
+* **FR-DB-01: Relational Integrity:** The database (`SQLModel`) must enforce a foreign key relationship between jobs and companies.
 
-- **Objectives**:
-  - Automate scraping and filtering to save user time (e.g., daily rescrapes in <1 min).
-  - Enable intuitive tracking (e.g., favorites/applied tabs, edits).
-  - Ensure reliability (99% uptime via retries/fallbacks).
-  - Support extensibility (configurable companies, modular for LLM upgrades).
+* **FR-DB-02: Smart Synchronization:** The system must use a `SmartSyncEngine` to update the database.
+  * **FR-DB-02a (Change Detection):** Use a content hash of key job fields to detect changes.
+  * **FR-DB-02b (User Data Preservation):** User-editable fields (`favorite`, `notes`, `application_status`) must be preserved during updates.
+  * **FR-DB-02c (Smart Archiving):** Jobs no longer found on a source that have user data must be soft-deleted (archived) instead of permanently removed.
 
-Success Metrics: User can scrape/view 100+ jobs in <5 min; 95% scrape success rate; Positive feedback on UI usability.
+* **FR-DB-03 (V2.0): Auditing:** The system must log all sync operations and field-level changes to dedicated audit tables.
 
-## 3. User Personas
+### 3.3 User Interface (UI)
 
-- **Persona 1: Alex the Job Seeker** (Primary): Mid-level AI engineer, 28, tech-savvy but time-constrained. Needs quick scans of new roles, marking favorites, noting applications. Pain Point: Manual site checks tedious.
+* **FR-UI-01: Component-Based UI:** The UI must be built with a modular, component-based architecture.
 
-- **Persona 2: Jordan the Recruiter** (Secondary): HR professional, 35, manages talent pipelines. Wants aggregated listings with filters/search for outreach. Pain Point: Scattered sources.
+* **FR-UI-02: Job Browser:** The primary interface must be a responsive, card-based grid of job postings.
 
-- **Persona 3: Sam the Developer** (Tertiary): Open-source contributor, 32, extends tool with new features (e.g., LLM filter). Needs modular code/ADRs.
+* **FR-UI-03: Advanced Filtering:** Users must be able to filter jobs by text search, company, application status, salary range, and date posted.
 
-## 4. Functional Requirements
+* **FR-UI-04: Application Tracking:** Users must be able to set and update the status of their job applications (`New`, `Interested`, `Applied`, `Rejected`).
 
-### 4.1 Core Features
+* **FR-UI-05: Job Details View:** Users must be able to view full job details and add personal notes. (Initially an expander, upgraded to a modal in V1.1).
 
-- **Scraping**: Async fetch with caching using Crawl4AI (file-based schema cache for 90% speed improvement; optimized LLM settings for 50% cost reduction; company-specific rate limiting; CSS fallback; Retries with Tenacity).
+* **FR-UI-06: Company Management:** A dedicated UI must exist for users to add, view, and activate/deactivate companies for scraping.
 
-- **Filtering**: Regex on titles for relevance; Modular for LLM upgrade.
+* **FR-UI-07: Settings Page:** A settings page must allow users to manage API keys and configure scraping limits.
 
-- **Storage/Updates**: SQLite via SQLAlchemy; Add/update (hash check)/delete on rescrape, preserving user fields.
+* **FR-UI-08 (V1.1): Analytics Dashboard:** A dashboard must provide visualizations of job posting trends and application statuses.
 
-- **Company Management**: DB table; UI to add/remove/activate.
+* **FR-UI-09 (V2.0): UI Polish:** The application must incorporate micro-interactions, smooth transitions, and skeleton loading states to enhance perceived performance.
 
-### 4.2 User Interface
+## 4. Non-Functional Requirements
 
-- **Dashboard**: Tabs (All/Favorites/Applied using status/favorite); Views (list with data_editor for edits, card with HTML/CSS for visuals); Global filters (company/keyword/date) + per-tab search (filter DF by title/desc).
+* **NFR-PERF-01: Responsiveness:** UI filter and search operations must complete in under 100ms.
 
-- **Interactions**: Rescrape button with spinner; Sort (selectbox on columns like Posted/Title); Paginate (buttons, 9/page for cards); Theme toggle (CSS injection); Export CSV per tab.
+* **NFR-PERF-02: Scalability:** The application must perform efficiently with a database of over 5,000 job records.
 
-- **Edits**: Inline in list (checkbox/selectbox/text); Quick widgets in cards (toggle/select/area) with rerun.
+* **NFR-SEC-01: Privacy:** All user data must be stored locally. No personal data should be transmitted to external services.
 
-### 4.3 Advanced Features
+* **NFR-MAINT-01: Maintainability:** The codebase must be modular, well-documented, and adhere to modern Python standards (type hinting, linting).
 
-- **Performance Optimization**: File-based schema caching system with 90% cache hit rate; optimized LLM parameters (chunking, minimal schemas); company-specific rate limiting; comprehensive session metrics.
+* **NFR-TEST-01 (V2.0): Test Coverage:** The application must have a comprehensive, automated test suite with over 80% code coverage.
 
-- **Validation**: Pydantic validation with field length limits and content quality checks; httpx for link verification.
+* **NFR-DOCS-01 (V2.0): Documentation:** The project must include clear user and developer documentation.
 
-- **Error Handling**: Try/catch with logging/st.error; Exponential backoff retries; Performance metrics tracking.
+## 5. Technical Stack
 
-- **Docker**: Dockerfile/Compose for setup (volume for DB, Playwright deps).
+* **Backend/Scraping:** Python 3.12+, ScrapeGraphAI, JobSpy, LangGraph, SQLModel, Groq/OpenAI SDKs
 
-## 5. Non-Functional Requirements
+* **UI:** Streamlit 1.47+
 
-### 5.1 Performance
+* **Database:** SQLite (default), compatible with PostgreSQL
 
-- Scrape time: <5s per site with caching, <30s cold start (async with schema cache); UI load: <1s for 1000 jobs (pagination).
+* **Deployment:** Docker, Docker Compose
 
-- Scalability: Handle 5000+ jobs via efficient queries/pagination; 90% performance improvement via intelligent caching.
-
-- Cost efficiency: 50% LLM cost reduction through optimized parameters and cache-first strategy.
-
-### 5.2 Security and Privacy
-
-- Local-only processing/DB; No external sends except optional OpenAI.
-
-- Validate inputs (e.g., URLs in company add).
-
-### 5.3 Usability
-
-- Intuitive/responsive (mobile CSS, emojis in UI); Accessible (ARIA via Streamlit).
-
-- Error feedback (st.error for failures).
-
-### 5.4 Reliability
-
-- 99% scrape success (retries/fallbacks); Graceful degradation (e.g., CSS if LLM fails).
-
-- Testing: 80% coverage with pytest (unit/integration).
-
-### 5.5 Maintainability
-
-- Modular code (scraper.py/app.py/models.py); Ruff linted; ADRs/PRD for guidance.
-
-- Principles: KISS/DRY/YAGNI, but value-adding features like search/views included.
-
-## 6. Technical Stack
-
-- **Core**: Python 3.12, Crawl4AI v0.7.2 (scraping), SQLAlchemy v2.0.42 (DB), Pandas v2.3.1 (data).
-
-- **UI**: Streamlit v1.47.1.
-
-- **Tools**: Tenacity v9.1.2 (retries), httpx v0.28.1 (validation), Pydantic v2.11.7 (models), logging (built-in).
-
-- **Deployment**: Docker (python-slim base), uv for deps.
-
-- **Testing**: Pytest.
-
-## 7. Risks and Mitigations
-
-- Risk: Site structure changes break scraping—Mitigation: Fallbacks/retries; Monitor/update ADRs.
-
-- Risk: DB corruption on concurrent access—Mitigation: Session management/rollbacks.
-
-- Risk: Dependency conflicts—Mitigation: Pinned versions/tests.
-
-- Risk: Poor performance on large data—Mitigation: Pagination/sorting optimizations.
-
-## 8. Timeline and Milestones
-
-- **MVP (Week 1-2)**: Scraping/filtering/DB core (Complete per history).
-
-- **v0.2 (Week 3-4)**: UI enhancements/Docker (Complete).
-
-- **v1.0 (Q3 2025)**: Full search/views/validation, testing (Ready for release).
-
-- **Post-v1.0**: LLM filter integration, more sites.
-
-## 9. Acceptance Criteria
-
-- Scrape: Successfully extracts/validates from all initial sites; Handles failures gracefully.
-
-- UI: Tabs/views/search/sort/paginate work; Edits persist; Mobile no overlaps.
-
-- Performance: <1min full rescrape; UI responsive.
-
-- Testing: All tests pass; Manual verification on sample data.
-
-- Documentation: ADRs/PRD/README complete.
-
-## 10. Appendices
-
-- **Architecture Diagram**:
-
-```mermaid
-graph TD
-    A[User] -->|Interact| B[Streamlit UI: Tabs/Views/Search/Edit/Export]
-    B -->|Rescrape/Manage| C[Scraper: Crawl4AI Async/Retries/Fallbacks/Validate]
-    C -->|Filter/Update| D[SQLite DB: Jobs/Companies (SQLAlchemy ORM/Pydantic)]
-    B -->|Query/Filter| D
-    E[Logging/Errors] -->|All| A & C & B
-    F[Docker] -->|Container| B & D
-```
-
-- **Developers**: See ADRs for decisions; tests/ for coverage.
+* **Development:** `uv` for package management, `ruff` for linting/formatting, `pytest` for testing

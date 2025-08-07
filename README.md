@@ -1,171 +1,142 @@
-# 🕵️‍♂️ AI Job Scraper: Track Your Dream AI Roles Locally
+# 🕵️‍♂️ AI Job Scraper: Your Modern, Privacy-First Job Hunting Co-Pilot
 
-![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
-![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)
-![Crawl4AI](https://img.shields.io/badge/Crawl4AI-2C2C2C?style=for-the-badge)
-![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
-![SQLite](https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)![LangGraph](https://img.shields.io/badge/LangGraph-2C2C2C?style=for-the-badge)![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)![SQLite](https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white)
 
 [![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](https://choosealicense.com/licenses/mit/)
 [![GitHub](https://img.shields.io/badge/GitHub-BjornMelin-181717?logo=github)](https://github.com/BjornMelin)
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-BjornMelin-0077B5?logo=linkedin)](https://www.linkedin.com/in/bjorn-melin/)
 
-**AI Job Scraper** is an open-source Python application that automatically scrapes job postings from top AI companies (e.g., Anthropic, OpenAI, NVIDIA), filters for relevant roles (AI Engineer, MLOps, etc.), stores/updates them in a local database, and provides an interactive Streamlit dashboard for tracking/managing jobs. Built with Crawl4AI for efficient scraping, it ensures privacy with local processing and supports Docker for easy setup.
+AI Job Scraper is a modern, open-source Python application designed to automate and streamline your job search for roles in the AI and Machine Learning industry. It automatically scrapes job postings from top AI companies, filters for relevant roles, and provides a powerful, interactive Streamlit dashboard to track and manage your applications—all while ensuring your data remains private and stored locally.
 
-## ✨ Features of AI Job Scraper
+## ✨ Key Features
 
-- **Automated Scraping:** Fetch jobs from company sites using Crawl4AI (LLM/CSS strategies, async). Crawl4AI with optimized LLM settings and company-specific rate limiting.
+* **🤖 Agentic & Hybrid Scraping:** Utilizes `ScrapeGraphAI` and `LangGraph` for intelligent, prompt-based scraping of company career pages and `JobSpy` for high-speed scraping of major job boards.
 
-- **Caching:** Intelligent caching system achieving 90% speed improvement and 50% cost reduction versus no caching.
+* **⚡ High-Performance Backend:** Employs a library-first approach with `SQLModel` for the database, a `SmartSyncEngine` to prevent data loss, and optimized background tasks for a non-blocking UI.
 
-- **Relevance Filtering:** Regex for AI/ML roles; Modular for future LLM.
+* **🎨 Modern, Interactive UI:** A fully-featured Streamlit dashboard with real-time progress updates, advanced filtering, application status tracking, and a responsive, card-based job browser.
 
-- **Persistent Storage:** SQLite DB with add/update/delete, preserving user edits (favorite/status/notes).
+* **🏢 Dynamic Company Management:** Easily add, edit, and toggle companies for scraping directly from the UI.
 
-- **Interactive Dashboard:** Tabs (All/Favorites/Applied), views (list/card with sort/paginate/search), edits, CSV export, theme toggle.
+* **🛡️ Robust & Resilient:** Built-in proxy rotation, user-agent randomization, and automatic retries to handle bot detection and network errors gracefully.
 
-- **Company Management:** Add/remove/activate sites via UI.
+* **🐳 Docker Ready:** Comes with a multi-stage `Dockerfile` and `docker-compose.yml` for easy, secure, and repeatable deployments.
 
-- **Performance Monitoring:** Comprehensive session metrics tracking cache efficiency, processing speed, and cost optimization.
-
-- **Robustness:** Validation, exponential backoff retries, fallbacks, logging; Docker support.
-
-- **Privacy-Focused:** Local-only with file-based caching (optional OpenAI for extraction).
-
-## 📖 Table of Contents
-
-- [🕵️‍♂️ AI Job Scraper: Track Your Dream AI Roles Locally](#️️-ai-job-scraper-track-your-dream-ai-roles-locally)
-  - [✨ Features of AI Job Scraper](#-features-of-ai-job-scraper)
-  - [📖 Table of Contents](#-table-of-contents)
-  - [🚀 Getting Started](#-getting-started)
-    - [📋 Prerequisites](#-prerequisites)
-    - [⚙️ Installation](#️-installation)
-    - [▶️ Running the App](#️-running-the-app)
-  - [💻 Usage](#-usage)
-    - [🏢 Managing Companies](#-managing-companies)
-    - [🔄 Rescraping Jobs](#-rescraping-jobs)
-    - [📊 Viewing and Filtering Jobs](#-viewing-and-filtering-jobs)
-    - [✏️ Editing and Tracking](#️-editing-and-tracking)
-    - [📥 Exporting Data](#-exporting-data)
-  - [🏗️ Architecture](#️-architecture)
-  - [🛠️ Implementation Details](#️-implementation-details)
-  - [🙌 Contributing](#-contributing)
-  - [📃 License](#-license)
-
-## 🚀 Getting Started
-
-### 📋 Prerequisites
-
-- Python 3.12+.
-
-- (Optional) Docker for containerized run.
-
-- (Optional) OpenAI key for enhanced extraction.
-
-### ⚙️ Installation
-
-1. Clone:
-
-   ```bash
-   git clone https://github.com/BjornMelin/ai-job-scraper.git
-   cd ai-job-scraper
-   ```
-
-2. Install deps:
-
-   ```bash
-   uv sync
-   ```
-
-3. Seed DB (initial companies):
-
-   ```bash
-   uv run python seed.py
-   ```
-
-### ▶️ Running the App
-
-**Locally:**
-
-```bash
-uv run streamlit run app.py
-```
-
-**With Docker:**
-
-```bash
-docker-compose up --build
-```
-
-Access at <http://localhost:8501>.
-
-## 💻 Usage
-
-### 🏢 Managing Companies
-
-In sidebar: Edit active status, add new name/URL. Save updates DB; Scrapes only active.
-
-### 🔄 Rescraping Jobs
-
-Click "Rescrape Jobs": Fetches latest, filters, updates DB (adds new, updates changed, deletes missing, preserves edits).
-
-### 📊 Viewing and Filtering Jobs
-
-Tabs for All/Favorites/Applied. Global filters (company/keyword/date) + per-tab search. Toggle list (editable table) or card (visual grid with sort/paginate).
-
-### ✏️ Editing and Tracking
-
-In list: Edit favorite/status/notes inline, save to DB. In card: Quick toggles/selects/areas.
-
-### 📥 Exporting Data
-
-Download CSV per tab (filtered/edited data).
+* **🔒 Privacy-First:** All your data, notes, and application statuses are stored in a local SQLite database. No personal data ever leaves your machine.
 
 ## 🏗️ Architecture
 
+The application is built on a modern, component-based architecture that separates concerns for maintainability and scalability.
+
 ```mermaid
 graph TD
-    A[User] -->|Interact| B[Streamlit UI: Tabs/Views/Search/Edit/Export]
-    B -->|Rescrape/Manage| C[Scraper: Crawl4AI Async/Retries/Fallbacks/Validate]
-    C -->|Filter/Update| D[SQLite DB: Jobs/Companies - SQLAlchemy ORM]
-    B -->|Query/Filter| D
-    E[Logging/Errors] -->|All| A
-    E --> C
-    E --> B
-    F[Docker] -->|Container| B
-    F --> D
+    subgraph "UI Layer (Streamlit)"
+        UI_MAIN[main.py]
+        UI_PAGES[Multi-Page System]
+        UI_COMP[Component Library]
+        UI_STATE[Session State]
+    end
+    
+    subgraph "Business Logic (Services)"
+        BL_SCRAPER[Scraper Service]
+        BL_SYNC[Smart Sync Engine]
+        BL_JOB[Job Service]
+        BL_COMPANY[Company Service]
+    end
+    
+    subgraph "Data Layer"
+        DB_SQL[SQLite Database]
+        DB_MODELS[SQLModel Entities]
+    end
+    
+    subgraph "External Services"
+        EXT_LLM[LLM Providers: OpenAI/Groq]
+        EXT_PROXIES[Proxy Pool]
+        EXT_SITES[Job Boards & Company Pages]
+    end
+    
+    UI_MAIN --> UI_PAGES
+    UI_PAGES --> UI_COMP
+    UI_COMP --> UI_STATE
+    UI_STATE --> BL_JOB
+    UI_STATE --> BL_COMPANY
+    UI_PAGES -- Triggers --> BL_SCRAPER
+    
+    BL_SCRAPER --> BL_SYNC
+    BL_SYNC --> DB_MODELS
+    DB_MODELS --> DB_SQL
+    BL_JOB --> DB_MODELS
+    BL_COMPANY --> DB_MODELS
+    
+    BL_SCRAPER -- Uses --> EXT_LLM
+    BL_SCRAPER -- Uses --> EXT_PROXIES
+    BL_SCRAPER -- Accesses --> EXT_SITES
 ```
 
-## 🛠️ Implementation Details
+## 🚀 Getting Started
 
-- **Scraping:** Crawl4AI v0.7.2 with intelligent schema caching (90% speed boost), optimized LLM parameters (50% cost reduction), company-specific rate limiting, async parallel processing.
+### Prerequisites
 
-- **Filtering:** Regex for relevance; Pydantic validation with content quality checks.
+* Python 3.12+
 
-- **DB:** SQLAlchemy v2.0.42 with models for jobs/companies; Hash for updates.
+* `uv` (or `pip`) Python package manager
 
-- **UI:** Streamlit v1.47.1 with data_editor, custom CSS for cards/theme, session_state for persistence.
+* (Optional) Docker for containerized deployment
 
-- **Performance:** File-based schema caching, session metrics tracking, optimized LLM chunking, company-aware rate limiting, async scraping with Pandas v2.3.1.
+* (Optional) OpenAI or Groq API key for LLM-powered scraping
 
-- **Robustness:** Exponential backoff retries with Tenacity v9.1.2, httpx v0.28.1 validation, comprehensive logging and metrics.
+### Installation & Running
 
-- **Code Quality:** Ruff linted, Google docstrings, tests in tests/.
+1. **Clone the repository:**
 
-- **Deployment:** Docker support for containerized environments.
+    ```bash
+    git clone https://github.com/BjornMelin/ai-job-scraper.git
+    cd ai-job-scraper
+    ```
+
+2. **Install dependencies with `uv`:**
+
+    ```bash
+    uv sync
+    ```
+
+3. **Set up your environment:**
+    Copy the `.env.example` file to `.env` and add your API keys.
+
+    ```bash
+    cp .env.example .env
+    # nano .env
+    ```
+
+4. **Initialize and seed the database:**
+    This creates the `jobs.db` file and populates it with a curated list of top AI companies.
+
+    ```bash
+    uv run python -m src.seed seed
+    ```
+
+5. **Run the Streamlit application:**
+
+    ```bash
+    streamlit run src/main.py
+    ```
+
+6. **Open your browser** and navigate to `http://localhost:8501`.
+
+For more detailed instructions, including Docker deployment, see the full **[Getting Started Guide](./docs/user/getting-started.md)**.
+
+## 📚 Documentation Hub
+
+* **[User Guide](./docs/user/user-guide.md):** Learn how to use all the features of the application.
+
+* **[Developer Guide](./docs/developers/developer-guide.md):** Understand the architecture and how to contribute.
+
+* **[Deployment Guide](./docs/developers/deployment.md):** Instructions for deploying the app to production.
 
 ## 🙌 Contributing
 
-Fork, branch, PR. Follow KISS/DRY. See ADRs/PRD for guidance.
+Contributions are welcome! Please fork the repository, create a feature branch, and open a pull request. See the [Developer Guide](./docs/developers/developer-guide.md) for more details on setting up your environment and our coding standards.
 
 ## 📃 License
 
-MIT License—see [LICENSE](LICENSE).
-
----
-
-<div align="center">
-
-Built by [Bjorn Melin](https://bjornmelin.io)
-
-</div>
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

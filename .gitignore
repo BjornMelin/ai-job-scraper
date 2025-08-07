@@ -166,10 +166,7 @@ playwright/.auth/
 .pytest_cache/
 pytest.ini.bak
 
-# Coverage reports
-htmlcov/
-.coverage
-coverage.xml
+
 
 # =============================================================================
 # WEB DEVELOPMENT (if applicable)
