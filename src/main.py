@@ -5,6 +5,8 @@ handling page configuration, theme loading, and navigation using Streamlit's
 built-in st.navigation() for optimal performance and maintainability.
 """
 
+from pathlib import Path
+
 import streamlit as st
 
 from src.ui.state.session_state import init_session_state
@@ -35,16 +37,26 @@ def main() -> None:
     init_session_state()
 
     # Define pages with preserved functionality using st.navigation()
+    # Get absolute paths relative to the project root
+    project_root = Path(__file__).resolve().parent.parent
     pages = [
         st.Page(
-            "src/ui/pages/jobs.py",
+            str(project_root / "src/ui/pages/jobs.py"),
             title="Jobs",
             icon="📋",
             default=True,  # Preserves default behavior
         ),
-        st.Page("src/ui/pages/companies.py", title="Companies", icon="🏢"),
-        st.Page("src/ui/pages/scraping.py", title="Scraping", icon="🔍"),
-        st.Page("src/ui/pages/settings.py", title="Settings", icon="⚙️"),
+        st.Page(
+            str(project_root / "src/ui/pages/companies.py"),
+            title="Companies",
+            icon="🏢",
+        ),
+        st.Page(
+            str(project_root / "src/ui/pages/scraping.py"), title="Scraping", icon="🔍"
+        ),
+        st.Page(
+            str(project_root / "src/ui/pages/settings.py"), title="Settings", icon="⚙️"
+        ),
     ]
 
     # Add database health monitoring to sidebar

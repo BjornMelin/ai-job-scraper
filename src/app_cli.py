@@ -11,15 +11,15 @@ from pathlib import Path
 
 def main() -> None:
     """Run the Streamlit dashboard."""
-    # Get the directory containing app.py (parent of src/)
-    app_dir = Path(__file__).resolve().parent.parent
-    app_path = app_dir / "app.py"
+    # Get the directory containing main.py (same as src/)
+    src_dir = Path(__file__).resolve().parent
+    main_path = src_dir / "main.py"
 
-    # Run streamlit with the app.py file
+    # Run streamlit with the main.py file
     # nosec B603: Using subprocess with controlled input (hardcoded command)
     try:
         subprocess.run(
-            [sys.executable, "-m", "streamlit", "run", str(app_path)],
+            [sys.executable, "-m", "streamlit", "run", str(main_path)],
             check=True,
             shell=False,
         )

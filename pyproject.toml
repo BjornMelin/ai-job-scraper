@@ -94,7 +94,7 @@ ai-job-scrape = "src.scraper:app"
 ai-job-seed = "src.seed:app"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src", "utils"]
+packages = ["src"]
 
 [tool.hatch.version]
 path = "src/__init__.py"
@@ -110,7 +110,7 @@ python-preference = "managed"
 [tool.ruff]
 line-length = 88
 target-version = "py312"
-src = ["src", "utils", "tests"]
+src = ["src", "tests"]
 extend-exclude = [
     ".venv",
     ".git",
@@ -338,7 +338,7 @@ directory = "htmlcov"
 
 # Pylint configuration
 [tool.pylint.main]
-source-roots = ["src", "tests", "utils"]
+source-roots = ["src", "tests"]
 py-version = "3.12"
 jobs = 0  # Auto-detect CPU cores for parallel processing
 recursive = true
