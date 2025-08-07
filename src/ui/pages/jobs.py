@@ -15,7 +15,7 @@ import streamlit as st
 
 from src.database import SessionLocal
 from src.models import CompanySQL, JobSQL
-from src.scraper import scrape_all, update_db
+from src.scraper import scrape_all
 from src.services.job_service import JobService
 from src.ui.components.cards.job_card import render_jobs_list
 from src.ui.components.sidebar import render_sidebar
@@ -164,12 +164,20 @@ def _handle_refresh_jobs() -> None:
 
             st.session_state.scraping_task = task_id
 
-            # Execute scraping with proper event loop handling
-            jobs_df = _execute_scraping_safely()
-            update_db(jobs_df)
+            # Execute scraping with proper event loop handling (returns sync stats)
+            sync_stats = _execute_scraping_safely()
             st.session_state.last_scrape = datetime.now(timezone.utc)
 
-            st.success(f"✅ Success! Found {len(jobs_df)} jobs from active companies.")
+            # Display sync results from SmartSyncEngine
+            total_processed = sync_stats.get("inserted", 0) + sync_stats.get(
+                "updated", 0
+            )
+            st.success(
+                f"✅ Success! Processed {total_processed} jobs. "
+                f"Inserted: {sync_stats.get('inserted', 0)}, "
+                f"Updated: {sync_stats.get('updated', 0)}, "
+                f"Archived: {sync_stats.get('archived', 0)}"
+            )
             st.rerun()
 
         except Exception:
