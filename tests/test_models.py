@@ -27,13 +27,15 @@ def create_test_job_data(**overrides: Any) -> dict[str, Any]:
     Returns:
         Dictionary with job data for testing
     """
+    import hashlib
+
     default_data = {
-        "company": "Test Co",
         "title": "Test Job",
         "description": "Test description",
         "link": "https://test.com/job",
         "location": "Test Location",
         "salary": (None, None),
+        "content_hash": hashlib.md5(b"test_content").hexdigest(),
     }
     default_data.update(overrides)
     return default_data
@@ -97,8 +99,15 @@ def test_job_sql_creation(session: Session) -> None:
     Pydantic validation works correctly and salary parsing converts
     string formats to proper tuple structures.
     """
+    # First create a company
+    company = CompanySQL(name="Test Co", url="https://test.co/careers", active=True)
+    session.add(company)
+    session.commit()
+    session.refresh(company)
+
     create_and_save_job(
         session,
+        company_id=company.id,
         title="AI Engineer",
         description="AI role",
         link="https://test.co/job",
@@ -147,17 +156,66 @@ def test_job_unique_link(session: Session) -> None:
 @pytest.mark.parametrize(
     ("salary_input", "expected"),
     [
+        # Basic range formats
         ("$100k-150k", (100000, 150000)),
         ("£80,000 - £120,000", (80000, 120000)),
-        ("$100k", (100000, None)),
-        ("invalid", (None, None)),
-        ("$100k-150k-200k", (100000, 200000)),
-        ("80k +", (80000, None)),
-        ("", (None, None)),
+        ("110k to 150k", (110000, 150000)),
+        ("€90000-€130000", (90000, 130000)),
+        # Single values (now returns same value for both min and max)
+        ("$120k", (120000, 120000)),
+        ("150000", (150000, 150000)),
+        ("85.5k", (85500, 85500)),
+        # Contextual patterns
+        ("up to $150k", (None, 150000)),
+        ("maximum of £100,000", (None, 100000)),
+        ("not more than 120k", (None, 120000)),
+        ("from $110k", (110000, None)),
+        ("starting at €80000", (80000, None)),
+        ("minimum of 90k", (90000, None)),
+        ("at least £75,000", (75000, None)),
+        # Currency symbols
+        ("$100000", (100000, 100000)),
+        ("£85000", (85000, 85000)),
+        ("€95000", (95000, 95000)),
+        ("¥100000", (100000, 100000)),
+        ("₹500000", (500000, 500000)),
+        # Common phrases
+        ("$110k - $150k per year", (110000, 150000)),
+        ("£80,000 per annum", (80000, 80000)),
+        ("€100k annually", (100000, 100000)),
+        ("$120k plus benefits", (120000, 120000)),
+        ("85k depending on experience", (85000, 85000)),
+        ("$90k DOE", (90000, 90000)),
+        ("£70,000 gross", (70000, 70000)),
+        ("$130k before tax", (130000, 130000)),
+        # Edge cases
         (None, (None, None)),
-        ((50000, 100000), (50000, 100000)),
-        ("100-120k USD", (100, 120000)),  # Reveals issue: inconsistent scale
-        ("From $90,000 a year", (90000, None)),
+        ("", (None, None)),
+        ("   ", (None, None)),
+        ((80000, 120000), (80000, 120000)),
+        ("competitive", (None, None)),
+        ("negotiable", (None, None)),
+        ("TBD", (None, None)),
+        # Decimal handling
+        ("120.5k", (120500, 120500)),
+        ("$85.75k - $95.25k", (85750, 95250)),
+        ("150.999k", (150999, 150999)),
+        # Comma handling
+        ("100,000", (100000, 100000)),
+        ("$1,250,000", (1250000, 1250000)),
+        ("80,000 - 120,000", (80000, 120000)),
+        # Shared k suffix
+        ("100-120k", (100000, 120000)),
+        ("85-95K", (85000, 95000)),
+        ("110 - 150k", (110000, 150000)),
+        # Mixed formats
+        ("$100k-$150k per year plus benefits", (100000, 150000)),
+        ("From £80,000 to £120,000 per annum", (80000, 120000)),
+        ("Starting at $90k, up to $130k DOE", (90000, 130000)),
+        # Hourly/monthly rates (context removed but values parsed)
+        ("$50 per hour", (50, 50)),
+        ("£5000 per month", (5000, 5000)),
+        ("€30 hourly", (30, 30)),
     ],
 )
 def test_salary_parsing(
