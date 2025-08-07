@@ -7,12 +7,10 @@ status management, and active company filtering.
 
 import logging
 
-from collections.abc import Generator
-from contextlib import contextmanager
 from datetime import datetime, timezone
 
-from sqlmodel import Session, func, select
-from src.database import get_session
+from sqlmodel import func, select
+from src.database import db_session
 from src.database_listeners.monitoring_listeners import performance_monitor
 from src.models import CompanySQL, JobSQL
 
@@ -39,24 +37,6 @@ def calculate_weighted_success_rate(
     current_weight = 1 - weight
     new_success = 1.0 if success else 0.0
     return weight * current_rate + current_weight * new_success
-
-
-@contextmanager
-def db_session() -> Generator[Session, None, None]:
-    """Context manager for database sessions with proper error handling.
-
-    Provides automatic commit on success, rollback on error, and session cleanup.
-    Follows SQLModel 2025 best practices for session management.
-    """
-    session = get_session()
-    try:
-        yield session
-        session.commit()
-    except Exception:
-        session.rollback()
-        raise
-    finally:
-        session.close()
 
 
 class CompanyService:

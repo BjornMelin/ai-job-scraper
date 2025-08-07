@@ -1,6 +1,6 @@
 [server]
-# Enable static file serving
-enableStaticServing = true
+# Disable static file serving (no static folder needed)
+enableStaticServing = false
 
 [theme]
 # Optional: You can also define theme colors here if needed

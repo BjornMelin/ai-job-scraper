@@ -7,36 +7,16 @@ status updates, favorite toggling, and notes management.
 
 import logging
 
-from collections.abc import Generator
-from contextlib import contextmanager
 from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy import func, or_
 from sqlalchemy.orm import joinedload
-from sqlmodel import Session, select
-from src.database import get_session
+from sqlmodel import select
+from src.database import db_session
 from src.models import CompanySQL, JobSQL
 
 logger = logging.getLogger(__name__)
-
-
-@contextmanager
-def db_session() -> Generator[Session, None, None]:
-    """Context manager for database sessions with proper error handling.
-
-    Provides automatic commit on success, rollback on error, and session cleanup.
-    Follows SQLModel 2025 best practices for session management.
-    """
-    session = get_session()
-    try:
-        yield session
-        session.commit()
-    except Exception:
-        session.rollback()
-        raise
-    finally:
-        session.close()
 
 
 class JobService:

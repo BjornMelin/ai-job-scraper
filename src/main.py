@@ -35,16 +35,24 @@ def main() -> None:
     init_session_state()
 
     # Define pages with preserved functionality using st.navigation()
+    # Use importlib.resources for dynamic path resolution
+    from importlib import resources
+
+    ui_pages = resources.files("src.ui.pages")
     pages = [
         st.Page(
-            "src/ui/pages/jobs.py",
+            str(ui_pages / "jobs.py"),
             title="Jobs",
             icon="📋",
             default=True,  # Preserves default behavior
         ),
-        st.Page("src/ui/pages/companies.py", title="Companies", icon="🏢"),
-        st.Page("src/ui/pages/scraping.py", title="Scraping", icon="🔍"),
-        st.Page("src/ui/pages/settings.py", title="Settings", icon="⚙️"),
+        st.Page(
+            str(ui_pages / "companies.py"),
+            title="Companies",
+            icon="🏢",
+        ),
+        st.Page(str(ui_pages / "scraping.py"), title="Scraping", icon="🔍"),
+        st.Page(str(ui_pages / "settings.py"), title="Settings", icon="⚙️"),
     ]
 
     # Add database health monitoring to sidebar
