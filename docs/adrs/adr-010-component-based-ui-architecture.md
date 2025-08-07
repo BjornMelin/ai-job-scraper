@@ -18,19 +18,19 @@ The initial proof-of-concept was a monolithic `app.py` file. This became unmaint
 
 ## Related Requirements
 
-*   `SYS-ARCH-01`: Component-Based Architecture
+* `SYS-ARCH-01`: Component-Based Architecture
 
-*   `SYS-ARCH-03`: Multi-Page Navigation
+* `SYS-ARCH-03`: Multi-Page Navigation
 
-*   `NFR-MAINT-01`: Maintainability
+* `NFR-MAINT-01`: Maintainability
 
 ## Decision
 
 We will refactor the entire UI into a component-based architecture located under the `src/ui/` directory. This structure separates pages, reusable components, state, and styles into distinct modules. For navigation, we will use Streamlit's native `st.navigation()` feature, which is the modern, library-first approach for building multi-page applications.
 
-### Directory Structure:
+### Directory Structure
 
-```
+```text
 src/ui/
 ├── pages/
 │   ├── jobs.py
@@ -53,7 +53,7 @@ src/ui/
     └── ...
 ```
 
-### Navigation:
+### Navigation
 
 The main application entry point, `src/main.py`, will use `st.navigation` to define and route to the different page modules.
 
@@ -73,15 +73,15 @@ def main():
 
 ## Consequences
 
-*   **Positive:**
-    *   **Improved Maintainability:** Code is organized logically, making it easier to find, understand, and modify.
-    *   **Reusability:** Components like `job_card.py` can be reused across different parts of the application.
-    *   **Scalability:** Adding new pages or complex features is straightforward and does not bloat a single file.
-    *   **Better Performance:** `st.navigation` is optimized by Streamlit for efficient multi-page app performance.
-    *   **Team Collaboration:** Developers can work on different components or pages simultaneously with fewer merge conflicts.
+* **Positive:**
+  * **Improved Maintainability:** Code is organized logically, making it easier to find, understand, and modify.
+  * **Reusability:** Components like `job_card.py` can be reused across different parts of the application.
+  * **Scalability:** Adding new pages or complex features is straightforward and does not bloat a single file.
+  * **Better Performance:** `st.navigation` is optimized by Streamlit for efficient multi-page app performance.
+  * **Team Collaboration:** Developers can work on different components or pages simultaneously with fewer merge conflicts.
 
-*   **Negative:**
-    *   Requires an initial, one-time effort to refactor the monolithic `app.py`. (This has already been completed).
-    *   Slightly more boilerplate for creating new pages compared to a single-file app.
+* **Negative:**
+  * Requires an initial, one-time effort to refactor the monolithic `app.py`. (This has already been completed).
+  * Slightly more boilerplate for creating new pages compared to a single-file app.
 
-*   **Mitigations:** The long-term benefits of maintainability and scalability far outweigh the minimal initial overhead. The adopted structure is a standard, well-understood pattern in web development.
+* **Mitigations:** The long-term benefits of maintainability and scalability far outweigh the minimal initial overhead. The adopted structure is a standard, well-understood pattern in web development.
