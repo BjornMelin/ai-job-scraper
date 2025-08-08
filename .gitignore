@@ -282,6 +282,7 @@ $RECYCLE.BIN/
 
 # Documentation generation
 repomix-output.md
+current-codebase.md
 
 # Temporary files
 temp/
