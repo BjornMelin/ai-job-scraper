@@ -14,14 +14,14 @@ from typing import Any
 import pandas as pd
 import streamlit as st
 
-from src.models import JobSQL
+from src.schemas import Job
 from src.services.job_service import JobService
 from src.ui.state.session_state import init_session_state
 
 logger = logging.getLogger(__name__)
 
 
-def render_job_card(job: JobSQL) -> None:
+def render_job_card(job: Job) -> None:
     """Render an individual job card with interactive controls.
 
     This function creates a visually appealing job card with job details,
@@ -29,7 +29,7 @@ def render_job_card(job: JobSQL) -> None:
     in the requirements.
 
     Args:
-        job: JobSQL object containing job information.
+        job: Job DTO object containing job information.
     """
     # Use st.container with border as required
     with st.container(border=True):
@@ -171,56 +171,71 @@ def _handle_view_details(job_id: int) -> None:
     Args:
         job_id: Database ID of the job to view details for.
     """
-    st.session_state.expanded_job_id = job_id
+    st.session_state.view_job_id = job_id
 
 
-def render_job_details_expander(job: JobSQL) -> None:
-    """Render job details expander if this job is selected.
-
-    This function should be called after render_job_card to check if the
-    job details should be expanded based on session state.
-
-    Args:
-        job: JobSQL object to potentially show details for.
-    """
-    if st.session_state.get("expanded_job_id") == job.id:
-        with st.expander("Details", expanded=True):
-            # Display job description
-            st.markdown("**Job Description:**")
-            st.markdown(job.description)
-
-            # Notes text area with save button to prevent excessive database writes
-            notes_key = f"notes_{job.id}"
-            notes_value = st.text_area(
-                "Notes",
-                value=job.notes or "",
-                key=notes_key,
-                help="Add your personal notes about this job",
-            )
-
-            # Save button to update notes only when explicitly requested
-            if st.button("Save Notes", key=f"save_notes_{job.id}"):
-                _handle_notes_save(job.id, notes_value)
+# Legacy expander functions removed - replaced with modal dialog in jobs.py
 
 
-def _handle_notes_save(job_id: int, notes: str) -> None:
-    """Handle notes save button click.
+def render_jobs_grid(jobs: list[Job], num_columns: int = 3) -> None:
+    """Render jobs in a responsive grid layout.
 
-    This function updates notes only when the save button is clicked,
-    preventing excessive database writes on every keystroke.
+    This function creates a responsive grid of job cards using st.columns
+    and renders each job as a card with interactive controls.
 
     Args:
-        job_id: Database ID of the job to update notes for.
-        notes: New notes content to save.
+        jobs: List of Job DTO objects to render in grid.
+        num_columns: Number of columns for the grid layout (default: 3).
     """
-    try:
-        JobService.update_notes(job_id, notes)
-        logger.info("Updated notes for job %s", job_id)
-        st.success("Notes saved successfully!")
-        st.rerun()
-    except Exception:
-        logger.exception("Failed to update notes")
-        st.error("Failed to update notes")
+    if not jobs:
+        st.info("No jobs to display.")
+        return
+
+    # Add CSS for better card styling
+    st.markdown(
+        """
+    <style>
+    .job-card-grid {
+        margin-bottom: 1rem;
+    }
+    .job-card-container [data-testid="stVerticalBlock"] {
+        height: 100%;
+    }
+    .job-card-container .element-container {
+        height: 100%;
+    }
+    .job-card-container [data-testid="stContainer"] {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* Responsive grid adjustments */
+    @media (max-width: 768px) {
+        .job-card-grid {
+            flex-direction: column !important;
+        }
+    }
+    </style>
+    """,
+        unsafe_allow_html=True,
+    )
+
+    # Create responsive grid using st.columns
+    for i in range(0, len(jobs), num_columns):
+        # Create columns with equal width and medium gap for better spacing
+        cols = st.columns(num_columns, gap="medium")
+
+        # Render jobs for this row
+        row_jobs = jobs[i : i + num_columns]
+        for j, job in enumerate(row_jobs):
+            with cols[j], st.container():
+                # Wrap each card in a container for better height management
+                render_job_card(job)
+
+        # Add spacing between rows, but only if there are more jobs
+        if i + num_columns < len(jobs):
+            st.markdown('<div class="job-card-grid"></div>', unsafe_allow_html=True)
 
 
 # Legacy function for backward compatibility with existing grid rendering
@@ -229,13 +244,13 @@ def _render_card_controls(job_data: pd.Series, tab_key: str, page_num: int) -> N
     # This function is kept for compatibility with the existing grid rendering system
 
 
-def render_jobs_list(jobs: list[JobSQL]) -> None:
-    """Render a list of job cards with details expanders.
+def render_jobs_list(jobs: list[Job]) -> None:
+    """Render a list of job cards.
 
     This is the main function for rendering jobs according to T1.1 requirements.
 
     Args:
-        jobs: List of JobSQL objects to render.
+        jobs: List of Job DTO objects to render.
     """
     if not jobs:
         st.info("No jobs to display.")
@@ -244,9 +259,6 @@ def render_jobs_list(jobs: list[JobSQL]) -> None:
     for job in jobs:
         # Render the job card
         render_job_card(job)
-
-        # Render the details expander if this job is selected
-        render_job_details_expander(job)
 
         # Add some spacing between cards
         st.markdown("---")
@@ -382,7 +394,7 @@ def _get_paginated_data(df: pd.DataFrame, page_num: int) -> pd.DataFrame:
     return df.iloc[start:end]
 
 
-def _render_cards_grid(df: pd.DataFrame, tab_key: str, page_num: int) -> None:
+def _render_cards_grid(_df: pd.DataFrame, _tab_key: str, _page_num: int) -> None:
     """Render the actual grid of job cards.
 
     Args:
@@ -390,9 +402,8 @@ def _render_cards_grid(df: pd.DataFrame, tab_key: str, page_num: int) -> None:
         tab_key: Tab key for widget keys.
         page_num: Page number for widget keys.
     """
-    num_cols = 3
-    cols = st.columns(num_cols)
-
-    for i, (_, row) in enumerate(df.iterrows()):
-        with cols[i % num_cols]:
-            render_job_card(row, tab_key, page_num)
+    # This function is deprecated and kept for backward compatibility
+    # Use render_jobs_grid() for new implementations with Job DTO objects
+    st.warning(
+        "Legacy grid rendering - please update to use render_jobs_grid() with Job DTOs"
+    )
