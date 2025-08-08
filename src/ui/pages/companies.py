@@ -157,48 +157,14 @@ def show_companies_page() -> None:
             return
 
         # Display companies in a clean grid layout
+        from src.ui.helpers.company_display import render_company_card
+
         for company in companies:
-            with st.container(border=True):
-                col1, col2, col3 = st.columns([3, 2, 1])
-
-                with col1:
-                    st.markdown(f"**{company.name}**")
-                    st.markdown(f"🔗 [{company.url}]({company.url})")
-
-                with col2:
-                    # Display company statistics
-                    if company.last_scraped:
-                        last_scraped_str = company.last_scraped.strftime(
-                            "%Y-%m-%d %H:%M"
-                        )
-                        st.markdown(f"📅 Last scraped: {last_scraped_str}")
-                    else:
-                        st.markdown("📅 Never scraped")
-
-                    if company.scrape_count > 0:
-                        success_rate = f"{company.success_rate:.1%}"
-                        scrape_text = (
-                            f"📊 Scrapes: {company.scrape_count} | "
-                            f"Success: {success_rate}"
-                        )
-                        st.markdown(scrape_text)
-                    else:
-                        st.markdown("📊 No scraping history")
-
-                with col3:
-                    # Active toggle with proper callback handling
-                    st.toggle(
-                        "Active",
-                        value=company.active,
-                        key=f"company_active_{company.id}",
-                        help=f"Toggle scraping for {company.name}",
-                        on_change=_toggle_company_callback,
-                        args=(company.id,),
-                    )
+            render_company_card(company, _toggle_company_callback)
 
         # Show summary statistics
         st.markdown("---")
-        active_count = sum(1 for company in companies if company.active)
+        active_count = sum(company.active for company in companies)
         total_companies = len(companies)
 
         col1, col2, col3 = st.columns(3)
