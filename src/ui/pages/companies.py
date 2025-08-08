@@ -216,9 +216,5 @@ def show_companies_page() -> None:
         logger.exception("Failed to load companies")
 
 
-# Execute page when loaded by st.navigation() (not during testing)
-if __name__ != "__main__":
-    try:
-        show_companies_page()
-    except Exception:
-        pass  # Ignore errors during import for testing
+# Execute page when loaded by st.navigation()
+show_companies_page()

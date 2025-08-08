@@ -725,9 +725,5 @@ def _render_progress_visualization(
         )
 
 
-# Execute page when loaded by st.navigation() (not during testing)
-if __name__ != "__main__":
-    try:
-        render_jobs_page()
-    except Exception:
-        pass  # Ignore errors during import for testing
+# Execute page when loaded by st.navigation()
+render_jobs_page()
