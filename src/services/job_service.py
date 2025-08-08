@@ -15,6 +15,7 @@ from sqlalchemy.orm import joinedload
 from sqlmodel import select
 from src.database import db_session
 from src.models import CompanySQL, JobSQL
+from src.schemas import Job
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,7 @@ class JobService:
     """
 
     @staticmethod
-    def get_filtered_jobs(filters: dict[str, Any]) -> list[JobSQL]:
+    def get_filtered_jobs(filters: dict[str, Any]) -> list[Job]:
         """Get jobs filtered by the provided criteria.
 
         Args:
@@ -41,7 +42,7 @@ class JobService:
                 - favorites_only: Boolean to show only favorites
 
         Returns:
-            List of JobSQL objects matching the filter criteria.
+            List of Job DTO objects matching the filter criteria.
 
         Raises:
             Exception: If database query fails.
@@ -96,7 +97,23 @@ class JobService:
                 # Order by posted date (newest first) by default
                 query = query.order_by(JobSQL.posted_date.desc().nullslast())
 
-                jobs = session.exec(query).all()
+                jobs_sql = session.exec(query).all()
+
+                # Convert SQLModel objects to Pydantic DTOs
+                jobs = []
+                for job_sql in jobs_sql:
+                    # Handle company relationship - get company name
+                    company_name = (
+                        job_sql.company_relation.name
+                        if job_sql.company_relation
+                        else "Unknown"
+                    )
+
+                    # Create Job DTO with company name as string
+                    job_data = job_sql.model_dump()
+                    job_data["company"] = company_name
+                    job = Job.model_validate(job_data)
+                    jobs.append(job)
 
                 logger.info("Retrieved %d jobs with filters: %s", len(jobs), filters)
                 return jobs
@@ -210,32 +227,43 @@ class JobService:
             raise
 
     @staticmethod
-    def get_job_by_id(job_id: int) -> JobSQL | None:
+    def get_job_by_id(job_id: int) -> Job | None:
         """Get a single job by its ID.
 
         Args:
             job_id: Database ID of the job to retrieve.
 
         Returns:
-            JobSQL object if found, None otherwise.
+            Job DTO object if found, None otherwise.
 
         Raises:
             Exception: If database query fails.
         """
         try:
             with db_session() as session:
-                job = session.exec(
+                job_sql = session.exec(
                     select(JobSQL)
                     .options(joinedload(JobSQL.company_relation))
                     .filter_by(id=job_id)
                 ).first()
 
-                if job:
-                    logger.info("Retrieved job %s: %s", job_id, job.title)
-                else:
-                    logger.warning("Job with ID %s not found", job_id)
+                if job_sql:
+                    # Handle company relationship - get company name
+                    company_name = (
+                        job_sql.company_relation.name
+                        if job_sql.company_relation
+                        else "Unknown"
+                    )
 
-                return job
+                    # Create Job DTO with company name as string
+                    job_data = job_sql.model_dump()
+                    job_data["company"] = company_name
+                    job = Job.model_validate(job_data)
+
+                    logger.info("Retrieved job %s: %s", job_id, job.title)
+                    return job
+                logger.warning("Job with ID %s not found", job_id)
+                return None
 
         except Exception:
             logger.exception("Failed to get job %s", job_id)

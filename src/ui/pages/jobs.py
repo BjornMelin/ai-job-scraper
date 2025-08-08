@@ -13,8 +13,10 @@ from datetime import datetime, timezone
 import pandas as pd
 import streamlit as st
 
-from src.database import SessionLocal
+from sqlmodel import func, select
+from src.database import db_session
 from src.models import CompanySQL, JobSQL
+from src.schemas import Job
 from src.scraper import scrape_all
 from src.services.job_service import JobService
 from src.ui.components.cards.job_card import render_jobs_list
@@ -226,20 +228,23 @@ def _render_last_refresh_status() -> None:
 
 def _render_active_sources_metric() -> None:
     """Render the active sources metric."""
-    session = SessionLocal()
-
     try:
-        active_companies = session.query(CompanySQL).filter_by(active=True).count()
-        st.metric("Active Sources", active_companies)
-    finally:
-        session.close()
+        with db_session() as session:
+            # Use modern SQLModel syntax for counting active companies
+            active_companies = session.exec(
+                select(func.count(CompanySQL.id)).where(CompanySQL.active.is_(True))
+            ).one()
+            st.metric("Active Sources", active_companies)
+    except Exception:
+        logger.exception("Failed to get active sources count")
+        st.metric("Active Sources", 0)
 
 
-def _get_filtered_jobs() -> list[JobSQL]:
+def _get_filtered_jobs() -> list[Job]:
     """Get jobs filtered by current filter settings.
 
     Returns:
-        List of filtered job objects.
+        List of filtered Job DTO objects.
     """
     try:
         # Convert session state filters to JobService format
@@ -260,7 +265,7 @@ def _get_filtered_jobs() -> list[JobSQL]:
         return []
 
 
-def _render_job_tabs(jobs: list[JobSQL]) -> None:
+def _render_job_tabs(jobs: list[Job]) -> None:
     """Render the job tabs with filtered content.
 
     Args:
@@ -304,7 +309,7 @@ def _render_job_tabs(jobs: list[JobSQL]) -> None:
             _render_job_display(applied, "applied")
 
 
-def _render_job_display(jobs: list[JobSQL], tab_key: str) -> None:
+def _render_job_display(jobs: list[Job], tab_key: str) -> None:
     """Render job display for a specific tab.
 
     Args:
@@ -322,7 +327,7 @@ def _render_job_display(jobs: list[JobSQL], tab_key: str) -> None:
     render_jobs_list(filtered_jobs)
 
 
-def _jobs_to_dataframe(jobs: list[JobSQL]) -> pd.DataFrame:
+def _jobs_to_dataframe(jobs: list[Job]) -> pd.DataFrame:
     """Convert job objects to pandas DataFrame.
 
     Args:
@@ -351,15 +356,15 @@ def _jobs_to_dataframe(jobs: list[JobSQL]) -> pd.DataFrame:
     )
 
 
-def _apply_tab_search_to_jobs(jobs: list[JobSQL], tab_key: str) -> list[JobSQL]:
-    """Apply per-tab search filtering to JobSQL objects.
+def _apply_tab_search_to_jobs(jobs: list[Job], tab_key: str) -> list[Job]:
+    """Apply per-tab search filtering to Job DTO objects.
 
     Args:
-        jobs: List of JobSQL objects to filter.
+        jobs: List of Job DTO objects to filter.
         tab_key: Tab key for search state.
 
     Returns:
-        Filtered list of JobSQL objects.
+        Filtered list of Job DTO objects.
     """
     # Per-tab search with visual feedback
     search_col1, search_col2 = st.columns([3, 1])
@@ -443,28 +448,24 @@ def _save_list_view_changes(edited_df: pd.DataFrame) -> None:
     Args:
         edited_df: DataFrame with edited job data.
     """
-    session = SessionLocal()
-
     try:
-        for _, row in edited_df.iterrows():
-            job = session.query(JobSQL).filter_by(id=row["id"]).first()
-            if job:
-                job.favorite = row["Favorite"]
-                job.application_status = row["Status"]
-                job.notes = row["Notes"]
+        with db_session() as session:
+            for _, row in edited_df.iterrows():
+                job = session.exec(select(JobSQL).filter_by(id=row["id"])).first()
+                if job:
+                    job.favorite = row["Favorite"]
+                    job.application_status = row["Status"]
+                    job.notes = row["Notes"]
 
-        session.commit()
-        st.success("Saved!")
+            # Note: session.commit() handled by db_session context manager
+            st.success("Saved!")
 
     except Exception:
         st.error("Save failed.")
         logger.exception("Save failed")
 
-    finally:
-        session.close()
 
-
-def _render_statistics_dashboard(jobs: list[JobSQL]) -> None:
+def _render_statistics_dashboard(jobs: list[Job]) -> None:
     """Render the statistics dashboard.
 
     Args:

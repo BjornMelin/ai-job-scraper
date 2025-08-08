@@ -11,8 +11,9 @@ import pandas as pd
 import streamlit as st
 
 from sqlalchemy.orm import Session
-from src.database import SessionLocal
-from src.models import CompanySQL, JobSQL
+from sqlmodel import select
+from src.database import db_session
+from src.models import CompanySQL
 from src.ui.state.session_state import clear_filters
 
 logger = logging.getLogger(__name__)
@@ -130,45 +131,40 @@ def _render_company_management() -> None:
     It includes functionality for toggling company active status and adding new
     companies.
     """
-    with st.expander("🏢 Manage Companies", expanded=False):
-        session = SessionLocal()
+    with (
+        st.expander("🏢 Manage Companies", expanded=False),
+        db_session() as session,
+    ):
+        # Create DataFrame of existing companies using modern SQLModel syntax
+        companies = session.exec(select(CompanySQL)).all()
+        comp_df = pd.DataFrame(
+            [
+                {"id": c.id, "Name": c.name, "URL": c.url, "Active": c.active}
+                for c in companies
+            ]
+        )
 
-        try:
-            # Create DataFrame of existing companies
-            companies = session.query(CompanySQL).all()
-            comp_df = pd.DataFrame(
-                [
-                    {"id": c.id, "Name": c.name, "URL": c.url, "Active": c.active}
-                    for c in companies
-                ]
+        if not comp_df.empty:
+            st.markdown("**Existing Companies**")
+            edited_comp = st.data_editor(
+                comp_df,
+                column_config={
+                    "Active": st.column_config.CheckboxColumn(
+                        "Active", help="Toggle to enable/disable scraping"
+                    ),
+                    "URL": st.column_config.LinkColumn(
+                        "URL", help="Company careers page URL"
+                    ),
+                },
+                hide_index=True,
+                use_container_width=True,
             )
 
-            if not comp_df.empty:
-                st.markdown("**Existing Companies**")
-                edited_comp = st.data_editor(
-                    comp_df,
-                    column_config={
-                        "Active": st.column_config.CheckboxColumn(
-                            "Active", help="Toggle to enable/disable scraping"
-                        ),
-                        "URL": st.column_config.LinkColumn(
-                            "URL", help="Company careers page URL"
-                        ),
-                    },
-                    hide_index=True,
-                    use_container_width=True,
-                )
+            if st.button("💾 Save Changes", use_container_width=True, type="primary"):
+                _save_company_changes(session, edited_comp)
 
-                if st.button(
-                    "💾 Save Changes", use_container_width=True, type="primary"
-                ):
-                    _save_company_changes(session, edited_comp)
-
-            # Add new company section
-            _render_add_company_form(session)
-
-        finally:
-            session.close()
+        # Add new company section
+        _render_add_company_form(session)
 
 
 def _get_company_list() -> list[str]:
@@ -177,24 +173,17 @@ def _get_company_list() -> list[str]:
     Returns:
         List of company names sorted alphabetically.
     """
-    session = SessionLocal()
-
     try:
-        # Get unique company names through relationship
-
-        jobs_with_companies = (
-            session.query(JobSQL)
-            .join(CompanySQL, JobSQL.company_id == CompanySQL.id)
-            .all()
-        )
-        return sorted({job.company for job in jobs_with_companies})
+        with db_session() as session:
+            # Get unique company names using modern SQLModel syntax
+            companies = session.exec(
+                select(CompanySQL.name).distinct().order_by(CompanySQL.name)
+            ).all()
+            return list(companies)
 
     except Exception:
         logger.exception("Failed to get company list")
         return []
-
-    finally:
-        session.close()
 
 
 def _save_company_changes(session: Session, edited_comp: pd.DataFrame) -> None:
@@ -206,10 +195,10 @@ def _save_company_changes(session: Session, edited_comp: pd.DataFrame) -> None:
     """
     try:
         for _, row in edited_comp.iterrows():
-            comp = session.query(CompanySQL).filter_by(id=row["id"]).first()
+            comp = session.exec(select(CompanySQL).filter_by(id=row["id"])).first()
             if comp:
                 comp.active = row["Active"]
-        session.commit()
+        # Note: session.commit() handled by db_session context manager
         st.success("✅ Company settings saved!")
 
     except Exception:
@@ -261,7 +250,7 @@ def _handle_add_company(session: Session, name: str, url: str) -> None:
 
     try:
         session.add(CompanySQL(name=name, url=url, active=True))
-        session.commit()
+        # Note: session.commit() handled by db_session context manager
         st.success(f"✅ Added {name} successfully!")
         st.rerun()
 

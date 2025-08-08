@@ -13,6 +13,7 @@ from sqlmodel import func, select
 from src.database import db_session
 from src.database_listeners.monitoring_listeners import performance_monitor
 from src.models import CompanySQL, JobSQL
+from src.schemas import Company
 
 logger = logging.getLogger(__name__)
 
@@ -49,23 +50,28 @@ class CompanyService:
 
     @staticmethod
     @performance_monitor
-    def get_all_companies() -> list[CompanySQL]:
+    def get_all_companies() -> list[Company]:
         """Get all companies ordered by name.
 
         Returns:
-            List of all CompanySQL objects ordered alphabetically by name.
+            List of all Company DTO objects ordered alphabetically by name.
 
         Raises:
             Exception: If database query fails.
         """
         try:
             with db_session() as session:
-                companies = session.exec(
+                companies_sql = session.exec(
                     select(CompanySQL).order_by(CompanySQL.name)
                 ).all()
 
+                # Convert SQLModel objects to Pydantic DTOs
+                companies = [
+                    Company.model_validate(company_sql) for company_sql in companies_sql
+                ]
+
                 logger.info("Retrieved %d companies", len(companies))
-                return list(companies)
+                return companies
 
         except Exception:
             logger.exception("Failed to get all companies")
@@ -73,7 +79,7 @@ class CompanyService:
 
     @staticmethod
     @performance_monitor
-    def add_company(name: str, url: str) -> CompanySQL:
+    def add_company(name: str, url: str) -> Company:
         """Add a new company to the database.
 
         Args:
@@ -81,7 +87,7 @@ class CompanyService:
             url: Company careers URL.
 
         Returns:
-            Newly created CompanySQL object.
+            Newly created Company DTO object.
 
         Raises:
             Exception: If database operation fails or company name already exists.
@@ -113,9 +119,12 @@ class CompanyService:
 
                 session.add(company)
                 session.flush()  # Get the ID without committing
+                session.refresh(company)  # Ensure all fields are populated
 
+                # Convert to DTO before returning
+                company_dto = Company.model_validate(company)
                 logger.info("Added new company: %s (ID: %s)", name, company.id)
-                return company
+                return company_dto
 
         except ValueError:
             # Re-raise validation errors as-is
@@ -169,25 +178,30 @@ class CompanyService:
 
     @staticmethod
     @performance_monitor
-    def get_active_companies() -> list[CompanySQL]:
+    def get_active_companies() -> list[Company]:
         """Get all active companies ordered by name.
 
         Returns:
-            List of active CompanySQL objects ordered alphabetically by name.
+            List of active Company DTO objects ordered alphabetically by name.
 
         Raises:
             Exception: If database query fails.
         """
         try:
             with db_session() as session:
-                companies = session.exec(
+                companies_sql = session.exec(
                     select(CompanySQL)
                     .filter(CompanySQL.active.is_(True))
                     .order_by(CompanySQL.name)
                 ).all()
 
+                # Convert SQLModel objects to Pydantic DTOs
+                companies = [
+                    Company.model_validate(company_sql) for company_sql in companies_sql
+                ]
+
                 logger.info("Retrieved %d active companies", len(companies))
-                return list(companies)
+                return companies
 
         except Exception:
             logger.exception("Failed to get active companies")
@@ -252,30 +266,30 @@ class CompanyService:
 
     @staticmethod
     @performance_monitor
-    def get_company_by_id(company_id: int) -> CompanySQL | None:
+    def get_company_by_id(company_id: int) -> Company | None:
         """Get a single company by its ID.
 
         Args:
             company_id: Database ID of the company to retrieve.
 
         Returns:
-            CompanySQL object if found, None otherwise.
+            Company DTO object if found, None otherwise.
 
         Raises:
             Exception: If database query fails.
         """
         try:
             with db_session() as session:
-                company = session.exec(
+                company_sql = session.exec(
                     select(CompanySQL).filter_by(id=company_id)
                 ).first()
 
-                if company:
+                if company_sql:
+                    company = Company.model_validate(company_sql)
                     logger.info("Retrieved company %s: %s", company_id, company.name)
-                else:
-                    logger.warning("Company with ID %s not found", company_id)
-
-                return company
+                    return company
+                logger.warning("Company with ID %s not found", company_id)
+                return None
 
         except Exception:
             logger.exception("Failed to get company %s", company_id)
@@ -283,14 +297,14 @@ class CompanyService:
 
     @staticmethod
     @performance_monitor
-    def get_company_by_name(name: str) -> CompanySQL | None:
+    def get_company_by_name(name: str) -> Company | None:
         """Get a company by its name.
 
         Args:
             name: Company name to search for.
 
         Returns:
-            CompanySQL object if found, None otherwise.
+            Company DTO object if found, None otherwise.
 
         Raises:
             Exception: If database query fails.
@@ -300,18 +314,18 @@ class CompanyService:
                 return None
 
             with db_session() as session:
-                company = session.exec(
+                company_sql = session.exec(
                     select(CompanySQL).filter_by(name=name.strip())
                 ).first()
 
-                if company:
+                if company_sql:
+                    company = Company.model_validate(company_sql)
                     logger.info(
                         "Retrieved company by name '%s': ID %s", name, company.id
                     )
-                else:
-                    logger.info("Company with name '%s' not found", name)
-
-                return company
+                    return company
+                logger.info("Company with name '%s' not found", name)
+                return None
 
         except Exception:
             logger.exception("Failed to get company by name '%s'", name)
