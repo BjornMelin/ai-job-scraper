@@ -536,6 +536,19 @@ class TestJobFiltering:
 class TestJobsPageIntegration:
     """Integration tests for complete jobs page workflows."""
 
+    def _setup_jobs_page_test(
+        self,
+        mock_session_state,
+        mock_job_service,
+        mock_company_service,
+        jobs,
+        active_companies=3,
+    ):
+        """Common setup for jobs page tests."""
+        mock_session_state["filters"] = {}
+        mock_job_service.get_filtered_jobs.return_value = jobs
+        mock_company_service.get_active_companies_count.return_value = active_companies
+
     def test_render_jobs_page_displays_complete_interface(  # pylint: disable=R0917
         self,
         mock_streamlit,
@@ -546,30 +559,30 @@ class TestJobsPageIntegration:
     ):
         """Test complete jobs page renders all components."""
         # Arrange
-        mock_session_state["filters"] = {}
-        mock_job_service.get_filtered_jobs.return_value = sample_jobs
-        mock_company_service.get_active_companies_count.return_value = 3
+        self._setup_jobs_page_test(
+            mock_session_state, mock_job_service, mock_company_service, sample_jobs
+        )
 
         with patch("src.ui.pages.jobs.render_sidebar"):
             # Act
             render_jobs_page()
 
             # Assert
-            # Should render page header
-            markdown_calls = [
+            # Should render page header - inline variable usage
+            assert "AI Job Tracker" in " ".join(
                 call.args[0] for call in mock_streamlit["markdown"].call_args_list
-            ]
-            html_content = " ".join(markdown_calls)
-            assert "AI Job Tracker" in html_content
+            )
 
-            # Should render action bar
-            button_calls = mock_streamlit["button"].call_args_list
-            button_labels = [call.args[0] for call in button_calls]
-            assert any("🔄 Refresh Jobs" in label for label in button_labels)
+            # Should render action bar - inline variable usage
+            assert any(
+                "🔄 Refresh Jobs" in label
+                for label in [
+                    call.args[0] for call in mock_streamlit["button"].call_args_list
+                ]
+            )
 
             # Should render job tabs
-            tabs_calls = mock_streamlit["tabs"].call_args_list
-            assert tabs_calls
+            assert mock_streamlit["tabs"].call_args_list
 
     def test_render_jobs_page_handles_no_jobs_gracefully(
         self,
@@ -580,20 +593,24 @@ class TestJobsPageIntegration:
     ):
         """Test jobs page handles empty job list gracefully."""
         # Arrange
-        mock_session_state["filters"] = {}
-        mock_job_service.get_filtered_jobs.return_value = []
-        mock_company_service.get_active_companies_count.return_value = 0
+        self._setup_jobs_page_test(
+            mock_session_state,
+            mock_job_service,
+            mock_company_service,
+            [],
+            active_companies=0,
+        )
 
         with patch("src.ui.pages.jobs.render_sidebar"):
             # Act
             render_jobs_page()
 
-            # Assert
-            info_calls = mock_streamlit["info"].call_args_list
-            no_jobs_info = [
-                call for call in info_calls if "No jobs found" in call.args[0]
+            # Assert - inline variable usage
+            assert [
+                call
+                for call in mock_streamlit["info"].call_args_list
+                if "No jobs found" in call.args[0]
             ]
-            assert no_jobs_info
 
     def test_complete_job_refresh_workflow(self, mock_streamlit, mock_session_state):  # noqa: ARG002
         """Test complete job refresh workflow with realistic scraping results."""
