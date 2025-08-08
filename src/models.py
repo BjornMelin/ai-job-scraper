@@ -274,7 +274,7 @@ class JobSQL(SQLModel, table=True):
 
     @field_validator("salary", mode="before")
     @classmethod
-    def parse_salary(
+    def parse_salary(  # noqa: PLR0911
         cls, value: str | tuple[int | None, int | None] | None
     ) -> tuple[int | None, int | None]:
         """Parse salary string into (min, max) tuple.

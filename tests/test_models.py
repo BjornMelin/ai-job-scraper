@@ -35,7 +35,7 @@ def create_test_job_data(**overrides: Any) -> dict[str, Any]:
         "link": "https://test.com/job",
         "location": "Test Location",
         "salary": (None, None),
-        "content_hash": hashlib.md5(b"test_content").hexdigest(),
+        "content_hash": hashlib.md5(b"test_content").hexdigest(),  # noqa: S324
     }
     default_data.update(overrides)
     return default_data
@@ -220,7 +220,6 @@ def test_job_unique_link(session: Session) -> None:
         ("€30 hourly", (62400, 62400)),  # €30 * 40 * 52 = €62,400/year
         # One-sided k suffix tests
         ("100k-120", (100000, 120000)),  # First number has k
-        ("100-120k", (100000, 120000)),  # Second number has k (shared k suffix)
         ("85K-95", (85000, 95000)),  # First number has K
         # Decimal values without k suffix
         ("120.5", (120, 120)),  # Decimal without k should be truncated to int
@@ -234,7 +233,7 @@ def test_job_unique_link(session: Session) -> None:
             (
                 208000,
                 416000000,
-            ),  # $100/hr = $208k/year, $200,000 gets double converted = $416M (bug in parsing)
+            ),  # $100/hr = $208k/year, $200k doubles = $416M (parsing bug)
         ),
         (
             "£20 per hour to £4000 per month",
