@@ -1,0 +1,851 @@
+"""Comprehensive tests for JobService class.
+
+This test suite validates JobService methods for real-world usage scenarios,
+focusing on business functionality and Pydantic DTO conversion accuracy.
+Tests cover filtering, state mutations, edge cases, and error conditions.
+"""
+
+# ruff: noqa: ARG002  # Pytest fixtures require named parameters even if unused
+
+import logging
+
+from datetime import datetime, timedelta, timezone
+from unittest.mock import patch
+
+import pytest
+
+from sqlalchemy import create_engine
+from sqlalchemy.pool import StaticPool
+from sqlmodel import Session, SQLModel, select
+from src.models import CompanySQL, JobSQL
+from src.schemas import Job
+from src.services.job_service import JobService
+
+# Disable logging during tests to reduce noise
+logging.disable(logging.CRITICAL)
+
+
+@pytest.fixture
+def test_engine():
+    """Create a test-specific SQLite engine."""
+    engine = create_engine(
+        "sqlite:///:memory:",
+        poolclass=StaticPool,
+        connect_args={"check_same_thread": False},
+    )
+    SQLModel.metadata.create_all(engine)
+    return engine
+
+
+@pytest.fixture
+def test_session(test_engine):
+    """Create a test database session."""
+    with Session(test_engine) as session:
+        yield session
+
+
+@pytest.fixture
+def sample_companies(test_session):
+    """Create sample companies for testing."""
+    companies = [
+        CompanySQL(
+            name="TechCorp",
+            url="https://techcorp.com/careers",
+            active=True,
+            scrape_count=5,
+            success_rate=0.8,
+        ),
+        CompanySQL(
+            name="InnovateLabs",
+            url="https://innovatelabs.com/jobs",
+            active=True,
+            scrape_count=3,
+            success_rate=1.0,
+        ),
+        CompanySQL(
+            name="DataDriven Inc",
+            url="https://datadriven.com/careers",
+            active=False,
+            scrape_count=2,
+            success_rate=0.5,
+        ),
+    ]
+
+    for company in companies:
+        test_session.add(company)
+    test_session.commit()
+
+    # Refresh to get IDs
+    for company in companies:
+        test_session.refresh(company)
+
+    return companies
+
+
+@pytest.fixture
+def sample_jobs(test_session, sample_companies):
+    """Create diverse sample jobs for comprehensive testing."""
+    base_date = datetime.now(timezone.utc)
+
+    jobs = [
+        # TechCorp jobs
+        JobSQL(
+            company_id=sample_companies[0].id,
+            title="Senior Python Developer",
+            description=(
+                "Looking for experienced Python developer with Django expertise. "
+                "Work on scalable web applications."
+            ),
+            link="https://techcorp.com/jobs/python-dev-001",
+            location="San Francisco, CA",
+            posted_date=base_date - timedelta(days=1),
+            salary=(120000, 160000),
+            favorite=True,
+            notes="Great benefits package, remote-friendly",
+            content_hash="hash001",
+            application_status="Applied",
+            application_date=base_date - timedelta(hours=12),
+        ),
+        JobSQL(
+            company_id=sample_companies[0].id,
+            title="Machine Learning Engineer",
+            description=(
+                "Build and deploy ML models at scale. TensorFlow and PyTorch "
+                "experience required."
+            ),
+            link="https://techcorp.com/jobs/ml-eng-002",
+            location="New York, NY",
+            posted_date=base_date - timedelta(days=3),
+            salary=(140000, 180000),
+            favorite=False,
+            notes="",
+            content_hash="hash002",
+            application_status="Interested",
+        ),
+        # InnovateLabs jobs
+        JobSQL(
+            company_id=sample_companies[1].id,
+            title="Full Stack Developer",
+            description=(
+                "JavaScript, React, and Node.js development. Building next-gen "
+                "web applications."
+            ),
+            link="https://innovatelabs.com/jobs/fullstack-003",
+            location="Austin, TX",
+            posted_date=base_date - timedelta(days=5),
+            salary=(100000, 140000),
+            favorite=True,
+            notes="Startup environment, equity options",
+            content_hash="hash003",
+            application_status="New",
+        ),
+        JobSQL(
+            company_id=sample_companies[1].id,
+            title="DevOps Engineer",
+            description=(
+                "AWS, Docker, Kubernetes experience. Manage cloud infrastructure "
+                "and CI/CD pipelines."
+            ),
+            link="https://innovatelabs.com/jobs/devops-004",
+            location="Remote",
+            posted_date=base_date - timedelta(days=7),
+            salary=(110000, 150000),
+            favorite=False,
+            notes="Remote-first culture",
+            content_hash="hash004",
+            application_status="Applied",
+            application_date=base_date - timedelta(days=2),
+        ),
+        # DataDriven Inc jobs (inactive company)
+        JobSQL(
+            company_id=sample_companies[2].id,
+            title="Data Scientist",
+            description=(
+                "Statistical modeling and machine learning for business insights. "
+                "Python, R, SQL required."
+            ),
+            link="https://datadriven.com/jobs/data-sci-005",
+            location="Seattle, WA",
+            posted_date=base_date - timedelta(days=10),
+            salary=(130000, 170000),
+            favorite=False,
+            notes="",
+            content_hash="hash005",
+            application_status="Rejected",
+        ),
+        # Archived job
+        JobSQL(
+            company_id=sample_companies[0].id,
+            title="Archived Position",
+            description="This job should not appear in normal queries.",
+            link="https://techcorp.com/jobs/archived-006",
+            location="Somewhere",
+            posted_date=base_date - timedelta(days=30),
+            salary=(80000, 100000),
+            favorite=False,
+            notes="Position was filled",
+            content_hash="hash006",
+            application_status="New",
+            archived=True,
+        ),
+    ]
+
+    for job in jobs:
+        test_session.add(job)
+    test_session.commit()
+
+    # Refresh to get IDs and relationships
+    for job in jobs:
+        test_session.refresh(job)
+
+    return jobs
+
+
+@pytest.fixture
+def mock_db_session(test_session):
+    """Mock db_session context manager to use test session."""
+    with patch("src.services.job_service.db_session") as mock_session:
+        mock_session.return_value.__enter__.return_value = test_session
+        mock_session.return_value.__exit__.return_value = None
+        yield mock_session
+
+
+class TestJobServiceFiltering:
+    """Test JobService.get_filtered_jobs with various filter combinations."""
+
+    def test_get_all_jobs_no_filters(self, mock_db_session, sample_jobs):
+        """Test retrieving all non-archived jobs with empty filters."""
+        filters = {}
+
+        jobs = JobService.get_filtered_jobs(filters)
+
+        # Should return all non-archived jobs (5 jobs, excluding archived)
+        assert len(jobs) == 5
+        assert all(isinstance(job, Job) for job in jobs)
+        assert all(not job.archived for job in jobs)
+
+        # Verify DTO conversion - should have company names as strings
+        company_names = {job.company for job in jobs}
+        expected_companies = {"TechCorp", "InnovateLabs", "DataDriven Inc"}
+        assert company_names == expected_companies
+
+        # Jobs should be ordered by posted_date desc
+        job_dates = [job.posted_date for job in jobs if job.posted_date]
+        assert job_dates == sorted(job_dates, reverse=True)
+
+    def test_text_search_filter(self, mock_db_session, sample_jobs):
+        """Test text search in job titles and descriptions."""
+        # Search for "Python" - should match Senior Python Developer
+        filters = {"text_search": "Python"}
+        jobs = JobService.get_filtered_jobs(filters)
+
+        assert len(jobs) == 2  # Python developer + Data Scientist (mentions Python)
+        titles = {job.title for job in jobs}
+        assert "Senior Python Developer" in titles
+        assert "Data Scientist" in titles
+
+        # Search for "React" - should match Full Stack Developer
+        filters = {"text_search": "React"}
+        jobs = JobService.get_filtered_jobs(filters)
+
+        assert len(jobs) == 1
+        assert jobs[0].title == "Full Stack Developer"
+
+        # Case-insensitive search
+        filters = {"text_search": "MACHINE LEARNING"}
+        jobs = JobService.get_filtered_jobs(filters)
+
+        assert len(jobs) == 2  # ML Engineer + Data Scientist
+        titles = {job.title for job in jobs}
+        assert "Machine Learning Engineer" in titles
+        assert "Data Scientist" in titles
+
+    def test_company_filter(self, mock_db_session, sample_jobs):
+        """Test filtering by company names."""
+        # Filter by single company
+        filters = {"company": ["TechCorp"]}
+        jobs = JobService.get_filtered_jobs(filters)
+
+        assert len(jobs) == 2  # 2 TechCorp jobs (excluding archived)
+        assert all(job.company == "TechCorp" for job in jobs)
+
+        # Filter by multiple companies
+        filters = {"company": ["TechCorp", "InnovateLabs"]}
+        jobs = JobService.get_filtered_jobs(filters)
+
+        assert len(jobs) == 4
+        company_names = {job.company for job in jobs}
+        assert company_names == {"TechCorp", "InnovateLabs"}
+
+        # "All" should return all jobs
+        filters = {"company": ["All"]}
+        jobs = JobService.get_filtered_jobs(filters)
+
+        assert len(jobs) == 5  # All non-archived jobs
+
+    def test_application_status_filter(self, mock_db_session, sample_jobs):
+        """Test filtering by application status."""
+        # Filter by Applied status
+        filters = {"application_status": ["Applied"]}
+        jobs = JobService.get_filtered_jobs(filters)
+
+        assert len(jobs) == 2
+        assert all(job.application_status == "Applied" for job in jobs)
+
+        # Filter by multiple statuses
+        filters = {"application_status": ["New", "Interested"]}
+        jobs = JobService.get_filtered_jobs(filters)
+
+        assert len(jobs) == 2
+        statuses = {job.application_status for job in jobs}
+        assert statuses == {"New", "Interested"}
+
+        # "All" should return all jobs
+        filters = {"application_status": ["All"]}
+        jobs = JobService.get_filtered_jobs(filters)
+
+        assert len(jobs) == 5
+
+    def test_date_range_filter(self, mock_db_session, sample_jobs):
+        """Test filtering by date ranges."""
+        # Test basic date filtering functionality
+        base_date = datetime.now(timezone.utc)
+
+        # Test date_from filtering (jobs posted after a certain date)
+        # Use a date that's definitely older than our sample data
+        old_date = base_date - timedelta(days=30)
+        filters = {"date_from": old_date.strftime("%Y-%m-%d")}
+        jobs = JobService.get_filtered_jobs(filters)
+
+        # Should return all non-archived jobs since they're all newer
+        assert len(jobs) == 5  # All non-archived jobs
+
+        # Test date_to filtering (jobs posted before a certain date)
+        # Use a future date to get all jobs
+        future_date = base_date + timedelta(days=1)
+        filters = {"date_to": future_date.strftime("%Y-%m-%d")}
+        jobs = JobService.get_filtered_jobs(filters)
+
+        # Should return all non-archived jobs
+        assert len(jobs) == 5  # All non-archived jobs
+
+        # Test date_from with future date (should return no jobs)
+        future_date = base_date + timedelta(days=10)
+        filters = {"date_from": future_date.strftime("%Y-%m-%d")}
+        jobs = JobService.get_filtered_jobs(filters)
+
+        # Should return no jobs since no jobs are posted in the future
+        assert len(jobs) == 0
+
+        # Test date_to with very old date (should return no jobs)
+        very_old_date = base_date - timedelta(days=365)
+        filters = {"date_to": very_old_date.strftime("%Y-%m-%d")}
+        jobs = JobService.get_filtered_jobs(filters)
+
+        # Should return no jobs since no jobs are that old
+        assert len(jobs) == 0
+
+    def test_favorites_only_filter(self, mock_db_session, sample_jobs):
+        """Test filtering for favorite jobs only."""
+        filters = {"favorites_only": True}
+        jobs = JobService.get_filtered_jobs(filters)
+
+        assert len(jobs) == 2  # 2 favorite jobs
+        assert all(job.favorite for job in jobs)
+
+        # Verify specific favorite jobs
+        titles = {job.title for job in jobs}
+        expected_titles = {"Senior Python Developer", "Full Stack Developer"}
+        assert titles == expected_titles
+
+    def test_include_archived_filter(self, mock_db_session, sample_jobs):
+        """Test including archived jobs in results."""
+        # Default behavior excludes archived
+        filters = {}
+        jobs = JobService.get_filtered_jobs(filters)
+        assert len(jobs) == 5
+
+        # Explicitly include archived jobs
+        filters = {"include_archived": True}
+        jobs = JobService.get_filtered_jobs(filters)
+        assert len(jobs) == 6  # Now includes the archived job
+
+        archived_jobs = [job for job in jobs if job.archived]
+        assert len(archived_jobs) == 1
+        assert archived_jobs[0].title == "Archived Position"
+
+    def test_combined_filters(self, mock_db_session, sample_jobs):
+        """Test complex filter combinations."""
+        # Search for Python jobs at TechCorp that are favorites
+        filters = {
+            "text_search": "Python",
+            "company": ["TechCorp"],
+            "favorites_only": True,
+        }
+        jobs = JobService.get_filtered_jobs(filters)
+
+        assert len(jobs) == 1
+        job = jobs[0]
+        assert job.title == "Senior Python Developer"
+        assert job.company == "TechCorp"
+        assert job.favorite
+        assert "Python" in job.description
+
+    def test_empty_results(self, mock_db_session, sample_jobs):
+        """Test filters that return no results."""
+        # Search for non-existent technology
+        filters = {"text_search": "COBOL"}
+        jobs = JobService.get_filtered_jobs(filters)
+        assert len(jobs) == 0
+
+        # Filter by non-existent company
+        filters = {"company": ["NonExistentCorp"]}
+        jobs = JobService.get_filtered_jobs(filters)
+        assert len(jobs) == 0
+
+        # Filter by non-existent status
+        filters = {"application_status": ["NonExistentStatus"]}
+        jobs = JobService.get_filtered_jobs(filters)
+        assert len(jobs) == 0
+
+
+class TestJobServiceStateMutations:
+    """Test JobService methods that modify job state."""
+
+    def test_update_job_status_success(self, mock_db_session, sample_jobs):
+        """Test successful job status updates."""
+        job = sample_jobs[0]  # Senior Python Developer
+
+        # Update to different status
+        result = JobService.update_job_status(job.id, "Interviewing")
+
+        assert result is True
+
+        # Verify the job was updated in database
+        updated_job = mock_db_session.return_value.__enter__.return_value.exec(
+            select(JobSQL).filter_by(id=job.id)
+        ).first()
+        assert updated_job.application_status == "Interviewing"
+
+    def test_update_job_status_to_applied_sets_date(self, mock_db_session, sample_jobs):
+        """Test that updating status to Applied sets application_date."""
+        job = sample_jobs[2]  # Full Stack Developer (status: New)
+        assert job.application_date is None
+
+        # Update to Applied status
+        result = JobService.update_job_status(job.id, "Applied")
+
+        assert result is True
+
+        # Verify application_date was set
+        updated_job = mock_db_session.return_value.__enter__.return_value.exec(
+            select(JobSQL).filter_by(id=job.id)
+        ).first()
+        assert updated_job.application_status == "Applied"
+        assert updated_job.application_date is not None
+        assert isinstance(updated_job.application_date, datetime)
+
+    def test_update_job_status_preserves_existing_application_date(
+        self, mock_db_session, sample_jobs
+    ):
+        """Test that existing application_date is preserved when re-applying."""
+        job = sample_jobs[0]  # Already has application_date
+        original_app_date = job.application_date
+
+        # Change status away from Applied and back
+        JobService.update_job_status(job.id, "Interviewing")
+        JobService.update_job_status(job.id, "Applied")
+
+        # Verify original application_date is preserved
+        updated_job = mock_db_session.return_value.__enter__.return_value.exec(
+            select(JobSQL).filter_by(id=job.id)
+        ).first()
+        assert updated_job.application_date == original_app_date
+
+    def test_update_job_status_invalid_id(self, mock_db_session, sample_jobs):
+        """Test updating status for non-existent job ID."""
+        result = JobService.update_job_status(99999, "Applied")
+
+        assert result is False
+
+    def test_toggle_favorite_success(self, mock_db_session, sample_jobs):
+        """Test successful favorite toggling."""
+        job = sample_jobs[1]  # ML Engineer (not favorite)
+        original_favorite = job.favorite
+
+        # Toggle favorite status
+        result = JobService.toggle_favorite(job.id)
+
+        assert result == (not original_favorite)
+
+        # Verify the job was updated in database
+        updated_job = mock_db_session.return_value.__enter__.return_value.exec(
+            select(JobSQL).filter_by(id=job.id)
+        ).first()
+        assert updated_job.favorite != original_favorite
+
+    def test_toggle_favorite_multiple_times(self, mock_db_session, sample_jobs):
+        """Test toggling favorite multiple times."""
+        job = sample_jobs[0]  # Senior Python Developer (favorite)
+        original_favorite = job.favorite
+
+        # Toggle twice should return to original state
+        result1 = JobService.toggle_favorite(job.id)
+        result2 = JobService.toggle_favorite(job.id)
+
+        assert result1 != original_favorite
+        assert result2 == original_favorite
+
+        # Verify final state matches original
+        updated_job = mock_db_session.return_value.__enter__.return_value.exec(
+            select(JobSQL).filter_by(id=job.id)
+        ).first()
+        assert updated_job.favorite == original_favorite
+
+    def test_toggle_favorite_invalid_id(self, mock_db_session, sample_jobs):
+        """Test toggling favorite for non-existent job ID."""
+        result = JobService.toggle_favorite(99999)
+
+        assert result is False
+
+    def test_update_notes_success(self, mock_db_session, sample_jobs):
+        """Test successful notes update."""
+        job = sample_jobs[1]  # ML Engineer (empty notes)
+        new_notes = "Interesting role, need to research the tech stack more"
+
+        result = JobService.update_notes(job.id, new_notes)
+
+        assert result is True
+
+        # Verify the job was updated in database
+        updated_job = mock_db_session.return_value.__enter__.return_value.exec(
+            select(JobSQL).filter_by(id=job.id)
+        ).first()
+        assert updated_job.notes == new_notes
+
+    def test_update_notes_empty_string(self, mock_db_session, sample_jobs):
+        """Test updating notes to empty string."""
+        job = sample_jobs[0]  # Has existing notes
+
+        result = JobService.update_notes(job.id, "")
+
+        assert result is True
+
+        # Verify notes were cleared
+        updated_job = mock_db_session.return_value.__enter__.return_value.exec(
+            select(JobSQL).filter_by(id=job.id)
+        ).first()
+        assert updated_job.notes == ""
+
+    def test_update_notes_invalid_id(self, mock_db_session, sample_jobs):
+        """Test updating notes for non-existent job ID."""
+        result = JobService.update_notes(99999, "Some notes")
+
+        assert result is False
+
+    def test_archive_job_success(self, mock_db_session, sample_jobs):
+        """Test successful job archiving."""
+        job = sample_jobs[1]  # ML Engineer (not archived)
+
+        result = JobService.archive_job(job.id)
+
+        assert result is True
+
+        # Verify the job was archived in database
+        updated_job = mock_db_session.return_value.__enter__.return_value.exec(
+            select(JobSQL).filter_by(id=job.id)
+        ).first()
+        assert updated_job.archived is True
+
+    def test_archive_job_invalid_id(self, mock_db_session, sample_jobs):
+        """Test archiving non-existent job ID."""
+        result = JobService.archive_job(99999)
+
+        assert result is False
+
+
+class TestJobServiceQueries:
+    """Test JobService query methods."""
+
+    def test_get_job_by_id_success(self, mock_db_session, sample_jobs):
+        """Test retrieving job by valid ID."""
+        job_id = sample_jobs[0].id
+
+        job = JobService.get_job_by_id(job_id)
+
+        assert job is not None
+        assert isinstance(job, Job)
+        assert job.id == job_id
+        assert job.title == "Senior Python Developer"
+        assert job.company == "TechCorp"
+
+        # Verify DTO conversion
+        assert isinstance(job.company, str)
+        assert job.salary == (120000, 160000)
+
+    def test_get_job_by_id_not_found(self, mock_db_session, sample_jobs):
+        """Test retrieving job by invalid ID."""
+        job = JobService.get_job_by_id(99999)
+
+        assert job is None
+
+    def test_get_job_counts_by_status(self, mock_db_session, sample_jobs):
+        """Test job count aggregation by status."""
+        counts = JobService.get_job_counts_by_status()
+
+        # Expected counts from non-archived jobs
+        expected_counts = {
+            "Applied": 2,
+            "Interested": 1,
+            "New": 1,
+            "Rejected": 1,
+        }
+
+        assert counts == expected_counts
+
+    def test_get_active_companies(self, mock_db_session, sample_companies):
+        """Test retrieving active company names."""
+        companies = JobService.get_active_companies()
+
+        # Should return only active companies, sorted by name
+        expected_companies = ["InnovateLabs", "TechCorp"]
+        assert companies == expected_companies
+
+
+class TestJobServiceDTOConversion:
+    """Test proper DTO conversion and relationship handling."""
+
+    def test_jobs_returned_as_pydantic_dtos(self, mock_db_session, sample_jobs):
+        """Test that get_filtered_jobs returns Pydantic Job DTOs."""
+        jobs = JobService.get_filtered_jobs({})
+
+        for job in jobs:
+            # Verify it's a Pydantic Job, not SQLModel JobSQL
+            assert isinstance(job, Job)
+            assert not isinstance(job, JobSQL)
+
+            # Verify all expected fields are present
+            assert hasattr(job, "id")
+            assert hasattr(job, "company")
+            assert hasattr(job, "title")
+            assert hasattr(job, "description")
+
+            # Verify company is a string, not relationship object
+            assert isinstance(job.company, str)
+            assert job.company in ["TechCorp", "InnovateLabs", "DataDriven Inc"]
+
+    def test_get_job_by_id_returns_dto(self, mock_db_session, sample_jobs):
+        """Test that get_job_by_id returns Pydantic DTO."""
+        job_id = sample_jobs[0].id
+        job = JobService.get_job_by_id(job_id)
+
+        assert isinstance(job, Job)
+        assert not isinstance(job, JobSQL)
+        assert isinstance(job.company, str)
+        assert job.company == "TechCorp"
+
+    def test_job_with_no_company_relationship(self, mock_db_session, test_session):
+        """Test handling of job with null company relationship."""
+        # Create job without company_id
+        job = JobSQL(
+            company_id=None,
+            title="Freelance Job",
+            description="Independent contractor position",
+            link="https://example.com/freelance",
+            location="Remote",
+            content_hash="hash_freelance",
+        )
+        test_session.add(job)
+        test_session.commit()
+        test_session.refresh(job)
+
+        # Should handle gracefully and return "Unknown" for company
+        result_job = JobService.get_job_by_id(job.id)
+
+        assert result_job is not None
+        assert result_job.company == "Unknown"
+
+
+class TestJobServiceErrorHandling:
+    """Test error handling and edge cases."""
+
+    def test_database_error_during_filtering(self, sample_jobs):
+        """Test handling of database errors during filtering."""
+        with patch("src.services.job_service.db_session") as mock_session:
+            # Simulate database error
+            mock_session.side_effect = Exception("Database connection failed")
+
+            with pytest.raises(Exception, match="Database connection failed"):
+                JobService.get_filtered_jobs({})
+
+    def test_database_error_during_status_update(self, sample_jobs):
+        """Test handling of database errors during status updates."""
+        with patch("src.services.job_service.db_session") as mock_session:
+            # Simulate database error
+            mock_session.side_effect = Exception("Database write failed")
+
+            with pytest.raises(Exception, match="Database write failed"):
+                JobService.update_job_status(1, "Applied")
+
+    def test_invalid_date_formats(self, mock_db_session, sample_jobs):
+        """Test handling of invalid date formats in filters."""
+        # Invalid date format should be ignored gracefully
+        filters = {
+            "date_from": "invalid-date-format",
+            "date_to": "also-invalid",
+        }
+
+        # Should not raise exception
+        jobs = JobService.get_filtered_jobs(filters)
+
+        # Should return all jobs since date filters are ignored
+        assert len(jobs) == 5
+
+    def test_empty_and_none_filters(self, mock_db_session, sample_jobs):
+        """Test handling of empty and None filter values."""
+        filters = {
+            "text_search": "",  # Empty string
+            "company": [],  # Empty list
+            "application_status": None,  # None value
+            "date_from": None,
+            "date_to": "",
+            "favorites_only": False,
+        }
+
+        # Should handle gracefully and return all jobs
+        jobs = JobService.get_filtered_jobs(filters)
+        assert len(jobs) == 5
+
+
+class TestJobServiceDateParsing:
+    """Test JobService._parse_date method with various formats."""
+
+    def test_parse_iso_date_formats(self):
+        """Test parsing ISO date formats."""
+        # ISO date string
+        result = JobService._parse_date("2024-01-15")
+        assert result is not None
+        assert result.year == 2024
+        assert result.month == 1
+        assert result.day == 15
+
+        # ISO datetime string
+        result = JobService._parse_date("2024-01-15T10:30:00Z")
+        assert result is not None
+        assert result.year == 2024
+        assert result.month == 1
+        assert result.day == 15
+
+    def test_parse_common_date_formats(self):
+        """Test parsing common date formats."""
+        # US format
+        result = JobService._parse_date("01/15/2024")
+        assert result is not None
+        assert result.year == 2024
+        assert result.month == 1
+        assert result.day == 15
+
+        # EU format
+        result = JobService._parse_date("15/01/2024")
+        assert result is not None
+        assert result.year == 2024
+        assert result.month == 1
+        assert result.day == 15
+
+        # Human readable format
+        result = JobService._parse_date("January 15, 2024")
+        assert result is not None
+        assert result.year == 2024
+        assert result.month == 1
+        assert result.day == 15
+
+    def test_parse_invalid_dates(self):
+        """Test handling of invalid date formats."""
+        # Invalid format
+        result = JobService._parse_date("not-a-date")
+        assert result is None
+
+        # Empty string
+        result = JobService._parse_date("")
+        assert result is None
+
+        # None input
+        result = JobService._parse_date(None)
+        assert result is None
+
+        # Unsupported type
+        result = JobService._parse_date(12345)
+        assert result is None
+
+
+class TestJobServiceIntegration:
+    """Integration tests combining multiple JobService operations."""
+
+    def test_job_lifecycle_workflow(self, mock_db_session, sample_jobs):
+        """Test complete job lifecycle: view -> favorite -> apply -> archive."""
+        job_id = sample_jobs[1].id  # ML Engineer
+
+        # 1. Get job details
+        job = JobService.get_job_by_id(job_id)
+        assert job is not None
+        assert job.application_status == "Interested"
+        assert not job.favorite
+
+        # 2. Toggle favorite
+        result = JobService.toggle_favorite(job_id)
+        assert result is True
+
+        # 3. Add notes
+        result = JobService.update_notes(
+            job_id, "Looks promising, need to prepare for ML interview"
+        )
+        assert result is True
+
+        # 4. Apply for the job
+        result = JobService.update_job_status(job_id, "Applied")
+        assert result is True
+
+        # 5. Verify final state
+        updated_job = JobService.get_job_by_id(job_id)
+        assert updated_job.favorite is True
+        assert updated_job.application_status == "Applied"
+        assert updated_job.application_date is not None
+        assert updated_job.notes == "Looks promising, need to prepare for ML interview"
+
+        # 6. Archive the job
+        result = JobService.archive_job(job_id)
+        assert result is True
+
+        # 7. Verify job no longer appears in default filtering
+        jobs = JobService.get_filtered_jobs({})
+        job_ids = [j.id for j in jobs]
+        assert job_id not in job_ids
+
+        # 8. But appears when including archived
+        jobs = JobService.get_filtered_jobs({"include_archived": True})
+        archived_job = next((j for j in jobs if j.id == job_id), None)
+        assert archived_job is not None
+        assert archived_job.archived is True
+
+    def test_search_and_filter_workflow(self, mock_db_session, sample_jobs):
+        """Test realistic search and filter workflow."""
+        # User searches for "Python" jobs
+        jobs = JobService.get_filtered_jobs({"text_search": "Python"})
+        assert len(jobs) == 2
+
+        # User narrows down to TechCorp only
+        jobs = JobService.get_filtered_jobs(
+            {"text_search": "Python", "company": ["TechCorp"]}
+        )
+        assert len(jobs) == 1
+        assert jobs[0].title == "Senior Python Developer"
+
+        # User filters for favorites only
+        jobs = JobService.get_filtered_jobs(
+            {"text_search": "Python", "company": ["TechCorp"], "favorites_only": True}
+        )
+        assert len(jobs) == 1  # The Python job is already favorite
+
+        # User checks application status distribution
+        counts = JobService.get_job_counts_by_status()
+        assert counts["Applied"] >= 1

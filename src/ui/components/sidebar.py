@@ -10,9 +10,9 @@ import logging
 import pandas as pd
 import streamlit as st
 
-from sqlalchemy.orm import Session
-from src.database import SessionLocal
-from src.models import CompanySQL, JobSQL
+
+# Removed direct database import - using service layer instead
+from src.services.company_service import CompanyService
 from src.ui.state.session_state import clear_filters
 
 logger = logging.getLogger(__name__)
@@ -131,85 +131,57 @@ def _render_company_management() -> None:
     companies.
     """
     with st.expander("🏢 Manage Companies", expanded=False):
-        session = SessionLocal()
+        # Get companies from service layer instead of direct DB access
+        companies_data = CompanyService.get_companies_for_management()
+        comp_df = pd.DataFrame(companies_data)
 
-        try:
-            # Create DataFrame of existing companies
-            companies = session.query(CompanySQL).all()
-            comp_df = pd.DataFrame(
-                [
-                    {"id": c.id, "Name": c.name, "URL": c.url, "Active": c.active}
-                    for c in companies
-                ]
+        if not comp_df.empty:
+            st.markdown("**Existing Companies**")
+            edited_comp = st.data_editor(
+                comp_df,
+                column_config={
+                    "Active": st.column_config.CheckboxColumn(
+                        "Active", help="Toggle to enable/disable scraping"
+                    ),
+                    "URL": st.column_config.LinkColumn(
+                        "URL", help="Company careers page URL"
+                    ),
+                },
+                hide_index=True,
+                use_container_width=True,
             )
 
-            if not comp_df.empty:
-                st.markdown("**Existing Companies**")
-                edited_comp = st.data_editor(
-                    comp_df,
-                    column_config={
-                        "Active": st.column_config.CheckboxColumn(
-                            "Active", help="Toggle to enable/disable scraping"
-                        ),
-                        "URL": st.column_config.LinkColumn(
-                            "URL", help="Company careers page URL"
-                        ),
-                    },
-                    hide_index=True,
-                    use_container_width=True,
-                )
+            if st.button("💾 Save Changes", use_container_width=True, type="primary"):
+                _save_company_changes(edited_comp)
 
-                if st.button(
-                    "💾 Save Changes", use_container_width=True, type="primary"
-                ):
-                    _save_company_changes(session, edited_comp)
-
-            # Add new company section
-            _render_add_company_form(session)
-
-        finally:
-            session.close()
+        # Add new company section
+        _render_add_company_form()
 
 
 def _get_company_list() -> list[str]:
-    """Get list of unique company names from database.
+    """Get list of unique company names using service layer.
 
     Returns:
         List of company names sorted alphabetically.
     """
-    session = SessionLocal()
-
     try:
-        # Get unique company names through relationship
-
-        jobs_with_companies = (
-            session.query(JobSQL)
-            .join(CompanySQL, JobSQL.company_id == CompanySQL.id)
-            .all()
-        )
-        return sorted({job.company for job in jobs_with_companies})
+        companies = CompanyService.get_all_companies()
+        return [company.name for company in companies]
 
     except Exception:
         logger.exception("Failed to get company list")
         return []
 
-    finally:
-        session.close()
 
-
-def _save_company_changes(session: Session, edited_comp: pd.DataFrame) -> None:
-    """Save changes to company settings.
+def _save_company_changes(edited_comp: pd.DataFrame) -> None:
+    """Save changes to company settings using service layer.
 
     Args:
-        session: Database session.
         edited_comp: DataFrame containing edited company data.
     """
     try:
         for _, row in edited_comp.iterrows():
-            comp = session.query(CompanySQL).filter_by(id=row["id"]).first()
-            if comp:
-                comp.active = row["Active"]
-        session.commit()
+            CompanyService.update_company_active_status(row["id"], row["Active"])
         st.success("✅ Company settings saved!")
 
     except Exception:
@@ -217,12 +189,8 @@ def _save_company_changes(session: Session, edited_comp: pd.DataFrame) -> None:
         st.error("❌ Save failed. Please try again.")
 
 
-def _render_add_company_form(session: Session) -> None:
-    """Render form for adding new companies.
-
-    Args:
-        session: Database session for adding new companies.
-    """
+def _render_add_company_form() -> None:
+    """Render form for adding new companies using service layer."""
     st.markdown("**Add New Company**")
 
     with st.form("add_company_form", clear_on_submit=True):
@@ -240,14 +208,13 @@ def _render_add_company_form(session: Session) -> None:
         if st.form_submit_button(
             "+ Add Company", use_container_width=True, type="primary"
         ):
-            _handle_add_company(session, new_name, new_url)
+            _handle_add_company(new_name, new_url)
 
 
-def _handle_add_company(session: Session, name: str, url: str) -> None:
-    """Handle adding a new company to the database.
+def _handle_add_company(name: str, url: str) -> None:
+    """Handle adding a new company using service layer.
 
     Args:
-        session: Database session.
         name: Company name.
         url: Company careers page URL.
     """
@@ -260,11 +227,12 @@ def _handle_add_company(session: Session, name: str, url: str) -> None:
         return
 
     try:
-        session.add(CompanySQL(name=name, url=url, active=True))
-        session.commit()
+        CompanyService.add_company(name, url)
         st.success(f"✅ Added {name} successfully!")
         st.rerun()
 
+    except ValueError as e:
+        st.error(f"❌ {e}")
     except Exception:
         logger.exception("Add company failed")
-        st.error("❌ Failed to add company. Name might already exist.")
+        st.error("❌ Failed to add company. Please try again.")
