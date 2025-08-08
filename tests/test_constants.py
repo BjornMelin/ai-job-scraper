@@ -16,31 +16,34 @@ class TestRelevantPhrases:
         assert len(RELEVANT_PHRASES) > 0
         assert isinstance(RELEVANT_PHRASES, list)
 
-    def test_relevant_phrases_contain_expected_terms(self):
-        """Test that the list contains expected AI/ML terms."""
-        expected_terms = [
+    @pytest.mark.parametrize(
+        "expected_term",
+        [
             "ai",
             "artificial intelligence",
             "machine learning",
             "data scientist",
             "mlops",
             "deep learning",
-        ]
+        ],
+    )
+    def test_relevant_phrases_contain_expected_terms(self, expected_term):
+        """Test that the list contains expected AI/ML terms."""
+        assert expected_term in RELEVANT_PHRASES, (
+            f"Expected term '{expected_term}' not found"
+        )
 
-        for term in expected_terms:
-            assert term in RELEVANT_PHRASES, f"Expected term '{term}' not found"
-
-    def test_relevant_phrases_are_strings(self):
+    @pytest.mark.parametrize("phrase", RELEVANT_PHRASES)
+    def test_relevant_phrases_are_strings(self, phrase):
         """Test that all phrases are strings."""
-        for phrase in RELEVANT_PHRASES:
-            assert isinstance(phrase, str)
-            assert phrase.strip() == phrase  # No leading/trailing whitespace
-            assert len(phrase) > 0  # Not empty
+        assert isinstance(phrase, str)
+        assert phrase.strip() == phrase  # No leading/trailing whitespace
+        assert len(phrase) > 0  # Not empty
 
-    def test_relevant_phrases_are_lowercase(self):
+    @pytest.mark.parametrize("phrase", RELEVANT_PHRASES)
+    def test_relevant_phrases_are_lowercase(self, phrase):
         """Test that all phrases are lowercase for consistency."""
-        for phrase in RELEVANT_PHRASES:
-            assert phrase == phrase.lower(), f"Phrase '{phrase}' is not lowercase"
+        assert phrase == phrase.lower(), f"Phrase '{phrase}' is not lowercase"
 
 
 class TestAIRegex:
@@ -141,18 +144,20 @@ class TestSearchConfiguration:
         assert isinstance(SEARCH_KEYWORDS, list)
         assert len(SEARCH_KEYWORDS) > 0
 
-    def test_search_keywords_contain_expected_terms(self):
+    @pytest.mark.parametrize(
+        "expected_keyword", ["ai", "machine learning", "data science"]
+    )
+    def test_search_keywords_contain_expected_terms(self, expected_keyword):
         """Test that search keywords contain expected AI/ML terms."""
-        expected_keywords = ["ai", "machine learning", "data science"]
+        assert expected_keyword in SEARCH_KEYWORDS, (
+            f"Expected keyword '{expected_keyword}' not found"
+        )
 
-        for keyword in expected_keywords:
-            assert keyword in SEARCH_KEYWORDS, f"Expected keyword '{keyword}' not found"
-
-    def test_search_keywords_are_strings(self):
+    @pytest.mark.parametrize("keyword", SEARCH_KEYWORDS)
+    def test_search_keywords_are_strings(self, keyword):
         """Test that all search keywords are strings."""
-        for keyword in SEARCH_KEYWORDS:
-            assert isinstance(keyword, str)
-            assert len(keyword) > 0
+        assert isinstance(keyword, str)
+        assert len(keyword) > 0
 
     def test_search_locations_exist(self):
         """Test that search locations are defined."""
@@ -160,39 +165,35 @@ class TestSearchConfiguration:
         assert isinstance(SEARCH_LOCATIONS, list)
         assert len(SEARCH_LOCATIONS) > 0
 
-    def test_search_locations_contain_expected_values(self):
+    @pytest.mark.parametrize("expected_location", ["USA", "Remote"])
+    def test_search_locations_contain_expected_values(self, expected_location):
         """Test that search locations contain expected values."""
-        expected_locations = ["USA", "Remote"]
+        assert expected_location in SEARCH_LOCATIONS, (
+            f"Expected location '{expected_location}' not found"
+        )
 
-        for location in expected_locations:
-            assert location in SEARCH_LOCATIONS, (
-                f"Expected location '{location}' not found"
-            )
-
-    def test_search_locations_are_strings(self):
+    @pytest.mark.parametrize("location", SEARCH_LOCATIONS)
+    def test_search_locations_are_strings(self, location):
         """Test that all search locations are strings."""
-        for location in SEARCH_LOCATIONS:
-            assert isinstance(location, str)
-            assert len(location) > 0
+        assert isinstance(location, str)
+        assert len(location) > 0
 
 
 class TestConstantsIntegration:
     """Test integration between different constants."""
 
-    def test_search_keywords_match_relevant_phrases(self):
+    @pytest.mark.parametrize("keyword", SEARCH_KEYWORDS)
+    def test_search_keywords_match_relevant_phrases(self, keyword):
         """Test that search keywords are covered by relevant phrases."""
-        for keyword in SEARCH_KEYWORDS:
-            # Check if the keyword or related terms are in relevant phrases
-            keyword_lower = keyword.lower()
-            found = any(keyword_lower in phrase for phrase in RELEVANT_PHRASES)
-            assert found, (
-                f"Search keyword '{keyword}' should be related to relevant phrases"
-            )
+        # Check if the keyword or related terms are in relevant phrases
+        keyword_lower = keyword.lower()
+        found = any(keyword_lower in phrase for phrase in RELEVANT_PHRASES)
+        assert found, (
+            f"Search keyword '{keyword}' should be related to relevant phrases"
+        )
 
-    def test_regex_matches_search_keywords(self):
+    @pytest.mark.parametrize("keyword", SEARCH_KEYWORDS)
+    def test_regex_matches_search_keywords(self, keyword):
         """Test that the AI regex matches our search keywords."""
-        for keyword in SEARCH_KEYWORDS:
-            match = AI_REGEX.search(keyword)
-            assert match is not None, (
-                f"Search keyword '{keyword}' should match AI regex"
-            )
+        match = AI_REGEX.search(keyword)
+        assert match is not None, f"Search keyword '{keyword}' should match AI regex"
