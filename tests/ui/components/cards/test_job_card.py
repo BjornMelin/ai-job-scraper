@@ -50,7 +50,7 @@ class TestJobCardRendering:
         ]
         status_badge_calls = [call for call in markdown_calls if "status-badge" in call]
 
-        assert len(status_badge_calls) > 0
+        assert status_badge_calls
         assert any("New" in call for call in status_badge_calls)
 
     def test_render_job_card_shows_favorite_star_when_favorited(
@@ -83,7 +83,7 @@ class TestJobCardRendering:
         markdown_calls = [
             call.args[0] for call in mock_streamlit["markdown"].call_args_list
         ]
-        assert not any("⭐" in call for call in markdown_calls)
+        assert all("⭐" not in call for call in markdown_calls)
 
     def test_render_job_card_creates_status_selectbox(self, mock_streamlit, sample_job):
         """Test job card creates status selectbox with correct options."""
@@ -94,11 +94,9 @@ class TestJobCardRendering:
         selectbox_calls = mock_streamlit["selectbox"].call_args_list
 
         # Find status selectbox call
-        status_call = None
-        for call in selectbox_calls:
-            if call.args[0] == "Status":
-                status_call = call
-                break
+        status_call = next(
+            (call for call in selectbox_calls if call.args[0] == "Status"), None
+        )
 
         assert status_call is not None
         expected_options = ["New", "Interested", "Applied", "Rejected"]
@@ -114,11 +112,14 @@ class TestJobCardRendering:
         button_calls = mock_streamlit["button"].call_args_list
 
         # Find favorite button call
-        favorite_call = None
-        for call in button_calls:
-            if call.kwargs.get("key") == f"favorite_{sample_job.id}":
-                favorite_call = call
-                break
+        favorite_call = next(
+            (
+                call
+                for call in button_calls
+                if call.kwargs.get("key") == f"favorite_{sample_job.id}"
+            ),
+            None,
+        )
 
         assert favorite_call is not None
         expected_icon = "❤️" if sample_job.favorite else "🤍"
@@ -135,11 +136,9 @@ class TestJobCardRendering:
         button_calls = mock_streamlit["button"].call_args_list
 
         # Find view details button call
-        details_call = None
-        for call in button_calls:
-            if call.args[0] == "View Details":
-                details_call = call
-                break
+        details_call = next(
+            (call for call in button_calls if call.args[0] == "View Details"), None
+        )
 
         assert details_call is not None
         assert details_call.kwargs["key"] == f"details_{sample_job.id}"
