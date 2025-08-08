@@ -300,11 +300,9 @@ class CompanyService:
         """
         try:
             with db_session() as session:
-                company_sql = session.exec(
+                if company_sql := session.exec(
                     select(CompanySQL).filter_by(id=company_id)
-                ).first()
-
-                if company_sql:
+                ).first():
                     company = CompanyService._to_dto(company_sql)
                     logger.info("Retrieved company %s: %s", company_id, company.name)
                     return company
@@ -334,11 +332,9 @@ class CompanyService:
                 return None
 
             with db_session() as session:
-                company_sql = session.exec(
+                if company_sql := session.exec(
                     select(CompanySQL).filter_by(name=name.strip())
-                ).first()
-
-                if company_sql:
+                ).first():
                     company = CompanyService._to_dto(company_sql)
                     logger.info(
                         "Retrieved company by name '%s': ID %s", name, company.id

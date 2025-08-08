@@ -6,6 +6,17 @@ completely resolved by testing:
 2. Cross-layer data flow scenarios
 3. Concurrent session access patterns
 4. Real-world serialization scenarios that previously caused DetachedInstanceError
+
+Note: This module intentionally uses loops and conditionals in tests because these are
+INTEGRATION TESTS that need to verify real-world scenarios like:
+- Pagination with multiple pages
+- Bulk operations with multiple entities
+- Concurrent access patterns with multiple threads
+- Sequential session creation and management
+
+Unlike unit tests where loops should be avoided, integration tests require loops
+to test realistic usage patterns and data volumes. The loops here are essential
+for testing the system's behavior under real conditions.
 """
 
 import contextlib
@@ -52,7 +63,8 @@ class TestSessionLifecycle:
             job_dto = Job.model_validate(
                 {
                     **job.model_dump(),
-                    "company": job.company,  # Resolve relationship to string
+                    # job.company is a computed field returning string, not relationship
+                    "company": job.company,  # Returns company name as string
                 }
             )
 
