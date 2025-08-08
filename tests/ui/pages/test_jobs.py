@@ -570,7 +570,7 @@ class TestJobsPageIntegration:
             patch(
                 "src.ui.pages.jobs._get_filtered_jobs", return_value=validated_jobs
             ) as mock_get_filtered,
-            patch("src.ui.pages.jobs._handle_refresh_jobs") as mock_handle_refresh,
+            patch("src.ui.pages.jobs._handle_refresh_jobs"),
         ):
             # Act
             render_jobs_page()
@@ -618,7 +618,7 @@ class TestJobsPageIntegration:
             patch(
                 "src.ui.pages.jobs._get_filtered_jobs", return_value=[]
             ) as mock_get_filtered,
-            patch("src.ui.pages.jobs._handle_refresh_jobs") as mock_handle_refresh,
+            patch("src.ui.pages.jobs._handle_refresh_jobs"),
         ):
             # Act
             render_jobs_page()

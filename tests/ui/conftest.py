@@ -101,7 +101,7 @@ def mock_streamlit():
         mocks["spinner"].return_value.__exit__ = Mock(return_value=None)
 
         # Configure dialog decorator to act as a passthrough decorator
-        def mock_dialog_decorator(*args, **kwargs):
+        def mock_dialog_decorator(*_args, **_kwargs):
             """Mock dialog decorator that returns the original function."""
 
             def decorator(func):
@@ -450,11 +450,11 @@ def prevent_real_system_execution():
         # Mock external HTTP requests
         patch("requests.get") as mock_requests_get,
         patch("requests.post") as mock_requests_post,
-        patch("httpx.AsyncClient") as mock_httpx,
+        patch("httpx.AsyncClient"),
         # Mock file system operations
-        patch("pathlib.Path.exists", return_value=True) as mock_path_exists,
-        patch("pathlib.Path.mkdir") as mock_path_mkdir,
-        patch("builtins.open", create=True) as mock_open,
+        patch("pathlib.Path.exists", return_value=True),
+        patch("pathlib.Path.mkdir"),
+        patch("builtins.open", create=True),
         # Mock logging to prevent log spam
         patch("logging.getLogger") as mock_get_logger,
         # Mock streamlit dialog decorator at import time
@@ -485,7 +485,7 @@ def prevent_real_system_execution():
         mock_requests_post.return_value = mock_response
 
         # Configure dialog decorator to act as a passthrough decorator
-        def mock_dialog_func(*args, **kwargs):
+        def mock_dialog_func(*_args, **_kwargs):
             """Mock dialog decorator that returns the original function."""
 
             def decorator(func):
@@ -516,7 +516,7 @@ def ensure_proper_job_data_types():
     """
 
     def validate_job_list(jobs):
-        """Validate that jobs list contains proper Job objects with string attributes."""
+        """Validate jobs list contains proper Job objects with string attributes."""
         if not jobs:
             return jobs
 
