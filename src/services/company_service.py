@@ -456,3 +456,111 @@ class CompanyService:
         except Exception:
             logger.exception("Failed to bulk update scrape stats")
             raise
+
+    @staticmethod
+    @performance_monitor
+    def get_companies_for_management() -> list[dict]:
+        """Get all companies formatted for management UI display.
+
+        Returns:
+            List of dictionaries with company data for management interface.
+
+        Raises:
+            Exception: If database query fails.
+        """
+        try:
+            with db_session() as session:
+                companies_sql = session.exec(
+                    select(CompanySQL).order_by(CompanySQL.name)
+                ).all()
+
+                companies_data = [
+                    {
+                        "id": company.id,
+                        "Name": company.name,
+                        "URL": company.url,
+                        "Active": company.active,
+                    }
+                    for company in companies_sql
+                ]
+
+                logger.info(
+                    "Retrieved %d companies for management", len(companies_data)
+                )
+                return companies_data
+
+        except Exception:
+            logger.exception("Failed to get companies for management")
+            raise
+
+    @staticmethod
+    @performance_monitor
+    def update_company_active_status(company_id: int, active: bool) -> bool:
+        """Update the active status of a company.
+
+        Args:
+            company_id: Database ID of the company to update.
+            active: New active status.
+
+        Returns:
+            True if update was successful.
+
+        Raises:
+            Exception: If database update fails or company not found.
+        """
+        try:
+            with db_session() as session:
+                company = session.exec(
+                    select(CompanySQL).filter_by(id=company_id)
+                ).first()
+                if not company:
+                    error_msg = f"Company with ID {company_id} not found"
+                    raise ValueError(error_msg)
+
+                old_status = company.active
+                company.active = active
+
+                logger.info(
+                    "Updated company '%s' active status from %s to %s",
+                    company.name,
+                    old_status,
+                    company.active,
+                )
+                return True
+
+        except ValueError:
+            raise
+        except Exception:
+            logger.exception(
+                "Failed to update company active status for ID %s", company_id
+            )
+            raise
+
+    @staticmethod
+    @performance_monitor
+    def get_active_companies_count() -> int:
+        """Get the count of active companies.
+
+        Returns:
+            Number of active companies.
+
+        Raises:
+            Exception: If database query fails.
+        """
+        try:
+            with db_session() as session:
+                count_result = session.exec(
+                    select(func.count(CompanySQL.id)).where(CompanySQL.active.is_(True))
+                ).one()
+
+                # Extract scalar value from potential tuple result
+                count = (
+                    count_result[0] if isinstance(count_result, tuple) else count_result
+                )
+
+                logger.info("Retrieved active companies count: %d", count)
+                return count
+
+        except Exception:
+            logger.exception("Failed to get active companies count")
+            raise

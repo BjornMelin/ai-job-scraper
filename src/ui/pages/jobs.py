@@ -13,11 +13,9 @@ from datetime import datetime, timezone
 import pandas as pd
 import streamlit as st
 
-from sqlmodel import func, select
-from src.database import db_session
-from src.models import CompanySQL, JobSQL
 from src.schemas import Job
 from src.scraper import scrape_all
+from src.services.company_service import CompanyService
 from src.services.job_service import JobService
 from src.ui.components.cards.job_card import render_jobs_list
 from src.ui.components.sidebar import render_sidebar
@@ -227,20 +225,10 @@ def _render_last_refresh_status() -> None:
 
 
 def _render_active_sources_metric() -> None:
-    """Render the active sources metric."""
+    """Render the active sources metric using service layer."""
     try:
-        with db_session() as session:
-            # Use modern SQLModel syntax for counting active companies
-            active_companies_result = session.exec(
-                select(func.count(CompanySQL.id)).where(CompanySQL.active.is_(True))
-            ).one()
-            # Extract scalar value from potential tuple result
-            active_companies = (
-                active_companies_result[0]
-                if isinstance(active_companies_result, tuple)
-                else active_companies_result
-            )
-            st.metric("Active Sources", active_companies)
+        active_companies = CompanyService.get_active_companies_count()
+        st.metric("Active Sources", active_companies)
     except Exception:
         logger.exception("Failed to get active sources count")
         st.metric("Active Sources", 0)
@@ -449,22 +437,27 @@ def _render_list_view(df: pd.DataFrame, tab_key: str) -> None:
 
 
 def _save_list_view_changes(edited_df: pd.DataFrame) -> None:
-    """Save changes from list view editing.
+    """Save changes from list view editing using service layer.
 
     Args:
         edited_df: DataFrame with edited job data.
     """
     try:
-        with db_session() as session:
-            for _, row in edited_df.iterrows():
-                job = session.exec(select(JobSQL).filter_by(id=row["id"])).first()
-                if job:
-                    job.favorite = row["Favorite"]
-                    job.application_status = row["Status"]
-                    job.notes = row["Notes"]
+        # Convert DataFrame to list of updates for bulk update
+        job_updates = []
+        for _, row in edited_df.iterrows():
+            job_updates.append(
+                {
+                    "id": row["id"],
+                    "favorite": row["Favorite"],
+                    "application_status": row["Status"],
+                    "notes": row["Notes"],
+                }
+            )
 
-            # Note: session.commit() handled by db_session context manager
-            st.success("Saved!")
+        # Use service layer for bulk update
+        JobService.bulk_update_jobs(job_updates)
+        st.success("Saved!")
 
     except Exception:
         st.error("Save failed.")

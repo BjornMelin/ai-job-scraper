@@ -10,10 +10,9 @@ import logging
 import pandas as pd
 import streamlit as st
 
-from sqlalchemy.orm import Session
-from sqlmodel import select
-from src.database import db_session
-from src.models import CompanySQL
+
+# Removed direct database import - using service layer instead
+from src.services.company_service import CompanyService
 from src.ui.state.session_state import clear_filters
 
 logger = logging.getLogger(__name__)
@@ -131,18 +130,10 @@ def _render_company_management() -> None:
     It includes functionality for toggling company active status and adding new
     companies.
     """
-    with (
-        st.expander("🏢 Manage Companies", expanded=False),
-        db_session() as session,
-    ):
-        # Create DataFrame of existing companies using modern SQLModel syntax
-        companies = session.exec(select(CompanySQL)).all()
-        comp_df = pd.DataFrame(
-            [
-                {"id": c.id, "Name": c.name, "URL": c.url, "Active": c.active}
-                for c in companies
-            ]
-        )
+    with st.expander("🏢 Manage Companies", expanded=False):
+        # Get companies from service layer instead of direct DB access
+        companies_data = CompanyService.get_companies_for_management()
+        comp_df = pd.DataFrame(companies_data)
 
         if not comp_df.empty:
             st.markdown("**Existing Companies**")
@@ -161,44 +152,36 @@ def _render_company_management() -> None:
             )
 
             if st.button("💾 Save Changes", use_container_width=True, type="primary"):
-                _save_company_changes(session, edited_comp)
+                _save_company_changes(edited_comp)
 
         # Add new company section
-        _render_add_company_form(session)
+        _render_add_company_form()
 
 
 def _get_company_list() -> list[str]:
-    """Get list of unique company names from database.
+    """Get list of unique company names using service layer.
 
     Returns:
         List of company names sorted alphabetically.
     """
     try:
-        with db_session() as session:
-            # Get unique company names using modern SQLModel syntax
-            companies = session.exec(
-                select(CompanySQL.name).distinct().order_by(CompanySQL.name)
-            ).all()
-            return list(companies)
+        companies = CompanyService.get_all_companies()
+        return [company.name for company in companies]
 
     except Exception:
         logger.exception("Failed to get company list")
         return []
 
 
-def _save_company_changes(session: Session, edited_comp: pd.DataFrame) -> None:
-    """Save changes to company settings.
+def _save_company_changes(edited_comp: pd.DataFrame) -> None:
+    """Save changes to company settings using service layer.
 
     Args:
-        session: Database session.
         edited_comp: DataFrame containing edited company data.
     """
     try:
         for _, row in edited_comp.iterrows():
-            comp = session.exec(select(CompanySQL).filter_by(id=row["id"])).first()
-            if comp:
-                comp.active = row["Active"]
-        # Note: session.commit() handled by db_session context manager
+            CompanyService.update_company_active_status(row["id"], row["Active"])
         st.success("✅ Company settings saved!")
 
     except Exception:
@@ -206,12 +189,8 @@ def _save_company_changes(session: Session, edited_comp: pd.DataFrame) -> None:
         st.error("❌ Save failed. Please try again.")
 
 
-def _render_add_company_form(session: Session) -> None:
-    """Render form for adding new companies.
-
-    Args:
-        session: Database session for adding new companies.
-    """
+def _render_add_company_form() -> None:
+    """Render form for adding new companies using service layer."""
     st.markdown("**Add New Company**")
 
     with st.form("add_company_form", clear_on_submit=True):
@@ -229,14 +208,13 @@ def _render_add_company_form(session: Session) -> None:
         if st.form_submit_button(
             "+ Add Company", use_container_width=True, type="primary"
         ):
-            _handle_add_company(session, new_name, new_url)
+            _handle_add_company(new_name, new_url)
 
 
-def _handle_add_company(session: Session, name: str, url: str) -> None:
-    """Handle adding a new company to the database.
+def _handle_add_company(name: str, url: str) -> None:
+    """Handle adding a new company using service layer.
 
     Args:
-        session: Database session.
         name: Company name.
         url: Company careers page URL.
     """
@@ -249,11 +227,12 @@ def _handle_add_company(session: Session, name: str, url: str) -> None:
         return
 
     try:
-        session.add(CompanySQL(name=name, url=url, active=True))
-        # Note: session.commit() handled by db_session context manager
+        CompanyService.add_company(name, url)
         st.success(f"✅ Added {name} successfully!")
         st.rerun()
 
+    except ValueError as e:
+        st.error(f"❌ {e}")
     except Exception:
         logger.exception("Add company failed")
-        st.error("❌ Failed to add company. Name might already exist.")
+        st.error("❌ Failed to add company. Please try again.")

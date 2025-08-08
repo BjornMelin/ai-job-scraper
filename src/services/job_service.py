@@ -29,6 +29,30 @@ class JobService:
     """
 
     @staticmethod
+    def _to_dto(job_sql: JobSQL) -> Job:
+        """Convert a single SQLModel object to its Pydantic DTO.
+
+        Args:
+            job_sql: SQLModel JobSQL object to convert.
+
+        Returns:
+            Job DTO object.
+        """
+        return Job.model_validate(job_sql)
+
+    @classmethod
+    def _to_dtos(cls, jobs_sql: list[JobSQL]) -> list[Job]:
+        """Convert a list of SQLModel objects to Pydantic DTOs.
+
+        Args:
+            jobs_sql: List of SQLModel JobSQL objects to convert.
+
+        Returns:
+            List of Job DTO objects.
+        """
+        return [cls._to_dto(js) for js in jobs_sql]
+
+    @staticmethod
     def get_filtered_jobs(filters: dict[str, Any]) -> list[Job]:
         """Get jobs filtered by the provided criteria.
 
@@ -99,21 +123,8 @@ class JobService:
 
                 jobs_sql = session.exec(query).all()
 
-                # Convert SQLModel objects to Pydantic DTOs
-                jobs = []
-                for job_sql in jobs_sql:
-                    # Handle company relationship - get company name
-                    company_name = (
-                        job_sql.company_relation.name
-                        if job_sql.company_relation
-                        else "Unknown"
-                    )
-
-                    # Create Job DTO with company name as string
-                    job_data = job_sql.model_dump()
-                    job_data["company"] = company_name
-                    job = Job.model_validate(job_data)
-                    jobs.append(job)
+                # Convert SQLModel objects to Pydantic DTOs using helper
+                jobs = JobService._to_dtos(jobs_sql)
 
                 logger.info("Retrieved %d jobs with filters: %s", len(jobs), filters)
                 return jobs
@@ -248,17 +259,8 @@ class JobService:
                 ).first()
 
                 if job_sql:
-                    # Handle company relationship - get company name
-                    company_name = (
-                        job_sql.company_relation.name
-                        if job_sql.company_relation
-                        else "Unknown"
-                    )
-
-                    # Create Job DTO with company name as string
-                    job_data = job_sql.model_dump()
-                    job_data["company"] = company_name
-                    job = Job.model_validate(job_data)
+                    # Convert to DTO using helper method
+                    job = JobService._to_dto(job_sql)
 
                     logger.info("Retrieved job %s: %s", job_id, job.title)
                     return job
@@ -407,3 +409,127 @@ class JobService:
             logger.warning("Unsupported date type: %s", type(date_input))
 
         return None
+
+    @staticmethod
+    def bulk_update_jobs(job_updates: list[dict]) -> bool:
+        """Bulk update job records with favorite, status, and notes changes.
+
+        Args:
+            job_updates: List of dicts with keys: id, favorite, application_status,
+                notes
+
+        Returns:
+            True if updates were successful.
+
+        Raises:
+            Exception: If database update fails.
+        """
+        if not job_updates:
+            return True
+
+        try:
+            with db_session() as session:
+                for update in job_updates:
+                    job = session.exec(
+                        select(JobSQL).filter_by(id=update["id"])
+                    ).first()
+                    if job:
+                        job.favorite = update.get("favorite", job.favorite)
+                        job.application_status = update.get(
+                            "application_status", job.application_status
+                        )
+                        job.notes = update.get("notes", job.notes)
+
+                        # Set application date if status changed to "Applied"
+                        if (
+                            update.get("application_status") == "Applied"
+                            and job.application_status == "Applied"
+                            and not job.application_date
+                        ):
+                            job.application_date = datetime.now(timezone.utc)
+
+                logger.info("Bulk updated %d jobs", len(job_updates))
+                return True
+
+        except Exception:
+            logger.exception("Failed to bulk update jobs")
+            raise
+
+    @staticmethod
+    def get_jobs_with_company_names_direct_join(filters: dict[str, Any]) -> list[dict]:
+        """Alternative implementation using direct SQL JOIN as suggested by Sourcery.
+
+        This method demonstrates the SQL join approach for fetching company names
+        directly in the query, as suggested in the PR feedback.
+
+        Args:
+            filters: Dictionary containing filter criteria.
+
+        Returns:
+            List of dictionaries with job data and company names.
+
+        Raises:
+            Exception: If database query fails.
+        """
+        try:
+            with db_session() as session:
+                # Use explicit JOIN to get company names directly
+
+                query = select(JobSQL, CompanySQL.name.label("company_name")).join(
+                    CompanySQL, JobSQL.company_id == CompanySQL.id
+                )
+
+                # Apply the same filters as in get_filtered_jobs
+                if text_search := filters.get("text_search", "").strip():
+                    query = query.filter(
+                        or_(
+                            JobSQL.title.ilike(f"%{text_search}%"),
+                            JobSQL.description.ilike(f"%{text_search}%"),
+                        )
+                    )
+
+                if (
+                    company_filter := filters.get("company", [])
+                ) and "All" not in company_filter:
+                    query = query.filter(CompanySQL.name.in_(company_filter))
+
+                if (
+                    status_filter := filters.get("application_status", [])
+                ) and "All" not in status_filter:
+                    query = query.filter(JobSQL.application_status.in_(status_filter))
+
+                if date_from := filters.get("date_from"):
+                    date_from = JobService._parse_date(date_from)
+                    if date_from:
+                        query = query.filter(JobSQL.posted_date >= date_from)
+
+                if date_to := filters.get("date_to"):
+                    date_to = JobService._parse_date(date_to)
+                    if date_to:
+                        query = query.filter(JobSQL.posted_date <= date_to)
+
+                if filters.get("favorites_only", False):
+                    query = query.filter(JobSQL.favorite.is_(True))
+
+                if not filters.get("include_archived", False):
+                    query = query.filter(JobSQL.archived.is_(False))
+
+                query = query.order_by(JobSQL.posted_date.desc().nullslast())
+
+                results = session.exec(query).all()
+
+                # Convert results to dictionary format
+                jobs_data = []
+                for job_sql, company_name in results:
+                    job_dict = job_sql.model_dump()
+                    job_dict["company"] = company_name
+                    jobs_data.append(job_dict)
+
+                logger.info(
+                    "Retrieved %d jobs with direct JOIN approach", len(jobs_data)
+                )
+                return jobs_data
+
+        except Exception:
+            logger.exception("Failed to get jobs with direct JOIN")
+            raise
