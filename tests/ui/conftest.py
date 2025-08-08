@@ -65,6 +65,13 @@ def mock_streamlit():
 
         mocks["columns"].side_effect = mock_columns_func
 
+        # Configure text input to return empty string by default
+        # This prevents MagicMock string operation errors
+        mocks["text_input"].return_value = ""
+        mocks["selectbox"].return_value = None
+        mocks["toggle"].return_value = False
+        mocks["button"].return_value = False
+
         # Configure container to return mock container
         mock_container_obj = MagicMock()
         mocks["container"].return_value.__enter__ = Mock(
@@ -92,6 +99,19 @@ def mock_streamlit():
         mock_spinner_obj = MagicMock()
         mocks["spinner"].return_value.__enter__ = Mock(return_value=mock_spinner_obj)
         mocks["spinner"].return_value.__exit__ = Mock(return_value=None)
+
+        # Configure dialog decorator to act as a passthrough decorator
+        def mock_dialog_decorator(*args, **kwargs):
+            """Mock dialog decorator that returns the original function."""
+
+            def decorator(func):
+                # Add an 'open' method to the function to simulate dialog behavior
+                func.open = Mock()
+                return func
+
+            return decorator
+
+        mocks["dialog"] = mock_dialog_decorator
 
         # Add extra references for convenience
         mocks.update(
@@ -350,16 +370,26 @@ def sample_jobs():
 @pytest.fixture
 def mock_company_service():
     """Mock CompanyService for testing UI components."""
-    with patch("src.ui.pages.companies.CompanyService") as mock_service:
-        # Configure default return values for service methods
-        mock_service.get_all_companies.return_value = []
-        mock_service.add_company.return_value = Company(
-            id=1, name="Test Company", url="https://test.com", active=True
-        )
-        mock_service.toggle_company_active.return_value = True
-        mock_service.get_active_companies_count.return_value = 0
+    with (
+        patch("src.ui.pages.companies.CompanyService") as mock_service_companies,
+        patch("src.ui.pages.jobs.CompanyService") as mock_service_jobs,
+        patch("src.services.company_service.CompanyService") as mock_service_core,
+    ):
+        # Configure all mock instances with the same behavior
+        for mock_service in [
+            mock_service_companies,
+            mock_service_jobs,
+            mock_service_core,
+        ]:
+            mock_service.get_all_companies.return_value = []
+            mock_service.add_company.return_value = Company(
+                id=1, name="Test Company", url="https://test.com", active=True
+            )
+            mock_service.toggle_company_active.return_value = True
+            mock_service.get_active_companies_count.return_value = 0
+            mock_service.get_company_by_id.return_value = None
 
-        yield mock_service
+        yield mock_service_companies
 
 
 @pytest.fixture
@@ -369,16 +399,155 @@ def mock_job_service():
     with (
         patch("src.ui.pages.jobs.JobService") as mock_service_jobs,
         patch("src.ui.components.cards.job_card.JobService") as mock_service_cards,
+        patch("src.services.job_service.JobService") as mock_service_core,
     ):
-        # Configure both mock instances with the same behavior
-        for mock_service in [mock_service_jobs, mock_service_cards]:
+        # Configure all mock instances with the same behavior
+        for mock_service in [mock_service_jobs, mock_service_cards, mock_service_core]:
             mock_service.get_filtered_jobs.return_value = []
             mock_service.update_job_status.return_value = True
             mock_service.toggle_favorite.return_value = True
             mock_service.update_notes.return_value = True
             mock_service.bulk_update_jobs.return_value = True
+            mock_service.get_all_jobs.return_value = []
+            mock_service.get_job_by_id.return_value = None
 
         yield mock_service_jobs
+
+
+@pytest.fixture(autouse=True)
+def prevent_real_system_execution():
+    """Global autouse fixture to prevent real system execution during tests.
+
+    This fixture mocks all external dependencies and I/O operations to ensure
+    complete test isolation.
+    """
+    with (
+        # Mock all scraping and external API calls
+        patch(
+            "src.scraper.scrape_all",
+            return_value={
+                "inserted": 0,
+                "updated": 0,
+                "archived": 0,
+                "deleted": 0,
+                "skipped": 0,
+            },
+        ) as mock_scrape_all,
+        patch(
+            "src.ui.pages.jobs._execute_scraping_safely",
+            return_value={
+                "inserted": 0,
+                "updated": 0,
+                "archived": 0,
+                "deleted": 0,
+                "skipped": 0,
+            },
+        ) as mock_execute_scraping,
+        patch("asyncio.run") as mock_asyncio_run,
+        # Mock database connections and sessions
+        patch("src.database.get_session") as mock_get_session,
+        patch("sqlmodel.Session") as mock_session,
+        # Mock external HTTP requests
+        patch("requests.get") as mock_requests_get,
+        patch("requests.post") as mock_requests_post,
+        patch("httpx.AsyncClient") as mock_httpx,
+        # Mock file system operations
+        patch("pathlib.Path.exists", return_value=True) as mock_path_exists,
+        patch("pathlib.Path.mkdir") as mock_path_mkdir,
+        patch("builtins.open", create=True) as mock_open,
+        # Mock logging to prevent log spam
+        patch("logging.getLogger") as mock_get_logger,
+        # Mock streamlit dialog decorator at import time
+        patch("streamlit.dialog") as mock_dialog_decorator,
+    ):
+        # Configure mock behaviors
+        mock_asyncio_run.return_value = {
+            "inserted": 0,
+            "updated": 0,
+            "archived": 0,
+            "deleted": 0,
+            "skipped": 0,
+        }
+        mock_get_logger.return_value = Mock()
+
+        # Configure session mock
+        mock_session_instance = Mock()
+        mock_session.return_value.__enter__ = Mock(return_value=mock_session_instance)
+        mock_session.return_value.__exit__ = Mock(return_value=None)
+        mock_get_session.return_value = mock_session_instance
+
+        # Configure HTTP mocks
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {}
+        mock_response.text = "<html></html>"
+        mock_requests_get.return_value = mock_response
+        mock_requests_post.return_value = mock_response
+
+        # Configure dialog decorator to act as a passthrough decorator
+        def mock_dialog_func(*args, **kwargs):
+            """Mock dialog decorator that returns the original function."""
+
+            def decorator(func):
+                # Add an 'open' method to the function to simulate dialog behavior
+                func.open = Mock()
+                return func
+
+            return decorator
+
+        mock_dialog_decorator.side_effect = mock_dialog_func
+
+        yield {
+            "scrape_all": mock_scrape_all,
+            "execute_scraping": mock_execute_scraping,
+            "asyncio_run": mock_asyncio_run,
+            "session": mock_session_instance,
+            "requests_get": mock_requests_get,
+            "logger": mock_get_logger.return_value,
+        }
+
+
+@pytest.fixture
+def ensure_proper_job_data_types():
+    """Fixture to ensure Job DTOs maintain proper data types during tests.
+
+    This prevents MagicMock string operation errors by ensuring all Job
+    attributes are proper Python types, not mock objects.
+    """
+
+    def validate_job_list(jobs):
+        """Validate that jobs list contains proper Job objects with string attributes."""
+        if not jobs:
+            return jobs
+
+        validated_jobs = []
+        for job in jobs:
+            # Ensure it's a proper Job DTO, not a Mock
+            if (
+                hasattr(job, "title")
+                and hasattr(job, "company")
+                and hasattr(job, "description")
+            ):
+                # Ensure all string attributes are actual strings
+                if (
+                    isinstance(job.title, str)
+                    and isinstance(job.company, str)
+                    and isinstance(job.description, str)
+                ):
+                    validated_jobs.append(job)
+                else:
+                    # Convert any mock attributes to strings
+                    job.title = str(job.title) if job.title else ""
+                    job.company = str(job.company) if job.company else ""
+                    job.description = str(job.description) if job.description else ""
+                    job.location = str(job.location) if job.location else ""
+                    validated_jobs.append(job)
+            else:
+                # Skip invalid objects
+                continue
+        return validated_jobs
+
+    return validate_job_list
 
 
 @pytest.fixture

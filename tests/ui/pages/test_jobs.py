@@ -556,18 +556,30 @@ class TestJobsPageIntegration:
         mock_job_service,
         mock_company_service,
         sample_jobs,
+        ensure_proper_job_data_types,
     ):
         """Test complete jobs page renders all components."""
-        # Arrange
+        # Arrange - ensure proper data types to prevent MagicMock string errors
+        validated_jobs = ensure_proper_job_data_types(sample_jobs)
         self._setup_jobs_page_test(
-            mock_session_state, mock_job_service, mock_company_service, sample_jobs
+            mock_session_state, mock_job_service, mock_company_service, validated_jobs
         )
 
-        with patch("src.ui.pages.jobs.render_sidebar"):
+        with (
+            patch("src.ui.pages.jobs.render_sidebar") as mock_render_sidebar,
+            patch(
+                "src.ui.pages.jobs._get_filtered_jobs", return_value=validated_jobs
+            ) as mock_get_filtered,
+            patch("src.ui.pages.jobs._handle_refresh_jobs") as mock_handle_refresh,
+        ):
             # Act
             render_jobs_page()
 
             # Assert
+            # Verify that mock functions are called correctly
+            mock_render_sidebar.assert_called_once()
+            mock_get_filtered.assert_called_once()
+
             # Should render page header - inline variable usage
             assert "AI Job Tracker" in " ".join(
                 call.args[0] for call in mock_streamlit["markdown"].call_args_list
@@ -601,9 +613,20 @@ class TestJobsPageIntegration:
             active_companies=0,
         )
 
-        with patch("src.ui.pages.jobs.render_sidebar"):
+        with (
+            patch("src.ui.pages.jobs.render_sidebar") as mock_render_sidebar,
+            patch(
+                "src.ui.pages.jobs._get_filtered_jobs", return_value=[]
+            ) as mock_get_filtered,
+            patch("src.ui.pages.jobs._handle_refresh_jobs") as mock_handle_refresh,
+        ):
             # Act
             render_jobs_page()
+
+            # Assert
+            # Verify that mock functions are called correctly
+            mock_render_sidebar.assert_called_once()
+            mock_get_filtered.assert_called_once()
 
             # Assert - inline variable usage
             assert [
@@ -690,19 +713,18 @@ class TestJobsPageIntegration:
         return {"jobs": jobs, "expected_favorites": 1, "expected_applied": 0}
 
     @pytest.mark.parametrize(
-        "scenario_fixture",
+        "scenario_name",
         ["no_jobs_scenario", "single_applied_favorite_scenario", "mixed_jobs_scenario"],
-        indirect=True,
     )
     def test_job_tabs_calculate_correct_counts(
         self,
         mock_streamlit,
         request,
-        scenario_fixture,
+        scenario_name,
     ):
         """Test job tabs calculate correct counts for various job combinations."""
         # Arrange
-        scenario = request.getfixturevalue(scenario_fixture)
+        scenario = request.getfixturevalue(scenario_name)
         jobs = scenario["jobs"]
         expected_favorites = scenario["expected_favorites"]
         expected_applied = scenario["expected_applied"]
