@@ -296,6 +296,35 @@ class JobService:
             raise
 
     @staticmethod
+    def archive_job(job_id: int) -> bool:
+        """Archive a job (soft delete).
+
+        Args:
+            job_id: Database ID of the job to archive.
+
+        Returns:
+            True if archiving was successful, False otherwise.
+
+        Raises:
+            Exception: If database update fails.
+        """
+        try:
+            with db_session() as session:
+                job = session.exec(select(JobSQL).filter_by(id=job_id)).first()
+                if not job:
+                    logger.warning("Job with ID %s not found", job_id)
+                    return False
+
+                job.archived = True
+
+                logger.info("Archived job %s: %s", job_id, job.title)
+                return True
+
+        except Exception:
+            logger.exception("Failed to archive job %s", job_id)
+            raise
+
+    @staticmethod
     def get_active_companies() -> list[str]:
         """Get list of active company names for scraping.
 
