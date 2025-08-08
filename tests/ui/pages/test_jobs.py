@@ -59,7 +59,7 @@ class TestJobDetailsModal:
         status_calls = [
             call for call in markdown_calls if "Status:" in call and "🟢" in call
         ]
-        assert len(status_calls) > 0
+        assert status_calls
 
     def test_show_job_details_modal_creates_notes_text_area(
         self, mock_streamlit, sample_job
@@ -102,7 +102,7 @@ class TestJobDetailsModal:
 
         # Assert
         link_button_calls = mock_streamlit["link_button"].call_args_list
-        assert len(link_button_calls) > 0
+        assert link_button_calls
 
         apply_button = link_button_calls[0]
         assert apply_button.args[0] == "Apply Now"
@@ -310,7 +310,7 @@ class TestJobRefresh:
             # Assert
             # Should show success message with sync statistics
             success_calls = mock_streamlit["success"].call_args_list
-            assert len(success_calls) > 0
+            assert success_calls
 
             success_message = success_calls[0].args[0]
             assert (
@@ -369,7 +369,7 @@ class TestJobTabs:
 
         # Assert
         tabs_calls = mock_streamlit["tabs"].call_args_list
-        assert len(tabs_calls) > 0
+        assert tabs_calls
 
         tab_labels = tabs_calls[0].args[0]
         assert len(tab_labels) == 3
@@ -406,7 +406,7 @@ class TestJobTabs:
         favorites_info = [
             call for call in info_calls if "No favorite jobs yet" in call.args[0]
         ]
-        assert len(favorites_info) > 0
+        assert favorites_info
 
     def test_render_job_tabs_shows_empty_state_for_no_applied(self, mock_streamlit):
         """Test applied tab shows empty state when no applied jobs exist."""
@@ -434,7 +434,7 @@ class TestJobTabs:
         applied_info = [
             call for call in info_calls if "No applications yet" in call.args[0]
         ]
-        assert len(applied_info) > 0
+        assert applied_info
 
 
 class TestJobStatistics:
@@ -569,7 +569,7 @@ class TestJobsPageIntegration:
 
             # Should render job tabs
             tabs_calls = mock_streamlit["tabs"].call_args_list
-            assert len(tabs_calls) > 0
+            assert tabs_calls
 
     def test_render_jobs_page_handles_no_jobs_gracefully(
         self,
@@ -593,7 +593,7 @@ class TestJobsPageIntegration:
             no_jobs_info = [
                 call for call in info_calls if "No jobs found" in call.args[0]
             ]
-            assert len(no_jobs_info) > 0
+            assert no_jobs_info
 
     def test_complete_job_refresh_workflow(self, mock_streamlit, mock_session_state):  # noqa: ARG002
         """Test complete job refresh workflow with realistic scraping results."""
@@ -619,12 +619,12 @@ class TestJobsPageIntegration:
             # Assert
             # 1. Spinner was shown
             spinner_calls = mock_streamlit["spinner"].call_args_list
-            assert len(spinner_calls) > 0
+            assert spinner_calls
             assert "🔍 Searching for new jobs..." in spinner_calls[0].args[0]
 
             # 2. Success message was displayed
             success_calls = mock_streamlit["success"].call_args_list
-            assert len(success_calls) > 0
+            assert success_calls
             success_message = success_calls[0].args[0]
             assert "Success! Processed 15 jobs" in success_message  # 10 + 5
 
