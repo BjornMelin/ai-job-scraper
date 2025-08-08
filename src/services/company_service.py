@@ -49,6 +49,30 @@ class CompanyService:
     """
 
     @staticmethod
+    def _to_dto(company_sql: CompanySQL) -> Company:
+        """Convert a single SQLModel object to its Pydantic DTO.
+
+        Args:
+            company_sql: SQLModel CompanySQL object to convert.
+
+        Returns:
+            Company DTO object.
+        """
+        return Company.model_validate(company_sql)
+
+    @classmethod
+    def _to_dtos(cls, companies_sql: list[CompanySQL]) -> list[Company]:
+        """Convert a list of SQLModel objects to Pydantic DTOs.
+
+        Args:
+            companies_sql: List of SQLModel CompanySQL objects to convert.
+
+        Returns:
+            List of Company DTO objects.
+        """
+        return [cls._to_dto(c) for c in companies_sql]
+
+    @staticmethod
     @performance_monitor
     def get_all_companies() -> list[Company]:
         """Get all companies ordered by name.
@@ -66,9 +90,7 @@ class CompanyService:
                 ).all()
 
                 # Convert SQLModel objects to Pydantic DTOs
-                companies = [
-                    Company.model_validate(company_sql) for company_sql in companies_sql
-                ]
+                companies = CompanyService._to_dtos(companies_sql)
 
                 logger.info("Retrieved %d companies", len(companies))
                 return companies
@@ -122,7 +144,7 @@ class CompanyService:
                 session.refresh(company)  # Ensure all fields are populated
 
                 # Convert to DTO before returning
-                company_dto = Company.model_validate(company)
+                company_dto = CompanyService._to_dto(company)
                 logger.info("Added new company: %s (ID: %s)", name, company.id)
                 return company_dto
 
@@ -196,9 +218,7 @@ class CompanyService:
                 ).all()
 
                 # Convert SQLModel objects to Pydantic DTOs
-                companies = [
-                    Company.model_validate(company_sql) for company_sql in companies_sql
-                ]
+                companies = CompanyService._to_dtos(companies_sql)
 
                 logger.info("Retrieved %d active companies", len(companies))
                 return companies
@@ -285,7 +305,7 @@ class CompanyService:
                 ).first()
 
                 if company_sql:
-                    company = Company.model_validate(company_sql)
+                    company = CompanyService._to_dto(company_sql)
                     logger.info("Retrieved company %s: %s", company_id, company.name)
                     return company
                 logger.warning("Company with ID %s not found", company_id)
@@ -319,7 +339,7 @@ class CompanyService:
                 ).first()
 
                 if company_sql:
-                    company = Company.model_validate(company_sql)
+                    company = CompanyService._to_dto(company_sql)
                     logger.info(
                         "Retrieved company by name '%s': ID %s", name, company.id
                     )

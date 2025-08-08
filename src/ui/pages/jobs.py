@@ -231,9 +231,15 @@ def _render_active_sources_metric() -> None:
     try:
         with db_session() as session:
             # Use modern SQLModel syntax for counting active companies
-            active_companies = session.exec(
+            active_companies_result = session.exec(
                 select(func.count(CompanySQL.id)).where(CompanySQL.active.is_(True))
             ).one()
+            # Extract scalar value from potential tuple result
+            active_companies = (
+                active_companies_result[0]
+                if isinstance(active_companies_result, tuple)
+                else active_companies_result
+            )
             st.metric("Active Sources", active_companies)
     except Exception:
         logger.exception("Failed to get active sources count")
