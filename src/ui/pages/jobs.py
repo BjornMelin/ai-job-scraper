@@ -17,32 +17,67 @@ from src.schemas import Job
 from src.scraper import scrape_all
 from src.services.company_service import CompanyService
 from src.services.job_service import JobService
-from src.ui.components.cards.job_card import render_jobs_list
 from src.ui.components.sidebar import render_sidebar
+from src.ui.utils.streamlit_context import is_streamlit_context
 
 logger = logging.getLogger(__name__)
 
 
-def _run_async_scraping_task() -> str:
-    """Create and manage async scraping task properly.
+@st.dialog("Job Details", width="large")
+def show_job_details_modal(job: Job) -> None:
+    """Show job details in a modal dialog.
 
-    Returns:
-        Task ID for tracking the scraping operation.
+    Args:
+        job: Job DTO object to display details for.
     """
-    task_id = f"scraping_{datetime.now(timezone.utc).timestamp()}"
+    from src.ui.helpers.job_modal import (
+        render_action_buttons,
+        render_job_description,
+        render_job_header,
+        render_job_status,
+        render_notes_section,
+    )
 
-    # Initialize task tracking in session state
-    if "active_tasks" not in st.session_state:
-        st.session_state.active_tasks = {}
+    render_job_header(job)
+    render_job_status(job)
+    notes_value = render_notes_section(job)
+    render_job_description(job)
+    render_action_buttons(job, notes_value)
 
-    return task_id
+
+def _save_job_notes(job_id: int, notes: str) -> None:
+    """Save job notes and show feedback.
+
+    Args:
+        job_id: Database ID of the job to update notes for.
+        notes: New notes content to save.
+    """
+    try:
+        JobService.update_notes(job_id, notes)
+        logger.info("Updated notes for job %s", job_id)
+        st.success("Notes saved successfully!")
+        # Don't rerun here to avoid closing the modal
+    except Exception:
+        logger.exception("Failed to update notes")
+        st.error("Failed to update notes")
+
+
+def _handle_job_details_modal(jobs: list[Job]) -> None:
+    """Handle showing the job details modal when a job is selected.
+
+    Args:
+        jobs: List of available jobs to find the selected job.
+    """
+    if view_job_id := st.session_state.get("view_job_id"):
+        if selected_job := next((job for job in jobs if job.id == view_job_id), None):
+            show_job_details_modal(selected_job)
+        else:
+            # Job not found in current filtered list, clear the selection
+            st.session_state.view_job_id = None
 
 
 def _execute_scraping_safely() -> dict[str, int]:
-    """Execute scraping with proper event loop management.
-
-    This function handles async event loop management for Streamlit compatibility
-    and executes the complete scraping workflow including company pages and job boards.
+    """Execute scraping with simple asyncio management.
 
     Returns:
         dict[str, int]: Synchronization statistics from SmartSyncEngine containing:
@@ -53,32 +88,14 @@ def _execute_scraping_safely() -> dict[str, int]:
             - 'skipped': Number of jobs skipped (no changes detected)
 
     Raises:
-        Exception: If scraping execution fails or event loop management encounters
-            errors.
+        Exception: If scraping execution fails.
     """
-    # Proper event loop handling for Streamlit (2025 pattern)
     try:
-        loop = asyncio.get_running_loop()
-        logger.info("Using existing event loop")
-    except RuntimeError:
-        # No event loop running, create a new one
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        logger.info("Created new event loop")
-
-    try:
-        # Run the async scraping function
-        return loop.run_until_complete(scrape_all())
+        # Use simple asyncio.run() - handles event loop lifecycle automatically
+        return asyncio.run(scrape_all())
     except Exception:
         logger.exception("Scraping execution failed")
         raise
-    finally:
-        # Clean up if we created the loop
-        if not loop.is_running():
-            try:
-                loop.close()
-            except Exception:
-                logger.warning("Loop cleanup warning")
 
 
 def render_jobs_page() -> None:
@@ -110,6 +127,9 @@ def render_jobs_page() -> None:
 
     # Render statistics dashboard
     _render_statistics_dashboard(jobs)
+
+    # Show job details modal if a job is selected
+    _handle_job_details_modal(jobs)
 
 
 def _render_page_header() -> None:
@@ -167,16 +187,7 @@ def _handle_refresh_jobs() -> None:
     """Handle the job refresh operation."""
     with st.spinner("🔍 Searching for new jobs..."):
         try:
-            # Proper async task management for Streamlit
-            task_id = _run_async_scraping_task()
-
-            # Store task info in session state for tracking
-            if "scraping_task" not in st.session_state:
-                st.session_state.scraping_task = None
-
-            st.session_state.scraping_task = task_id
-
-            # Execute scraping with proper event loop handling (returns sync stats)
+            # Execute scraping and get sync stats
             sync_stats = _execute_scraping_safely()
             st.session_state.last_scrape = datetime.now(timezone.utc)
 
@@ -316,9 +327,11 @@ def _render_job_display(jobs: list[Job], tab_key: str) -> None:
     # Apply per-tab search to jobs list
     filtered_jobs = _apply_tab_search_to_jobs(jobs, tab_key)
 
-    # For now, we'll use the new render_jobs_list function as specified in T1.1
-    # This implements the requirements for job cards with details expanders
-    render_jobs_list(filtered_jobs)
+    # Use helper for view mode selection and rendering
+    from src.ui.helpers.view_mode import apply_view_mode, select_view_mode
+
+    view_mode, grid_columns = select_view_mode(tab_key)
+    apply_view_mode(filtered_jobs, view_mode, grid_columns)
 
 
 def _jobs_to_dataframe(jobs: list[Job]) -> pd.DataFrame:
@@ -644,4 +657,6 @@ def _render_progress_visualization(
 
 
 # Execute page when loaded by st.navigation()
-render_jobs_page()
+# Only run when in a proper Streamlit context (not during test imports)
+if is_streamlit_context():
+    render_jobs_page()

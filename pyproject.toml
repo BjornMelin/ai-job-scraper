@@ -429,3 +429,8 @@ ignored-modules = [
     "langgraph",
 ]
 
+[dependency-groups]
+dev = [
+    "pytest-asyncio>=1.1.0",
+]
+

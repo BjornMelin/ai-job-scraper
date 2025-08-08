@@ -107,6 +107,7 @@ ipython_config.py
 
 # SQLite databases
 *.db
+*.db-*
 *.sqlite
 *.sqlite3
 jobs.db
@@ -282,6 +283,7 @@ $RECYCLE.BIN/
 
 # Documentation generation
 repomix-output.md
+current-codebase.md
 
 # Temporary files
 temp/

@@ -13,6 +13,7 @@ import streamlit as st
 
 from groq import Groq
 from openai import OpenAI
+from src.ui.utils.streamlit_context import is_streamlit_context
 
 logger = logging.getLogger(__name__)
 
@@ -315,4 +316,6 @@ def show_settings_page() -> None:
 
 
 # Execute page when loaded by st.navigation()
-show_settings_page()
+# Only run when in a proper Streamlit context (not during test imports)
+if is_streamlit_context():
+    show_settings_page()

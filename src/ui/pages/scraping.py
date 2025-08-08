@@ -27,6 +27,7 @@ from src.ui.utils.background_tasks import (
     stop_all_scraping,
 )
 from src.ui.utils.formatters import calculate_eta, format_jobs_count
+from src.ui.utils.streamlit_context import is_streamlit_context
 from src.ui.utils.validation_utils import safe_job_count
 
 logger = logging.getLogger(__name__)
@@ -533,4 +534,6 @@ def _render_recent_results_section() -> None:
 
 
 # Execute page when loaded by st.navigation()
-render_scraping_page()
+# Only run when in a proper Streamlit context (not during test imports)
+if is_streamlit_context():
+    render_scraping_page()
