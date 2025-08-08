@@ -304,7 +304,7 @@ def sample_jobs():
 @pytest.fixture
 def mock_company_service():
     """Mock CompanyService for testing UI components."""
-    with patch("src.services.company_service.CompanyService") as mock_service:
+    with patch("src.ui.pages.companies.CompanyService") as mock_service:
         # Configure default return values for service methods
         mock_service.get_all_companies.return_value = []
         mock_service.add_company.return_value = Company(
@@ -319,15 +319,20 @@ def mock_company_service():
 @pytest.fixture
 def mock_job_service():
     """Mock JobService for testing UI components."""
-    with patch("src.services.job_service.JobService") as mock_service:
-        # Configure default return values for service methods
-        mock_service.get_filtered_jobs.return_value = []
-        mock_service.update_job_status.return_value = True
-        mock_service.toggle_favorite.return_value = True
-        mock_service.update_notes.return_value = True
-        mock_service.bulk_update_jobs.return_value = True
+    # Patch in multiple locations where JobService is used
+    with (
+        patch("src.ui.pages.jobs.JobService") as mock_service_jobs,
+        patch("src.ui.components.cards.job_card.JobService") as mock_service_cards,
+    ):
+        # Configure both mock instances with the same behavior
+        for mock_service in [mock_service_jobs, mock_service_cards]:
+            mock_service.get_filtered_jobs.return_value = []
+            mock_service.update_job_status.return_value = True
+            mock_service.toggle_favorite.return_value = True
+            mock_service.update_notes.return_value = True
+            mock_service.bulk_update_jobs.return_value = True
 
-        yield mock_service
+        yield mock_service_jobs
 
 
 @pytest.fixture

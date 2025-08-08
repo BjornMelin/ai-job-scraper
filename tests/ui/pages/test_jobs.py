@@ -303,14 +303,9 @@ class TestJobRefresh:
             "skipped": 2,
         }
 
-        with (
-            patch(
-                "src.ui.pages.jobs._execute_scraping_safely",
-                return_value=mock_sync_stats,
-            ),
-            patch(
-                "src.ui.pages.jobs._run_async_scraping_task", return_value="task_123"
-            ),
+        with patch(
+            "src.ui.pages.jobs._execute_scraping_safely",
+            return_value=mock_sync_stats,
         ):
             # Act
             _handle_refresh_jobs()
@@ -333,14 +328,9 @@ class TestJobRefresh:
     ):
         """Test refresh handler handles scraping failure gracefully."""
         # Arrange
-        with (
-            patch(
-                "src.ui.pages.jobs._execute_scraping_safely",
-                side_effect=Exception("Scraping failed"),
-            ),
-            patch(
-                "src.ui.pages.jobs._run_async_scraping_task", return_value="task_123"
-            ),
+        with patch(
+            "src.ui.pages.jobs._execute_scraping_safely",
+            side_effect=Exception("Scraping failed"),
         ):
             # Act
             _handle_refresh_jobs()
@@ -353,14 +343,9 @@ class TestJobRefresh:
     ):
         """Test refresh handler validates sync stats are in expected format."""
         # Arrange - return invalid format
-        with (
-            patch(
-                "src.ui.pages.jobs._execute_scraping_safely",
-                return_value="invalid_format",
-            ),
-            patch(
-                "src.ui.pages.jobs._run_async_scraping_task", return_value="task_123"
-            ),
+        with patch(
+            "src.ui.pages.jobs._execute_scraping_safely",
+            return_value="invalid_format",
         ):
             # Act
             _handle_refresh_jobs()
@@ -632,9 +617,6 @@ class TestJobsPageIntegration:
             patch(
                 "src.ui.pages.jobs._execute_scraping_safely",
                 return_value=mock_sync_stats,
-            ),
-            patch(
-                "src.ui.pages.jobs._run_async_scraping_task", return_value="task_456"
             ),
             patch("streamlit.rerun") as mock_rerun,
         ):

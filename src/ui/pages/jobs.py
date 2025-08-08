@@ -122,26 +122,8 @@ def _handle_job_details_modal(jobs: list[Job]) -> None:
             st.session_state.view_job_id = None
 
 
-def _run_async_scraping_task() -> str:
-    """Create and manage async scraping task properly.
-
-    Returns:
-        Task ID for tracking the scraping operation.
-    """
-    task_id = f"scraping_{datetime.now(timezone.utc).timestamp()}"
-
-    # Initialize task tracking in session state
-    if "active_tasks" not in st.session_state:
-        st.session_state.active_tasks = {}
-
-    return task_id
-
-
 def _execute_scraping_safely() -> dict[str, int]:
-    """Execute scraping with proper event loop management.
-
-    This function handles async event loop management for Streamlit compatibility
-    and executes the complete scraping workflow including company pages and job boards.
+    """Execute scraping with simple asyncio management.
 
     Returns:
         dict[str, int]: Synchronization statistics from SmartSyncEngine containing:
@@ -152,32 +134,14 @@ def _execute_scraping_safely() -> dict[str, int]:
             - 'skipped': Number of jobs skipped (no changes detected)
 
     Raises:
-        Exception: If scraping execution fails or event loop management encounters
-            errors.
+        Exception: If scraping execution fails.
     """
-    # Proper event loop handling for Streamlit (2025 pattern)
     try:
-        loop = asyncio.get_running_loop()
-        logger.info("Using existing event loop")
-    except RuntimeError:
-        # No event loop running, create a new one
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        logger.info("Created new event loop")
-
-    try:
-        # Run the async scraping function
-        return loop.run_until_complete(scrape_all())
+        # Use simple asyncio.run() - handles event loop lifecycle automatically
+        return asyncio.run(scrape_all())
     except Exception:
         logger.exception("Scraping execution failed")
         raise
-    finally:
-        # Clean up if we created the loop
-        if not loop.is_running():
-            try:
-                loop.close()
-            except Exception:
-                logger.warning("Loop cleanup warning")
 
 
 def render_jobs_page() -> None:
@@ -269,16 +233,7 @@ def _handle_refresh_jobs() -> None:
     """Handle the job refresh operation."""
     with st.spinner("🔍 Searching for new jobs..."):
         try:
-            # Proper async task management for Streamlit
-            task_id = _run_async_scraping_task()
-
-            # Store task info in session state for tracking
-            if "scraping_task" not in st.session_state:
-                st.session_state.scraping_task = None
-
-            st.session_state.scraping_task = task_id
-
-            # Execute scraping with proper event loop handling (returns sync stats)
+            # Execute scraping and get sync stats
             sync_stats = _execute_scraping_safely()
             st.session_state.last_scrape = datetime.now(timezone.utc)
 

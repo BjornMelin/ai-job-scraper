@@ -79,6 +79,32 @@ def _toggle_company_callback(company_id: int) -> None:
         logger.exception("Failed to toggle company status for ID %s", company_id)
 
 
+def _init_and_display_feedback() -> None:
+    """Initialize session state and display feedback messages."""
+    # Initialize all feedback keys
+    feedback_keys = [
+        "add_company_error",
+        "add_company_success",
+        "toggle_error",
+        "toggle_success",
+    ]
+    for key in feedback_keys:
+        if key not in st.session_state:
+            st.session_state[key] = None
+
+    # Display and clear success messages
+    for key in ["add_company_success", "toggle_success"]:
+        if st.session_state[key]:
+            st.success(f"✅ {st.session_state[key]}")
+            st.session_state[key] = None
+
+    # Display and clear error messages
+    for key in ["add_company_error", "toggle_error"]:
+        if st.session_state[key]:
+            st.error(f"❌ {st.session_state[key]}")
+            st.session_state[key] = None
+
+
 def show_companies_page() -> None:
     """Display the companies management page.
 
@@ -90,29 +116,8 @@ def show_companies_page() -> None:
     st.title("Company Management")
     st.markdown("Manage companies for job scraping")
 
-    # Initialize session state for feedback messages
-    if "add_company_error" not in st.session_state:
-        st.session_state.add_company_error = None
-    if "add_company_success" not in st.session_state:
-        st.session_state.add_company_success = None
-    if "toggle_error" not in st.session_state:
-        st.session_state.toggle_error = None
-    if "toggle_success" not in st.session_state:
-        st.session_state.toggle_success = None
-
-    # Display feedback messages
-    if st.session_state.add_company_success:
-        st.success(f"✅ {st.session_state.add_company_success}")
-        st.session_state.add_company_success = None
-    if st.session_state.add_company_error:
-        st.error(f"❌ {st.session_state.add_company_error}")
-        st.session_state.add_company_error = None
-    if st.session_state.toggle_success:
-        st.success(f"✅ {st.session_state.toggle_success}")
-        st.session_state.toggle_success = None
-    if st.session_state.toggle_error:
-        st.error(f"❌ {st.session_state.toggle_error}")
-        st.session_state.toggle_error = None
+    # Initialize session state and display feedback
+    _init_and_display_feedback()
 
     # Add new company section using expander with form
     with st.expander("+ Add New Company", expanded=False), st.form("add_company_form"):

@@ -386,9 +386,9 @@ class TestJobGridRendering:
 
         # Assert
         columns_calls = mock_streamlit["columns"].call_args_list
-        for call in columns_calls:
-            # Each columns call should request 2 columns
-            assert call.args[0] == 2
+        # First call should be the grid columns (2 columns), subsequent calls are within job cards
+        grid_columns_call = columns_calls[0]  # First call is the grid layout
+        assert grid_columns_call.args[0] == 2
 
     @pytest.mark.parametrize(
         ("num_jobs", "num_columns", "expected_rows"),
@@ -423,7 +423,13 @@ class TestJobGridRendering:
 
         # Assert
         columns_calls = mock_streamlit["columns"].call_args_list
-        assert len(columns_calls) == expected_rows
+        # Filter for grid-level columns calls (those with gap="medium" parameter)
+        grid_calls = [
+            call
+            for call in columns_calls
+            if len(call.kwargs) > 0 and call.kwargs.get("gap") == "medium"
+        ]
+        assert len(grid_calls) == expected_rows
 
 
 class TestJobListRendering:

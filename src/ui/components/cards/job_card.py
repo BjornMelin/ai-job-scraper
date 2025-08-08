@@ -16,7 +16,6 @@ import streamlit as st
 
 from src.schemas import Job
 from src.services.job_service import JobService
-from src.ui.state.session_state import init_session_state
 
 logger = logging.getLogger(__name__)
 
@@ -238,12 +237,6 @@ def render_jobs_grid(jobs: list[Job], num_columns: int = 3) -> None:
             st.markdown('<div class="job-card-grid"></div>', unsafe_allow_html=True)
 
 
-# Legacy function for backward compatibility with existing grid rendering
-def _render_card_controls(job_data: pd.Series, tab_key: str, page_num: int) -> None:
-    """Legacy function for backward compatibility with existing grid rendering."""
-    # This function is kept for compatibility with the existing grid rendering system
-
-
 def render_jobs_list(jobs: list[Job]) -> None:
     """Render a list of job cards.
 
@@ -262,148 +255,3 @@ def render_jobs_list(jobs: list[Job]) -> None:
 
         # Add some spacing between cards
         st.markdown("---")
-
-
-def render_job_cards_grid(jobs_df: pd.DataFrame, tab_key: str) -> None:
-    """Render a grid of job cards with pagination and sorting.
-
-    Args:
-        jobs_df: DataFrame containing job data to display.
-        tab_key: Unique identifier for the current tab.
-    """
-    if jobs_df.empty:
-        return
-
-    init_session_state()
-
-    # Sorting controls
-    _render_sorting_controls(tab_key)
-
-    # Apply sorting to DataFrame
-    sorted_df = _apply_sorting(jobs_df)
-
-    # Pagination controls
-    page_num = _render_pagination_controls(sorted_df, tab_key)
-
-    # Get paginated data
-    paginated_df = _get_paginated_data(sorted_df, page_num)
-
-    # Render cards in grid
-    _render_cards_grid(paginated_df, tab_key, page_num)
-
-
-def _render_sorting_controls(tab_key: str) -> None:
-    """Render sorting controls for the job cards.
-
-    Args:
-        tab_key: Tab key for unique widget keys.
-    """
-    sort_options = {"Posted": "Posted", "Title": "Title", "Company": "Company"}
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        selected_sort = st.selectbox(
-            "Sort By",
-            list(sort_options.values()),
-            index=list(sort_options.values()).index(st.session_state.sort_by),
-            key=f"sort_by_{tab_key}",
-        )
-        st.session_state.sort_by = selected_sort
-
-    with col2:
-        sort_asc = st.checkbox(
-            "Ascending",
-            st.session_state.sort_asc,
-            key=f"sort_asc_{tab_key}",
-        )
-        st.session_state.sort_asc = sort_asc
-
-
-def _apply_sorting(df: pd.DataFrame) -> pd.DataFrame:
-    """Apply sorting to the DataFrame.
-
-    Args:
-        df: DataFrame to sort.
-
-    Returns:
-        Sorted DataFrame.
-    """
-    sort_options = {"Posted": "Posted", "Title": "Title", "Company": "Company"}
-    sort_key = next(
-        (k for k, v in sort_options.items() if v == st.session_state.sort_by),
-        "Posted",
-    )
-
-    return df.sort_values(by=sort_key, ascending=st.session_state.sort_asc)
-
-
-def _render_pagination_controls(df: pd.DataFrame, tab_key: str) -> int:
-    """Render pagination controls and return current page.
-
-    Args:
-        df: DataFrame for pagination calculation.
-        tab_key: Tab key for state management.
-
-    Returns:
-        Current page number.
-    """
-    cards_per_page = 9
-    total_pages = (len(df) + cards_per_page - 1) // cards_per_page
-
-    page_key = f"{tab_key}_page"
-    if page_key not in st.session_state:
-        st.session_state[page_key] = 0
-    current_page = st.session_state[page_key]
-    current_page = max(0, min(current_page, total_pages - 1))
-
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-        if st.button("Previous Page", key=f"prev_{tab_key}") and current_page > 0:
-            st.session_state[page_key] = current_page - 1
-            st.rerun()
-
-    with col2:
-        st.write(f"Page {current_page + 1} of {total_pages}")
-
-    with col3:
-        if (
-            st.button("Next Page", key=f"next_{tab_key}")
-            and current_page < total_pages - 1
-        ):
-            st.session_state[page_key] = current_page + 1
-            st.rerun()
-
-    return current_page
-
-
-def _get_paginated_data(df: pd.DataFrame, page_num: int) -> pd.DataFrame:
-    """Get paginated subset of DataFrame.
-
-    Args:
-        df: Full DataFrame.
-        page_num: Current page number.
-
-    Returns:
-        Paginated DataFrame subset.
-    """
-    cards_per_page = 9
-    start = page_num * cards_per_page
-    end = start + cards_per_page
-    return df.iloc[start:end]
-
-
-def _render_cards_grid(_df: pd.DataFrame, _tab_key: str, _page_num: int) -> None:
-    """Render the actual grid of job cards.
-
-    Args:
-        df: DataFrame with job data to render.
-        tab_key: Tab key for widget keys.
-        page_num: Page number for widget keys.
-    """
-    # This function is deprecated and kept for backward compatibility
-    # Use render_jobs_grid() for new implementations with Job DTO objects
-    st.warning(
-        "Legacy grid rendering - please update to use render_jobs_grid() with Job DTOs"
-    )
