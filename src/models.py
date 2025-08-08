@@ -177,6 +177,23 @@ class JobSQL(SQLModel, table=True):
         return re.sub(r"[^\d\s.k-]+", "", cleaned, flags=re.IGNORECASE)
 
     @classmethod
+    def _convert_to_value(cls, num_str: str, k_suffix: str | None = None) -> int | None:
+        """Convert a numeric string with optional k suffix to integer value.
+
+        Args:
+            num_str: Numeric string to convert
+            k_suffix: Optional 'k' or 'K' suffix
+
+        Returns:
+            int | None: Converted value or None if conversion fails
+        """
+        try:
+            multiplier = 1000 if k_suffix and k_suffix.lower() == "k" else 1
+            return int(float(num_str) * multiplier)
+        except (ValueError, TypeError):
+            return None
+
+    @classmethod
     def _parse_shared_k_range(cls, text: str) -> tuple[int, int] | None:
         """Parse ranges with k suffix patterns like '100-120k', '100k-150k', '100k-120'.
 
@@ -186,42 +203,30 @@ class JobSQL(SQLModel, table=True):
         Returns:
             tuple[int, int] | None: (min, max) values or None if not found
         """
-        # First try both-k pattern (e.g., "100k-150k")
-        both_k_match = _BOTH_K_PATTERN.search(text)
-        if both_k_match:
-            num1, k1_suffix, num2, k2_suffix = both_k_match.groups()
-            try:
-                multiplier1 = 1000 if k1_suffix.lower() == "k" else 1
-                multiplier2 = 1000 if k2_suffix.lower() == "k" else 1
-                val1 = int(float(num1) * multiplier1)
-                val2 = int(float(num2) * multiplier2)
+        # Try both-k pattern (e.g., "100k-150k")
+        if match := _BOTH_K_PATTERN.search(text):
+            num1, k1_suffix, num2, k2_suffix = match.groups()
+            val1 = cls._convert_to_value(num1, k1_suffix)
+            val2 = cls._convert_to_value(num2, k2_suffix)
+            if val1 is not None and val2 is not None:
                 return (min(val1, val2), max(val1, val2))
-            except (ValueError, TypeError):
-                pass
 
-        # Then try one-sided k pattern (e.g., "100k-120")
-        one_sided_match = _ONE_SIDED_K_PATTERN.search(text)
-        if one_sided_match:
-            num1, k_suffix, num2 = one_sided_match.groups()
-            try:
-                multiplier = 1000 if k_suffix.lower() == "k" else 1
-                val1 = int(float(num1) * multiplier)  # Apply k to first number
-                val2 = int(float(num2) * multiplier)  # Apply k to second number too
+        # Try one-sided k pattern (e.g., "100k-120")
+        if match := _ONE_SIDED_K_PATTERN.search(text):
+            num1, k_suffix, num2 = match.groups()
+            # Apply k to both numbers when only first has k
+            val1 = cls._convert_to_value(num1, k_suffix)
+            val2 = cls._convert_to_value(num2, k_suffix)
+            if val1 is not None and val2 is not None:
                 return (min(val1, val2), max(val1, val2))
-            except (ValueError, TypeError):
-                pass
 
-        # Finally try shared k pattern (e.g., "100-120k")
-        shared_k_match = _RANGE_K_PATTERN.search(text)
-        if shared_k_match:
-            num1, num2, k_suffix = shared_k_match.groups()
-            try:
-                multiplier = 1000 if k_suffix.lower() == "k" else 1
-                val1 = int(float(num1) * multiplier)
-                val2 = int(float(num2) * multiplier)
+        # Try shared k pattern (e.g., "100-120k")
+        if match := _RANGE_K_PATTERN.search(text):
+            num1, num2, k_suffix = match.groups()
+            val1 = cls._convert_to_value(num1, k_suffix)
+            val2 = cls._convert_to_value(num2, k_suffix)
+            if val1 is not None and val2 is not None:
                 return (min(val1, val2), max(val1, val2))
-            except (ValueError, TypeError):
-                pass
 
         return None
 
@@ -239,14 +244,8 @@ class JobSQL(SQLModel, table=True):
         parsed_nums = []
 
         for num_str, k_suffix in numbers:
-            try:
-                num = float(num_str)
-                # Apply 'k' multiplier if present
-                if k_suffix and k_suffix.lower() == "k":
-                    num *= 1000
-                parsed_nums.append(int(num))
-            except (ValueError, TypeError):
-                continue
+            if value := cls._convert_to_value(num_str, k_suffix):
+                parsed_nums.append(value)
 
         return parsed_nums
 
