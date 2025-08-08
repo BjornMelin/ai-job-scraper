@@ -35,7 +35,7 @@ def create_test_job_data(**overrides: Any) -> dict[str, Any]:
         "link": "https://test.com/job",
         "location": "Test Location",
         "salary": (None, None),
-        "content_hash": hashlib.md5(b"test_content").hexdigest(),  # noqa: S324
+        "content_hash": hashlib.md5(b"test_content", usedforsecurity=False).hexdigest(),
     }
     default_data.update(overrides)
     return default_data
