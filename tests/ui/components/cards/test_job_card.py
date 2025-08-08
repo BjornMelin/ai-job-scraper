@@ -552,3 +552,24 @@ class TestJobCardIntegration:
 
         # 2. Session state was updated with job ID
         assert mock_session_state["view_job_id"] == job_id
+
+    def test_render_jobs_grid_with_fewer_jobs_than_columns(
+        self, mock_streamlit, sample_jobs
+    ):
+        """Test jobs grid handles case with fewer jobs than columns correctly."""
+        # Arrange - 2 jobs with 3 columns
+        jobs = sample_jobs[:2]  # Use first 2 jobs
+
+        # Act
+        render_jobs_grid(jobs, num_columns=3)
+
+        # Assert - should create 1 row with 3 columns, use first 2
+        columns_calls = mock_streamlit["columns"].call_args_list
+        # First call should be for the grid columns
+        grid_call = columns_calls[0]
+        assert grid_call.args[0] == 3  # 3 columns requested
+
+        # Verify render_job_card was called for each job
+        with patch("src.ui.components.cards.job_card.render_job_card") as mock_render:
+            render_jobs_grid(jobs, num_columns=3)
+            assert mock_render.call_count == 2  # Only 2 jobs rendered

@@ -16,6 +16,7 @@ import streamlit as st
 
 from src.schemas import Job
 from src.services.job_service import JobService
+from src.ui.styles.styles import apply_job_grid_styles
 
 logger = logging.getLogger(__name__)
 
@@ -173,9 +174,6 @@ def _handle_view_details(job_id: int) -> None:
     st.session_state.view_job_id = job_id
 
 
-# Legacy expander functions removed - replaced with modal dialog in jobs.py
-
-
 def render_jobs_grid(jobs: list[Job], num_columns: int = 3) -> None:
     """Render jobs in a responsive grid layout.
 
@@ -190,35 +188,8 @@ def render_jobs_grid(jobs: list[Job], num_columns: int = 3) -> None:
         st.info("No jobs to display.")
         return
 
-    # Add CSS for better card styling
-    st.markdown(
-        """
-    <style>
-    .job-card-grid {
-        margin-bottom: 1rem;
-    }
-    .job-card-container [data-testid="stVerticalBlock"] {
-        height: 100%;
-    }
-    .job-card-container .element-container {
-        height: 100%;
-    }
-    .job-card-container [data-testid="stContainer"] {
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-    }
-
-    /* Responsive grid adjustments */
-    @media (max-width: 768px) {
-        .job-card-grid {
-            flex-direction: column !important;
-        }
-    }
-    </style>
-    """,
-        unsafe_allow_html=True,
-    )
+    # Apply centralized CSS styles for job grid
+    apply_job_grid_styles()
 
     # Create responsive grid using st.columns
     for i in range(0, len(jobs), num_columns):

@@ -9,6 +9,10 @@ import logging
 import streamlit as st
 
 from src.services.company_service import CompanyService
+from src.ui.utils.session_helpers import (
+    display_feedback_messages,
+    init_session_state_keys,
+)
 from src.ui.utils.streamlit_context import is_streamlit_context
 
 logger = logging.getLogger(__name__)
@@ -43,6 +47,9 @@ def _add_company_callback() -> None:
         st.session_state.company_name = ""
         st.session_state.company_url = ""
         st.session_state.add_company_error = None
+
+        # Trigger immediate UI refresh
+        st.rerun()
 
     except ValueError as e:
         st.session_state.add_company_error = str(e)
@@ -82,28 +89,22 @@ def _toggle_company_callback(company_id: int) -> None:
 
 def _init_and_display_feedback() -> None:
     """Initialize session state and display feedback messages."""
-    # Initialize all feedback keys
-    feedback_keys = [
-        "add_company_error",
-        "add_company_success",
-        "toggle_error",
-        "toggle_success",
-    ]
-    for key in feedback_keys:
-        if key not in st.session_state:
-            st.session_state[key] = None
+    # Initialize all feedback keys using helper
+    init_session_state_keys(
+        [
+            "add_company_error",
+            "add_company_success",
+            "toggle_error",
+            "toggle_success",
+        ],
+        None,
+    )
 
-    # Display and clear success messages
-    for key in ["add_company_success", "toggle_success"]:
-        if st.session_state[key]:
-            st.success(f"✅ {st.session_state[key]}")
-            st.session_state[key] = None
-
-    # Display and clear error messages
-    for key in ["add_company_error", "toggle_error"]:
-        if st.session_state[key]:
-            st.error(f"❌ {st.session_state[key]}")
-            st.session_state[key] = None
+    # Display feedback messages using helper
+    display_feedback_messages(
+        success_keys=["add_company_success", "toggle_success"],
+        error_keys=["add_company_error", "toggle_error"],
+    )
 
 
 def show_companies_page() -> None:

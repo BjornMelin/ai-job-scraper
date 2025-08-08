@@ -186,6 +186,20 @@ class TestToggleCompanyCallback:
             )
             assert mock_session_state.get("toggle_success") is None
 
+    def test_add_company_with_invalid_data_shows_error(self, mock_session_state):
+        """Test adding company with invalid data shows error message."""
+        # Arrange - empty name and URL
+        with patch("src.ui.pages.companies.CompanyService") as mock_company_service:
+            # Act - call with empty strings
+            _add_company_callback("", "")
+
+            # Assert - service not called, error shown
+            mock_company_service.add_company.assert_not_called()
+            assert (
+                mock_session_state["add_company_error"] == "Name and URL are required"
+            )
+            assert mock_session_state.get("add_company_success") is None
+
 
 class TestShowCompaniesPage:
     """Test the complete companies page rendering and functionality."""
