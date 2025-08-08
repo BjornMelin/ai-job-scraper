@@ -19,9 +19,7 @@ from src.ui.pages.companies import (
 class TestAddCompanyCallback:
     """Test the add company callback functionality."""
 
-    def test_add_company_with_valid_data_succeeds(
-        self, mock_session_state, mock_logging
-    ):
+    def test_add_company_with_valid_data_succeeds(self, mock_session_state):
         """Test adding a company with valid name and URL succeeds."""
         # Arrange
         mock_session_state.update(
@@ -84,7 +82,7 @@ class TestAddCompanyCallback:
         assert mock_session_state["add_company_error"] == "Company URL is required"
 
     def test_add_duplicate_company_shows_validation_error(
-        self, mock_session_state, mock_company_service, mock_logging
+        self, mock_session_state, mock_company_service
     ):
         """Test adding duplicate company shows validation error."""
         # Arrange
@@ -106,9 +104,7 @@ class TestAddCompanyCallback:
         )
         assert mock_session_state.get("add_company_success") is None
 
-    def test_add_company_service_failure_shows_generic_error(
-        self, mock_session_state, mock_logging
-    ):
+    def test_add_company_service_failure_shows_generic_error(self, mock_session_state):
         """Test service failure during add company shows generic error."""
         # Arrange
         mock_session_state.update(
@@ -134,7 +130,7 @@ class TestAddCompanyCallback:
 class TestToggleCompanyCallback:
     """Test the toggle company callback functionality."""
 
-    def test_toggle_company_to_active_succeeds(self, mock_session_state, mock_logging):
+    def test_toggle_company_to_active_succeeds(self, mock_session_state):
         """Test toggling company to active status succeeds."""
         # Arrange
         company_id = 1
@@ -152,9 +148,7 @@ class TestToggleCompanyCallback:
             assert mock_session_state["toggle_success"] == "Enabled scraping"
             assert mock_session_state["toggle_error"] is None
 
-    def test_toggle_company_to_inactive_succeeds(
-        self, mock_session_state, mock_logging
-    ):
+    def test_toggle_company_to_inactive_succeeds(self, mock_session_state):
         """Test toggling company to inactive status succeeds."""
         # Arrange
         company_id = 1
@@ -172,9 +166,7 @@ class TestToggleCompanyCallback:
             assert mock_session_state["toggle_success"] == "Disabled scraping"
             assert mock_session_state["toggle_error"] is None
 
-    def test_toggle_nonexistent_company_shows_error(
-        self, mock_session_state, mock_logging
-    ):
+    def test_toggle_nonexistent_company_shows_error(self, mock_session_state):
         """Test toggling nonexistent company shows error message."""
         # Arrange
         company_id = 999
@@ -199,7 +191,10 @@ class TestShowCompaniesPage:
     """Test the complete companies page rendering and functionality."""
 
     def test_companies_page_displays_title_and_description(
-        self, mock_streamlit, mock_session_state, mock_company_service, mock_logging
+        self,
+        mock_streamlit,
+        mock_session_state,  # noqa: ARG002
+        mock_company_service,
     ):
         """Test companies page displays correct title and description."""
         # Arrange
@@ -213,7 +208,9 @@ class TestShowCompaniesPage:
         mock_streamlit["markdown"].assert_any_call("Manage companies for job scraping")
 
     def test_companies_page_shows_empty_state_when_no_companies(
-        self, mock_streamlit, mock_session_state, mock_logging
+        self,
+        mock_streamlit,
+        mock_session_state,  # noqa: ARG002
     ):
         """Test companies page shows empty state when no companies exist."""
         # Arrange
@@ -231,10 +228,9 @@ class TestShowCompaniesPage:
     def test_companies_page_displays_company_list(
         self,
         mock_streamlit,
-        mock_session_state,
+        mock_session_state,  # noqa: ARG002
         mock_company_service,
         sample_companies,
-        mock_logging,
     ):
         """Test companies page displays list of companies with details."""
         # Arrange
@@ -257,10 +253,9 @@ class TestShowCompaniesPage:
     def test_companies_page_displays_summary_statistics(
         self,
         mock_streamlit,
-        mock_session_state,
+        mock_session_state,  # noqa: ARG002
         mock_company_service,
         sample_companies,
-        mock_logging,
     ):
         """Test companies page displays accurate summary statistics."""
         # Arrange
@@ -292,10 +287,9 @@ class TestShowCompaniesPage:
     def test_companies_page_renders_toggle_controls(
         self,
         mock_streamlit,
-        mock_session_state,
+        mock_session_state,  # noqa: ARG002
         mock_company_service,
         sample_companies,
-        mock_logging,
     ):
         """Test companies page renders toggle controls for each company."""
         # Arrange
@@ -317,7 +311,10 @@ class TestShowCompaniesPage:
             assert call_args.kwargs["key"] == f"company_active_{company.id}"
 
     def test_companies_page_displays_add_company_form(
-        self, mock_streamlit, mock_session_state, mock_company_service, mock_logging
+        self,
+        mock_streamlit,
+        mock_session_state,  # noqa: ARG002
+        mock_company_service,
     ):
         """Test companies page displays add company form with proper structure."""
         # Arrange
@@ -341,7 +338,10 @@ class TestShowCompaniesPage:
         assert "Careers URL" in input_labels
 
     def test_companies_page_displays_feedback_messages(
-        self, mock_streamlit, mock_session_state, mock_company_service, mock_logging
+        self,
+        mock_streamlit,
+        mock_session_state,
+        mock_company_service,
     ):
         """Test companies page displays success and error feedback messages."""
         # Arrange
@@ -363,7 +363,10 @@ class TestShowCompaniesPage:
         mock_streamlit["success"].assert_any_call("✅ Company toggled")
 
     def test_companies_page_handles_service_failure_gracefully(
-        self, mock_streamlit, mock_session_state, mock_company_service, mock_logging
+        self,
+        mock_streamlit,
+        mock_session_state,  # noqa: ARG002
+        mock_company_service,
     ):
         """Test companies page handles service failure gracefully."""
         # Arrange
@@ -398,12 +401,11 @@ class TestShowCompaniesPage:
             ),
         ],
     )
-    def test_companies_page_calculates_correct_statistics(
+    def test_companies_page_calculates_correct_statistics(  # pylint: disable=R0917
         self,
         mock_streamlit,
-        mock_session_state,
+        mock_session_state,  # noqa: ARG002
         mock_company_service,
-        mock_logging,
         company_count,
         expected_active,
     ):
@@ -428,7 +430,10 @@ class TestCompanyPageIntegration:
     """Integration tests for company page workflow scenarios."""
 
     def test_complete_add_company_workflow(
-        self, mock_streamlit, mock_session_state, mock_company_service, mock_logging
+        self,
+        mock_streamlit,
+        mock_session_state,
+        mock_company_service,
     ):
         """Test complete workflow of adding a new company."""
         # Arrange - Simulate form submission
@@ -471,7 +476,10 @@ class TestCompanyPageIntegration:
         )
 
     def test_complete_toggle_company_workflow(
-        self, mock_streamlit, mock_session_state, mock_company_service, mock_logging
+        self,
+        mock_streamlit,
+        mock_session_state,
+        mock_company_service,
     ):
         """Test complete workflow of toggling company status."""
         # Arrange

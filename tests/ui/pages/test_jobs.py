@@ -26,9 +26,7 @@ from src.ui.pages.jobs import (
 class TestJobDetailsModal:
     """Test job details modal functionality."""
 
-    def test_show_job_details_modal_displays_job_info(
-        self, mock_streamlit, sample_job, mock_logging
-    ):
+    def test_show_job_details_modal_displays_job_info(self, mock_streamlit, sample_job):
         """Test modal displays complete job information."""
         # Act
         show_job_details_modal(sample_job)
@@ -45,7 +43,7 @@ class TestJobDetailsModal:
         assert any(sample_job.description in call for call in markdown_calls)
 
     def test_show_job_details_modal_displays_status_with_icon(
-        self, mock_streamlit, sample_job, mock_logging
+        self, mock_streamlit, sample_job
     ):
         """Test modal displays application status with appropriate icon."""
         # Arrange
@@ -64,7 +62,7 @@ class TestJobDetailsModal:
         assert len(status_calls) > 0
 
     def test_show_job_details_modal_creates_notes_text_area(
-        self, mock_streamlit, sample_job, mock_logging
+        self, mock_streamlit, sample_job
     ):
         """Test modal creates text area for job notes."""
         # Act
@@ -79,7 +77,7 @@ class TestJobDetailsModal:
         assert notes_call.kwargs["value"] == (sample_job.notes or "")
 
     def test_show_job_details_modal_creates_action_buttons(
-        self, mock_streamlit, sample_job, mock_logging
+        self, mock_streamlit, sample_job
     ):
         """Test modal creates save notes, apply now, and close buttons."""
         # Act
@@ -93,7 +91,7 @@ class TestJobDetailsModal:
         assert "Close" in button_labels
 
     def test_show_job_details_modal_creates_apply_link_button(
-        self, mock_streamlit, sample_job, mock_logging
+        self, mock_streamlit, sample_job
     ):
         """Test modal creates apply now link button when job has link."""
         # Arrange
@@ -110,9 +108,7 @@ class TestJobDetailsModal:
         assert apply_button.args[0] == "Apply Now"
         assert apply_button.args[1] == sample_job.link
 
-    def test_save_job_notes_updates_notes_via_service(
-        self, mock_job_service, mock_logging
-    ):
+    def test_save_job_notes_updates_notes_via_service(self, mock_job_service):
         """Test saving job notes calls service to update notes."""
         # Arrange
         job_id = 1
@@ -127,9 +123,7 @@ class TestJobDetailsModal:
             mock_job_service.update_notes.assert_called_once_with(job_id, new_notes)
             mock_success.assert_called_once_with("Notes saved successfully!")
 
-    def test_save_job_notes_handles_service_failure(
-        self, mock_job_service, mock_logging
-    ):
+    def test_save_job_notes_handles_service_failure(self, mock_job_service):
         """Test saving job notes handles service failure gracefully."""
         # Arrange
         job_id = 1
@@ -148,7 +142,10 @@ class TestJobDetailsModalHandling:
     """Test job details modal handling in context of jobs page."""
 
     def test_handle_job_details_modal_shows_modal_when_job_selected(
-        self, mock_streamlit, sample_jobs, mock_session_state, mock_logging
+        self,
+        mock_streamlit,  # noqa: ARG002  # pylint: disable=unused-argument
+        sample_jobs,
+        mock_session_state,
     ):
         """Test modal handler shows modal when job is selected."""
         # Arrange
@@ -162,7 +159,7 @@ class TestJobDetailsModalHandling:
             mock_show_modal.assert_called_once_with(sample_jobs[0])
 
     def test_handle_job_details_modal_clears_selection_when_job_not_found(
-        self, sample_jobs, mock_session_state, mock_logging
+        self, sample_jobs, mock_session_state
     ):
         """Test modal handler clears selection when job not found in current list."""
         # Arrange
@@ -175,7 +172,9 @@ class TestJobDetailsModalHandling:
         assert mock_session_state["view_job_id"] is None
 
     def test_handle_job_details_modal_does_nothing_when_no_job_selected(
-        self, sample_jobs, mock_session_state, mock_logging
+        self,
+        sample_jobs,
+        mock_session_state,  # noqa: ARG002
     ):
         """Test modal handler does nothing when no job is selected."""
         # Arrange - no view_job_id in session state
@@ -191,9 +190,7 @@ class TestJobDetailsModalHandling:
 class TestJobPageHeader:
     """Test job page header rendering."""
 
-    def test_render_page_header_displays_title_and_description(
-        self, mock_streamlit, mock_logging
-    ):
+    def test_render_page_header_displays_title_and_description(self, mock_streamlit):
         """Test page header displays title and descriptive text."""
         # Act
         _render_page_header()
@@ -208,9 +205,7 @@ class TestJobPageHeader:
         assert "AI Job Tracker" in html_content
         assert "Track and manage your job applications efficiently" in html_content
 
-    def test_render_page_header_displays_last_updated_time(
-        self, mock_streamlit, mock_logging
-    ):
+    def test_render_page_header_displays_last_updated_time(self, mock_streamlit):
         """Test page header displays current timestamp."""
         # Act
         _render_page_header()
@@ -229,7 +224,7 @@ class TestJobActionBar:
     """Test job action bar functionality."""
 
     def test_render_action_bar_creates_refresh_button(
-        self, mock_streamlit, mock_company_service, mock_logging
+        self, mock_streamlit, mock_company_service
     ):
         """Test action bar creates refresh jobs button."""
         # Arrange
@@ -248,7 +243,7 @@ class TestJobActionBar:
         assert refresh_button.kwargs["type"] == "primary"
 
     def test_render_action_bar_displays_active_sources_metric(
-        self, mock_streamlit, mock_company_service, mock_logging
+        self, mock_streamlit, mock_company_service
     ):
         """Test action bar displays active sources count."""
         # Arrange
@@ -266,7 +261,7 @@ class TestJobActionBar:
         assert active_sources_metric.args[1] == 5
 
     def test_render_action_bar_handles_service_failure_for_active_sources(
-        self, mock_streamlit, mock_company_service, mock_logging
+        self, mock_streamlit, mock_company_service
     ):
         """Test action bar handles service failure gracefully for active sources."""
         # Arrange
@@ -291,7 +286,9 @@ class TestJobRefresh:
     """Test job refresh functionality."""
 
     def test_handle_refresh_jobs_executes_scraping(
-        self, mock_streamlit, mock_session_state, mock_logging
+        self,
+        mock_streamlit,
+        mock_session_state,  # noqa: ARG002
     ):
         """Test refresh handler executes scraping process."""
         # Arrange
@@ -324,7 +321,9 @@ class TestJobRefresh:
             assert "Archived: 1" in success_message
 
     def test_handle_refresh_jobs_handles_scraping_failure(
-        self, mock_streamlit, mock_session_state, mock_logging
+        self,
+        mock_streamlit,
+        mock_session_state,  # noqa: ARG002
     ):
         """Test refresh handler handles scraping failure gracefully."""
         # Arrange
@@ -339,7 +338,9 @@ class TestJobRefresh:
             mock_streamlit["error"].assert_called_with("❌ Scrape failed")
 
     def test_handle_refresh_jobs_validates_sync_stats_format(
-        self, mock_streamlit, mock_session_state, mock_logging
+        self,
+        mock_streamlit,
+        mock_session_state,  # noqa: ARG002
     ):
         """Test refresh handler validates sync stats are in expected format."""
         # Arrange - return invalid format
@@ -360,7 +361,7 @@ class TestJobTabs:
     """Test job tabs rendering and functionality."""
 
     def test_render_job_tabs_creates_three_tabs_with_counts(
-        self, mock_streamlit, sample_jobs, mock_logging
+        self, mock_streamlit, sample_jobs
     ):
         """Test job tabs creates all jobs, favorites, and applied tabs with counts."""
         # Act
@@ -379,9 +380,7 @@ class TestJobTabs:
         assert "Favorites ⭐ (2)" in tab_labels
         assert "Applied ✅ (1)" in tab_labels
 
-    def test_render_job_tabs_shows_empty_state_for_no_favorites(
-        self, mock_streamlit, mock_logging
-    ):
+    def test_render_job_tabs_shows_empty_state_for_no_favorites(self, mock_streamlit):
         """Test favorites tab shows empty state when no favorites exist."""
         # Arrange - jobs with no favorites
         jobs = [
@@ -409,9 +408,7 @@ class TestJobTabs:
         ]
         assert len(favorites_info) > 0
 
-    def test_render_job_tabs_shows_empty_state_for_no_applied(
-        self, mock_streamlit, mock_logging
-    ):
+    def test_render_job_tabs_shows_empty_state_for_no_applied(self, mock_streamlit):
         """Test applied tab shows empty state when no applied jobs exist."""
         # Arrange - jobs with no applied status
         jobs = [
@@ -444,7 +441,7 @@ class TestJobStatistics:
     """Test job statistics dashboard."""
 
     def test_render_statistics_dashboard_displays_metrics(
-        self, mock_streamlit, sample_jobs, mock_logging
+        self, mock_streamlit, sample_jobs
     ):
         """Test statistics dashboard displays all job metrics."""
         # Act
@@ -464,7 +461,7 @@ class TestJobStatistics:
         assert "2" in html_content  # Favorites (2 jobs marked as favorite)
 
     def test_render_statistics_dashboard_calculates_application_rate(
-        self, mock_streamlit, sample_jobs, mock_logging
+        self, mock_streamlit, sample_jobs
     ):
         """Test statistics dashboard calculates correct application rate."""
         # Act
@@ -480,7 +477,7 @@ class TestJobStatistics:
         assert "25.0%" in html_content or "25%" in html_content
 
     def test_render_statistics_dashboard_displays_progress_bars(
-        self, mock_streamlit, sample_jobs, mock_logging
+        self, mock_streamlit, sample_jobs
     ):
         """Test statistics dashboard displays progress bars for job statuses."""
         # Act
@@ -497,7 +494,7 @@ class TestJobFiltering:
     """Test job filtering functionality."""
 
     def test_get_filtered_jobs_calls_service_with_filters(
-        self, mock_session_state, mock_job_service, mock_logging
+        self, mock_session_state, mock_job_service
     ):
         """Test job filtering calls service with correct filter parameters."""
         # Arrange
@@ -522,7 +519,7 @@ class TestJobFiltering:
         assert call_args["include_archived"] is False
 
     def test_get_filtered_jobs_handles_service_failure(
-        self, mock_session_state, mock_job_service, mock_logging
+        self, mock_session_state, mock_job_service
     ):
         """Test job filtering handles service failure gracefully."""
         # Arrange
@@ -539,14 +536,13 @@ class TestJobFiltering:
 class TestJobsPageIntegration:
     """Integration tests for complete jobs page workflows."""
 
-    def test_render_jobs_page_displays_complete_interface(
+    def test_render_jobs_page_displays_complete_interface(  # pylint: disable=R0917
         self,
         mock_streamlit,
         mock_session_state,
         mock_job_service,
         mock_company_service,
         sample_jobs,
-        mock_logging,
     ):
         """Test complete jobs page renders all components."""
         # Arrange
@@ -581,7 +577,6 @@ class TestJobsPageIntegration:
         mock_session_state,
         mock_job_service,
         mock_company_service,
-        mock_logging,
     ):
         """Test jobs page handles empty job list gracefully."""
         # Arrange
@@ -600,9 +595,7 @@ class TestJobsPageIntegration:
             ]
             assert len(no_jobs_info) > 0
 
-    def test_complete_job_refresh_workflow(
-        self, mock_streamlit, mock_session_state, mock_logging
-    ):
+    def test_complete_job_refresh_workflow(self, mock_streamlit, mock_session_state):  # noqa: ARG002
         """Test complete job refresh workflow with realistic scraping results."""
         # Arrange
         mock_sync_stats = {
@@ -695,7 +688,6 @@ class TestJobsPageIntegration:
     def test_job_tabs_calculate_correct_counts(
         self,
         mock_streamlit,
-        mock_logging,
         num_jobs,
         expected_favorites,
         expected_applied,

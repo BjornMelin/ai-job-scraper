@@ -55,7 +55,7 @@ def mock_streamlit():
 
     try:
         # Configure columns to return mock column objects
-        def mock_columns_func(*args, **kwargs):
+        def mock_columns_func(*args, **kwargs):  # noqa: ARG001
             """Mock columns function that returns appropriate number of columns."""
             if args:
                 num_cols = args[0] if isinstance(args[0], int) else len(args[0])
@@ -116,27 +116,61 @@ class MockSessionState:
         self._data = {}
 
     def __getitem__(self, key):
+        """Retrieve an item from the session state by key.
+
+        Args:
+            key: The key to retrieve from the session state.
+
+        Returns:
+            The value associated with the given key.
+        """
         return self._data[key]
 
     def __setitem__(self, key, value):
+        """Set an item in the session state.
+
+        Args:
+            key: The key to set in the session state.
+            value: The value to associate with the key.
+        """
         self._data[key] = value
 
     def __getattr__(self, name):
+        """Retrieve an attribute from the session state.
+
+        Args:
+            name: The attribute name to retrieve.
+
+        Returns:
+            The value of the attribute, or None if not found.
+        """
         return self._data.get(name)
 
     def __setattr__(self, name, value):
+        """Set an attribute in the session state.
+
+        If the name starts with an underscore, sets it as a class attribute.
+        Otherwise, sets it in the internal data dictionary.
+
+        Args:
+            name: The attribute name to set.
+            value: The value to associate with the attribute.
+        """
         if name.startswith("_"):
             super().__setattr__(name, value)
         else:
             self._data[name] = value
 
     def get(self, key, default=None):
+        """Get value with default fallback."""
         return self._data.get(key, default)
 
     def update(self, other):
+        """Update internal data dictionary."""
         self._data.update(other)
 
     def __contains__(self, key):
+        """Check if key exists in session state."""
         return key in self._data
 
 
@@ -205,7 +239,10 @@ def sample_job():
         company_id=1,
         company="Tech Corp",
         title="Senior AI Engineer",
-        description="We are looking for an experienced AI engineer to join our team and work on cutting-edge machine learning projects.",
+        description=(
+            "We are looking for an experienced AI engineer to join our team "
+            "and work on cutting-edge machine learning projects."
+        ),
         link="https://techcorp.com/careers/ai-engineer-123",
         location="San Francisco, CA",
         posted_date=datetime.now(timezone.utc),
@@ -231,7 +268,10 @@ def sample_jobs():
             company_id=1,
             company="Tech Corp",
             title="Senior AI Engineer",
-            description="We are looking for an experienced AI engineer to join our team and work on cutting-edge machine learning projects.",
+            description=(
+                "We are looking for an experienced AI engineer to join our team "
+                "and work on cutting-edge machine learning projects."
+            ),
             link="https://techcorp.com/careers/ai-engineer-123",
             location="San Francisco, CA",
             posted_date=base_time,
@@ -249,7 +289,10 @@ def sample_jobs():
             company_id=2,
             company="DataCo",
             title="Machine Learning Specialist",
-            description="Join our data science team to build predictive models and analytics solutions.",
+            description=(
+                "Join our data science team to build predictive models "
+                "and analytics solutions."
+            ),
             link="https://dataco.com/jobs/ml-specialist-456",
             location="Remote",
             posted_date=base_time,
@@ -267,7 +310,10 @@ def sample_jobs():
             company_id=3,
             company="AI Solutions",
             title="Data Scientist",
-            description="Exciting opportunity to work with large datasets and develop ML algorithms.",
+            description=(
+                "Exciting opportunity to work with large datasets "
+                "and develop ML algorithms."
+            ),
             link="https://aisolutions.com/careers/data-scientist-789",
             location="New York, NY",
             posted_date=base_time,

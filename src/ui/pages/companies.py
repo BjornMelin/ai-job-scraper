@@ -9,6 +9,7 @@ import logging
 import streamlit as st
 
 from src.services.company_service import CompanyService
+from src.ui.utils.streamlit_context import is_streamlit_context
 
 logger = logging.getLogger(__name__)
 
@@ -217,4 +218,6 @@ def show_companies_page() -> None:
 
 
 # Execute page when loaded by st.navigation()
-show_companies_page()
+# Only run when in a proper Streamlit context (not during test imports)
+if is_streamlit_context():
+    show_companies_page()

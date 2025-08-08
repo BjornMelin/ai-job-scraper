@@ -19,6 +19,7 @@ from src.services.company_service import CompanyService
 from src.services.job_service import JobService
 from src.ui.components.cards.job_card import render_jobs_grid, render_jobs_list
 from src.ui.components.sidebar import render_sidebar
+from src.ui.utils.streamlit_context import is_streamlit_context
 
 logger = logging.getLogger(__name__)
 
@@ -726,4 +727,6 @@ def _render_progress_visualization(
 
 
 # Execute page when loaded by st.navigation()
-render_jobs_page()
+# Only run when in a proper Streamlit context (not during test imports)
+if is_streamlit_context():
+    render_jobs_page()
