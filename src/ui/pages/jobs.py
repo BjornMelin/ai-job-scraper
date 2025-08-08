@@ -17,7 +17,6 @@ from src.schemas import Job
 from src.scraper import scrape_all
 from src.services.company_service import CompanyService
 from src.services.job_service import JobService
-from src.ui.components.cards.job_card import render_jobs_grid, render_jobs_list
 from src.ui.components.sidebar import render_sidebar
 from src.ui.utils.streamlit_context import is_streamlit_context
 
@@ -31,62 +30,19 @@ def show_job_details_modal(job: Job) -> None:
     Args:
         job: Job DTO object to display details for.
     """
-    # Job header with title and company
-    st.markdown(f"### {job.title}")
-    st.markdown(f"**{job.company}** • {job.location}")
-
-    # Posted date and status
-    col1, col2 = st.columns(2)
-    with col1:
-        posted_date = job.posted_date
-        if posted_date:
-            st.markdown(f"**Posted:** {posted_date}")
-    with col2:
-        status_color = {
-            "New": "🔵",
-            "Interested": "🟡",
-            "Applied": "🟢",
-            "Rejected": "🔴",
-        }.get(job.application_status, "⚪")
-        st.markdown(f"**Status:** {status_color} {job.application_status}")
-
-    # Job description
-    st.markdown("---")
-    st.markdown("### Job Description")
-    st.markdown(job.description)
-
-    # Notes section
-    st.markdown("---")
-    st.markdown("### Notes")
-
-    # Notes text area
-    notes_key = f"modal_notes_{job.id}"
-    notes_value = st.text_area(
-        "Your notes about this position",
-        value=job.notes or "",
-        key=notes_key,
-        help="Add your personal notes about this job",
-        height=150,
+    from src.ui.helpers.job_modal import (
+        render_action_buttons,
+        render_job_description,
+        render_job_header,
+        render_job_status,
+        render_notes_section,
     )
 
-    # Action buttons
-    st.markdown("---")
-    col1, col2, col3 = st.columns([1, 1, 1])
-
-    with col1:
-        if st.button("Save Notes", type="primary", use_container_width=True):
-            _save_job_notes(job.id, notes_value)
-
-    with col2:
-        if job.link:
-            st.link_button(
-                "Apply Now", job.link, use_container_width=True, type="secondary"
-            )
-
-    with col3:
-        if st.button("Close", use_container_width=True):
-            st.session_state.view_job_id = None
-            st.rerun()
+    render_job_header(job)
+    render_job_status(job)
+    notes_value = render_notes_section(job)
+    render_job_description(job)
+    render_action_buttons(job, notes_value)
 
 
 def _save_job_notes(job_id: int, notes: str) -> None:
@@ -374,34 +330,11 @@ def _render_job_display(jobs: list[Job], tab_key: str) -> None:
     # Apply per-tab search to jobs list
     filtered_jobs = _apply_tab_search_to_jobs(jobs, tab_key)
 
-    # Add view mode selector
-    col1, col2 = st.columns([2, 1])
-    with col2:
-        view_mode = st.selectbox(
-            "View",
-            ["Grid", "List"],
-            key=f"view_mode_{tab_key}",
-            help="Switch between grid and list view",
-        )
+    # Use helper for view mode selection and rendering
+    from src.ui.helpers.view_mode import apply_view_mode, select_view_mode
 
-    # Render based on selected view mode
-    if view_mode == "Grid":
-        # Add responsive grid options
-        col3, col4 = st.columns([1, 1])
-        with col3:
-            grid_columns = st.selectbox(
-                "Columns",
-                [2, 3, 4],
-                index=1,  # Default to 3 columns
-                key=f"grid_columns_{tab_key}",
-                help="Number of columns in grid view",
-            )
-
-        # Use responsive grid layout
-        render_jobs_grid(filtered_jobs, num_columns=grid_columns)
-    else:
-        # Use list view (existing functionality)
-        render_jobs_list(filtered_jobs)
+    view_mode, grid_columns = select_view_mode(tab_key)
+    apply_view_mode(filtered_jobs, view_mode, grid_columns)
 
 
 def _jobs_to_dataframe(jobs: list[Job]) -> pd.DataFrame:

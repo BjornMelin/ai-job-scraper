@@ -631,73 +631,70 @@ class TestJobsPageIntegration:
             # 3. Page was refreshed
             mock_rerun.assert_called_once()
 
+    @pytest.fixture
+    def job_factory(self):
+        """Factory fixture for creating Job instances with defaults."""
+
+        def _create_job(**kwargs):
+            defaults = {
+                "id": 1,
+                "company_id": 1,
+                "company": "Test",
+                "title": "Test Job",
+                "description": "Test description",
+                "link": "https://test.com",
+                "location": "Test Location",
+                "content_hash": "hash123",
+                "favorite": False,
+                "application_status": "New",
+            }
+            return Job(**(defaults | kwargs))
+
+        return _create_job
+
+    @pytest.fixture
+    def no_jobs_scenario(self):
+        """Test scenario with no jobs."""
+        return {"jobs": [], "expected_favorites": 0, "expected_applied": 0}
+
+    @pytest.fixture
+    def single_applied_favorite_scenario(self, job_factory):
+        """Test scenario with one job that is both applied and favorite."""
+        jobs = [job_factory(id=1, favorite=True, application_status="Applied")]
+        return {"jobs": jobs, "expected_favorites": 1, "expected_applied": 1}
+
+    @pytest.fixture
+    def mixed_jobs_scenario(self, job_factory):
+        """Test scenario with mixed job statuses."""
+        jobs = [
+            job_factory(id=1, favorite=False, application_status="New"),
+            job_factory(id=2, favorite=True, application_status="Rejected"),
+        ]
+        return {"jobs": jobs, "expected_favorites": 1, "expected_applied": 0}
+
     @pytest.mark.parametrize(
-        ("num_jobs", "expected_favorites", "expected_applied"),
-        [
-            (0, 0, 0),
-            (
-                [
-                    Job(
-                        id=1,
-                        company_id=1,
-                        company="Test",
-                        title="Job 1",
-                        description="Test",
-                        link="test",
-                        location="Test",
-                        content_hash="hash",
-                        favorite=True,
-                        application_status="Applied",
-                    )
-                ],
-                1,
-                1,
-            ),
-            (
-                [
-                    Job(
-                        id=1,
-                        company_id=1,
-                        company="Test",
-                        title="Job 1",
-                        description="Test",
-                        link="test",
-                        location="Test",
-                        content_hash="hash",
-                        favorite=False,
-                        application_status="New",
-                    ),
-                    Job(
-                        id=2,
-                        company_id=1,
-                        company="Test",
-                        title="Job 2",
-                        description="Test",
-                        link="test",
-                        location="Test",
-                        content_hash="hash",
-                        favorite=True,
-                        application_status="Rejected",
-                    ),
-                ],
-                1,
-                0,
-            ),
-        ],
+        "scenario_fixture",
+        ["no_jobs_scenario", "single_applied_favorite_scenario", "mixed_jobs_scenario"],
+        indirect=True,
     )
     def test_job_tabs_calculate_correct_counts(
         self,
         mock_streamlit,
-        num_jobs,
-        expected_favorites,
-        expected_applied,
+        request,
+        scenario_fixture,
     ):
         """Test job tabs calculate correct counts for various job combinations."""
+        # Arrange
+        scenario = request.getfixturevalue(scenario_fixture)
+        jobs = scenario["jobs"]
+        expected_favorites = scenario["expected_favorites"]
+        expected_applied = scenario["expected_applied"]
+
         # Act
-        _render_job_tabs(num_jobs if isinstance(num_jobs, list) else [])
+        _render_job_tabs(jobs)
 
         # Assert
-        if isinstance(num_jobs, list) and num_jobs:
+        if jobs:
             tabs_calls = mock_streamlit["tabs"].call_args_list
             tab_labels = tabs_calls[0].args[0]
 
