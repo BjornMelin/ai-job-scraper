@@ -69,10 +69,7 @@ def _handle_job_details_modal(jobs: list[Job]) -> None:
         jobs: List of available jobs to find the selected job.
     """
     if view_job_id := st.session_state.get("view_job_id"):
-        # Find the selected job in the list
-        selected_job = next((job for job in jobs if job.id == view_job_id), None)
-
-        if selected_job:
+        if selected_job := next((job for job in jobs if job.id == view_job_id), None):
             show_job_details_modal(selected_job)
         else:
             # Job not found in current filtered list, clear the selection
