@@ -8,6 +8,34 @@ from pydantic import computed_field, field_validator
 from sqlalchemy.types import JSON
 from sqlmodel import Column, Field, Relationship, SQLModel
 
+# Compiled regex patterns for salary parsing
+_UP_TO_PATTERN = re.compile(
+    r"\b(?:up\s+to|maximum\s+of|max\s+of|not\s+more\s+than)\b", re.IGNORECASE
+)
+_FROM_PATTERN = re.compile(
+    r"\b(?:from|starting\s+at|minimum\s+of|min\s+of|at\s+least)\b", re.IGNORECASE
+)
+_CURRENCY_PATTERN = re.compile(r"[£$€¥¢₹]")
+# Pattern for shared k suffix at end: "100-120k"
+_RANGE_K_PATTERN = re.compile(r"(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)\s*([kK])")
+# Pattern for both numbers with k: "100k-150k"
+_BOTH_K_PATTERN = re.compile(r"(\d+(?:\.\d+)?)([kK])\s*-\s*(\d+(?:\.\d+)?)([kK])")
+# Pattern for one-sided k: "100k-120" (k on first number only)
+_ONE_SIDED_K_PATTERN = re.compile(
+    r"(\d+(?:\.\d+)?)([kK])\s*-\s*(\d+(?:\.\d+)?)(?!\s*[kK])"
+)
+_NUMBER_PATTERN = re.compile(r"(\d+(?:\.\d+)?)\s*([kK])?")
+_HOURLY_PATTERN = re.compile(r"\b(?:per\s+hour|hourly|/hour|/hr)\b", re.IGNORECASE)
+_MONTHLY_PATTERN = re.compile(r"\b(?:per\s+month|monthly|/month|/mo)\b", re.IGNORECASE)
+
+_PHRASES_TO_REMOVE = [
+    r"\b(?:per\s+year|per\s+annum|annually|yearly|p\.?a\.?|/year|/yr)\b",
+    r"\b(?:gross|net|before\s+tax|after\s+tax)\b",
+    r"\b(?:plus\s+benefits?|\+\s*benefits?)\b",
+    r"\b(?:negotiable|neg\.?|ono|o\.?n\.?o\.?)\b",
+    r"\b(?:depending\s+on\s+experience|doe)\b",
+]
+
 
 class CompanySQL(SQLModel, table=True):
     """SQLModel for company records.
@@ -99,9 +127,154 @@ class JobSQL(SQLModel, table=True):
         """
         return self.application_status
 
+    @classmethod
+    def _detect_context(cls, text: str) -> tuple[bool, bool, bool, bool]:
+        """Detect contextual patterns in salary text.
+
+        Args:
+            text: Original salary text
+
+        Returns:
+            tuple[bool, bool, bool, bool]: (is_up_to, is_from, is_hourly,
+                is_monthly) flags
+        """
+        is_up_to = bool(_UP_TO_PATTERN.search(text))
+        is_from = bool(_FROM_PATTERN.search(text))
+        is_hourly = bool(_HOURLY_PATTERN.search(text))
+        is_monthly = bool(_MONTHLY_PATTERN.search(text))
+        return is_up_to, is_from, is_hourly, is_monthly
+
+    @classmethod
+    def _normalize_salary_string(cls, text: str) -> str:
+        """Normalize salary string by removing currency symbols and common phrases.
+
+        Args:
+            text: Raw salary text
+
+        Returns:
+            str: Cleaned and normalized text
+        """
+        # Remove currency symbols
+        cleaned = _CURRENCY_PATTERN.sub("", text)
+
+        # Remove common phrases (but preserve hourly/monthly for conversion)
+        all_patterns = [
+            *_PHRASES_TO_REMOVE,
+            _UP_TO_PATTERN.pattern,
+            _FROM_PATTERN.pattern,
+            _HOURLY_PATTERN.pattern,
+            _MONTHLY_PATTERN.pattern,
+        ]
+
+        for pattern in all_patterns:
+            cleaned = re.sub(pattern, "", cleaned, flags=re.IGNORECASE)
+
+        # Remove all commas (thousands separators)
+        cleaned = re.sub(r",", "", cleaned)
+
+        # Normalize spacing and remove extra punctuation
+        cleaned = re.sub(r"\s+", " ", cleaned).strip()
+        return re.sub(r"[^\d\s.k-]+", "", cleaned, flags=re.IGNORECASE)
+
+    @classmethod
+    def _parse_shared_k_range(cls, text: str) -> tuple[int, int] | None:
+        """Parse ranges with k suffix patterns like '100-120k', '100k-150k', '100k-120'.
+
+        Args:
+            text: Normalized salary text
+
+        Returns:
+            tuple[int, int] | None: (min, max) values or None if not found
+        """
+        # First try both-k pattern (e.g., "100k-150k")
+        both_k_match = _BOTH_K_PATTERN.search(text)
+        if both_k_match:
+            num1, k1_suffix, num2, k2_suffix = both_k_match.groups()
+            try:
+                multiplier1 = 1000 if k1_suffix.lower() == "k" else 1
+                multiplier2 = 1000 if k2_suffix.lower() == "k" else 1
+                val1 = int(float(num1) * multiplier1)
+                val2 = int(float(num2) * multiplier2)
+                return (min(val1, val2), max(val1, val2))
+            except (ValueError, TypeError):
+                pass
+
+        # Then try one-sided k pattern (e.g., "100k-120")
+        one_sided_match = _ONE_SIDED_K_PATTERN.search(text)
+        if one_sided_match:
+            num1, k_suffix, num2 = one_sided_match.groups()
+            try:
+                multiplier = 1000 if k_suffix.lower() == "k" else 1
+                val1 = int(float(num1) * multiplier)  # Apply k to first number
+                val2 = int(float(num2) * multiplier)  # Apply k to second number too
+                return (min(val1, val2), max(val1, val2))
+            except (ValueError, TypeError):
+                pass
+
+        # Finally try shared k pattern (e.g., "100-120k")
+        shared_k_match = _RANGE_K_PATTERN.search(text)
+        if shared_k_match:
+            num1, num2, k_suffix = shared_k_match.groups()
+            try:
+                multiplier = 1000 if k_suffix.lower() == "k" else 1
+                val1 = int(float(num1) * multiplier)
+                val2 = int(float(num2) * multiplier)
+                return (min(val1, val2), max(val1, val2))
+            except (ValueError, TypeError):
+                pass
+
+        return None
+
+    @classmethod
+    def _extract_numbers(cls, text: str) -> list[int]:
+        """Extract and convert numeric values from text.
+
+        Args:
+            text: Normalized salary text
+
+        Returns:
+            list[int]: List of parsed numeric values
+        """
+        numbers = _NUMBER_PATTERN.findall(text)
+        parsed_nums = []
+
+        for num_str, k_suffix in numbers:
+            try:
+                num = float(num_str)
+                # Apply 'k' multiplier if present
+                if k_suffix and k_suffix.lower() == "k":
+                    num *= 1000
+                parsed_nums.append(int(num))
+            except (ValueError, TypeError):
+                continue
+
+        return parsed_nums
+
+    @classmethod
+    def _convert_time_based_salary(
+        cls, values: list[int], is_hourly: bool, is_monthly: bool
+    ) -> list[int]:
+        """Convert hourly or monthly rates to annual equivalents.
+
+        Args:
+            values: List of salary values
+            is_hourly: True if values are hourly rates
+            is_monthly: True if values are monthly rates
+
+        Returns:
+            list[int]: Converted annual salary values
+        """
+        if is_hourly:
+            # Convert hourly to annual: hourly * 40 hours/week * 52 weeks/year
+            return [int(val * 40 * 52) for val in values]
+        if is_monthly:
+            # Convert monthly to annual: monthly * 12 months/year
+            return [int(val * 12) for val in values]
+        return values
+
     @field_validator("salary", mode="before")
     @classmethod
-    def parse_salary(  # noqa: PLR0911
+    def parse_salary(
         cls, value: str | tuple[int | None, int | None] | None
     ) -> tuple[int | None, int | None]:
         """Parse salary string into (min, max) tuple.
@@ -109,7 +282,7 @@ class JobSQL(SQLModel, table=True):
         Handles various salary formats including:
         - Range formats: "$100k-150k", "£80,000 - £120,000", "110k to 150k"
         - Single values: "$120k", "150000", "up to $150k", "from $110k"
-        - Currency symbols: $, £, €
+        - Currency symbols: $, £, €, ¥, ¢, ₹
         - Suffixes: k, K (for thousands)
         - Common phrases: "per year", "per annum", "up to", "from", "starting at"
 
@@ -123,86 +296,41 @@ class JobSQL(SQLModel, table=True):
                                   (salary, None) for "from" patterns,
                                   (None, salary) for "up to" patterns
         """
+        # Handle tuple inputs directly
         if isinstance(value, tuple) and len(value) == 2:
             return value
 
+        # Handle None or empty string inputs
         if value is None or not isinstance(value, str) or value.strip() == "":
             return (None, None)
 
         original = value.strip()
 
-        # Check for "up to" patterns first to handle them differently
-        up_to_pattern = r"\b(?:up\s+to|maximum\s+of|max\s+of|not\s+more\s+than)\b"
-        is_up_to = bool(re.search(up_to_pattern, original, re.IGNORECASE))
+        # Detect contextual patterns
+        is_up_to, is_from, is_hourly, is_monthly = cls._detect_context(original)
 
-        # Check for "from" patterns
-        from_pattern = r"\b(?:from|starting\s+at|minimum\s+of|min\s+of|at\s+least)\b"
-        is_from = bool(re.search(from_pattern, original, re.IGNORECASE))
+        # Normalize the string
+        cleaned = cls._normalize_salary_string(original)
 
-        # Remove currency symbols and normalize
-        cleaned = re.sub(r"[£$€¥¢₹]", "", original)
+        # First try to parse shared-k range patterns
+        if shared_k_range := cls._parse_shared_k_range(cleaned):
+            # Convert time-based rates to annual equivalents
+            min_val, max_val = shared_k_range
+            converted_values = cls._convert_time_based_salary(
+                [min_val, max_val], is_hourly, is_monthly
+            )
+            return (converted_values[0], converted_values[1])
 
-        # Remove common phrases and normalize spacing
-        phrases_to_remove = [
-            r"\b(?:per\s+year|per\s+annum|annually|yearly|p\.?a\.?|/year|/yr)\b",
-            r"\b(?:per\s+hour|hourly|/hour|/hr)\b",
-            r"\b(?:per\s+month|monthly|/month|/mo)\b",
-            r"\b(?:gross|net|before\s+tax|after\s+tax)\b",
-            r"\b(?:plus\s+benefits?|\+\s*benefits?)\b",
-            r"\b(?:negotiable|neg\.?|ono|o\.?n\.?o\.?)\b",
-            r"\b(?:depending\s+on\s+experience|doe)\b",
-            up_to_pattern,
-            from_pattern,
-        ]
-
-        for pattern in phrases_to_remove:
-            cleaned = re.sub(pattern, "", cleaned, flags=re.IGNORECASE)
-
-        # Handle commas in numbers first (e.g., "100,000" -> "100000")
-        cleaned = re.sub(r"(\d),(\d)", r"\1\2", cleaned)
-
-        # Normalize spacing and remove extra punctuation
-        cleaned = re.sub(r"\s+", " ", cleaned).strip()
-        cleaned = re.sub(r"[^\d\s.k-]+", "", cleaned, flags=re.IGNORECASE)
-
-        # Enhanced number extraction with 'k' suffix support
-        # First check for patterns like "100-120k" where 'k' applies to both numbers
-        range_k_pattern = r"(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)\s*([kK])"
-        range_k_match = re.search(range_k_pattern, cleaned)
-
-        if range_k_match:
-            # Handle range with shared 'k' suffix
-            num1, num2, k_suffix = range_k_match.groups()
-            try:
-                multiplier = 1000 if k_suffix.lower() == "k" else 1
-                val1 = int(float(num1) * multiplier)
-                val2 = int(float(num2) * multiplier)
-                return (min(val1, val2), max(val1, val2))
-            except (ValueError, TypeError):
-                pass
-
-        # Standard number extraction
-        number_pattern = r"(\d+(?:\.\d+)?)\s*([kK])?"
-        numbers = re.findall(number_pattern, cleaned)
-
-        if not numbers:
-            return (None, None)
-
-        parsed_nums = []
-        for num_str, k_suffix in numbers:
-            try:
-                num = float(num_str)
-                # Apply 'k' multiplier if present
-                if k_suffix.lower() == "k":
-                    num *= 1000
-                parsed_nums.append(int(num))
-            except (ValueError, TypeError):
-                continue
+        # Extract individual numbers
+        parsed_nums = cls._extract_numbers(cleaned)
 
         if not parsed_nums:
             return (None, None)
 
-        # Handle different patterns based on context
+        # Convert time-based rates to annual equivalents
+        parsed_nums = cls._convert_time_based_salary(parsed_nums, is_hourly, is_monthly)
+
+        # Handle different patterns based on context and number count
         if len(parsed_nums) == 1:
             single_value = parsed_nums[0]
             if is_up_to:
