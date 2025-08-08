@@ -259,10 +259,9 @@ class TestNavigationFailureHandling:
             patch("src.main.init_session_state"),
             patch("src.main.render_database_health_widget"),
             patch("streamlit.navigation", side_effect=Exception("Navigation failed")),
+            pytest.raises(Exception, match="Navigation failed"),
         ):
-            # This should raise the exception since we don't handle it in main()
-            with pytest.raises(Exception, match="Navigation failed"):
-                main()
+            main()
 
     def test_main_handles_init_session_state_failure(self):
         """Test that main function handles session state initialization failures."""
@@ -275,10 +274,9 @@ class TestNavigationFailureHandling:
             ),
             patch("src.main.render_database_health_widget"),
             patch("streamlit.navigation"),
+            pytest.raises(Exception, match="Session init failed"),
         ):
-            # This should raise the exception since we don't handle it in main()
-            with pytest.raises(Exception, match="Session init failed"):
-                main()
+            main()
 
     def test_main_handles_theme_loading_failure(self):
         """Test that main function handles theme loading failures."""
@@ -288,10 +286,9 @@ class TestNavigationFailureHandling:
             patch("src.main.init_session_state"),
             patch("src.main.render_database_health_widget"),
             patch("streamlit.navigation"),
+            pytest.raises(Exception, match="Theme failed"),
         ):
-            # This should raise the exception since we don't handle it in main()
-            with pytest.raises(Exception, match="Theme failed"):
-                main()
+            main()
 
 
 class TestPageConfiguration:
@@ -382,10 +379,9 @@ class TestNavigationBehavior:
             patch("src.main.render_database_health_widget"),
             patch("streamlit.Page", side_effect=Exception("Page creation failed")),
             patch("streamlit.navigation"),
+            pytest.raises(Exception, match="Page creation failed"),
         ):
-            # This should raise the exception during page creation
-            with pytest.raises(Exception, match="Page creation failed"):
-                main()
+            main()
 
     def test_main_function_idempotent(self):
         """Test that main function can be called multiple times safely."""
