@@ -87,6 +87,7 @@ def extract_job_lists(state: State) -> dict[str, list[dict]]:
     """Extract job listings with titles and URLs from company career pages.
 
     Uses SmartScraperMultiGraph for parallel extraction across companies.
+    Respects the max_jobs_per_company limit from session state.
 
     Args:
         state: Current workflow state.
@@ -101,11 +102,14 @@ def extract_job_lists(state: State) -> dict[str, list[dict]]:
     if not sources:
         return {"partial_jobs": []}
 
+    # Get job limit from session state, with fallback to default
+    max_jobs_per_company = state.get("max_jobs_per_company", 50)
+
     prompt = (
-        "Extract all job listings from the page. "
+        f"Extract up to {max_jobs_per_company} job listings from the page. "
         "Return a JSON with a single key 'jobs' containing a list of objects, "
         "each with 'title' (string) and 'url' (string, the full URL to the "
-        "job detail page)."
+        "job detail page). Limit results to the most recent or relevant jobs."
     )
 
     config = {
@@ -127,17 +131,30 @@ def extract_job_lists(state: State) -> dict[str, list[dict]]:
             continue
 
         company = company_map[source_url]
+        company_jobs = []
+
         for job in extracted["jobs"]:
             if "title" in job and "url" in job:
                 # Ensure full URL by joining with base if relative
                 full_url = urljoin(source_url, job["url"])
-                partial_jobs.append(
+                company_jobs.append(
                     {
                         "company": company.name,
                         "title": job["title"],
                         "url": full_url,
                     }
                 )
+
+                # Respect the job limit per company
+                if len(company_jobs) >= max_jobs_per_company:
+                    logger.info(
+                        "Reached job limit of %d for company %s",
+                        max_jobs_per_company,
+                        company.name,
+                    )
+                    break
+
+        partial_jobs.extend(company_jobs)
 
     random_delay()
     return {"partial_jobs": partial_jobs}
@@ -296,8 +313,12 @@ def get_normalized_jobs(state: State) -> dict:
     return {"normalized_jobs": normalized_jobs}
 
 
-def scrape_company_pages() -> list[JobSQL]:
+def scrape_company_pages(max_jobs_per_company: int | None = None) -> list[JobSQL]:
     """Run the agentic scraping workflow for active companies.
+
+    Args:
+        max_jobs_per_company: Optional limit for jobs per company.
+                            If None, defaults to 50.
 
     Returns:
         list[JobSQL]: List of normalized job objects scraped from company pages.
@@ -306,6 +327,10 @@ def scrape_company_pages() -> list[JobSQL]:
     if not companies:
         logger.info("No active companies to scrape.")
         return []
+
+    # Use provided limit or fallback to default
+    if max_jobs_per_company is None:
+        max_jobs_per_company = 50
 
     workflow = StateGraph(State)
     workflow.add_node("extract_lists", extract_job_lists)
@@ -326,8 +351,18 @@ def scrape_company_pages() -> list[JobSQL]:
 
     graph = workflow.compile(checkpointer=checkpointer)
 
-    initial_state = {"companies": companies}
+    # Include max_jobs_per_company in initial state
+    initial_state = {
+        "companies": companies,
+        "max_jobs_per_company": max_jobs_per_company,
+    }
+
     try:
+        logger.info(
+            "Starting scraping for %d companies (limit: %d jobs each)",
+            len(companies),
+            max_jobs_per_company,
+        )
         final_state = graph.invoke(initial_state)
         return final_state.get("normalized_jobs", [])
     except Exception:

@@ -200,8 +200,11 @@ def start_scraping(status_container: Any | None = None) -> None:
                         f"📊 Scraping {company_name}... ({progress_pct:.0f}%)"
                     )
 
+                # Get job limit from session state
+                max_jobs_per_company = st.session_state.get("max_jobs_per_company", 50)
+
                 # Execute scraping (preserves existing scraper.py logic)
-                result = scrape_all()
+                result = scrape_all(max_jobs_per_company)
 
                 # Update company progress with real results
                 for company_name in active_companies:

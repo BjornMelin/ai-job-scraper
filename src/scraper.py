@@ -145,12 +145,16 @@ def bulk_get_or_create_companies(
     return company_map
 
 
-def scrape_all() -> SyncStats:
+def scrape_all(max_jobs_per_company: int | None = None) -> SyncStats:
     """Run the full scraping workflow with intelligent database synchronization.
 
     This function orchestrates scraping from company pages and job boards,
     normalizes the data, filters for relevant AI/ML jobs using regex,
     deduplicates by job link, and uses SmartSyncEngine for safe database updates.
+
+    Args:
+        max_jobs_per_company: Optional limit for jobs per company.
+                            If None, defaults to 50.
 
     Returns:
         dict[str, int]: Synchronization statistics from SmartSyncEngine.
@@ -161,10 +165,14 @@ def scrape_all() -> SyncStats:
     """
     logger.info("Starting comprehensive job scraping workflow")
 
+    # Log the job limit being used
+    limit = max_jobs_per_company or 50
+    logger.info("Using job limit: %d jobs per company", limit)
+
     # Step 1: Scrape company pages using the decoupled workflow
     logger.info("Scraping company career pages...")
     try:
-        company_jobs = scrape_company_pages()
+        company_jobs = scrape_company_pages(max_jobs_per_company)
         logger.info("Retrieved %d jobs from company pages", len(company_jobs))
     except Exception:
         logger.exception("Company scraping failed")
@@ -331,9 +339,13 @@ app = typer.Typer()
 
 
 @app.command()
-def scrape() -> None:
+def scrape(
+    max_jobs_per_company: int = typer.Option(
+        50, "--max-jobs", "-j", help="Maximum number of jobs to scrape per company"
+    ),
+) -> None:
     """CLI command to run the full scraping workflow."""
-    sync_stats = scrape_all()
+    sync_stats = scrape_all(max_jobs_per_company)
     print("\nScraping completed successfully!")
     print("📊 Sync Statistics:")
     print(f"  ✅ Inserted: {sync_stats['inserted']} new jobs")
