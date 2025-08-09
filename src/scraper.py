@@ -19,7 +19,7 @@ import typer
 from .constants import AI_REGEX, SEARCH_KEYWORDS, SEARCH_LOCATIONS
 from .database import SessionLocal
 from .models import CompanySQL, JobSQL
-from .scraper_company_pages import scrape_company_pages
+from .scraper_company_pages import DEFAULT_MAX_JOBS_PER_COMPANY, scrape_company_pages
 from .scraper_job_boards import scrape_job_boards
 from .services.database_sync import SmartSyncEngine
 from .utils import random_delay
@@ -160,13 +160,21 @@ def scrape_all(max_jobs_per_company: int | None = None) -> SyncStats:
         dict[str, int]: Synchronization statistics from SmartSyncEngine.
 
     Raises:
+        ValueError: If max_jobs_per_company is not a positive integer.
         Exception: If any part of the scraping or normalization fails, errors are
             logged but the function continues where possible.
     """
     logger.info("Starting comprehensive job scraping workflow")
 
+    # Validate max_jobs_per_company parameter
+    if max_jobs_per_company is not None:
+        if not isinstance(max_jobs_per_company, int):
+            raise ValueError("max_jobs_per_company must be an integer")
+        if max_jobs_per_company < 1:
+            raise ValueError("max_jobs_per_company must be at least 1")
+
     # Log the job limit being used
-    limit = max_jobs_per_company or 50
+    limit = max_jobs_per_company or DEFAULT_MAX_JOBS_PER_COMPANY
     logger.info("Using job limit: %d jobs per company", limit)
 
     # Step 1: Scrape company pages using the decoupled workflow
@@ -341,7 +349,11 @@ app = typer.Typer()
 @app.command()
 def scrape(
     max_jobs_per_company: int = typer.Option(
-        50, "--max-jobs", "-j", help="Maximum number of jobs to scrape per company"
+        DEFAULT_MAX_JOBS_PER_COMPANY,
+        "--max-jobs",
+        "-j",
+        help="Maximum number of jobs to scrape per company",
+        min=1,
     ),
 ) -> None:
     """CLI command to run the full scraping workflow."""

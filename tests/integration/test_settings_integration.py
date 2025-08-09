@@ -210,7 +210,7 @@ class TestSettingsIntegration:
 
                 # Check final progress
                 final_progress = get_company_progress()
-                for company_name, company_progress in final_progress.items():
+                for company_progress in final_progress.values():
                     assert company_progress.status in ["Completed", "Error"]
                     assert hasattr(company_progress, "jobs_found")
 
@@ -423,7 +423,7 @@ class TestSettingsWithRealScenarios:
             {"limit": 15, "companies": ["Session3 Corp"]},
         ]
 
-        for i, session in enumerate(sessions):
+        for session in sessions:
             st.session_state.clear()  # Clean between sessions
 
             # Set session-specific limit

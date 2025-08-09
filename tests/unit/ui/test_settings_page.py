@@ -61,7 +61,7 @@ class TestApiConnection:
         mock_list_result.data = [mock.Mock(), mock.Mock(), mock.Mock()]
         mock_models.list.return_value = mock_list_result
 
-        success, message = test_api_connection("OpenAI", "sk-test123456789")
+        success, message = test_api_connection("OpenAI", "test_openai_api_key_format")
 
         assert success
         assert "✅ Connected successfully. 3 models available" in message
@@ -75,7 +75,7 @@ class TestApiConnection:
         mock_list_result.data = []
         mock_models.list.return_value = mock_list_result
 
-        success, message = test_api_connection("OpenAI", "sk-test123456789")
+        success, message = test_api_connection("OpenAI", "test_openai_api_key_format")
 
         assert success
         assert "✅ Connected successfully. 0 models available" in message
@@ -90,7 +90,7 @@ class TestApiConnection:
         mock_completions.create.return_value = mock_completion
         mock_chat.completions = mock_completions
 
-        success, message = test_api_connection("Groq", "gsk-test1234567890123456789")
+        success, message = test_api_connection("Groq", "test_groq_api_key_format")
 
         assert success
         assert "✅ Connected successfully. Response ID: chat-123" in message
@@ -110,7 +110,7 @@ class TestApiConnection:
         mock_completions.create.return_value = mock_completion
         mock_chat.completions = mock_completions
 
-        success, message = test_api_connection("Groq", "gsk-test1234567890123456789")
+        success, message = test_api_connection("Groq", "test_groq_api_key_format")
 
         assert success
         assert "✅ Connected successfully. Response ID: unknown" in message
@@ -126,7 +126,7 @@ class TestApiConnection:
         """Test OpenAI authentication error handling."""
         mock_models.list.side_effect = Exception("authentication failed")
 
-        success, message = test_api_connection("OpenAI", "sk-invalid123456789")
+        success, message = test_api_connection("OpenAI", "test_invalid_openai_key")
 
         assert not success
         assert "❌ Authentication failed. Please check your API key" in message
@@ -136,7 +136,7 @@ class TestApiConnection:
         """Test OpenAI network error handling."""
         mock_models.list.side_effect = Exception("connection timeout")
 
-        success, message = test_api_connection("OpenAI", "sk-test123456789")
+        success, message = test_api_connection("OpenAI", "test_openai_api_key_format")
 
         assert not success
         assert (
@@ -149,7 +149,7 @@ class TestApiConnection:
         """Test OpenAI rate limit error handling."""
         mock_models.list.side_effect = Exception("rate limit exceeded")
 
-        success, message = test_api_connection("OpenAI", "sk-test123456789")
+        success, message = test_api_connection("OpenAI", "test_openai_api_key_format")
 
         assert not success
         assert "❌ Rate limit exceeded. Please try again later" in message
@@ -159,7 +159,7 @@ class TestApiConnection:
         """Test OpenAI not found error handling."""
         mock_models.list.side_effect = Exception("404 not found")
 
-        success, message = test_api_connection("OpenAI", "sk-test123456789")
+        success, message = test_api_connection("OpenAI", "test_openai_api_key_format")
 
         assert not success
         assert "❌ API endpoint not found. Service may be unavailable" in message
@@ -169,7 +169,7 @@ class TestApiConnection:
         """Test OpenAI generic error handling."""
         mock_models.list.side_effect = Exception("Some other error")
 
-        success, message = test_api_connection("OpenAI", "sk-test123456789")
+        success, message = test_api_connection("OpenAI", "test_openai_api_key_format")
 
         assert not success
         assert "❌ Connection failed: Some other error" in message
@@ -181,7 +181,7 @@ class TestApiConnection:
         mock_completions.create.side_effect = Exception("401 Unauthorized")
         mock_chat.completions = mock_completions
 
-        success, message = test_api_connection("Groq", "gsk-invalid1234567890123456789")
+        success, message = test_api_connection("Groq", "test_invalid_groq_key")
 
         assert not success
         assert "❌ Authentication failed. Please check your API key" in message
@@ -218,13 +218,13 @@ class TestSettingsLoadSave:
 
     def test_load_settings_from_environment(self):
         """Test loading settings from environment variables."""
-        os.environ["OPENAI_API_KEY"] = "sk-env-test123456789"
-        os.environ["GROQ_API_KEY"] = "gsk-env-test1234567890123456789"
+        os.environ["OPENAI_API_KEY"] = "test_env_openai_key"
+        os.environ["GROQ_API_KEY"] = "test_env_groq_key"
 
         settings = load_settings()
 
-        assert settings["openai_api_key"] == "sk-env-test123456789"
-        assert settings["groq_api_key"] == "gsk-env-test1234567890123456789"
+        assert settings["openai_api_key"] == "test_env_openai_key"
+        assert settings["groq_api_key"] == "test_env_groq_key"
 
     def test_load_settings_from_session_state(self):
         """Test loading settings from session state."""
@@ -239,8 +239,8 @@ class TestSettingsLoadSave:
     def test_save_settings_updates_session_state(self):
         """Test saving settings updates session state."""
         test_settings = {
-            "openai_api_key": "sk-test123456789",
-            "groq_api_key": "gsk-test1234567890123456789",
+            "openai_api_key": "test_openai_api_key_format",
+            "groq_api_key": "test_groq_api_key_format",
             "llm_provider": "Groq",
             "max_jobs_per_company": 100,
         }
@@ -253,8 +253,8 @@ class TestSettingsLoadSave:
     def test_save_settings_logs_correctly(self, caplog):
         """Test that save_settings logs the correct information."""
         test_settings = {
-            "openai_api_key": "sk-test123456789",
-            "groq_api_key": "gsk-test1234567890123456789",
+            "openai_api_key": "test_openai_api_key_format",
+            "groq_api_key": "test_groq_api_key_format",
             "llm_provider": "OpenAI",
             "max_jobs_per_company": 30,
         }
@@ -380,8 +380,8 @@ class TestSettingsIntegration:
 
         # Update settings
         new_settings = {
-            "openai_api_key": "sk-new123456789",
-            "groq_api_key": "gsk-new1234567890123456789",
+            "openai_api_key": "test_new_openai_key",
+            "groq_api_key": "test_new_groq_key",
             "llm_provider": "Groq",
             "max_jobs_per_company": 25,
         }
@@ -410,18 +410,18 @@ class TestSettingsIntegration:
     def test_environment_override_behavior(self):
         """Test environment variables override session state."""
         # Set session state values
-        st.session_state["openai_api_key"] = "sk-session123456789"
-        st.session_state["groq_api_key"] = "gsk-session1234567890123456789"
+        st.session_state["openai_api_key"] = "test_session_openai_key"
+        st.session_state["groq_api_key"] = "test_session_groq_key"
 
         # Set environment variables (should override)
-        os.environ["OPENAI_API_KEY"] = "sk-env123456789"
-        os.environ["GROQ_API_KEY"] = "gsk-env1234567890123456789"
+        os.environ["OPENAI_API_KEY"] = "test_env_openai_priority"
+        os.environ["GROQ_API_KEY"] = "test_env_groq_priority"
 
         settings = load_settings()
 
         # Environment should take precedence
-        assert settings["openai_api_key"] == "sk-env123456789"
-        assert settings["groq_api_key"] == "gsk-env1234567890123456789"
+        assert settings["openai_api_key"] == "test_env_openai_priority"
+        assert settings["groq_api_key"] == "test_env_groq_priority"
 
         # Clean up
         del os.environ["OPENAI_API_KEY"]

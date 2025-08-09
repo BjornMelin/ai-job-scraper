@@ -72,12 +72,28 @@ class TestScrapeLimits:
 
         # Verify the limit was applied
         assert len(result) <= len(self.mock_companies) * max_jobs
+
+        # Group results by company to verify per-company limits
+        jobs_by_company = {}
+        for job in result:
+            company_name = job.company
+            if company_name not in jobs_by_company:
+                jobs_by_company[company_name] = []
+            jobs_by_company[company_name].append(job)
+
+        # Assert that no company exceeds the job limit
+        for company_name, jobs in jobs_by_company.items():
+            assert len(jobs) <= max_jobs, (
+                f"Company {company_name} has {len(jobs)} jobs, "
+                f"exceeding limit of {max_jobs}"
+            )
+
         # Should have called the graph with correct configuration
         mock_graph.assert_called()
 
     @mock.patch("src.scraper_company_pages.load_active_companies")
-    def test_scrape_company_pages_no_limit(self, mock_load_companies):
-        """Test scrape_company_pages with None limit uses default."""
+    def test_scrape_company_pages_default_limit(self, mock_load_companies):
+        """Test scrape_company_pages uses default limit when not specified."""
         mock_load_companies.return_value = self.mock_companies
 
         with mock.patch(
@@ -88,9 +104,9 @@ class TestScrapeLimits:
             mock_graph_instance.run.return_value = {}
 
             with mock.patch("src.scraper_company_pages.SessionLocal"):
-                result = scrape_company_pages(max_jobs_per_company=None)
+                result = scrape_company_pages()  # No parameter, should use default
 
-        # Should use default of 50
+        # Should use default constant (50)
         assert isinstance(result, list)
 
     @mock.patch("src.scraper_company_pages.load_active_companies")
@@ -506,12 +522,19 @@ class TestLimitLogging:
             }
         }
 
-        with mock.patch("src.scraper_company_pages.SessionLocal"):
-            with caplog.at_level(logging.INFO):
-                result = scrape_company_pages(max_jobs_per_company=20)
+        with (
+            mock.patch("src.scraper_company_pages.SessionLocal"),
+            caplog.at_level(logging.INFO),
+        ):
+            result = scrape_company_pages(max_jobs_per_company=20)
 
-        # Should log when job limit is reached (may not happen in this mock scenario)
-        # Alternative: just ensure the function doesn't crash
+        # Assert that the expected log message appears
+        expected_message = "Starting scraping for 1 companies (limit: 20 jobs each)"
+        log_messages = [r.message for r in caplog.records]
+        assert any(expected_message in record.message for record in caplog.records), (
+            f"Expected log message '{expected_message}' not found in logs: "
+            f"{log_messages}"
+        )
         assert isinstance(result, list)
 
     def test_scrape_all_limit_logging(self, caplog):
@@ -522,7 +545,7 @@ class TestLimitLogging:
                 mock_job_boards.return_value = []
 
                 with caplog.at_level(logging.INFO):
-                    result = scrape_all(max_jobs_per_company=75)
+                    scrape_all(max_jobs_per_company=75)
 
         # Should log the job limit being used
         assert any(
@@ -538,7 +561,7 @@ class TestLimitLogging:
                 mock_job_boards.return_value = []
 
                 with caplog.at_level(logging.INFO):
-                    result = scrape_all(max_jobs_per_company=None)
+                    scrape_all(max_jobs_per_company=None)
 
         # Should log the default limit of 50
         assert any(
