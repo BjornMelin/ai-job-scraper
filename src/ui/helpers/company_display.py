@@ -5,7 +5,7 @@ Helper functions for rendering company information and statistics.
 
 import streamlit as st
 
-from src.models import Company
+from src.schemas import Company
 
 
 def render_company_info(company: Company) -> None:

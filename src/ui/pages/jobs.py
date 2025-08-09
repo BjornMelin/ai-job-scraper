@@ -220,7 +220,7 @@ def _handle_refresh_jobs() -> None:
 
 def _render_last_refresh_status() -> None:
     """Render the last refresh status information."""
-    if st.session_state.last_scrape:
+    if hasattr(st.session_state, "last_scrape") and st.session_state.last_scrape:
         time_diff = datetime.now(timezone.utc) - st.session_state.last_scrape
 
         if time_diff.total_seconds() < 3600:

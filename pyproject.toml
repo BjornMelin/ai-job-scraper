@@ -207,11 +207,13 @@ ignore = [
     "S101",    # assert usage (standard practice in pytest tests)
     "PLR2004", # Magic value used in comparison (test values are often magic)
     "D103",    # Missing docstring in public function (test functions don't always need docs)
+    "ARG002",  # Unused method argument (pytest fixtures are injected even if not directly used)
 ]
 "**/test_*.py" = [
     "S101",    # assert usage (standard practice in pytest tests)
     "PLR2004", # Magic value used in comparison (test values are often magic)
     "D103",    # Missing docstring in public function (test functions don't always need docs)
+    "ARG002",  # Unused method argument (pytest fixtures are injected even if not directly used)
 ]
 "seed.py" = [
     "T201", # print found (acceptable in seed scripts)

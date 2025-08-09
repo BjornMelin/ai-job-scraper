@@ -6,6 +6,7 @@ other display formatting functions.
 """
 
 from datetime import datetime, timezone
+from unittest.mock import patch
 
 import pytest
 
@@ -41,7 +42,7 @@ class TestCalculateScrapingSpeed:
         start_time = datetime(2024, 1, 1, 10, 0, tzinfo=timezone.utc)
         jobs_found = 20
 
-        with pytest.mock.patch("src.ui.utils.formatters.datetime") as mock_datetime:
+        with patch("src.ui.utils.formatters.datetime") as mock_datetime:
             # Mock current time to be 4 minutes after start
             mock_datetime.now.return_value = datetime(
                 2024, 1, 1, 10, 4, tzinfo=timezone.utc
@@ -111,7 +112,7 @@ class TestCalculateScrapingSpeed:
         # Arrange - Create a mock datetime that raises an exception
         start_time = datetime(2024, 1, 1, 10, 0, tzinfo=timezone.utc)
 
-        with pytest.mock.patch("src.ui.utils.formatters.datetime") as mock_datetime:
+        with patch("src.ui.utils.formatters.datetime") as mock_datetime:
             mock_datetime.now.side_effect = Exception("Unexpected error")
 
             # Act

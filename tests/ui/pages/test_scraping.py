@@ -522,9 +522,7 @@ class TestScrapingPageActivitySummary:
                 )
                 assert last_time_call.args[1] == "10:00:00"
 
-    def test_activity_summary_calculates_average_duration(
-        self, mock_streamlit, mock_session_state
-    ):
+    def test_activity_summary_calculates_average_duration(self):
         """Test activity summary calculates average scraping duration."""
         # Arrange
         company_progress = {
@@ -640,7 +638,7 @@ class TestScrapingPageIntegration:
                         )
                         assert desc_found
 
-    def test_error_recovery_scenario(self, mock_streamlit, mock_session_state):
+    def test_error_recovery_scenario(self):
         """Test error recovery when scraping operations fail."""
         # Arrange - Setup to fail during start
         with patch("src.ui.pages.scraping.JobService") as mock_service:
@@ -667,9 +665,7 @@ class TestScrapingPageIntegration:
                             len(button_calls) >= 3
                         )  # Start, Stop, Reset buttons present
 
-    def test_page_responsiveness_with_many_companies(
-        self, mock_streamlit, mock_session_state
-    ):
+    def test_page_responsiveness_with_many_companies(self):
         """Test page handles large number of companies without performance issues."""
         # Arrange - Create many active companies
         many_companies = [f"Company{i}" for i in range(50)]
@@ -701,9 +697,8 @@ class TestScrapingPageIntegration:
                             render_scraping_page()
 
                             # Assert - Page renders without errors and shows correct counts
-                            # The page should render without crashing, which means the test passed
-                            # if we get to this point. For a more specific check, we can verify
-                            # that some metric calls were made
+                            # The test passes if page renders without crashing
+                            # Verify metric calls were made
                             metric_calls = mock_streamlit["metric"].call_args_list
                             assert (
                                 len(metric_calls) >= 0

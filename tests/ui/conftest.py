@@ -103,12 +103,24 @@ def mock_streamlit():
 
         # Configure dialog decorator to act as a passthrough decorator
         def mock_dialog_decorator(*_args, **_kwargs):
-            """Mock dialog decorator that returns the original function."""
+            """Mock dialog decorator that creates a passthrough function."""
 
             def decorator(func):
-                # Add an 'open' method to the function to simulate dialog behavior
-                func.open = Mock()
-                return func
+                # Create a wrapper that acts like both the original function and has an open method
+                def wrapper(*args, **kwargs):
+                    # Just call the original function directly
+                    return func(*args, **kwargs)
+
+                # Add an 'open' method that also calls the original function
+                wrapper.open = Mock(
+                    side_effect=lambda *args, **kwargs: func(*args, **kwargs)
+                )
+
+                # Copy function attributes
+                wrapper.__name__ = getattr(func, "__name__", "wrapper")
+                wrapper.__doc__ = func.__doc__
+
+                return wrapper
 
             return decorator
 
@@ -397,7 +409,12 @@ def mock_company_service():
             mock_service.get_active_companies_count.return_value = 0
             mock_service.get_company_by_id.return_value = None
 
-        yield mock_service_companies
+        # Return all mocks so tests can access the right one
+        yield {
+            "companies_page": mock_service_companies,
+            "jobs_page": mock_service_jobs,
+            "core": mock_service_core,
+        }
 
 
 @pytest.fixture
@@ -407,10 +424,16 @@ def mock_job_service():
     with (
         patch("src.ui.pages.jobs.JobService") as mock_service_jobs,
         patch("src.ui.components.cards.job_card.JobService") as mock_service_cards,
+        patch("src.ui.utils.background_tasks.JobService") as mock_service_bg,
         patch("src.services.job_service.JobService") as mock_service_core,
     ):
         # Configure all mock instances with the same behavior
-        for mock_service in [mock_service_jobs, mock_service_cards, mock_service_core]:
+        for mock_service in [
+            mock_service_jobs,
+            mock_service_cards,
+            mock_service_bg,
+            mock_service_core,
+        ]:
             mock_service.get_filtered_jobs.return_value = []
             mock_service.update_job_status.return_value = True
             mock_service.toggle_favorite.return_value = True
@@ -418,8 +441,15 @@ def mock_job_service():
             mock_service.bulk_update_jobs.return_value = True
             mock_service.get_all_jobs.return_value = []
             mock_service.get_job_by_id.return_value = None
+            mock_service.get_active_companies.return_value = []
 
-        yield mock_service_jobs
+        # Return all mocks so tests can access the right one
+        yield {
+            "jobs_page": mock_service_jobs,
+            "cards": mock_service_cards,
+            "background_tasks": mock_service_bg,
+            "core": mock_service_core,
+        }
 
 
 @pytest.fixture(autouse=True)
@@ -492,14 +522,26 @@ def prevent_real_system_execution():
         mock_requests_get.return_value = mock_response
         mock_requests_post.return_value = mock_response
 
-        # Configure dialog decorator to act as a passthrough decorator
+        # Configure dialog decorator to completely bypass Streamlit dialog behavior
         def mock_dialog_func(*_args, **_kwargs):
-            """Mock dialog decorator that returns the original function."""
+            """Mock dialog decorator that creates a passthrough function."""
 
             def decorator(func):
-                # Add an 'open' method to the function to simulate dialog behavior
-                func.open = Mock()
-                return func
+                # Create a wrapper that acts like both the original function and has an open method
+                def wrapper(*args, **kwargs):
+                    # Just call the original function directly
+                    return func(*args, **kwargs)
+
+                # Add an 'open' method that also calls the original function
+                wrapper.open = Mock(
+                    side_effect=lambda *args, **kwargs: func(*args, **kwargs)
+                )
+
+                # Copy function attributes
+                wrapper.__name__ = getattr(func, "__name__", "wrapper")
+                wrapper.__doc__ = func.__doc__
+
+                return wrapper
 
             return decorator
 

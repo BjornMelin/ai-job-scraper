@@ -235,10 +235,14 @@ class TestStreamlitTaskManager:
         assert retrieved_task == task_info
 
 
+import pytest
+
+
+@pytest.mark.usefixtures("_mock_session_state")
 class TestBackgroundTaskStateFunctions:
     """Test background task state management functions."""
 
-    def test_is_scraping_active_returns_false_by_default(self, mock_session_state):
+    def test_is_scraping_active_returns_false_by_default(self):
         """Test is_scraping_active returns False when not set."""
         # Act
         result = is_scraping_active()
@@ -257,9 +261,7 @@ class TestBackgroundTaskStateFunctions:
         # Assert
         assert result is True
 
-    def test_get_scraping_results_returns_empty_dict_by_default(
-        self, mock_session_state
-    ):
+    def test_get_scraping_results_returns_empty_dict_by_default(self):
         """Test get_scraping_results returns empty dict when not set."""
         # Act
         result = get_scraping_results()
@@ -300,9 +302,7 @@ class TestBackgroundTaskStateFunctions:
         # Assert
         assert manager == existing_manager
 
-    def test_get_scraping_progress_returns_empty_dict_by_default(
-        self, mock_session_state
-    ):
+    def test_get_scraping_progress_returns_empty_dict_by_default(self):
         """Test get_scraping_progress returns empty dict when not set."""
         # Act
         result = get_scraping_progress()
@@ -330,9 +330,7 @@ class TestBackgroundTaskStateFunctions:
         # Assert
         assert result == progress
 
-    def test_get_company_progress_returns_empty_dict_by_default(
-        self, mock_session_state
-    ):
+    def test_get_company_progress_returns_empty_dict_by_default(self):
         """Test get_company_progress returns empty dict when not set."""
         # Act
         result = get_company_progress()
@@ -389,7 +387,7 @@ class TestStartBackgroundScraping:
         assert progress_info.message == "Starting scraping..."
         assert isinstance(progress_info.timestamp, datetime)
 
-    def test_start_background_scraping_calls_start_scraping(self, mock_session_state):
+    def test_start_background_scraping_calls_start_scraping(self):
         """Test start_background_scraping calls the start_scraping function."""
         # Act
         with patch("src.ui.utils.background_tasks.start_scraping") as mock_start:
@@ -398,7 +396,7 @@ class TestStartBackgroundScraping:
         # Assert
         mock_start.assert_called_once()
 
-    def test_start_background_scraping_returns_task_id(self, mock_session_state):
+    def test_start_background_scraping_returns_task_id(self):
         """Test start_background_scraping returns a valid task ID."""
         # Act
         with patch("src.ui.utils.background_tasks.start_scraping"):
@@ -477,12 +475,14 @@ class TestStartScrapingFunction:
     def test_start_scraping_sets_active_state(self, mock_session_state):
         """Test start_scraping sets scraping to active state."""
         # Act
-        with patch("src.ui.utils.background_tasks.JobService"):
-            with patch("threading.Thread") as mock_thread_class:
-                mock_thread = Mock()
-                mock_thread_class.return_value = mock_thread
+        with (
+            patch("src.ui.utils.background_tasks.JobService"),
+            patch("threading.Thread") as mock_thread_class,
+        ):
+            mock_thread = Mock()
+            mock_thread_class.return_value = mock_thread
 
-                start_scraping()
+            start_scraping()
 
         # Assert
         assert mock_session_state.get("scraping_active") is True
@@ -491,12 +491,14 @@ class TestStartScrapingFunction:
     def test_start_scraping_creates_background_thread(self, mock_session_state):
         """Test start_scraping creates and starts background thread."""
         # Act
-        with patch("src.ui.utils.background_tasks.JobService"):
-            with patch("threading.Thread") as mock_thread_class:
-                mock_thread = Mock()
-                mock_thread_class.return_value = mock_thread
+        with (
+            patch("src.ui.utils.background_tasks.JobService"),
+            patch("threading.Thread") as mock_thread_class,
+        ):
+            mock_thread = Mock()
+            mock_thread_class.return_value = mock_thread
 
-                start_scraping()
+            start_scraping()
 
         # Assert
         mock_thread_class.assert_called_once()
@@ -528,19 +530,24 @@ class TestStartScrapingFunction:
     ):
         """Test start_scraping initializes company progress tracking."""
         # Arrange
-        mock_job_service.get_active_companies.return_value = ["TechCorp", "DataCorp"]
+        mock_job_service["background_tasks"].get_active_companies.return_value = [
+            "TechCorp",
+            "DataCorp",
+        ]
 
         # Act
-        with patch("threading.Thread") as mock_thread_class:
-            with patch(
+        with (
+            patch("threading.Thread") as mock_thread_class,
+            patch(
                 "src.scraper.scrape_all", return_value={"TechCorp": 25, "DataCorp": 15}
-            ):
-                mock_thread_class.return_value.start = Mock()
-                start_scraping()
+            ),
+        ):
+            mock_thread_class.return_value.start = Mock()
+            start_scraping()
 
-                # Execute the thread function
-                thread_target = mock_thread_class.call_args[1]["target"]
-                thread_target()
+            # Execute the thread function
+            thread_target = mock_thread_class.call_args[1]["target"]
+            thread_target()
 
         # Assert
         company_progress = mock_session_state.get("company_progress")
@@ -559,14 +566,16 @@ class TestStartScrapingFunction:
         scraping_results = {"TechCorp": 30}
 
         # Act
-        with patch("threading.Thread") as mock_thread_class:
-            with patch("src.scraper.scrape_all", return_value=scraping_results):
-                mock_thread_class.return_value.start = Mock()
-                start_scraping()
+        with (
+            patch("threading.Thread") as mock_thread_class,
+            patch("src.scraper.scrape_all", return_value=scraping_results),
+        ):
+            mock_thread_class.return_value.start = Mock()
+            start_scraping()
 
-                # Execute the thread function
-                thread_target = mock_thread_class.call_args[1]["target"]
-                thread_target()
+            # Execute the thread function
+            thread_target = mock_thread_class.call_args[1]["target"]
+            thread_target()
 
         # Assert
         company_progress = mock_session_state.get("company_progress")
@@ -584,16 +593,16 @@ class TestStartScrapingFunction:
         mock_job_service.get_active_companies.return_value = ["TechCorp"]
 
         # Act
-        with patch("threading.Thread") as mock_thread_class:
-            with patch(
-                "src.scraper.scrape_all", side_effect=Exception("Scraping failed")
-            ):
-                mock_thread_class.return_value.start = Mock()
-                start_scraping()
+        with (
+            patch("threading.Thread") as mock_thread_class,
+            patch("src.scraper.scrape_all", side_effect=Exception("Scraping failed")),
+        ):
+            mock_thread_class.return_value.start = Mock()
+            start_scraping()
 
-                # Execute the thread function
-                thread_target = mock_thread_class.call_args[1]["target"]
-                thread_target()
+            # Execute the thread function
+            thread_target = mock_thread_class.call_args[1]["target"]
+            thread_target()
 
         # Assert - Should handle error gracefully
         assert mock_session_state.get("scraping_active") is False
@@ -610,14 +619,16 @@ class TestStartScrapingFunction:
         scraping_results = {"TechCorp": 25, "DataCorp": 15}
 
         # Act
-        with patch("threading.Thread") as mock_thread_class:
-            with patch("src.scraper.scrape_all", return_value=scraping_results):
-                mock_thread_class.return_value.start = Mock()
-                start_scraping()
+        with (
+            patch("threading.Thread") as mock_thread_class,
+            patch("src.scraper.scrape_all", return_value=scraping_results),
+        ):
+            mock_thread_class.return_value.start = Mock()
+            start_scraping()
 
-                # Execute the thread function
-                thread_target = mock_thread_class.call_args[1]["target"]
-                thread_target()
+            # Execute the thread function
+            thread_target = mock_thread_class.call_args[1]["target"]
+            thread_target()
 
         # Assert
         stored_results = mock_session_state.get("scraping_results")
@@ -636,9 +647,11 @@ class TestBackgroundTaskIntegration:
         scraping_results = {"TechCorp": 20}
 
         # Act
-        with patch("threading.Thread") as mock_thread_class:
-            with patch("src.scraper.scrape_all", return_value=scraping_results):
-                mock_thread_class.return_value.start = Mock()
+        with (
+            patch("threading.Thread") as mock_thread_class,
+            patch("src.scraper.scrape_all", return_value=scraping_results),
+        ):
+            mock_thread_class.return_value.start = Mock()
 
                 # Start scraping
                 task_id = start_background_scraping()
@@ -667,7 +680,7 @@ class TestBackgroundTaskIntegration:
         assert stopped_count == 1
         assert mock_session_state.get("scraping_active") is False
 
-    def test_concurrent_task_management(self, mock_session_state):
+    def test_concurrent_task_management(self):
         """Test task manager can handle multiple concurrent operations."""
         # Arrange
         manager = get_task_manager()

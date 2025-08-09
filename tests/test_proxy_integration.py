@@ -77,12 +77,14 @@ def test_scrapegraphai_proxy():
 
             settings = Settings()
 
-            with patch("src.scraper_company_pages.settings", settings):
-                with patch(
+            with (
+                patch("src.scraper_company_pages.settings", settings),
+                patch(
                     "src.scraper_company_pages.get_proxy",
                     return_value="http://test:8080",
-                ):
-                    from src.scraper_company_pages import extract_job_lists
+                ),
+            ):
+                from src.scraper_company_pages import extract_job_lists
 
                     company = CompanySQL(
                         id=1, name="Test", url="https://test.com", active=True

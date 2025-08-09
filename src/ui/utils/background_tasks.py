@@ -5,12 +5,12 @@ replacing complex custom threading with st.status() + simple threading for
 optimal performance and maintainability.
 
 Key improvements:
-- 95% code reduction (806 → 50 lines)
-- Uses st.status() for better UX
+- Uses st.status() for better UX and progress visualization
 - Simple threading instead of ThreadPoolExecutor
 - Direct st.session_state integration
 - Enhanced database session management for background threads
 - No memory leaks or cleanup needed
+- Real-time progress tracking with company-level details
 """
 
 import logging

@@ -152,7 +152,8 @@ class TestJobBoardScraperProxyIntegration:
                     ["ai engineer"], ["san francisco", "new york", "remote"]
                 )
 
-                # Assert - Should be called 3 times (once per location) with same proxy config
+                # Assert - Should be called 3 times (once per location) with same
+                # proxy config
                 assert mock_scrape_jobs.call_count == 3
                 for call in mock_scrape_jobs.call_args_list:
                     assert call.kwargs["proxies"] == ["http://proxy1:8080"]
@@ -178,12 +179,14 @@ class TestCompanyPageScraperProxyIntegration:
             mock_graph.return_value = mock_instance
             mock_instance.run.return_value = mock_result
 
-            with patch("src.scraper_company_pages.settings", test_settings):
-                with patch(
+            with (
+                patch("src.scraper_company_pages.settings", test_settings),
+                patch(
                     "src.scraper_company_pages.get_proxy",
                     return_value="http://proxy1:8080",
-                ):
-                    from src.scraper_company_pages import extract_job_lists
+                ),
+            ):
+                from src.scraper_company_pages import extract_job_lists
 
                     # Act
                     extract_job_lists({"companies": [company]})
@@ -254,12 +257,14 @@ class TestCompanyPageScraperProxyIntegration:
             # Mock proxy connection failure
             mock_instance.run.side_effect = Exception("Proxy connection failed")
 
-            with patch("src.scraper_company_pages.settings", test_settings):
-                with patch(
+            with (
+                patch("src.scraper_company_pages.settings", test_settings),
+                patch(
                     "src.scraper_company_pages.get_proxy",
                     return_value="http://invalid-proxy:8080",
-                ):
-                    from src.scraper_company_pages import extract_job_lists
+                ),
+            ):
+                from src.scraper_company_pages import extract_job_lists
 
                     # Act - Should not raise exception
                     result = extract_job_lists({"companies": [company]})
@@ -295,12 +300,14 @@ class TestCompanyPageScraperProxyIntegration:
             mock_graph.return_value = mock_instance
             mock_instance.run.return_value = mock_result
 
-            with patch("src.scraper_company_pages.settings", test_settings):
-                with patch(
+            with (
+                patch("src.scraper_company_pages.settings", test_settings),
+                patch(
                     "src.scraper_company_pages.get_proxy",
                     return_value="http://proxy1:8080",
-                ):
-                    from src.scraper_company_pages import extract_details
+                ),
+            ):
+                from src.scraper_company_pages import extract_details
 
                     # Act
                     extract_details({"partial_jobs": partial_jobs})
@@ -323,7 +330,7 @@ class TestCompanyPageScraperProxyIntegration:
     def test_scrapegraphai_uses_different_proxies_for_different_requests(
         self, test_settings
     ):
-        """Test ScrapeGraphAI can use different proxies for job list vs detail extraction."""
+        """Test ScrapeGraphAI can use different proxies for different extractions."""
         # Arrange
         test_settings.use_proxies = True
         test_settings.proxy_pool = ["http://proxy1:8080", "http://proxy2:8080"]
@@ -343,13 +350,15 @@ class TestCompanyPageScraperProxyIntegration:
             mock_graph.return_value = mock_instance
             mock_instance.run.return_value = mock_list_result
 
-            with patch("src.scraper_company_pages.settings", test_settings):
+            with (
+                patch("src.scraper_company_pages.settings", test_settings),
                 # Mock get_proxy to return different proxies for different calls
-                with patch(
+                patch(
                     "src.scraper_company_pages.get_proxy",
                     side_effect=["http://proxy1:8080", "http://proxy2:8080"],
-                ):
-                    from src.scraper_company_pages import (
+                ),
+            ):
+                from src.scraper_company_pages import (
                         extract_details,
                         extract_job_lists,
                     )
@@ -528,7 +537,8 @@ class TestProxyErrorHandlingAndRecovery:
                 # Act - Should handle invalid proxy format
                 result = scrape_job_boards(["ai engineer"], ["remote"])
 
-                # Assert - Should still attempt scraping (may use valid proxy or fallback)
+                # Assert - Should still attempt scraping (may use valid proxy or
+                # fallback)
                 call_kwargs = mock_scrape_jobs.call_args.kwargs
                 assert "proxies" in call_kwargs
                 # Invalid proxies should still be passed to JobSpy to handle

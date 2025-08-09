@@ -247,7 +247,7 @@ class TestJobActionBar:
     ):
         """Test action bar displays active sources count."""
         # Arrange
-        mock_company_service.get_active_companies_count.return_value = 5
+        mock_company_service["jobs_page"].get_active_companies_count.return_value = 5
 
         # Act
         _render_action_bar()
@@ -265,9 +265,9 @@ class TestJobActionBar:
     ):
         """Test action bar handles service failure gracefully for active sources."""
         # Arrange
-        mock_company_service.get_active_companies_count.side_effect = Exception(
-            "Database error"
-        )
+        mock_company_service[
+            "jobs_page"
+        ].get_active_companies_count.side_effect = Exception("Database error")
 
         # Act
         _render_action_bar()
