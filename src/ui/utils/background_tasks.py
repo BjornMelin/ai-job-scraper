@@ -200,8 +200,21 @@ def start_scraping(status_container: Any | None = None) -> None:
                         f"📊 Scraping {company_name}... ({progress_pct:.0f}%)"
                     )
 
+                # Get job limit from session state and validate it
+                from src.scraper_company_pages import DEFAULT_MAX_JOBS_PER_COMPANY
+
+                max_jobs_per_company = st.session_state.get(
+                    "max_jobs_per_company", DEFAULT_MAX_JOBS_PER_COMPANY
+                )
+                try:
+                    max_jobs_per_company = int(max_jobs_per_company)
+                    if max_jobs_per_company < 1:
+                        max_jobs_per_company = DEFAULT_MAX_JOBS_PER_COMPANY
+                except (ValueError, TypeError):
+                    max_jobs_per_company = DEFAULT_MAX_JOBS_PER_COMPANY
+
                 # Execute scraping (preserves existing scraper.py logic)
-                result = scrape_all()
+                result = scrape_all(max_jobs_per_company)
 
                 # Update company progress with real results
                 for company_name in active_companies:

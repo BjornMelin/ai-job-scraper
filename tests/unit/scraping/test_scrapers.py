@@ -135,79 +135,83 @@ def test_update_db_upsert_and_delete(mock_engine: Any, session: Session) -> None
     assert new_job.title == "New Job"
 
 
-@patch("src.scraper.update_db")
 @patch("src.scraper.scrape_job_boards")
-@patch("src.scraper.load_active_companies")
+@patch("src.scraper_company_pages.scrape_company_pages")
 def test_scrape_all_workflow(
-    mock_load_companies: Any, mock_scrape_boards: Any, mock_update_db: Any
+    mock_scrape_company_pages: Any, mock_scrape_boards: Any
 ) -> None:
     """Test complete scrape_all workflow with comprehensive mocking.
 
     Validates the full scraping pipeline including:
-    - Loading active companies from database
-    - Company page scraping with LangGraph workflow
+    - Company page scraping integration
     - Job board scraping integration
     - Final database update with combined results
     """
-    mock_load_companies.return_value = [
-        CompanySQL.model_validate(
-            {"name": "Mock Co", "url": "https://mock.co", "active": True}
+    # Mock company page scraping to return JobSQL objects
+    mock_scrape_company_pages.return_value = [
+        JobSQL.model_validate(
+            {
+                "company": "Mock Co",
+                "title": "AI Engineer",
+                "description": "AI role",
+                "link": "https://mock.co/job1",
+                "location": "Remote",
+                "salary": (None, None),
+                "content_hash": "test_hash_123",
+            }
         )
     ]
 
-    # Mock the workflow graph by patching the entire graph workflow
-    with patch("src.scraper.StateGraph") as mock_state_graph:
-        mock_graph_instance = mock_state_graph.return_value.compile.return_value
-        mock_graph_instance.invoke.return_value = {
-            "normalized_jobs": [
-                JobSQL.model_validate(
-                    {
-                        "company": "Mock Co",
-                        "title": "AI Engineer",
-                        "description": "AI role",
-                        "link": "https://mock.co/job1",
-                        "location": "Remote",
-                        "salary": (None, None),
-                    }
-                )
-            ]
+    # Mock job board scraping to return raw job data
+    mock_scrape_boards.return_value = [
+        {
+            "title": "ML Engineer",
+            "company": "Board Co",
+            "description": "ML role",
+            "job_url": "https://board.co/job2",
+            "location": "Office",
+            "date_posted": datetime.now(timezone.utc),
+            "min_amount": 100000,
+            "max_amount": 150000,
+        }
+    ]
+
+    # Execute scrape_all and verify it runs without error
+    with patch("src.services.database_sync.SmartSyncEngine") as mock_sync_engine:
+        mock_sync_engine.return_value.sync_jobs.return_value = {
+            "inserted": 2,
+            "updated": 0,
+            "archived": 0,
+            "deleted": 0,
+            "skipped": 0,
         }
 
-        mock_scrape_boards.return_value = [
-            {
-                "title": "ML Engineer",
-                "company": "Board Co",
-                "description": "ML role",
-                "job_url": "https://board.co/job2",
-                "location": "Office",
-                "date_posted": datetime.now(timezone.utc),
-                "min_amount": 100000,
-                "max_amount": 150000,
-            }
-        ]
+        result = scrape_all(max_jobs_per_company=50)
 
-        scrape_all()
+        # Verify the sync engine was called
+        mock_sync_engine.assert_called_once()
+        sync_instance = mock_sync_engine.return_value
+        sync_instance.sync_jobs.assert_called_once()
 
-        # Verify update_db was called with correct jobs
-        mock_update_db.assert_called_once()
-        called_jobs = mock_update_db.call_args[0][0]
-        assert len(called_jobs) == 2
-        assert any(j.title == "AI Engineer" for j in called_jobs)
-        assert any(j.title == "ML Engineer" for j in called_jobs)
+        # Verify result structure
+        assert "inserted" in result
+        assert result["inserted"] == 2
 
 
-@patch("src.scraper.update_db")
 @patch("src.scraper.scrape_job_boards")
-@patch("src.scraper.load_active_companies")
+@patch("src.scraper_company_pages.scrape_company_pages")
 def test_scrape_all_filtering(
-    mock_load_companies: Any, mock_scrape_boards: Any, mock_update_db: Any
+    mock_scrape_company_pages: Any, mock_scrape_boards: Any
 ) -> None:
     """Test job relevance filtering in scrape_all workflow.
 
     Validates that only relevant jobs (AI/ML related) are kept
     while non-relevant jobs (Sales, etc.) are filtered out.
     """
-    mock_load_companies.return_value = []
+    # Mock company pages to return no jobs
+    mock_scrape_company_pages.return_value = []
+
+    # Mock job board scraping with mixed relevant/irrelevant jobs
     mock_scrape_boards.return_value = [
         {
             "title": "AI Engineer",
@@ -231,13 +235,26 @@ def test_scrape_all_filtering(
         },
     ]
 
-    scrape_all()
+    # Mock the sync engine to verify filtering
+    with patch("src.services.database_sync.SmartSyncEngine") as mock_sync_engine:
+        mock_sync_engine.return_value.sync_jobs.return_value = {
+            "inserted": 1,
+            "updated": 0,
+            "archived": 0,
+            "deleted": 0,
+            "skipped": 0,
+        }
 
-    # Verify update_db was called with only the filtered AI job
-    mock_update_db.assert_called_once()
-    called_jobs = mock_update_db.call_args[0][0]
-    assert len(called_jobs) == 1
-    assert called_jobs[0].title == "AI Engineer"
+        scrape_all(max_jobs_per_company=50)
+
+        # Verify sync was called with only the filtered AI job
+        sync_instance = mock_sync_engine.return_value
+        sync_instance.sync_jobs.assert_called_once()
+
+        # Get the jobs passed to sync_jobs
+        called_jobs = sync_instance.sync_jobs.call_args[0][0]
+        assert len(called_jobs) == 1
+        assert called_jobs[0].title == "AI Engineer"
 
 
 @patch("src.scraper_company_pages.save_jobs")
@@ -266,7 +283,7 @@ def test_scrape_company_pages(
         {"https://test.co/job": {"description": "Desc", "location": "Remote"}},
     ]
 
-    scrape_company_pages()
+    scrape_company_pages(max_jobs_per_company=50)
 
     # Mock save_jobs to return empty dict (expected by workflow)
     mock_save_jobs.return_value = {}

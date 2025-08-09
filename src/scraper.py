@@ -19,7 +19,7 @@ import typer
 from .constants import AI_REGEX, SEARCH_KEYWORDS, SEARCH_LOCATIONS
 from .database import SessionLocal
 from .models import CompanySQL, JobSQL
-from .scraper_company_pages import scrape_company_pages
+from .scraper_company_pages import DEFAULT_MAX_JOBS_PER_COMPANY, scrape_company_pages
 from .scraper_job_boards import scrape_job_boards
 from .services.database_sync import SmartSyncEngine
 from .utils import random_delay
@@ -145,26 +145,42 @@ def bulk_get_or_create_companies(
     return company_map
 
 
-def scrape_all() -> SyncStats:
+def scrape_all(max_jobs_per_company: int | None = None) -> SyncStats:
     """Run the full scraping workflow with intelligent database synchronization.
 
     This function orchestrates scraping from company pages and job boards,
     normalizes the data, filters for relevant AI/ML jobs using regex,
     deduplicates by job link, and uses SmartSyncEngine for safe database updates.
 
+    Args:
+        max_jobs_per_company: Optional limit for jobs per company.
+                            If None, defaults to 50.
+
     Returns:
         dict[str, int]: Synchronization statistics from SmartSyncEngine.
 
     Raises:
+        ValueError: If max_jobs_per_company is not a positive integer.
         Exception: If any part of the scraping or normalization fails, errors are
             logged but the function continues where possible.
     """
     logger.info("Starting comprehensive job scraping workflow")
 
+    # Validate max_jobs_per_company parameter
+    if max_jobs_per_company is not None:
+        if not isinstance(max_jobs_per_company, int):
+            raise ValueError("max_jobs_per_company must be an integer")
+        if max_jobs_per_company < 1:
+            raise ValueError("max_jobs_per_company must be at least 1")
+
+    # Log the job limit being used
+    limit = max_jobs_per_company or DEFAULT_MAX_JOBS_PER_COMPANY
+    logger.info("Using job limit: %d jobs per company", limit)
+
     # Step 1: Scrape company pages using the decoupled workflow
     logger.info("Scraping company career pages...")
     try:
-        company_jobs = scrape_company_pages()
+        company_jobs = scrape_company_pages(max_jobs_per_company)
         logger.info("Retrieved %d jobs from company pages", len(company_jobs))
     except Exception:
         logger.exception("Company scraping failed")
@@ -331,9 +347,17 @@ app = typer.Typer()
 
 
 @app.command()
-def scrape() -> None:
+def scrape(
+    max_jobs_per_company: int = typer.Option(
+        DEFAULT_MAX_JOBS_PER_COMPANY,
+        "--max-jobs",
+        "-j",
+        help="Maximum number of jobs to scrape per company",
+        min=1,
+    ),
+) -> None:
     """CLI command to run the full scraping workflow."""
-    sync_stats = scrape_all()
+    sync_stats = scrape_all(max_jobs_per_company)
     print("\nScraping completed successfully!")
     print("📊 Sync Statistics:")
     print(f"  ✅ Inserted: {sync_stats['inserted']} new jobs")

@@ -38,5 +38,3 @@ def throttled_rerun(
     if (now - last) >= max(0.0, interval_seconds):
         st.session_state[session_key] = now
         st.rerun()
-
-
