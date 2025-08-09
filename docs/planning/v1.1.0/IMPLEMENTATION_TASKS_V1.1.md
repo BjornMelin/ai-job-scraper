@@ -13,11 +13,17 @@ This plan details the tasks for the **V1.1 "Power User" Upgrade**. It assumes a 
 ### **T2.1: Implement Analytics & Insights Dashboard**
 
 - **Release**: V1.1
+
 - **Priority**: **High**
+
 - **Status**: **PENDING**
+
 - **Prerequisites**: A functional V1.0 with a populated database.
+
 - **Related Requirements**: `UI-ANALYTICS-01`
+
 - **Libraries**: `plotly==5.18.0`, `pandas==2.3.1`
+
 - **Description**: This task involves creating a new service to process analytics data and building a new dashboard page with interactive Plotly charts to visualize job trends and application funnels.
 
 - **Architecture Diagram**:
@@ -52,11 +58,17 @@ This plan details the tasks for the **V1.1 "Power User" Upgrade**. It assumes a 
 ### **T2.2: Implement Advanced Job Filtering**
 
 - **Release**: V1.1
+
 - **Priority**: **High**
+
 - **Status**: **PENDING**
+
 - **Prerequisites**: `T1.5` (Core Job Browser), `T2.1` (for data to analyze)
+
 - **Related Requirements**: `UI-JOBS-05`
+
 - **Libraries**: `streamlit==1.47.1`
+
 - **Description**: This task enhances the existing job filter panel by adding new, more powerful controls for filtering by salary range and the date a job was posted.
 
 - **Sub-tasks & Instructions**:
@@ -75,11 +87,17 @@ This plan details the tasks for the **V1.1 "Power User" Upgrade**. It assumes a 
 ### **T2.3: Upgrade to Modal Job Details View**
 
 - **Release**: V1.1
+
 - **Priority**: **Medium**
-- **Status**: **PENDING**
+
+- **Status**: **✅ COMPLETED** (PR #26)
+
 - **Prerequisites**: `T1.5` (Core Job Browser)
+
 - **Related Requirements**: `UI-JOBS-06`, `NFR-UX-01`
+
 - **Libraries**: `streamlit-elements==0.1.0`
+
 - **Description**: Replace the V1.0 `st.expander` job detail view with a professional, non-blocking modal overlay. This significantly improves the user experience by keeping the user in the context of the job grid.
 
 - **Architecture Diagram**:
@@ -94,12 +112,12 @@ This plan details the tasks for the **V1.1 "Power User" Upgrade**. It assumes a 
   ```
 
 - **Sub-tasks & Instructions**:
-  - **T2.3.1: Create the Job Detail Modal Component**:
+  - **T2.3.1: Create the Job Detail Modal Component**: ✅ **COMPLETED**
     - **Instructions**: Create a new file `src/ui/components/modals/job_detail.py`.
     - **Instructions**: Inside, create a `JobDetailModal` class. Use `streamlit_elements` to build the modal. The core will be `with mui.Modal(open=is_open, onClose=handle_close):`. The `is_open` variable will be controlled by `st.session_state`.
     - **Instructions**: The content of the modal should be the same as the old expander: full description, notes text area, and application status controls.
     - **Success Criteria**: A reusable modal component is created that can display job details when activated.
-  - **T2.3.2: Integrate Modal into the Jobs Page**:
+  - **T2.3.2: Integrate Modal into the Jobs Page**: ✅ **COMPLETED**
     - **Instructions**: In `src/ui/pages/jobs.py`, instantiate the `JobDetailModal` at the top of the render function.
     - **Instructions**: Modify the "View Details" button on the `job_card`. Its `on_click` callback should now set `st.session_state.modal_job_id = job.id`.
     - **Instructions**: At the end of the `jobs.py` render function, call the modal's render method, passing it the job data corresponding to the ID in the session state.
