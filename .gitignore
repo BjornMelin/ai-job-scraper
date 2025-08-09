@@ -94,6 +94,9 @@ dmypy.json
 # pytype static type analyzer
 .pytype/
 
+# Pylint
+pylint_report.json
+
 # IPython
 profile_default/
 ipython_config.py

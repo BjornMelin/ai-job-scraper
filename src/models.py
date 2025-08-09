@@ -1,34 +1,66 @@
-"""Database models for companies and jobs in the AI Job Scraper."""
+"""Database models for companies and jobs in the AI Job Scraper.
+
+This module contains SQLModel classes representing database entities:
+- CompanySQL: Company information with scraping statistics
+- JobSQL: Job postings with application tracking and salary parsing
+
+The module also includes salary parsing functionality with comprehensive
+regex patterns for handling various salary formats from job boards.
+"""
 
 import re
 
+from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import datetime
 
 from pydantic import computed_field, field_validator
 from sqlalchemy.types import JSON
 from sqlmodel import Column, Field, Relationship, SQLModel
 
+# Type aliases for better readability
+type SalaryTuple = tuple[int | None, int | None]
+
+
+@dataclass(frozen=True)
+class SalaryContext:
+    """Context flags for salary parsing."""
+
+    is_up_to: bool = False
+    is_from: bool = False
+    is_hourly: bool = False
+    is_monthly: bool = False
+
+
 # Compiled regex patterns for salary parsing
-_UP_TO_PATTERN = re.compile(
+_UP_TO_PATTERN: re.Pattern[str] = re.compile(
     r"\b(?:up\s+to|maximum\s+of|max\s+of|not\s+more\s+than)\b", re.IGNORECASE
 )
-_FROM_PATTERN = re.compile(
+_FROM_PATTERN: re.Pattern[str] = re.compile(
     r"\b(?:from|starting\s+at|minimum\s+of|min\s+of|at\s+least)\b", re.IGNORECASE
 )
-_CURRENCY_PATTERN = re.compile(r"[£$€¥¢₹]")
+_CURRENCY_PATTERN: re.Pattern[str] = re.compile(r"[£$€¥¢₹]")
 # Pattern for shared k suffix at end: "100-120k"
-_RANGE_K_PATTERN = re.compile(r"(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)\s*([kK])")
+_RANGE_K_PATTERN: re.Pattern[str] = re.compile(
+    r"(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)\s*([kK])"
+)
 # Pattern for both numbers with k: "100k-150k"
-_BOTH_K_PATTERN = re.compile(r"(\d+(?:\.\d+)?)([kK])\s*-\s*(\d+(?:\.\d+)?)([kK])")
+_BOTH_K_PATTERN: re.Pattern[str] = re.compile(
+    r"(\d+(?:\.\d+)?)([kK])\s*-\s*(\d+(?:\.\d+)?)([kK])"
+)
 # Pattern for one-sided k: "100k-120" (k on first number only)
-_ONE_SIDED_K_PATTERN = re.compile(
+_ONE_SIDED_K_PATTERN: re.Pattern[str] = re.compile(
     r"(\d+(?:\.\d+)?)([kK])\s*-\s*(\d+(?:\.\d+)?)(?!\s*[kK])"
 )
-_NUMBER_PATTERN = re.compile(r"(\d+(?:\.\d+)?)\s*([kK])?")
-_HOURLY_PATTERN = re.compile(r"\b(?:per\s+hour|hourly|/hour|/hr)\b", re.IGNORECASE)
-_MONTHLY_PATTERN = re.compile(r"\b(?:per\s+month|monthly|/month|/mo)\b", re.IGNORECASE)
+_NUMBER_PATTERN: re.Pattern[str] = re.compile(r"(\d+(?:\.\d+)?)\s*([kK])?")
+_HOURLY_PATTERN: re.Pattern[str] = re.compile(
+    r"\b(?:per\s+hour|hourly|/hour|/hr)\b", re.IGNORECASE
+)
+_MONTHLY_PATTERN: re.Pattern[str] = re.compile(
+    r"\b(?:per\s+month|monthly|/month|/mo)\b", re.IGNORECASE
+)
 
-_PHRASES_TO_REMOVE = [
+_PHRASES_TO_REMOVE: list[str] = [
     r"\b(?:per\s+year|per\s+annum|annually|yearly|p\.?a\.?|/year|/yr)\b",
     r"\b(?:gross|net|before\s+tax|after\s+tax)\b",
     r"\b(?:plus\s+benefits?|\+\s*benefits?)\b",
@@ -128,21 +160,34 @@ class JobSQL(SQLModel, table=True):
         return self.application_status
 
     @classmethod
-    def _detect_context(cls, text: str) -> tuple[bool, bool, bool, bool]:
-        """Detect contextual patterns in salary text.
+    def _detect_context(cls, text: str) -> SalaryContext:
+        """Detect contextual patterns in salary text for parsing.
+
+        Analyzes the input text to identify salary range indicators ("up to", "from"),
+        and time-based qualifiers ("hourly", "monthly") to aid in accurate parsing.
 
         Args:
-            text: Original salary text
+            text: Original salary text to analyze for context patterns.
 
         Returns:
-            tuple[bool, bool, bool, bool]: (is_up_to, is_from, is_hourly,
-                is_monthly) flags
+            SalaryContext with boolean flags indicating detected patterns:
+            - is_up_to: True if text contains upper bound indicators
+            - is_from: True if text contains lower bound indicators
+            - is_hourly: True if text contains hourly rate indicators
+            - is_monthly: True if text contains monthly rate indicators
+
+        Examples:
+            >>> JobSQL._detect_context("up to $120k annually")
+            (True, False, False, False)
+            >>> JobSQL._detect_context("from $25/hour")
+            (False, True, True, False)
         """
-        is_up_to = bool(_UP_TO_PATTERN.search(text))
-        is_from = bool(_FROM_PATTERN.search(text))
-        is_hourly = bool(_HOURLY_PATTERN.search(text))
-        is_monthly = bool(_MONTHLY_PATTERN.search(text))
-        return is_up_to, is_from, is_hourly, is_monthly
+        return SalaryContext(
+            is_up_to=bool(_UP_TO_PATTERN.search(text)),
+            is_from=bool(_FROM_PATTERN.search(text)),
+            is_hourly=bool(_HOURLY_PATTERN.search(text)),
+            is_monthly=bool(_MONTHLY_PATTERN.search(text)),
+        )
 
     @classmethod
     def _normalize_salary_string(cls, text: str) -> str:
@@ -180,12 +225,24 @@ class JobSQL(SQLModel, table=True):
     def _convert_to_value(cls, num_str: str, k_suffix: str | None = None) -> int | None:
         """Convert a numeric string with optional k suffix to integer value.
 
+        Handles conversion of salary numbers with thousand multipliers,
+        ensuring proper scaling when 'k' or 'K' suffixes are present.
+
         Args:
-            num_str: Numeric string to convert
-            k_suffix: Optional 'k' or 'K' suffix
+            num_str: Numeric string to convert (e.g., "120", "150.5").
+            k_suffix: Optional 'k' or 'K' suffix indicating thousands multiplier.
 
         Returns:
-            int | None: Converted value or None if conversion fails
+            Converted integer value (multiplied by 1000 if k_suffix present),
+            or None if conversion fails due to invalid input.
+
+        Examples:
+            >>> JobSQL._convert_to_value("120", "k")
+            120000
+            >>> JobSQL._convert_to_value("75", None)
+            75
+            >>> JobSQL._convert_to_value("invalid", "k")
+            None
         """
         try:
             multiplier = 1000 if k_suffix and k_suffix.lower() == "k" else 1
@@ -195,13 +252,26 @@ class JobSQL(SQLModel, table=True):
 
     @classmethod
     def _parse_shared_k_range(cls, text: str) -> tuple[int, int] | None:
-        """Parse ranges with k suffix patterns like '100-120k', '100k-150k', '100k-120'.
+        """Parse salary ranges with various k suffix patterns.
+
+        Handles complex k-suffix patterns including shared suffixes ("100-120k"),
+        both-sided suffixes ("100k-150k"), and one-sided suffixes ("100k-120").
 
         Args:
-            text: Normalized salary text
+            text: Normalized salary text to parse for range patterns.
 
         Returns:
-            tuple[int, int] | None: (min, max) values or None if not found
+            Tuple of (minimum, maximum) salary values if a valid range pattern
+            is found, with values properly ordered. None if no valid pattern
+            is detected.
+
+        Examples:
+            >>> JobSQL._parse_shared_k_range("100-120k")
+            (100000, 120000)
+            >>> JobSQL._parse_shared_k_range("100k-150k")
+            (100000, 150000)
+            >>> JobSQL._parse_shared_k_range("no range here")
+            None
         """
         # Try both-k pattern (e.g., "100k-150k")
         if match := _BOTH_K_PATTERN.search(text):
@@ -232,13 +302,23 @@ class JobSQL(SQLModel, table=True):
 
     @classmethod
     def _extract_numbers(cls, text: str) -> list[int]:
-        """Extract and convert numeric values from text.
+        """Extract and convert all numeric values from salary text.
+
+        Finds all numeric patterns in the text and converts them to integers,
+        applying thousand multipliers where k-suffixes are present.
 
         Args:
-            text: Normalized salary text
+            text: Normalized salary text containing numeric values.
 
         Returns:
-            list[int]: List of parsed numeric values
+            List of all successfully parsed integer values found in the text,
+            in order of appearance. Empty list if no valid numbers found.
+
+        Examples:
+            >>> JobSQL._extract_numbers("120k to 150k")
+            [120000, 150000]
+            >>> JobSQL._extract_numbers("salary range 80000-90000")
+            [80000, 90000]
         """
         numbers = _NUMBER_PATTERN.findall(text)
         parsed_nums = []
@@ -251,17 +331,28 @@ class JobSQL(SQLModel, table=True):
 
     @classmethod
     def _convert_time_based_salary(
-        cls, values: list[int], is_hourly: bool, is_monthly: bool
+        cls, values: Sequence[int], is_hourly: bool, is_monthly: bool
     ) -> list[int]:
-        """Convert hourly or monthly rates to annual equivalents.
+        """Convert time-based salary rates to standardized annual values.
+
+        Standardizes salary values by converting hourly and monthly rates
+        to annual equivalents using standard work hour assumptions.
 
         Args:
-            values: List of salary values
-            is_hourly: True if values are hourly rates
-            is_monthly: True if values are monthly rates
+            values: Sequence of salary values to convert.
+            is_hourly: True if values represent hourly rates requiring conversion.
+            is_monthly: True if values represent monthly rates requiring conversion.
 
         Returns:
-            list[int]: Converted annual salary values
+            List of annual salary values. Hourly rates are converted using
+            40 hours/week x 52 weeks/year. Monthly rates use 12 months/year.
+            Values are returned unchanged if neither hourly nor monthly.
+
+        Examples:
+            >>> JobSQL._convert_time_based_salary([25, 30], True, False)
+            [52000, 62400]  # 25*40*52, 30*40*52
+            >>> JobSQL._convert_time_based_salary([5000, 6000], False, True)
+            [60000, 72000]  # 5000*12, 6000*12
         """
         if is_hourly:
             # Convert hourly to annual: hourly * 40 hours/week * 52 weeks/year
@@ -273,9 +364,7 @@ class JobSQL(SQLModel, table=True):
 
     @field_validator("salary", mode="before")
     @classmethod
-    def parse_salary(  # noqa: PLR0911
-        cls, value: str | tuple[int | None, int | None] | None
-    ) -> tuple[int | None, int | None]:
+    def parse_salary(cls, value: str | SalaryTuple | None) -> SalaryTuple:
         """Parse salary string into (min, max) tuple.
 
         Handles various salary formats including:
@@ -295,6 +384,30 @@ class JobSQL(SQLModel, table=True):
                                   (salary, None) for "from" patterns,
                                   (None, salary) for "up to" patterns
         """
+        # Handle early exit cases
+        result = cls._handle_early_cases(value)
+        if result is not None:
+            return result
+
+        original = value.strip()
+
+        # Detect contextual patterns
+        context = cls._detect_context(original)
+
+        # Normalize the string
+        cleaned = cls._normalize_salary_string(original)
+
+        # Try parsing shared-k range patterns first
+        result = cls._try_shared_k_range(cleaned, context)
+        if result is not None:
+            return result
+
+        # Extract and process individual numbers
+        return cls._process_parsed_numbers(cleaned, context)
+
+    @classmethod
+    def _handle_early_cases(cls, value) -> tuple[int | None, int | None] | None:
+        """Handle early return cases for parse_salary."""
         # Handle tuple inputs directly
         if isinstance(value, tuple) and len(value) == 2:
             return value
@@ -303,23 +416,29 @@ class JobSQL(SQLModel, table=True):
         if value is None or not isinstance(value, str) or value.strip() == "":
             return (None, None)
 
-        original = value.strip()
+        return None
 
-        # Detect contextual patterns
-        is_up_to, is_from, is_hourly, is_monthly = cls._detect_context(original)
-
-        # Normalize the string
-        cleaned = cls._normalize_salary_string(original)
-
-        # First try to parse shared-k range patterns
+    @classmethod
+    def _try_shared_k_range(
+        cls, cleaned: str, context: SalaryContext
+    ) -> tuple[int | None, int | None] | None:
+        """Try to parse shared-k range patterns."""
         if shared_k_range := cls._parse_shared_k_range(cleaned):
             # Convert time-based rates to annual equivalents
             min_val, max_val = shared_k_range
             converted_values = cls._convert_time_based_salary(
-                [min_val, max_val], is_hourly, is_monthly
+                [min_val, max_val], context.is_hourly, context.is_monthly
             )
             return (converted_values[0], converted_values[1])
+        return None
 
+    @classmethod
+    def _process_parsed_numbers(
+        cls,
+        cleaned: str,
+        context: SalaryContext,
+    ) -> tuple[int | None, int | None]:
+        """Process extracted numbers based on context."""
         # Extract individual numbers
         parsed_nums = cls._extract_numbers(cleaned)
 
@@ -327,14 +446,16 @@ class JobSQL(SQLModel, table=True):
             return (None, None)
 
         # Convert time-based rates to annual equivalents
-        parsed_nums = cls._convert_time_based_salary(parsed_nums, is_hourly, is_monthly)
+        parsed_nums = cls._convert_time_based_salary(
+            parsed_nums, context.is_hourly, context.is_monthly
+        )
 
-        # Handle different patterns based on context and number count
+        # Handle single vs multiple numbers
         if len(parsed_nums) == 1:
             single_value = parsed_nums[0]
-            if is_up_to:
+            if context.is_up_to:
                 return (None, single_value)
-            if is_from:
+            if context.is_from:
                 return (single_value, None)
             # For single values without context, return as both min and max
             return (single_value, single_value)

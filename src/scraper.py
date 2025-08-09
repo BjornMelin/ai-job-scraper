@@ -9,6 +9,7 @@ user-defined fields like favorites during updates.
 import hashlib
 import logging
 
+from collections.abc import Sequence
 from datetime import datetime, timezone
 
 import sqlalchemy.exc
@@ -25,6 +26,10 @@ from .utils import random_delay
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Type aliases for better readability
+type CompanyMapping = dict[str, int]
+type SyncStats = dict[str, int]
 
 
 def get_or_create_company(session: sqlmodel.Session, company_name: str) -> int:
@@ -61,7 +66,7 @@ def get_or_create_company(session: sqlmodel.Session, company_name: str) -> int:
 
 def bulk_get_or_create_companies(
     session: sqlmodel.Session, company_names: set[str]
-) -> dict[str, int]:
+) -> CompanyMapping:
     """Efficiently get or create multiple companies in bulk.
 
     This function eliminates N+1 query patterns by:
@@ -140,7 +145,7 @@ def bulk_get_or_create_companies(
     return company_map
 
 
-def scrape_all() -> dict[str, int]:
+def scrape_all() -> SyncStats:
     """Run the full scraping workflow with intelligent database synchronization.
 
     This function orchestrates scraping from company pages and job boards,
@@ -225,7 +230,7 @@ def scrape_all() -> dict[str, int]:
     return sync_stats
 
 
-def _normalize_board_jobs(board_jobs_raw: list[dict]) -> list[JobSQL]:
+def _normalize_board_jobs(board_jobs_raw: Sequence[dict]) -> list[JobSQL]:
     """Normalize raw job board data to JobSQL objects with optimized bulk operations.
 
     This function converts dictionaries from job board scrapers into properly
@@ -282,13 +287,13 @@ def _normalize_board_jobs(board_jobs_raw: list[dict]) -> list[JobSQL]:
                     continue
 
                 # Create content hash for change detection
-                # Using MD5 for non-cryptographic fingerprinting
-                # (performance over security)
+                # Using SHA-256 for content fingerprinting
+                # (secure hash for data integrity)
                 title = raw.get("title", "")
                 description = raw.get("description", "")
                 company = raw.get("company", "")
                 content = f"{title}{description}{company}"
-                content_hash = hashlib.md5(content.encode()).hexdigest()  # noqa: S324
+                content_hash = hashlib.sha256(content.encode()).hexdigest()
 
                 # Create JobSQL object
                 job = JobSQL(

@@ -45,23 +45,6 @@ def show_job_details_modal(job: Job) -> None:
     render_action_buttons(job, notes_value)
 
 
-def _save_job_notes(job_id: int, notes: str) -> None:
-    """Save job notes and show feedback.
-
-    Args:
-        job_id: Database ID of the job to update notes for.
-        notes: New notes content to save.
-    """
-    try:
-        JobService.update_notes(job_id, notes)
-        logger.info("Updated notes for job %s", job_id)
-        st.success("Notes saved successfully!")
-        # Don't rerun here to avoid closing the modal
-    except Exception:
-        logger.exception("Failed to update notes")
-        st.error("Failed to update notes")
-
-
 def _handle_job_details_modal(jobs: list[Job]) -> None:
     """Handle showing the job details modal when a job is selected.
 
@@ -152,10 +135,12 @@ def _render_page_header() -> None:
             f"""
             <div style='text-align: right; padding-top: 20px;'>
                 <small style='color: var(--text-muted);'>
-                    Last updated: {datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")}
+                    Last updated: {
+                datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
+            }
                 </small>
             </div>
-            """,  # noqa: E501
+            """,
             unsafe_allow_html=True,
         )
 
@@ -220,7 +205,7 @@ def _handle_refresh_jobs() -> None:
 
 def _render_last_refresh_status() -> None:
     """Render the last refresh status information."""
-    if st.session_state.last_scrape:
+    if hasattr(st.session_state, "last_scrape") and st.session_state.last_scrape:
         time_diff = datetime.now(timezone.utc) - st.session_state.last_scrape
 
         if time_diff.total_seconds() < 3600:
@@ -495,7 +480,14 @@ def _render_statistics_dashboard(jobs: list[Job]) -> None:
     rejected = sum(j.status == "Rejected" for j in jobs)
 
     # Render metric cards
-    _render_metric_cards(total_jobs, new_jobs, interested, applied, favorites, rejected)
+    _render_metric_cards(
+        total_jobs=total_jobs,
+        new_jobs=new_jobs,
+        interested=interested,
+        applied=applied,
+        favorites=favorites,
+        rejected=rejected,
+    )
 
     # Render progress visualization
     if total_jobs > 0:
@@ -505,6 +497,7 @@ def _render_statistics_dashboard(jobs: list[Job]) -> None:
 
 
 def _render_metric_cards(
+    *,
     total_jobs: int,
     new_jobs: int,
     interested: int,

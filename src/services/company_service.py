@@ -3,11 +3,24 @@
 This module provides the CompanyService class with static methods for querying
 and updating company records. It handles database operations for company creation,
 status management, and active company filtering.
+
+The service includes:
+- Company CRUD operations with validation and error handling
+- Bulk scraping statistics updates with weighted success rates
+- Active company management for scraping workflows
+- Company statistics with job counts via optimized queries
+- Performance monitoring decorators for observability
+
+All methods use context-managed database sessions and comprehensive error handling
+with proper logging. DTO conversion prevents DetachedInstanceError issues.
 """
 
 import logging
 
 from datetime import datetime, timezone
+
+# Import Any for proper type hints
+from typing import Any
 
 from sqlmodel import func, select
 from src.database import db_session
@@ -17,20 +30,33 @@ from src.schemas import Company
 
 logger = logging.getLogger(__name__)
 
+# Type aliases for better readability
+type CompanyStatsList = list[dict[str, Any]]
+type ScrapeUpdateBatch = list[dict[str, Any]]
+
 
 def calculate_weighted_success_rate(
     current_rate: float, scrape_count: int, success: bool, weight: float = 0.8
 ) -> float:
     """Calculate weighted-average success rate for scraping statistics.
 
+    Computes a running average that gives more weight to historical performance
+    while still responding to recent results. Uses exponential moving average.
+
     Args:
-        current_rate: Current success rate (0.0 to 1.0).
-        scrape_count: Total number of scrapes performed.
-        success: Whether the latest scrape was successful.
-        weight: Weight for historical data (default 0.8).
+        current_rate: Current success rate between 0.0 and 1.0.
+        scrape_count: Total number of scrapes performed (includes current).
+        success: Whether the latest scrape attempt was successful.
+        weight: Weight for historical data, default 0.8 (20% weight to new result).
 
     Returns:
-        New weighted-average success rate.
+        Updated success rate between 0.0 and 1.0.
+
+    Examples:
+        >>> rate = calculate_weighted_success_rate(0.9, 10, True, 0.8)
+        >>> print(f"{rate:.2f}")  # Weighted average closer to 0.9
+        >>> rate = calculate_weighted_success_rate(0.0, 1, True, 0.8)
+        >>> print(f"{rate:.2f}")  # 1.0 (first scrape)
     """
     if scrape_count == 1:
         return 1.0 if success else 0.0
@@ -46,29 +72,54 @@ class CompanyService:
     Provides static methods for querying, creating, and updating company records
     in the database. This service acts as an abstraction layer between the UI
     and the database models.
+
+    All methods are static and decorated with performance monitoring for observability.
+    The service uses context-managed database sessions and converts SQLModel objects
+    to Pydantic DTOs to prevent DetachedInstanceError issues.
+
+    Key features:
+    - Input validation for company names and URLs
+    - Weighted success rate calculations for scraping statistics
+    - Bulk operations for performance optimization
+    - Optimized queries with job counts to prevent N+1 problems
+    - Comprehensive error handling with detailed logging
     """
 
     @staticmethod
     def _to_dto(company_sql: CompanySQL) -> Company:
         """Convert a single SQLModel object to its Pydantic DTO.
 
+        Helper method for consistent DTO conversion that eliminates
+        DetachedInstanceError by creating clean Pydantic objects without
+        database session dependencies.
+
         Args:
-            company_sql: SQLModel CompanySQL object to convert.
+            company_sql: SQLModel CompanySQL object to convert with all
+                fields populated.
 
         Returns:
-            Company DTO object.
+            Company DTO object with all fields copied from the SQLModel instance.
+
+        Raises:
+            ValidationError: If SQLModel data doesn't match DTO schema.
         """
         return Company.model_validate(company_sql)
 
     @classmethod
     def _to_dtos(cls, companies_sql: list[CompanySQL]) -> list[Company]:
-        """Convert a list of SQLModel objects to Pydantic DTOs.
+        """Convert a list of SQLModel objects to Pydantic DTOs efficiently.
+
+        Batch conversion helper that processes multiple SQLModel objects using
+        the single-object conversion method for consistency.
 
         Args:
             companies_sql: List of SQLModel CompanySQL objects to convert.
 
         Returns:
-            List of Company DTO objects.
+            List of Company DTO objects in the same order as input.
+
+        Raises:
+            ValidationError: If any SQLModel data doesn't match DTO schema.
         """
         return [cls._to_dto(c) for c in companies_sql]
 
@@ -349,7 +400,7 @@ class CompanyService:
 
     @staticmethod
     @performance_monitor
-    def get_companies_with_job_counts() -> list[dict]:
+    def get_companies_with_job_counts() -> CompanyStatsList:
         """Get all companies with their job counts in a single optimized query.
 
         This method uses a LEFT JOIN to efficiently retrieve company data along
@@ -402,7 +453,7 @@ class CompanyService:
 
     @staticmethod
     @performance_monitor
-    def bulk_update_scrape_stats(updates: list[dict]) -> int:
+    def bulk_update_scrape_stats(updates: ScrapeUpdateBatch) -> int:
         """Bulk update scraping statistics using SQLAlchemy 2.0 built-in operations.
 
         Uses SQLAlchemy's native bulk update for optimal performance while preserving
@@ -455,7 +506,7 @@ class CompanyService:
 
     @staticmethod
     @performance_monitor
-    def get_companies_for_management() -> list[dict]:
+    def get_companies_for_management() -> list[dict[str, Any]]:
         """Get all companies formatted for management UI display.
 
         Returns:

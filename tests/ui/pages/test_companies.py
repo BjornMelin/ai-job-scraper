@@ -188,16 +188,16 @@ class TestToggleCompanyCallback:
 
     def test_add_company_with_invalid_data_shows_error(self, mock_session_state):
         """Test adding company with invalid data shows error message."""
-        # Arrange - empty name and URL
+        # Arrange - empty name and URL in session state
+        mock_session_state.update({"company_name": "", "company_url": ""})
+
         with patch("src.ui.pages.companies.CompanyService") as mock_company_service:
-            # Act - call with empty strings
-            _add_company_callback("", "")
+            # Act - call callback function
+            _add_company_callback()
 
             # Assert - service not called, error shown
             mock_company_service.add_company.assert_not_called()
-            assert (
-                mock_session_state["add_company_error"] == "Name and URL are required"
-            )
+            assert mock_session_state["add_company_error"] == "Company name is required"
             assert mock_session_state.get("add_company_success") is None
 
 
@@ -207,7 +207,7 @@ class TestShowCompaniesPage:
     def test_companies_page_displays_title_and_description(
         self,
         mock_streamlit,
-        mock_session_state,  # noqa: ARG002
+        mock_session_state,
         mock_company_service,
     ):
         """Test companies page displays correct title and description."""
@@ -224,7 +224,7 @@ class TestShowCompaniesPage:
     def test_companies_page_shows_empty_state_when_no_companies(
         self,
         mock_streamlit,
-        mock_session_state,  # noqa: ARG002
+        mock_session_state,
     ):
         """Test companies page shows empty state when no companies exist."""
         # Arrange
@@ -242,7 +242,7 @@ class TestShowCompaniesPage:
     def test_companies_page_displays_company_list(
         self,
         mock_streamlit,
-        mock_session_state,  # noqa: ARG002
+        mock_session_state,
         mock_company_service,
         sample_companies,
     ):
@@ -267,7 +267,7 @@ class TestShowCompaniesPage:
     def test_companies_page_displays_summary_statistics(
         self,
         mock_streamlit,
-        mock_session_state,  # noqa: ARG002
+        mock_session_state,
         mock_company_service,
         sample_companies,
     ):
@@ -301,7 +301,7 @@ class TestShowCompaniesPage:
     def test_companies_page_renders_toggle_controls(
         self,
         mock_streamlit,
-        mock_session_state,  # noqa: ARG002
+        mock_session_state,
         mock_company_service,
         sample_companies,
     ):
@@ -327,7 +327,7 @@ class TestShowCompaniesPage:
     def test_companies_page_displays_add_company_form(
         self,
         mock_streamlit,
-        mock_session_state,  # noqa: ARG002
+        mock_session_state,
         mock_company_service,
     ):
         """Test companies page displays add company form with proper structure."""
@@ -379,7 +379,7 @@ class TestShowCompaniesPage:
     def test_companies_page_handles_service_failure_gracefully(
         self,
         mock_streamlit,
-        mock_session_state,  # noqa: ARG002
+        mock_session_state,
         mock_company_service,
     ):
         """Test companies page handles service failure gracefully."""
@@ -418,7 +418,7 @@ class TestShowCompaniesPage:
     def test_companies_page_calculates_correct_statistics(  # pylint: disable=R0917
         self,
         mock_streamlit,
-        mock_session_state,  # noqa: ARG002
+        mock_session_state,
         mock_company_service,
         company_count,
         expected_active,
@@ -461,8 +461,10 @@ class TestCompanyPageIntegration:
         new_company = Company(
             id=1, name="New Company", url="https://newcompany.com/careers", active=True
         )
-        mock_company_service.add_company.return_value = new_company
-        mock_company_service.get_all_companies.return_value = [new_company]
+        mock_company_service["companies_page"].add_company.return_value = new_company
+        mock_company_service["companies_page"].get_all_companies.return_value = [
+            new_company
+        ]
 
         # Act - Simulate callback execution followed by page render
         _add_company_callback()
@@ -470,15 +472,14 @@ class TestCompanyPageIntegration:
 
         # Assert - Verify complete workflow
         # 1. Service was called to add company
-        mock_company_service.add_company.assert_called_once_with(
+        mock_company_service["companies_page"].add_company.assert_called_once_with(
             name="New Company", url="https://newcompany.com/careers"
         )
 
-        # 2. Success message was stored
+        # 2. Success message was stored and then cleared after display
         assert (
-            mock_session_state["add_company_success"]
-            == "Successfully added company: New Company"
-        )
+            mock_session_state.get("add_company_success") is None
+        )  # Cleared after display
 
         # 3. Form inputs were cleared
         assert mock_session_state["company_name"] == ""
@@ -500,8 +501,10 @@ class TestCompanyPageIntegration:
         company = Company(
             id=1, name="Test Company", url="https://test.com", active=False
         )
-        mock_company_service.get_all_companies.return_value = [company]
-        mock_company_service.toggle_company_active.return_value = True
+        mock_company_service["companies_page"].get_all_companies.return_value = [
+            company
+        ]
+        mock_company_service["companies_page"].toggle_company_active.return_value = True
 
         # Act - Simulate toggle callback followed by page render
         _toggle_company_callback(1)
@@ -509,10 +512,12 @@ class TestCompanyPageIntegration:
 
         # Assert - Verify complete workflow
         # 1. Service was called to toggle company
-        mock_company_service.toggle_company_active.assert_called_once_with(1)
+        mock_company_service[
+            "companies_page"
+        ].toggle_company_active.assert_called_once_with(1)
 
-        # 2. Success message was stored
-        assert mock_session_state["toggle_success"] == "Enabled scraping"
+        # 2. Success message was stored and then cleared after display
+        assert mock_session_state.get("toggle_success") is None  # Cleared after display
 
         # 3. Success message was displayed on page render
         mock_streamlit["success"].assert_called_with("✅ Enabled scraping")

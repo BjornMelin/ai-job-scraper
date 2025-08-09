@@ -57,14 +57,14 @@ def render_notes_section(job: Job) -> str:
 
 def render_action_buttons(job: Job, notes_value: str) -> None:
     """Render modal action buttons."""
-    from src.ui.pages.jobs import _save_job_notes
+    from src.ui.utils.job_utils import save_job_notes
 
     st.markdown("---")
     col1, col2, col3 = st.columns([1, 1, 1])
 
     with col1:
         if st.button("Save Notes", type="primary", use_container_width=True):
-            _save_job_notes(job.id, notes_value)
+            save_job_notes(job.id, notes_value)
 
     with col2:
         if job.link:

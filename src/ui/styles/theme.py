@@ -1,13 +1,14 @@
 """Optimized theme using CSS variables for maintainability.
 
-This module provides a library-first approach to theming using CSS custom properties,
-achieving 47% code reduction (188 → 100 lines) while maintaining visual consistency.
+This module provides a library-first approach to theming using CSS custom properties
+for consistent visual styling across the application.
 
 Key improvements:
-- CSS variables for easy maintenance
-- Consolidated selectors
-- Reduced code duplication
-- Better performance
+- CSS variables for easy maintenance and theming
+- Consolidated selectors for better performance
+- Reduced code duplication through reusable properties
+- Consistent color scheme and component styling
+- Dark mode optimized design
 """
 
 import streamlit as st
