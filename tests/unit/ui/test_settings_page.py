@@ -190,22 +190,21 @@ class TestApiConnection:
 class TestSettingsLoadSave:
     """Test settings loading and saving functionality."""
 
-    def setup_method(self):
-        """Reset session state and environment before each test."""
-        st.session_state.clear()
-        # Clear environment variables for testing
+    def _clear_api_env_vars(self):
+        """Helper to clear API key environment variables."""
         if "OPENAI_API_KEY" in os.environ:
             del os.environ["OPENAI_API_KEY"]
         if "GROQ_API_KEY" in os.environ:
             del os.environ["GROQ_API_KEY"]
 
+    def setup_method(self):
+        """Reset session state and environment before each test."""
+        st.session_state.clear()
+        self._clear_api_env_vars()
+
     def teardown_method(self):
         """Clean up after each test."""
-        # Restore environment variables if they existed
-        if "OPENAI_API_KEY" in os.environ:
-            del os.environ["OPENAI_API_KEY"]
-        if "GROQ_API_KEY" in os.environ:
-            del os.environ["GROQ_API_KEY"]
+        self._clear_api_env_vars()
 
     def test_load_settings_defaults(self):
         """Test loading settings with default values."""
