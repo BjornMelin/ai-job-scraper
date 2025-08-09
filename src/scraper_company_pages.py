@@ -9,7 +9,6 @@ database. Checkpointing is optional for resumability.
 
 import hashlib
 import logging
-import os
 
 from datetime import datetime, timezone
 from typing import TypedDict
@@ -92,6 +91,17 @@ def extract_job_lists(state: State) -> dict[str, list[dict]]:
         "headers": {"User-Agent": random_user_agent()},
     }
 
+    # Add proxy configuration if enabled
+    if settings.use_proxies and settings.proxy_pool:
+        proxy_url = get_proxy()
+        if proxy_url:
+            config["loader_kwargs"] = {
+                "proxy": {
+                    "server": proxy_url,
+                }
+            }
+            logger.info("Using proxy for job list extraction: %s", proxy_url)
+
     multi_graph = SmartScraperMultiGraph(prompt, sources, config)
     result = multi_graph.run()
 
@@ -151,6 +161,17 @@ def extract_details(state: State) -> dict[str, list[dict]]:
         "verbose": True,
         "headers": {"User-Agent": random_user_agent()},
     }
+
+    # Add proxy configuration if enabled
+    if settings.use_proxies and settings.proxy_pool:
+        proxy_url = get_proxy()
+        if proxy_url:
+            config["loader_kwargs"] = {
+                "proxy": {
+                    "server": proxy_url,
+                }
+            }
+            logger.info("Using proxy for job details extraction: %s", proxy_url)
 
     multi_graph = SmartScraperMultiGraph(prompt, urls, config)
     result = multi_graph.run()
@@ -276,11 +297,6 @@ def scrape_company_pages() -> list[JobSQL]:
     Returns:
         list[JobSQL]: List of normalized job objects scraped from company pages.
     """
-    # Set proxy if enabled and available
-    if proxy := get_proxy():
-        os.environ["http_proxy"] = proxy
-        os.environ["https_proxy"] = proxy
-
     companies = load_active_companies()
     if not companies:
         logger.info("No active companies to scrape.")

@@ -44,6 +44,7 @@ def mock_streamlit():
         ("progress", patch("streamlit.progress")),
         ("data_editor", patch("streamlit.data_editor")),
         ("download_button", patch("streamlit.download_button")),
+        ("caption", patch("streamlit.caption")),
     ]
 
     # Start all patches and collect mocks
@@ -192,6 +193,13 @@ class MockSessionState:
     def __contains__(self, key):
         """Check if key exists in session state."""
         return key in self._data
+
+    def __delattr__(self, name):
+        """Delete an attribute from the session state."""
+        if name.startswith("_"):
+            super().__delattr__(name)
+        elif name in self._data:
+            del self._data[name]
 
 
 @pytest.fixture

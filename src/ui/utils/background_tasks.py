@@ -242,8 +242,9 @@ def start_scraping(status_container: Any | None = None) -> None:
             error_msg = f"❌ Scraping failed: {e}"
 
             # Mark any scraping companies as error with safe attribute access
-            if hasattr(st.session_state, "company_progress"):
-                for company_progress in st.session_state.company_progress.values():
+            company_dict = getattr(st.session_state, "company_progress", None)
+            if company_dict:
+                for company_progress in company_dict.values():
                     if company_progress.status == "Scraping":
                         company_progress.status = "Error"
                         # Safe attribute assignment - error field exists in dataclass
