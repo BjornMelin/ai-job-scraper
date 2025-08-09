@@ -129,3 +129,21 @@ def random_delay(min_sec: float = 1.0, max_sec: float = 5.0) -> None:
         max_sec: The maximum delay duration in seconds (default is 5.0).
     """
     time.sleep(random.uniform(min_sec, max_sec))
+
+
+def resolve_jobspy_proxies(settings_obj=None) -> list[str] | None:
+    """Resolve proxies configuration for JobSpy based on settings.
+
+    Args:
+        settings_obj: Settings instance to use. If None, uses global settings.
+
+    Returns:
+        Proxy pool list when enabled, empty list when enabled but pool empty,
+        or None when proxies are disabled.
+    """
+    if settings_obj is None:
+        settings_obj = settings
+
+    if not settings_obj.use_proxies:
+        return None
+    return list(settings_obj.proxy_pool) if settings_obj.proxy_pool else []

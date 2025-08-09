@@ -6,7 +6,6 @@ operations.
 """
 
 import logging
-import time
 
 from datetime import datetime, timezone
 
@@ -23,6 +22,7 @@ from src.ui.utils.background_tasks import (
     stop_all_scraping,
 )
 from src.ui.utils.formatters import calculate_eta
+from src.ui.utils.refresh import throttled_rerun
 from src.ui.utils.streamlit_context import is_streamlit_context
 
 logger = logging.getLogger(__name__)
@@ -74,6 +74,10 @@ def _render_control_buttons() -> None:
             "⚠️ Failed to load company configuration. "
             "Please check the database connection."
         )
+
+    # Status indicator
+    status_text = "🟢 ACTIVE" if is_scraping else "⚪️ IDLE"
+    st.markdown(f"**Scraping Status:** {status_text}")
 
     # Create three columns for the main control buttons
     col1, col2, col3 = st.columns(3)
@@ -191,41 +195,38 @@ def _render_progress_dashboard() -> None:
     )
 
     # Overall metrics using st.metric as required
-    col1, col2, col3 = st.columns(3)
+    eta: str
+    if total_companies > 0 and completed_companies > 0:
+        # Get start time from first company or task progress
+        start_time = None
+        for company in company_progress.values():
+            if company.start_time:
+                start_time = company.start_time
+                break
 
-    with col1:
-        st.metric(
-            label="Total Jobs Found",
-            value=total_jobs_found,
-            help="Total jobs discovered across all companies",
-        )
-
-    with col2:
-        # Calculate ETA
-        if total_companies > 0 and completed_companies > 0:
-            # Get start time from first company or task progress
-            start_time = None
-            for company in company_progress.values():
-                if company.start_time:
-                    start_time = company.start_time
-                    break
-
-            if start_time:
-                time_elapsed = (datetime.now(timezone.utc) - start_time).total_seconds()
-                eta = calculate_eta(total_companies, completed_companies, time_elapsed)
-            else:
-                eta = "Calculating..."
+        if start_time:
+            time_elapsed = (datetime.now(timezone.utc) - start_time).total_seconds()
+            eta = calculate_eta(total_companies, completed_companies, time_elapsed)
         else:
-            eta = "N/A"
+            eta = "Calculating..."
+    else:
+        eta = "N/A"
 
-        st.metric(label="ETA", value=eta, help="Estimated time to completion")
-
-    with col3:
-        st.metric(
-            label="Active Companies",
-            value=f"{active_companies}/{total_companies}",
-            help="Companies currently being scraped",
-        )
+    _render_metrics(
+        [
+            (
+                "Total Jobs Found",
+                total_jobs_found,
+                "Total jobs discovered across all companies",
+            ),
+            ("ETA", eta, "Estimated time to completion"),
+            (
+                "Active Companies",
+                f"{active_companies}/{total_companies}",
+                "Companies currently being scraped",
+            ),
+        ]
+    )
 
     # Overall progress bar
     if total_companies > 0:
@@ -270,40 +271,41 @@ def _render_activity_summary() -> None:
     results = st.session_state.get("scraping_results", {})
     company_progress = get_company_progress()
 
-    col1, col2, col3 = st.columns(3)
+    # Metrics
+    last_run_jobs = sum(results.values()) if results else 0
+    last_run_jobs_display = last_run_jobs if last_run_jobs > 0 else "N/A"
 
-    with col1:
-        last_run_jobs = sum(results.values()) if results else 0
-        st.metric("Last Run Jobs", last_run_jobs if last_run_jobs > 0 else "N/A")
+    # Find most recent start time
+    last_run_time = "Never"
+    if company_progress:
+        latest_start = max(
+            (c.start_time for c in company_progress.values() if c.start_time),
+            default=None,
+        )
+        if latest_start:
+            last_run_time = latest_start.strftime("%H:%M:%S")
 
-    with col2:
-        # Find most recent start time
-        last_run_time = "Never"
-        if company_progress:
-            latest_start = max(
-                (c.start_time for c in company_progress.values() if c.start_time),
-                default=None,
-            )
-            if latest_start:
-                last_run_time = latest_start.strftime("%H:%M:%S")
-        st.metric("Last Run Time", last_run_time)
+    # Calculate duration from company progress
+    duration_text = "N/A"
+    if company_progress:
+        completed_companies = [
+            c
+            for c in company_progress.values()
+            if c.status == "Completed" and c.start_time and c.end_time
+        ]
+        if completed_companies:
+            avg_duration = sum(
+                (c.end_time - c.start_time).total_seconds() for c in completed_companies
+            ) / len(completed_companies)
+            duration_text = f"{avg_duration:.1f}s"
 
-    with col3:
-        # Calculate duration from company progress
-        duration_text = "N/A"
-        if company_progress:
-            completed_companies = [
-                c
-                for c in company_progress.values()
-                if c.status == "Completed" and c.start_time and c.end_time
-            ]
-            if completed_companies:
-                avg_duration = sum(
-                    (c.end_time - c.start_time).total_seconds()
-                    for c in completed_companies
-                ) / len(completed_companies)
-                duration_text = f"{avg_duration:.1f}s"
-        st.metric("Avg Duration", duration_text)
+    _render_metrics(
+        [
+            ("Last Run Jobs", last_run_jobs_display, ""),
+            ("Last Run Time", last_run_time, ""),
+            ("Avg Duration", duration_text, ""),
+        ]
+    )
 
 
 def _handle_auto_refresh() -> None:
@@ -313,20 +315,7 @@ def _handle_auto_refresh() -> None:
     without excessive refresh calls that could cause UI flicker.
     """
     try:
-        current_time = time.time()
-        time_since_last_refresh = current_time - st.session_state.last_refresh
-
-        # Throttle refresh to every 2 seconds (2000ms)
-        refresh_interval = 2.0
-
-        if time_since_last_refresh >= refresh_interval:
-            st.session_state.last_refresh = current_time
-
-            # Only rerun if scraping is still active to avoid unnecessary refreshes
-            if is_scraping_active():
-                logger.debug("Auto-refreshing scraping dashboard")
-                st.rerun()
-
+        throttled_rerun(should_rerun=is_scraping_active())
     except Exception:
         logger.exception("Error in auto-refresh handler")
 
@@ -335,3 +324,11 @@ def _handle_auto_refresh() -> None:
 # Only run when in a proper Streamlit context (not during test imports)
 if is_streamlit_context():
     render_scraping_page()
+
+
+def _render_metrics(items: list[tuple[str, object, str]]) -> None:
+    """Render a row of metrics using a concise helper to reduce boilerplate."""
+    cols = st.columns(len(items))
+    for col, (label, value, help_text) in zip(cols, items, strict=False):
+        with col:
+            st.metric(label=label, value=value, help=help_text)

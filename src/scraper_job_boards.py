@@ -14,7 +14,7 @@ from jobspy import Site, scrape_jobs
 
 from .config import Settings
 from .constants import AI_REGEX
-from .utils import random_delay
+from .utils import random_delay, resolve_jobspy_proxies
 
 settings = Settings()
 
@@ -50,7 +50,7 @@ def scrape_job_boards(
                 search_term=search_term,
                 location=location,
                 results_wanted=100,
-                proxies=settings.proxy_pool if settings.use_proxies else None,
+                proxies=resolve_jobspy_proxies(settings),
             )
             all_dfs.append(jobs)
         except Exception as e:
