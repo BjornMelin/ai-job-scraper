@@ -143,7 +143,7 @@ class TestJobDetailsModalHandling:
 
     def test_handle_job_details_modal_shows_modal_when_job_selected(
         self,
-        mock_streamlit,  # noqa: ARG002  # pylint: disable=unused-argument
+        mock_streamlit,  # pylint: disable=unused-argument
         sample_jobs,
         mock_session_state,
     ):
@@ -174,7 +174,7 @@ class TestJobDetailsModalHandling:
     def test_handle_job_details_modal_does_nothing_when_no_job_selected(
         self,
         sample_jobs,
-        mock_session_state,  # noqa: ARG002
+        mock_session_state,
     ):
         """Test modal handler does nothing when no job is selected."""
         # Arrange - no view_job_id in session state
@@ -288,7 +288,7 @@ class TestJobRefresh:
     def test_handle_refresh_jobs_executes_scraping(
         self,
         mock_streamlit,
-        mock_session_state,  # noqa: ARG002
+        mock_session_state,
     ):
         """Test refresh handler executes scraping process."""
         # Arrange
@@ -323,7 +323,7 @@ class TestJobRefresh:
     def test_handle_refresh_jobs_handles_scraping_failure(
         self,
         mock_streamlit,
-        mock_session_state,  # noqa: ARG002
+        mock_session_state,
     ):
         """Test refresh handler handles scraping failure gracefully."""
         # Arrange
@@ -340,7 +340,7 @@ class TestJobRefresh:
     def test_handle_refresh_jobs_validates_sync_stats_format(
         self,
         mock_streamlit,
-        mock_session_state,  # noqa: ARG002
+        mock_session_state,
     ):
         """Test refresh handler validates sync stats are in expected format."""
         # Arrange - return invalid format
@@ -635,7 +635,7 @@ class TestJobsPageIntegration:
                 if "No jobs found" in call.args[0]
             ]
 
-    def test_complete_job_refresh_workflow(self, mock_streamlit, mock_session_state):  # noqa: ARG002
+    def test_complete_job_refresh_workflow(self, mock_streamlit, mock_session_state):
         """Test complete job refresh workflow with realistic scraping results."""
         # Arrange
         mock_sync_stats = {

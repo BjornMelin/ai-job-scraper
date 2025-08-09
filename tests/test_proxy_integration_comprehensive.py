@@ -188,24 +188,21 @@ class TestCompanyPageScraperProxyIntegration:
             ):
                 from src.scraper_company_pages import extract_job_lists
 
-                    # Act
-                    extract_job_lists({"companies": [company]})
+                # Act
+                extract_job_lists({"companies": [company]})
 
-                    # Assert
-                    mock_graph.assert_called()
-                    call_args, call_kwargs = mock_graph.call_args
-                    config = (
-                        call_args[2]
-                        if len(call_args) > 2
-                        else call_kwargs.get("config")
-                    )
+                # Assert
+                mock_graph.assert_called()
+                call_args, call_kwargs = mock_graph.call_args
+                config = (
+                    call_args[2] if len(call_args) > 2 else call_kwargs.get("config")
+                )
 
-                    assert "loader_kwargs" in config
-                    assert "proxy" in config["loader_kwargs"]
-                    assert (
-                        config["loader_kwargs"]["proxy"]["server"]
-                        == "http://proxy1:8080"
-                    )
+                assert "loader_kwargs" in config
+                assert "proxy" in config["loader_kwargs"]
+                assert (
+                    config["loader_kwargs"]["proxy"]["server"] == "http://proxy1:8080"
+                )
 
     def test_scrapegraphai_no_proxy_when_disabled(self, test_settings):
         """Test ScrapeGraphAI doesn't use proxy when proxy usage is disabled."""
@@ -266,11 +263,11 @@ class TestCompanyPageScraperProxyIntegration:
             ):
                 from src.scraper_company_pages import extract_job_lists
 
-                    # Act - Should not raise exception
-                    result = extract_job_lists({"companies": [company]})
+                # Act - Should not raise exception
+                result = extract_job_lists({"companies": [company]})
 
-                    # Assert - Returns empty result but doesn't crash
-                    assert result == {"partial_jobs": []}
+                # Assert - Returns empty result but doesn't crash
+                assert result == {"partial_jobs": []}
 
     def test_scrapegraphai_proxy_configuration_in_details_extraction(
         self, test_settings
@@ -309,23 +306,16 @@ class TestCompanyPageScraperProxyIntegration:
             ):
                 from src.scraper_company_pages import extract_details
 
-                    # Act
-                    extract_details({"partial_jobs": partial_jobs})
+            # Act
+            extract_details({"partial_jobs": partial_jobs})
 
-                    # Assert
-                    call_args, call_kwargs = mock_graph.call_args
-                    config = (
-                        call_args[2]
-                        if len(call_args) > 2
-                        else call_kwargs.get("config")
-                    )
+            # Assert
+            call_args, call_kwargs = mock_graph.call_args
+            config = call_args[2] if len(call_args) > 2 else call_kwargs.get("config")
 
-                    assert "loader_kwargs" in config
-                    assert "proxy" in config["loader_kwargs"]
-                    assert (
-                        config["loader_kwargs"]["proxy"]["server"]
-                        == "http://proxy1:8080"
-                    )
+            assert "loader_kwargs" in config
+            assert "proxy" in config["loader_kwargs"]
+            assert config["loader_kwargs"]["proxy"]["server"] == "http://proxy1:8080"
 
     def test_scrapegraphai_uses_different_proxies_for_different_requests(
         self, test_settings
@@ -359,24 +349,24 @@ class TestCompanyPageScraperProxyIntegration:
                 ),
             ):
                 from src.scraper_company_pages import (
-                        extract_details,
-                        extract_job_lists,
-                    )
+                    extract_details,
+                    extract_job_lists,
+                )
 
-                    # Act - Extract job lists (first proxy)
-                    list_result = extract_job_lists({"companies": [company]})
+            # Act - Extract job lists (first proxy)
+            list_result = extract_job_lists({"companies": [company]})
 
-                    # Reset mock for details extraction
-                    mock_graph.reset_mock()
-                    mock_instance.run.return_value = {
-                        "https://techcorp.com/job1": {"description": "AI role"}
-                    }
+            # Reset mock for details extraction
+            mock_graph.reset_mock()
+            mock_instance.run.return_value = {
+                "https://techcorp.com/job1": {"description": "AI role"}
+            }
 
-                    # Extract details (second proxy)
-                    extract_details(list_result)
+            # Extract details (second proxy)
+            extract_details(list_result)
 
-                    # Assert - Both calls should have used proxy configuration
-                    assert mock_graph.call_count == 2
+            # Assert - Both calls should have used proxy configuration
+            assert mock_graph.call_count == 2
 
 
 class TestProxyUtilityFunctions:
@@ -662,24 +652,25 @@ class TestProxyConfigurationEdgeCases:
                 "https://techcorp.com/careers": {"jobs": []}
             }
 
-            with patch("src.scraper_company_pages.settings", test_settings):
-                with patch(
+            with (
+                patch("src.scraper_company_pages.settings", test_settings),
+                patch(
                     "src.scraper_company_pages.get_proxy",
                     return_value="http://monitored-proxy:8080",
-                ):
-                    with patch("src.scraper_company_pages.logger") as mock_logger:
-                        from src.scraper_company_pages import extract_job_lists
+                ),
+                patch("src.scraper_company_pages.logger") as mock_logger,
+            ):
+                from src.scraper_company_pages import extract_job_lists
 
-                        # Act
-                        extract_job_lists({"companies": [company]})
+                # Act
+                extract_job_lists({"companies": [company]})
 
-                        # Assert - Proxy usage should be logged
-                        logged_calls = [
-                            call.args[0] for call in mock_logger.info.call_args_list
-                        ]
-                        proxy_log_found = any(
-                            "proxy" in call.lower()
-                            and "http://monitored-proxy:8080" in call
-                            for call in logged_calls
-                        )
-                        assert proxy_log_found
+                # Assert - Proxy usage should be logged
+                logged_calls = [
+                    call.args[0] for call in mock_logger.info.call_args_list
+                ]
+                proxy_log_found = any(
+                    "proxy" in call.lower() and "http://monitored-proxy:8080" in call
+                    for call in logged_calls
+                )
+                assert proxy_log_found

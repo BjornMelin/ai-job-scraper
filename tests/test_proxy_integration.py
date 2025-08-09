@@ -86,24 +86,20 @@ def test_scrapegraphai_proxy():
             ):
                 from src.scraper_company_pages import extract_job_lists
 
-                    company = CompanySQL(
-                        id=1, name="Test", url="https://test.com", active=True
-                    )
-                    extract_job_lists({"companies": [company]})
+                company = CompanySQL(
+                    id=1, name="Test", url="https://test.com", active=True
+                )
+                extract_job_lists({"companies": [company]})
 
-                    # Check that loader_kwargs contains proxy config
-                    call_args, call_kwargs = mock_graph.call_args
-                    config = (
-                        call_args[2]
-                        if len(call_args) > 2
-                        else call_kwargs.get("config")
-                    )
-                    assert "loader_kwargs" in config
-                    assert "proxy" in config["loader_kwargs"]
-                    assert (
-                        config["loader_kwargs"]["proxy"]["server"] == "http://test:8080"
-                    )
-                    print("✓ ScrapeGraphAI proxy configuration working")
+                # Check that loader_kwargs contains proxy config
+                call_args, call_kwargs = mock_graph.call_args
+                config = (
+                    call_args[2] if len(call_args) > 2 else call_kwargs.get("config")
+                )
+                assert "loader_kwargs" in config
+                assert "proxy" in config["loader_kwargs"]
+                assert config["loader_kwargs"]["proxy"]["server"] == "http://test:8080"
+                print("✓ ScrapeGraphAI proxy configuration working")
 
 
 def test_proxy_disabled():

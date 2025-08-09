@@ -497,7 +497,7 @@ class TestJobCardIntegration:
     def test_complete_favorite_toggle_workflow(
         self,
         mock_streamlit,
-        mock_session_state,  # noqa: ARG002
+        mock_session_state,
         sample_job,
     ):
         """Test complete workflow of toggling favorite status."""

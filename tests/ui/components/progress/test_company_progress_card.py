@@ -328,26 +328,28 @@ class TestCompanyProgressCardTimingInfo:
         )
         card = CompanyProgressCard()
 
-        with patch(
-            "src.ui.components.progress.company_progress_card.format_timestamp"
-        ) as mock_format_time:
-            with patch(
+        with (
+            patch(
+                "src.ui.components.progress.company_progress_card.format_timestamp"
+            ) as mock_format_time,
+            patch(
                 "src.ui.components.progress.company_progress_card.format_duration"
-            ) as mock_format_duration:
-                mock_format_time.side_effect = ["10:00:00", "10:03:00"]
-                mock_format_duration.return_value = "3m 0s"
+            ) as mock_format_duration,
+        ):
+            mock_format_time.side_effect = ["10:00:00", "10:03:00"]
+            mock_format_duration.return_value = "3m 0s"
 
-                # Act
-                card.render(progress)
+            # Act
+            card.render(progress)
 
-                # Assert
-                caption_calls = mock_streamlit["caption"].call_args_list
-                assert len(caption_calls) > 0
+            # Assert
+            caption_calls = mock_streamlit["caption"].call_args_list
+            assert len(caption_calls) > 0
 
-                timing_text = caption_calls[0].args[0]
-                assert "Started: 10:00:00" in timing_text
-                assert "Completed: 10:03:00" in timing_text
-                assert "Duration: 3m 0s" in timing_text
+            timing_text = caption_calls[0].args[0]
+            assert "Started: 10:00:00" in timing_text
+            assert "Completed: 10:03:00" in timing_text
+            assert "Duration: 3m 0s" in timing_text
 
     def test_timing_shows_elapsed_time_for_active_scraping(
         self, mock_streamlit, mock_session_state
@@ -360,32 +362,34 @@ class TestCompanyProgressCardTimingInfo:
         )
         card = CompanyProgressCard()
 
-        with patch(
-            "src.ui.components.progress.company_progress_card.format_timestamp"
-        ) as mock_format_time:
-            with patch(
+        with (
+            patch(
+                "src.ui.components.progress.company_progress_card.format_timestamp"
+            ) as mock_format_time,
+            patch(
                 "src.ui.components.progress.company_progress_card.format_duration"
-            ) as mock_format_duration:
-                with patch("src.ui.utils.background_tasks.datetime") as mock_datetime:
-                    # Mock current time to be 2 minutes after start
-                    mock_datetime.now.return_value = datetime(
-                        2024, 1, 1, 10, 2, tzinfo=timezone.utc
-                    )
-                    mock_datetime.timezone = timezone
+            ) as mock_format_duration,
+            patch("src.ui.utils.background_tasks.datetime") as mock_datetime,
+        ):
+            # Mock current time to be 2 minutes after start
+            mock_datetime.now.return_value = datetime(
+                2024, 1, 1, 10, 2, tzinfo=timezone.utc
+            )
+            mock_datetime.timezone = timezone
 
-                    mock_format_time.return_value = "10:00:00"
-                    mock_format_duration.return_value = "2m 0s"
+            mock_format_time.return_value = "10:00:00"
+            mock_format_duration.return_value = "2m 0s"
 
-                    # Act
-                    card.render(progress)
+            # Act
+            card.render(progress)
 
-                    # Assert
-                    caption_calls = mock_streamlit["caption"].call_args_list
-                    assert len(caption_calls) > 0
+            # Assert
+            caption_calls = mock_streamlit["caption"].call_args_list
+            assert len(caption_calls) > 0
 
-                    timing_text = caption_calls[0].args[0]
-                    assert "Started: 10:00:00" in timing_text
-                    assert "Elapsed: 2m 0s" in timing_text
+            timing_text = caption_calls[0].args[0]
+            assert "Started: 10:00:00" in timing_text
+            assert "Elapsed: 2m 0s" in timing_text
 
     def test_timing_handles_missing_times_gracefully(
         self, mock_streamlit, mock_session_state
@@ -514,60 +518,60 @@ class TestCompanyProgressCardIntegration:
             end_time=end_time,
         )
 
-        with patch(
-            "src.ui.components.progress.company_progress_card.calculate_scraping_speed"
-        ) as mock_speed:
-            with patch(
+        with (
+            patch(
+                "src.ui.components.progress.company_progress_card.calculate_scraping_speed"
+            ) as mock_speed,
+            patch(
                 "src.ui.components.progress.company_progress_card.format_timestamp"
-            ) as mock_timestamp:
-                with patch(
-                    "src.ui.components.progress.company_progress_card.format_duration"
-                ) as mock_duration:
-                    mock_speed.return_value = 9.0
-                    mock_timestamp.side_effect = ["10:00:00", "10:05:00"]
-                    mock_duration.return_value = "5m 0s"
+            ) as mock_timestamp,
+            patch(
+                "src.ui.components.progress.company_progress_card.format_duration"
+            ) as mock_duration,
+        ):
+            mock_speed.return_value = 9.0
+            mock_timestamp.side_effect = ["10:00:00", "10:05:00"]
+            mock_duration.return_value = "5m 0s"
 
-                    # Act
-                    render_company_progress_card(progress)
+            # Act
+            render_company_progress_card(progress)
 
-                    # Assert - All major components should be rendered
+            # Assert - All major components should be rendered
 
-                    # 1. Container with border
-                    container_calls = mock_streamlit["container"].call_args_list
-                    assert len(container_calls) > 0
-                    assert container_calls[0].kwargs["border"] is True
+            # 1. Container with border
+            container_calls = mock_streamlit["container"].call_args_list
+            assert len(container_calls) > 0
+            assert container_calls[0].kwargs["border"] is True
 
-                    # 2. Company name and status
-                    markdown_calls = mock_streamlit["markdown"].call_args_list
-                    assert any("✅ TechCorp" in call.args[0] for call in markdown_calls)
-                    assert any("COMPLETED" in call.args[0] for call in markdown_calls)
+            # 2. Company name and status
+            markdown_calls = mock_streamlit["markdown"].call_args_list
+            assert any("✅ TechCorp" in call.args[0] for call in markdown_calls)
+            assert any("COMPLETED" in call.args[0] for call in markdown_calls)
 
-                    # 3. Progress bar
-                    progress_calls = mock_streamlit["progress"].call_args_list
-                    assert len(progress_calls) > 0
-                    assert progress_calls[0].args[0] == 1.0  # 100% for completed
+            # 3. Progress bar
+            progress_calls = mock_streamlit["progress"].call_args_list
+            assert len(progress_calls) > 0
+            assert progress_calls[0].args[0] == 1.0  # 100% for completed
 
-                    # 4. Metrics
-                    metric_calls = mock_streamlit["metric"].call_args_list
-                    jobs_metric = next(
-                        call
-                        for call in metric_calls
-                        if call.kwargs["label"] == "Jobs Found"
-                    )
-                    assert jobs_metric.kwargs["value"] == 45
+            # 4. Metrics
+            metric_calls = mock_streamlit["metric"].call_args_list
+            jobs_metric = next(
+                call for call in metric_calls if call.kwargs["label"] == "Jobs Found"
+            )
+            assert jobs_metric.kwargs["value"] == 45
 
-                    speed_metric = next(
-                        call for call in metric_calls if call.kwargs["label"] == "Speed"
-                    )
-                    assert speed_metric.kwargs["value"] == "9.0 /min"
+            speed_metric = next(
+                call for call in metric_calls if call.kwargs["label"] == "Speed"
+            )
+            assert speed_metric.kwargs["value"] == "9.0 /min"
 
-                    # 5. Timing information
-                    caption_calls = mock_streamlit["caption"].call_args_list
-                    assert len(caption_calls) > 0
-                    timing_text = caption_calls[0].args[0]
-                    assert "Started: 10:00:00" in timing_text
-                    assert "Completed: 10:05:00" in timing_text
-                    assert "Duration: 5m 0s" in timing_text
+            # 5. Timing information
+            caption_calls = mock_streamlit["caption"].call_args_list
+            assert len(caption_calls) > 0
+            timing_text = caption_calls[0].args[0]
+            assert "Started: 10:00:00" in timing_text
+            assert "Completed: 10:05:00" in timing_text
+            assert "Duration: 5m 0s" in timing_text
 
     def test_card_responsiveness_with_long_company_names(
         self, mock_streamlit, mock_session_state

@@ -56,7 +56,7 @@ def mock_streamlit():
 
     try:
         # Configure columns to return mock column objects
-        def mock_columns_func(*args, **kwargs):  # noqa: ARG001
+        def mock_columns_func(*args, **kwargs):
             """Mock columns function that returns appropriate number of columns."""
             if args:
                 num_cols = args[0] if isinstance(args[0], int) else len(args[0])
@@ -106,7 +106,8 @@ def mock_streamlit():
             """Mock dialog decorator that creates a passthrough function."""
 
             def decorator(func):
-                # Create a wrapper that acts like both the original function and has an open method
+                # Create a wrapper that acts like both the original function
+                # and has an open method
                 def wrapper(*args, **kwargs):
                     # Just call the original function directly
                     return func(*args, **kwargs)
@@ -527,7 +528,8 @@ def prevent_real_system_execution():
             """Mock dialog decorator that creates a passthrough function."""
 
             def decorator(func):
-                # Create a wrapper that acts like both the original function and has an open method
+                # Create a wrapper that acts like both the original function
+                # and has an open method
                 def wrapper(*args, **kwargs):
                     # Just call the original function directly
                     return func(*args, **kwargs)

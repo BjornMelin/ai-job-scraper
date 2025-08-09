@@ -27,7 +27,7 @@ class TestScrapingPageControls:
             with patch("src.ui.pages.scraping.start_background_scraping") as mock_start:
                 mock_start.return_value = "task-123"
 
-                with patch("src.ui.pages.scraping.render_scraping_page") as mock_render:
+                with patch("src.ui.pages.scraping.render_scraping_page"):
                     # Import after patching to ensure mocks are in place
                     from src.ui.pages.scraping import _render_control_buttons
 
@@ -92,8 +92,8 @@ class TestScrapingPageControls:
                         call for call in button_calls if "🚀 Start" in call.args[0]
                     )
                     # The button should be disabled when there are no active companies
-                    # start_disabled = is_scraping or not active_companies
-                    # When active_companies=[], not active_companies=True, so disabled should be True
+                    # When active_companies=[], not active_companies=True, so
+                    # disabled should be True
                     assert start_button_call.kwargs.get("disabled") is True
                     assert (
                         "No active companies configured"
@@ -292,34 +292,36 @@ class TestScrapingPageProgressDashboard:
     ):
         """Test progress dashboard is only displayed when scraping is active."""
         # Arrange
-        with patch("src.ui.pages.scraping.is_scraping_active") as mock_is_active:
-            with patch("src.ui.pages.scraping._render_control_buttons"):
-                with patch("src.ui.pages.scraping._render_activity_summary"):
-                    from src.ui.pages.scraping import render_scraping_page
+        with (
+            patch("src.ui.pages.scraping.is_scraping_active") as mock_is_active,
+            patch("src.ui.pages.scraping._render_control_buttons"),
+            patch("src.ui.pages.scraping._render_activity_summary"),
+        ):
+            from src.ui.pages.scraping import render_scraping_page
 
-                    # Test when scraping is NOT active
-                    mock_is_active.return_value = False
+            # Test when scraping is NOT active
+            mock_is_active.return_value = False
 
-                    with patch(
-                        "src.ui.pages.scraping._render_progress_dashboard"
-                    ) as mock_progress:
-                        # Act
-                        render_scraping_page()
+            with patch(
+                "src.ui.pages.scraping._render_progress_dashboard"
+            ) as mock_progress:
+                # Act
+                render_scraping_page()
 
-                        # Assert progress dashboard not called
-                        mock_progress.assert_not_called()
+                # Assert progress dashboard not called
+                mock_progress.assert_not_called()
 
-                    # Test when scraping IS active
-                    mock_is_active.return_value = True
+            # Test when scraping IS active
+            mock_is_active.return_value = True
 
-                    with patch(
-                        "src.ui.pages.scraping._render_progress_dashboard"
-                    ) as mock_progress:
-                        # Act
-                        render_scraping_page()
+            with patch(
+                "src.ui.pages.scraping._render_progress_dashboard"
+            ) as mock_progress:
+                # Act
+                render_scraping_page()
 
-                        # Assert progress dashboard is called
-                        mock_progress.assert_called_once()
+                # Assert progress dashboard is called
+                mock_progress.assert_called_once()
 
     def test_progress_dashboard_displays_overall_metrics(
         self, mock_streamlit, mock_session_state
@@ -457,26 +459,28 @@ class TestScrapingPageProgressDashboard:
                 "DataCo": companies[1],
             }
 
-            with patch(
-                "src.ui.pages.scraping.render_company_progress_card"
-            ) as mock_render_card:
-                with patch("src.ui.pages.scraping.render_scraping_page"):
-                    from src.ui.pages.scraping import _render_progress_dashboard
+            with (
+                patch(
+                    "src.ui.pages.scraping.render_company_progress_card"
+                ) as mock_render_card,
+                patch("src.ui.pages.scraping.render_scraping_page"),
+            ):
+                from src.ui.pages.scraping import _render_progress_dashboard
 
-                    # Act
-                    _render_progress_dashboard()
+                # Act
+                _render_progress_dashboard()
 
-                    # Assert company grid is created with 2 columns
-                    columns_calls = mock_streamlit["columns"].call_args_list
-                    grid_columns_call = next(
-                        call
-                        for call in columns_calls
-                        if call.args[0] == 2 and call.kwargs.get("gap") == "medium"
-                    )
-                    assert grid_columns_call is not None
+                # Assert company grid is created with 2 columns
+                columns_calls = mock_streamlit["columns"].call_args_list
+                grid_columns_call = next(
+                    call
+                    for call in columns_calls
+                    if call.args[0] == 2 and call.kwargs.get("gap") == "medium"
+                )
+                assert grid_columns_call is not None
 
-                    # Assert company cards are rendered
-                    assert mock_render_card.call_count == 2
+                # Assert company cards are rendered
+                assert mock_render_card.call_count == 2
 
 
 class TestScrapingPageActivitySummary:
@@ -522,7 +526,7 @@ class TestScrapingPageActivitySummary:
                 )
                 assert last_time_call.args[1] == "10:00:00"
 
-    def test_activity_summary_calculates_average_duration(self):
+    def test_activity_summary_calculates_average_duration(self, mock_streamlit):
         """Test activity summary calculates average scraping duration."""
         # Arrange
         company_progress = {
@@ -638,7 +642,7 @@ class TestScrapingPageIntegration:
                         )
                         assert desc_found
 
-    def test_error_recovery_scenario(self):
+    def test_error_recovery_scenario(self, mock_streamlit):
         """Test error recovery when scraping operations fail."""
         # Arrange - Setup to fail during start
         with patch("src.ui.pages.scraping.JobService") as mock_service:
@@ -665,7 +669,7 @@ class TestScrapingPageIntegration:
                             len(button_calls) >= 3
                         )  # Start, Stop, Reset buttons present
 
-    def test_page_responsiveness_with_many_companies(self):
+    def test_page_responsiveness_with_many_companies(self, mock_streamlit):
         """Test page handles large number of companies without performance issues."""
         # Arrange - Create many active companies
         many_companies = [f"Company{i}" for i in range(50)]
@@ -689,17 +693,20 @@ class TestScrapingPageIntegration:
                 ) as mock_is_active:
                     mock_is_active.return_value = True
 
-                    with patch("src.ui.pages.scraping.render_company_progress_card"):
-                        with patch("src.ui.pages.scraping.render_scraping_page"):
-                            from src.ui.pages.scraping import render_scraping_page
+                    with (
+                        patch("src.ui.pages.scraping.render_company_progress_card"),
+                        patch("src.ui.pages.scraping.render_scraping_page"),
+                    ):
+                        from src.ui.pages.scraping import render_scraping_page
 
-                            # Act - Render page with many companies
-                            render_scraping_page()
+                        # Act - Render page with many companies
+                        render_scraping_page()
 
-                            # Assert - Page renders without errors and shows correct counts
-                            # The test passes if page renders without crashing
-                            # Verify metric calls were made
-                            metric_calls = mock_streamlit["metric"].call_args_list
-                            assert (
-                                len(metric_calls) >= 0
-                            )  # At least some metrics were rendered
+                        # Assert - Page renders without errors and shows
+                        # correct counts
+                        # The test passes if page renders without crashing
+                        # Verify metric calls were made
+                        metric_calls = mock_streamlit["metric"].call_args_list
+                        assert (
+                            len(metric_calls) >= 0
+                        )  # At least some metrics were rendered

@@ -7,6 +7,8 @@ company progress management, and integration with Streamlit session state.
 from datetime import datetime, timezone
 from unittest.mock import Mock, patch
 
+import pytest
+
 from src.ui.utils.background_tasks import (
     BackgroundTaskManager,
     CompanyProgress,
@@ -233,9 +235,6 @@ class TestStreamlitTaskManager:
 
         # Assert
         assert retrieved_task == task_info
-
-
-import pytest
 
 
 @pytest.mark.usefixtures("_mock_session_state")
@@ -653,15 +652,15 @@ class TestBackgroundTaskIntegration:
         ):
             mock_thread_class.return_value.start = Mock()
 
-                # Start scraping
-                task_id = start_background_scraping()
+            # Start scraping
+            task_id = start_background_scraping()
 
-                # Execute background thread
-                thread_target = mock_thread_class.call_args[1]["target"]
-                thread_target()
+            # Execute background thread
+            thread_target = mock_thread_class.call_args[1]["target"]
+            thread_target()
 
-                # Stop scraping
-                stopped_count = stop_all_scraping()
+            # Stop scraping
+            stopped_count = stop_all_scraping()
 
         # Assert complete workflow
         # 1. Task was created and started

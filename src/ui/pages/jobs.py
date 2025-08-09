@@ -152,10 +152,12 @@ def _render_page_header() -> None:
             f"""
             <div style='text-align: right; padding-top: 20px;'>
                 <small style='color: var(--text-muted);'>
-                    Last updated: {datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")}
+                    Last updated: {
+                datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
+            }
                 </small>
             </div>
-            """,  # noqa: E501
+            """,
             unsafe_allow_html=True,
         )
 

@@ -288,7 +288,7 @@ def _normalize_board_jobs(board_jobs_raw: list[dict]) -> list[JobSQL]:
                 description = raw.get("description", "")
                 company = raw.get("company", "")
                 content = f"{title}{description}{company}"
-                content_hash = hashlib.md5(content.encode()).hexdigest()  # noqa: S324
+                content_hash = hashlib.md5(content.encode()).hexdigest()
 
                 # Create JobSQL object
                 job = JobSQL(

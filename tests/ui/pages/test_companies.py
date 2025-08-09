@@ -207,7 +207,7 @@ class TestShowCompaniesPage:
     def test_companies_page_displays_title_and_description(
         self,
         mock_streamlit,
-        mock_session_state,  # noqa: ARG002
+        mock_session_state,
         mock_company_service,
     ):
         """Test companies page displays correct title and description."""
@@ -224,7 +224,7 @@ class TestShowCompaniesPage:
     def test_companies_page_shows_empty_state_when_no_companies(
         self,
         mock_streamlit,
-        mock_session_state,  # noqa: ARG002
+        mock_session_state,
     ):
         """Test companies page shows empty state when no companies exist."""
         # Arrange
@@ -242,7 +242,7 @@ class TestShowCompaniesPage:
     def test_companies_page_displays_company_list(
         self,
         mock_streamlit,
-        mock_session_state,  # noqa: ARG002
+        mock_session_state,
         mock_company_service,
         sample_companies,
     ):
@@ -267,7 +267,7 @@ class TestShowCompaniesPage:
     def test_companies_page_displays_summary_statistics(
         self,
         mock_streamlit,
-        mock_session_state,  # noqa: ARG002
+        mock_session_state,
         mock_company_service,
         sample_companies,
     ):
@@ -301,7 +301,7 @@ class TestShowCompaniesPage:
     def test_companies_page_renders_toggle_controls(
         self,
         mock_streamlit,
-        mock_session_state,  # noqa: ARG002
+        mock_session_state,
         mock_company_service,
         sample_companies,
     ):
@@ -327,7 +327,7 @@ class TestShowCompaniesPage:
     def test_companies_page_displays_add_company_form(
         self,
         mock_streamlit,
-        mock_session_state,  # noqa: ARG002
+        mock_session_state,
         mock_company_service,
     ):
         """Test companies page displays add company form with proper structure."""
@@ -379,7 +379,7 @@ class TestShowCompaniesPage:
     def test_companies_page_handles_service_failure_gracefully(
         self,
         mock_streamlit,
-        mock_session_state,  # noqa: ARG002
+        mock_session_state,
         mock_company_service,
     ):
         """Test companies page handles service failure gracefully."""
@@ -418,7 +418,7 @@ class TestShowCompaniesPage:
     def test_companies_page_calculates_correct_statistics(  # pylint: disable=R0917
         self,
         mock_streamlit,
-        mock_session_state,  # noqa: ARG002
+        mock_session_state,
         mock_company_service,
         company_count,
         expected_active,
