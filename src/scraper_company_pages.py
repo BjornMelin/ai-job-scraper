@@ -60,6 +60,29 @@ def load_active_companies() -> list[CompanySQL]:
         session.close()
 
 
+def _add_proxy_config(config: dict, extraction_type: str) -> dict:
+    """Add proxy configuration to ScrapeGraphAI config if enabled.
+
+    Args:
+        config: Base configuration dictionary.
+        extraction_type: Type of extraction for logging (e.g., "job list",
+            "job details").
+
+    Returns:
+        dict: Updated configuration with proxy settings if enabled.
+    """
+    if settings.use_proxies and settings.proxy_pool:
+        proxy_url = get_proxy()
+        if proxy_url:
+            config["loader_kwargs"] = {
+                "proxy": {
+                    "server": proxy_url,
+                }
+            }
+            logger.info("Using proxy for %s extraction: %s", extraction_type, proxy_url)
+    return config
+
+
 def extract_job_lists(state: State) -> dict[str, list[dict]]:
     """Extract job listings with titles and URLs from company career pages.
 
@@ -91,16 +114,7 @@ def extract_job_lists(state: State) -> dict[str, list[dict]]:
         "headers": {"User-Agent": random_user_agent()},
     }
 
-    # Add proxy configuration if enabled
-    if settings.use_proxies and settings.proxy_pool:
-        proxy_url = get_proxy()
-        if proxy_url:
-            config["loader_kwargs"] = {
-                "proxy": {
-                    "server": proxy_url,
-                }
-            }
-            logger.info("Using proxy for job list extraction: %s", proxy_url)
+    config = _add_proxy_config(config, "job list")
 
     multi_graph = SmartScraperMultiGraph(prompt, sources, config)
     result = multi_graph.run()
@@ -162,16 +176,7 @@ def extract_details(state: State) -> dict[str, list[dict]]:
         "headers": {"User-Agent": random_user_agent()},
     }
 
-    # Add proxy configuration if enabled
-    if settings.use_proxies and settings.proxy_pool:
-        proxy_url = get_proxy()
-        if proxy_url:
-            config["loader_kwargs"] = {
-                "proxy": {
-                    "server": proxy_url,
-                }
-            }
-            logger.info("Using proxy for job details extraction: %s", proxy_url)
+    config = _add_proxy_config(config, "job details")
 
     multi_graph = SmartScraperMultiGraph(prompt, urls, config)
     result = multi_graph.run()
