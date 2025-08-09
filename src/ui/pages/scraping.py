@@ -141,9 +141,8 @@ def _render_control_buttons() -> None:
                 cleared_count = 0
                 for key in progress_keys:
                     if key in st.session_state:
-                        st.session_state[key].clear() if hasattr(
-                            st.session_state[key], "clear"
-                        ) else None
+                        if hasattr(st.session_state[key], "clear"):
+                            st.session_state[key].clear()
                         cleared_count += 1
 
                 st.success(

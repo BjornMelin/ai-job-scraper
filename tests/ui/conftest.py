@@ -56,7 +56,7 @@ def mock_streamlit():
 
     try:
         # Configure columns to return mock column objects
-        def mock_columns_func(*args, **kwargs):
+        def mock_columns_func(*args, **_kwargs):
             """Mock columns function that returns appropriate number of columns."""
             if args:
                 num_cols = args[0] if isinstance(args[0], int) else len(args[0])

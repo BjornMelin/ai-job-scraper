@@ -293,7 +293,7 @@ class SmartSyncEngine:
         # Find all non-archived jobs not in current scrape
         stale_jobs = session.exec(
             select(JobSQL).where(
-                JobSQL.archived == False,
+                ~JobSQL.archived,
                 ~JobSQL.link.in_(current_links),
             )
         ).all()
@@ -442,9 +442,9 @@ class SmartSyncEngine:
             # and don't have recent application activity
             old_jobs = session.exec(
                 select(JobSQL).where(
-                    JobSQL.archived == True,
+                    JobSQL.archived,
                     JobSQL.last_seen < cutoff_date,
-                    (JobSQL.application_date == None)
+                    (JobSQL.application_date.is_(None))
                     | (JobSQL.application_date < cutoff_date),
                 )
             ).all()

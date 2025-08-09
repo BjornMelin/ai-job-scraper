@@ -254,7 +254,7 @@ def show_settings_page() -> None:
     # Save Settings Button
     st.markdown("---")
 
-    col1, col2, col3 = st.columns([1, 2, 1])
+    col1, col2, _ = st.columns([1, 2, 1])
     with col2:
         if st.button("💾 Save Settings", type="primary", use_container_width=True):
             try:

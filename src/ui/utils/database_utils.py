@@ -196,8 +196,8 @@ def get_database_health() -> dict[str, Any]:
             "overflow": "unknown",
             "invalid": "unknown",
         }
-    else:
-        return pool_status
+
+    return pool_status
 
 
 def render_database_health_widget() -> None:

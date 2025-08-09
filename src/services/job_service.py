@@ -19,6 +19,11 @@ from src.schemas import Job
 
 logger = logging.getLogger(__name__)
 
+# Type aliases for better readability
+type FilterDict = dict[str, Any]
+type JobCountStats = dict[str, int]
+type JobUpdateBatch = list[dict[str, Any]]
+
 
 class JobService:
     """Service class for job data operations.
@@ -32,28 +37,41 @@ class JobService:
     def _to_dto(job_sql: JobSQL) -> Job:
         """Convert a single SQLModel object to its Pydantic DTO.
 
+        Helper method for consistent DTO conversion that eliminates
+        DetachedInstanceError by creating clean Pydantic objects without
+        database session dependencies.
+
         Args:
-            job_sql: SQLModel JobSQL object to convert.
+            job_sql: SQLModel JobSQL object to convert with all fields populated.
 
         Returns:
-            Job DTO object.
+            Job DTO object with all fields copied from the SQLModel instance.
+
+        Raises:
+            ValidationError: If SQLModel data doesn't match DTO schema.
         """
         return Job.model_validate(job_sql)
 
     @classmethod
     def _to_dtos(cls, jobs_sql: list[JobSQL]) -> list[Job]:
-        """Convert a list of SQLModel objects to Pydantic DTOs.
+        """Convert a list of SQLModel objects to Pydantic DTOs efficiently.
+
+        Batch conversion helper that processes multiple SQLModel objects using
+        the single-object conversion method for consistency.
 
         Args:
             jobs_sql: List of SQLModel JobSQL objects to convert.
 
         Returns:
-            List of Job DTO objects.
+            List of Job DTO objects in the same order as input.
+
+        Raises:
+            ValidationError: If any SQLModel data doesn't match DTO schema.
         """
         return [cls._to_dto(js) for js in jobs_sql]
 
     @staticmethod
-    def get_filtered_jobs(filters: dict[str, Any]) -> list[Job]:
+    def get_filtered_jobs(filters: FilterDict) -> list[Job]:
         """Get jobs filtered by the provided criteria.
 
         Args:
@@ -272,7 +290,7 @@ class JobService:
             raise
 
     @staticmethod
-    def get_job_counts_by_status() -> dict[str, int]:
+    def get_job_counts_by_status() -> JobCountStats:
         """Get count of jobs grouped by application status.
 
         Returns:
@@ -411,7 +429,7 @@ class JobService:
         return None
 
     @staticmethod
-    def bulk_update_jobs(job_updates: list[dict]) -> bool:
+    def bulk_update_jobs(job_updates: JobUpdateBatch) -> bool:
         """Bulk update job records with favorite, status, and notes changes.
 
         Args:
@@ -456,7 +474,9 @@ class JobService:
             raise
 
     @staticmethod
-    def get_jobs_with_company_names_direct_join(filters: dict[str, Any]) -> list[dict]:
+    def get_jobs_with_company_names_direct_join(
+        filters: FilterDict,
+    ) -> list[dict[str, Any]]:
         """Alternative implementation using direct SQL JOIN as suggested by Sourcery.
 
         This method demonstrates the SQL join approach for fetching company names

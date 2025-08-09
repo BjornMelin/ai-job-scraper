@@ -57,7 +57,7 @@ class SafeIntValidator(BaseModel):
 
         # Handle float inputs - round to nearest integer
         if isinstance(v, float):
-            if not (-1e15 <= v <= 1e15):  # Prevent overflow
+            if not -1e15 <= v <= 1e15:  # Prevent overflow
                 error_msg = f"Float value {v} is too large to convert to integer"
                 raise ValueError(error_msg)
             v = round(v)
@@ -114,8 +114,8 @@ def safe_int(value: Any, default: int = 0) -> int:
     except Exception:
         logger.exception("Unexpected error converting %s to safe integer", value)
         return max(0, default)
-    else:
-        return validator.value
+
+    return validator.value
 
 
 def safe_job_count(value: Any, company_name: str = "unknown") -> int:
@@ -138,12 +138,10 @@ def safe_job_count(value: Any, company_name: str = "unknown") -> int:
             "Failed to convert job count for %s: %s (%s)", company_name, value, e
         )
         return 0
-    else:
-        if value != result and value is not None:
-            logger.info(
-                "Converted job count for %s: %s -> %s", company_name, value, result
-            )
-        return result
+
+    if value != result and value is not None:
+        logger.info("Converted job count for %s: %s -> %s", company_name, value, result)
+    return result
 
 
 # Type aliases for better code documentation

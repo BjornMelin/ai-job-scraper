@@ -525,7 +525,7 @@ class TestProxyErrorHandlingAndRecovery:
                 from src.scraper_job_boards import scrape_job_boards
 
                 # Act - Should handle invalid proxy format
-                result = scrape_job_boards(["ai engineer"], ["remote"])
+                _ = scrape_job_boards(["ai engineer"], ["remote"])
 
                 # Assert - Should still attempt scraping (may use valid proxy or
                 # fallback)

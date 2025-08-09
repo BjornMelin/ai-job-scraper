@@ -381,6 +381,9 @@ disable = [
     
     # Disable no-member warnings for standard library modules
     "no-member",              # datetime.timezone.utc is valid in Python 3.12+
+    
+    # SQLAlchemy/SQLModel specific issues
+    "not-callable",           # func.count() and similar SQLAlchemy func calls are falsely flagged as not callable
 ]
 
 enable = [
@@ -433,6 +436,7 @@ ignored-modules = [
 
 [dependency-groups]
 dev = [
+    "pylint>=3.3.7",
     "pytest-asyncio>=1.1.0",
 ]
 

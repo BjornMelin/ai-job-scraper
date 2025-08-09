@@ -102,14 +102,13 @@ def calculate_eta(
 
     try:
         # Validate inputs
-        if (
-            not isinstance(total_companies, int)
-            or total_companies <= 0
-            or not isinstance(completed_companies, int)
-            or completed_companies < 0
-            or not isinstance(time_elapsed, int | float)
-            or time_elapsed < 0
-        ):
+        valid_total = isinstance(total_companies, int) and total_companies > 0
+        valid_completed = (
+            isinstance(completed_companies, int) and completed_companies >= 0
+        )
+        valid_time = isinstance(time_elapsed, int | float) and time_elapsed >= 0
+
+        if not (valid_total and valid_completed and valid_time):
             result = "Unknown"
         elif completed_companies >= total_companies:
             result = "Done"
@@ -167,8 +166,8 @@ def format_duration(seconds: float) -> str:
     except Exception:
         logger.exception("Error formatting duration")
         return "0s"
-    else:
-        return formatted
+
+    return formatted
 
 
 def format_timestamp(dt: datetime | None, format_str: str = "%H:%M:%S") -> str:
