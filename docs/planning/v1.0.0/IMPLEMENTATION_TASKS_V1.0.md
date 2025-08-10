@@ -11,23 +11,14 @@ This document outlines the tasks for the **V1.0 "Job Hunter's MVP" Release**. It
 ### **T1.1: Implement Core Job Browser & Application Tracking**
 
 - **Release**: V1.0
-
 - **Priority**: **High**
-
 - **Status**: **✅ COMPLETED** (PR #26)
-
 - **Prerequisites**: `T0.1`, `T0.2`, `T0.3`
-
 - **Requirements File**: `docs/planning/v1.0.0/REQUIREMENTS_V1.0.md`
-
 - **Related Requirements**: `UI-JOBS-01`, `UI-JOBS-02`, `UI-JOBS-03`, `UI-JOBS-04`, `UI-TRACK-01`
-
 - **Libraries**: `streamlit==1.47.1`
-
 - **Description**: Build the primary user interface for browsing, filtering, and managing jobs within the newly established component architecture.
-
 - **Developer Context**: All work for this task will happen within the `src/ui/` directory. You will be creating new services and components that interact with the database models and state manager created in Phase 0.
-
 - **Sub-tasks & Instructions**:
   - **T1.1.1: Implement Job Service**: ✅ **COMPLETED**
     - **Instructions**: In the `src/services/` directory, create a new file `job_service.py`.
@@ -49,23 +40,14 @@ This document outlines the tasks for the **V1.0 "Job Hunter's MVP" Release**. It
 ### **T1.2: Implement Background Scraping & Progress Dashboard**
 
 - **Release**: V1.0
-
 - **Priority**: **High**
-
 - **Status**: **✅ COMPLETED** (PR #27)
-
 - **Prerequisites**: `T0.3`
-
 - **Requirements File**: `docs/planning/v1.0.0/REQUIREMENTS_V1.0.md`
-
 - **Related Requirements**: `SYS-ARCH-04`, `SCR-PROG-01`, `UI-PROG-02`, `SCR-CTRL-01`
-
 - **Libraries**: `asyncio`, `streamlit==1.47.1`
-
 - **Description**: Connect the refactored scraper to the UI, allowing users to trigger scrapes and see a rich, real-time progress dashboard with calculated metrics.
-
 - **Developer Context**: This task combines the original background task integration with the enhanced dashboard from the V1.1 plan, as they are functionally codependent.
-
 - **Sub-tasks & Instructions**:
   - **T1.2.1: Implement `BackgroundTaskManager`**: ✅ **COMPLETED**
     - **Instructions**: Create `src/ui/utils/background_tasks.py`. Implement the `BackgroundTaskManager` and `StreamlitTaskManager` classes. The `update_progress` callback is the key communication mechanism. Ensure the progress data structure includes `start_time` for each company.
@@ -86,31 +68,93 @@ This document outlines the tasks for the **V1.0 "Job Hunter's MVP" Release**. It
 ### **T1.3: Implement Essential Company & Settings Management**
 
 - **Release**: V1.0
-
 - **Priority**: **Medium**
-
 - **Status**: **✅ COMPLETED** (PR #26 & PR #28)
-
 - **Prerequisites**: `T0.1`, `T0.2`
-
 - **Requirements File**: `docs/planning/v1.0.0/REQUIREMENTS_V1.0.md`
-
 - **Related Requirements**: `UI-COMP-01`, `UI-COMP-02`, `UI-SETT-01`, `SYS-ARCH-05`
-
 - **Libraries**: `streamlit==1.47.1`
-
 - **Description**: Build the final administrative UIs required for the application to be configurable and usable, incorporating specific, high-value controls from the UI requirements.
-
 - **Developer Context**: This involves building out the `companies.py` and `settings.py` pages within the new architecture.
-
 - **Sub-tasks & Instructions**:
-  - **T1.3.1: Build Company Management Page**: ✅ **COMPLETED** (PR #26)
+  - **T1.3.1: Build Company Management Page**: ✅ **COMPLETED**
     - **Instructions**: In `src/ui/pages/companies.py`, use an `st.expander` to house a form for adding a new company.
     - **Instructions**: Below the form, fetch all companies using a new `CompanyService` and display them in a list or grid. Each company listed must have a visible `st.toggle` to control its `active` status, fulfilling `UI-COMP-02`.
     - **Success Criteria**: Users can add new companies to be scraped and can enable or disable scraping for existing companies via a toggle.
-  - **T1.3.2: Build Essential Settings Page**: ✅ **COMPLETED** (PR #28)
+  - **T1.3.2: Build Essential Settings Page**: ✅ **COMPLETED**
     - **Instructions**: In `src/ui/pages/settings.py`, build the settings UI. It **must** include:
             1. `st.text_input(type="password")` for API key management with a "Test Connection" button.
             2. A `st.toggle` or `st.radio` for the **"LLM Provider Toggle (OpenAI ↔ Groq)"**.
             3. A `st.slider` for the **"Max jobs per company"** limit to prevent runaway scraping.
     - **Success Criteria**: The user can configure API keys, switch between LLM providers, and set a job limit per company.
+
+---
+
+## ❗ V1.0 QA Findings & Final Tasks
+
+The following tasks have been identified during the final QA review and must be completed for the v1.0 release.
+
+### **T1.4: Implement Database Migration Strategy**
+
+- **Release**: V1.0
+- **Priority**: **CRITICAL**
+- **Status**: **PENDING**
+- **Prerequisites**: `T0.1` (Database Schema)
+- **Related Requirements**: `NFR-MAINT-02`
+- **Libraries**: `alembic`
+- **Description**: This is a **release-blocking** task. The application currently lacks a database migration system, which means any future schema change would result in complete data loss for existing users. This task implements Alembic to manage schema changes non-destructively, as specified in ADR-012.
+- **Sub-tasks & Instructions**:
+  - **T1.4.1: Install and Configure Alembic**:
+    - **Instructions**: Add `alembic` as a dependency in `pyproject.toml`.
+    - **Instructions**: Run `alembic init alembic` to create the migration environment.
+    - **Instructions**: Configure `alembic/env.py` to connect to the application's database and target the `SQLModel.metadata` from `src/models.py`.
+    - **Success Criteria**: Alembic is correctly configured and can connect to the application's database.
+  - **T1.4.2: Generate Initial Migration Script**:
+    - **Instructions**: Run `alembic revision --autogenerate -m "Initial schema"` to create the first migration script that reflects the current database schema.
+    - **Instructions**: Review the generated script to ensure it accurately represents all tables, columns, and constraints from `src/models.py`.
+    - **Success Criteria**: A migration script exists in `alembic/versions/` that can create the entire database from scratch.
+  - **T1.4.3: Integrate Migration into Application Startup**:
+    - **Instructions**: In `src/main.py` or a startup script, add logic to programmatically run `alembic upgrade head`. This will ensure that any pending migrations are automatically applied when the application starts.
+    - **Success Criteria**: When the application is launched with an existing database, it automatically applies any new migrations.
+
+### **T1.5: Complete Advanced Job Filtering**
+
+- **Release**: V1.0
+- **Priority**: **High**
+- **Status**: **PENDING**
+- **Prerequisites**: `T1.1`
+- **Related Requirements**: `UI-JOBS-04`
+- **Libraries**: `streamlit`
+- **Description**: The v1.0 requirements mandate filtering by salary range, but this feature is currently missing. This task implements the final piece of the advanced filtering functionality.
+- **Sub-tasks & Instructions**:
+  - **T1.5.1: Update `JobService` for Salary Queries**:
+    - **Instructions**: Open `src/services/job_service.py`. Modify the `get_filtered_jobs` method to accept `salary_min: int | None` and `salary_max: int | None`.
+    - **Instructions**: Add logic to the SQLAlchemy query to filter based on the salary range. Since the `salary` column is JSON `(min, max)`, you will need to use `func.json_extract` to query the values.
+    - **Success Criteria**: The service layer can now filter jobs based on a minimum and maximum salary.
+  - **T1.5.2: Add Salary Slider to Filter UI**:
+    - **Instructions**: Open `src/ui/components/sidebar.py`. Add a `st.slider` widget with two thumbs to allow the user to select a min/max salary range.
+    - **Instructions**: Pass the values from this new slider to the `JobService.get_filtered_jobs` call.
+    - **Success Criteria**: The UI now includes a salary range slider that correctly filters the job results.
+
+### **T1.6: Refactor Data Logic and Optimize UI**
+
+- **Release**: V1.0
+- **Priority**: **Medium**
+- **Status**: **PENDING**
+- **Prerequisites**: `T1.1`, `T1.3`
+- **Related Requirements**: `NFR-MAINT-01`, `NFR-PERF-01`
+- **Libraries**: N/A (Refactoring)
+- **Description**: This task groups the remaining architectural and performance improvements identified during the QA review to enhance maintainability and UI responsiveness.
+- **Sub-tasks & Instructions**:
+  - **T1.6.1: Relocate `bulk_get_or_create_companies`**:
+    - **Instructions**: Move the `bulk_get_or_create_companies` function from `src/scraper.py` to `src/services/company_service.py`.
+    - **Instructions**: Update the import and function call within `src/scraper.py` to reflect the new location.
+    - **Success Criteria**: The scraper module is now purely for orchestration, and all company-related database logic resides in the `CompanyService`.
+  - **T1.6.2: Optimize UI Tab Filtering**:
+    - **Instructions**: Modify `JobService.get_filtered_jobs` to accept `favorites_only: bool` and `application_status: list` as parameters to push filtering to the database.
+    - **Instructions**: In `src/ui/pages/jobs.py`, update the "Favorites" and "Applied" tabs to call the service with these new parameters instead of filtering the full job list in Python.
+    - **Success Criteria**: The UI remains functionally identical, but performance is significantly improved for large datasets as filtering now happens in the database.
+  - **T1.6.3: Centralize Application Status Constants**:
+    - **Instructions**: In `src/constants.py`, define a new constant: `APPLICATION_STATUSES = ["New", "Interested", "Applied", "Rejected"]`.
+    - **Instructions**: In `src/ui/components/cards/job_card.py`, import and use this constant for the `st.selectbox` options, removing the hardcoded list.
+    - **Success Criteria**: The application statuses are now managed from a single source of truth, reducing the risk of inconsistency.
