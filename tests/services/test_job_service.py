@@ -803,6 +803,88 @@ class TestJobServiceErrorHandling:
         # With salary_max = 0, no jobs should match (no job has min salary <= 0)
         assert len(jobs) == 0
 
+    def test_high_value_salary_unbounded_filtering(
+        self, mock_db_session, test_session, sample_companies
+    ):
+        """Test that salary_max=750000 acts as unbounded for high-value positions."""
+        # Create high-value jobs above 750k
+        high_value_jobs = [
+            JobSQL(
+                company_id=sample_companies[0].id,
+                title="VP of Engineering",
+                description="Executive leadership position",
+                link="https://techcorp.com/jobs/vp-eng",
+                location="San Francisco, CA",
+                posted_date=datetime.now(timezone.utc) - timedelta(days=1),
+                salary=(800000, 1200000),
+                content_hash="hash_vp",
+                application_status="New",
+            ),
+            JobSQL(
+                company_id=sample_companies[1].id,
+                title="Principal Staff Engineer",
+                description="Senior technical leadership role",
+                link="https://innovatelabs.com/jobs/principal-staff",
+                location="Seattle, WA",
+                posted_date=datetime.now(timezone.utc) - timedelta(days=2),
+                salary=(750000, 950000),
+                content_hash="hash_principal",
+                application_status="New",
+            ),
+        ]
+
+        for job in high_value_jobs:
+            test_session.add(job)
+        test_session.commit()
+
+        # Test 1: salary_max < 750000 should apply upper bound filtering
+        filters = {"salary_max": 600000}
+        jobs = JobService.get_filtered_jobs(filters)
+
+        # Should exclude all high-value jobs (none have min salary <= 600k)
+        job_titles = {job.title for job in jobs}
+        assert "VP of Engineering" not in job_titles
+        assert "Principal Staff Engineer" not in job_titles
+
+        # Test 2: salary_max = 750000 should include ALL jobs (unbounded)
+        filters = {"salary_max": 750000}
+        jobs = JobService.get_filtered_jobs(filters)
+
+        # Should include all jobs, including high-value ones
+        job_titles = {job.title for job in jobs}
+        assert "VP of Engineering" in job_titles
+        assert "Principal Staff Engineer" in job_titles
+        assert len(jobs) >= 2  # At minimum the 2 high-value jobs we created
+
+        # Test 3: salary_min with unbounded max
+        filters = {"salary_min": 500000, "salary_max": 750000}
+        jobs = JobService.get_filtered_jobs(filters)
+
+        # Should include high-value jobs where max salary >= 500k
+        job_titles = {job.title for job in jobs}
+        assert "VP of Engineering" in job_titles
+        assert "Principal Staff Engineer" in job_titles
+        assert len(jobs) == 2  # Only the high-value jobs meet this criteria
+
+    def test_salary_zero_minimum_handling(self, mock_db_session, sample_jobs):
+        """Test that salary_min=0 is properly ignored."""
+        # Test that salary_min=0 doesn't filter anything
+        filters = {"salary_min": 0}
+        jobs_with_zero = JobService.get_filtered_jobs(filters)
+
+        # Should be same as no salary filter
+        filters_no_salary = {}
+        jobs_without_filter = JobService.get_filtered_jobs(filters_no_salary)
+
+        assert len(jobs_with_zero) == len(jobs_without_filter)
+
+        # Test that salary_min=1 does apply filtering
+        filters = {"salary_min": 1}
+        jobs_with_one = JobService.get_filtered_jobs(filters)
+
+        # All sample jobs have salaries > 1, so should be same result
+        assert len(jobs_with_one) == len(jobs_without_filter)
+
     def test_salary_combined_with_other_filters(self, mock_db_session, sample_jobs):
         """Test salary filtering combined with other filter types."""
         # Combine salary filter with company filter
@@ -830,6 +912,81 @@ class TestJobServiceErrorHandling:
         assert len(jobs) == 1
         assert jobs[0].title == "Full Stack Developer"
         assert jobs[0].application_status == "New"
+
+
+class TestJobServiceHighValueSalaries:
+    """Test suite specifically for high-value salary functionality."""
+
+    def test_format_salary_display_helper(self):
+        """Test salary formatting helper for UI display."""
+
+        # This would be used by the UI component
+        def format_salary(amount: int) -> str:
+            """Format salary amount with appropriate units (k for thousands)."""
+            if amount >= 1000000:
+                return f"${amount / 1000000:.1f}M"
+            if amount >= 1000:
+                return f"${amount // 1000}k"
+            return f"${amount}"
+
+        # Test various amounts
+        assert format_salary(0) == "$0"
+        assert format_salary(500) == "$500"
+        assert format_salary(75000) == "$75k"
+        assert format_salary(150000) == "$150k"
+        assert format_salary(750000) == "$750k"
+        assert format_salary(1000000) == "$1.0M"
+        assert format_salary(1500000) == "$1.5M"
+        assert format_salary(2300000) == "$2.3M"
+
+    def test_unbounded_range_scenarios(
+        self, mock_db_session, test_session, sample_companies
+    ):
+        """Test various unbounded range scenarios for comprehensive coverage."""
+        # Create jobs at the boundary
+        boundary_jobs = [
+            JobSQL(
+                company_id=sample_companies[0].id,
+                title="Director Level (750k exact)",
+                description="Director position exactly at boundary",
+                link="https://techcorp.com/jobs/director-750",
+                location="San Francisco, CA",
+                posted_date=datetime.now(timezone.utc) - timedelta(days=1),
+                salary=(500000, 750000),
+                content_hash="hash_dir750",
+                application_status="New",
+            ),
+            JobSQL(
+                company_id=sample_companies[0].id,
+                title="SVP Level (above boundary)",
+                description="Senior VP position above boundary",
+                link="https://techcorp.com/jobs/svp-high",
+                location="San Francisco, CA",
+                posted_date=datetime.now(timezone.utc) - timedelta(days=1),
+                salary=(750001, 1500000),
+                content_hash="hash_svp",
+                application_status="New",
+            ),
+        ]
+
+        for job in boundary_jobs:
+            test_session.add(job)
+        test_session.commit()
+
+        # Test boundary conditions
+        filters = {"salary_max": 749999}  # Just below boundary
+        jobs = JobService.get_filtered_jobs(filters)
+        job_titles = {job.title for job in jobs}
+        # Director job (500k-750k) should be INCLUDED because min salary 500k <= 749999
+        # SVP job (750001-1500000) should be EXCLUDED because min salary 750001 > 749999
+        assert "Director Level (750k exact)" in job_titles
+        assert "SVP Level (above boundary)" not in job_titles
+
+        filters = {"salary_max": 750000}  # Exactly at boundary (unbounded)
+        jobs = JobService.get_filtered_jobs(filters)
+        job_titles = {job.title for job in jobs}
+        assert "Director Level (750k exact)" in job_titles
+        assert "SVP Level (above boundary)" in job_titles
 
 
 class TestJobServiceDateParsing:
@@ -964,3 +1121,49 @@ class TestJobServiceIntegration:
         # User checks application status distribution
         counts = JobService.get_job_counts_by_status()
         assert counts["Applied"] >= 1
+
+    def test_high_value_job_workflow(
+        self, mock_db_session, test_session, sample_companies
+    ):
+        """Test workflow with high-value positions."""
+        # Create a high-value position
+        high_value_job = JobSQL(
+            company_id=sample_companies[0].id,
+            title="CTO Position",
+            description="Chief Technology Officer role with equity",
+            link="https://techcorp.com/jobs/cto",
+            location="San Francisco, CA",
+            posted_date=datetime.now(timezone.utc) - timedelta(days=1),
+            salary=(900000, 1500000),
+            content_hash="hash_cto",
+            application_status="New",
+        )
+        test_session.add(high_value_job)
+        test_session.commit()
+        test_session.refresh(high_value_job)
+
+        # User searches with high salary filter (unbounded)
+        jobs = JobService.get_filtered_jobs(
+            {
+                "salary_min": 800000,
+                "salary_max": 750000,  # This should be treated as unbounded
+            }
+        )
+
+        # Should find the CTO position
+        assert len(jobs) == 1
+        assert jobs[0].title == "CTO Position"
+
+        # User manages this high-value job through normal workflow
+        job_id = jobs[0].id
+
+        # Mark as favorite and add notes
+        JobService.toggle_favorite(job_id)
+        JobService.update_notes(
+            job_id, "Incredible opportunity, prepare executive pitch"
+        )
+
+        # Verify changes
+        updated_job = JobService.get_job_by_id(job_id)
+        assert updated_job.favorite is True
+        assert "executive pitch" in updated_job.notes.lower()

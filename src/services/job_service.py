@@ -134,9 +134,9 @@ class JobService:
                 if filters.get("favorites_only", False):
                     query = query.filter(JobSQL.favorite.is_(True))
 
-                # Apply salary range filters
+                # Apply salary range filters with high-value support
                 salary_min = filters.get("salary_min")
-                if salary_min is not None:
+                if salary_min is not None and salary_min > 0:
                     # Filter where job's max salary is >= our minimum requirement
                     # This ensures the job's range overlaps with our minimum
                     query = query.filter(
@@ -144,12 +144,15 @@ class JobService:
                     )
 
                 salary_max = filters.get("salary_max")
-                if salary_max is not None:
+                if salary_max is not None and salary_max < 750000:
+                    # Only apply upper limit filter if max is below 750k
+                    # This treats 750k as "unbounded" for high-value positions
                     # Filter where job's min salary is <= our maximum requirement
-                    # This ensures the job's range overlaps with our maximum
                     query = query.filter(
                         func.json_extract(JobSQL.salary, "$[0]") <= salary_max
                     )
+                # Note: When salary_max >= 750000, no upper limit is applied,
+                # effectively including all high-value positions above 750k
 
                 # Filter out archived jobs by default
                 if not filters.get("include_archived", False):

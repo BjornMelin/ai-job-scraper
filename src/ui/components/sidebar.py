@@ -92,19 +92,20 @@ def _render_search_filters() -> None:
         current_filters["date_to"] = date_to
         st.session_state.filters = current_filters
 
-        # Salary range filter
+        # Salary range filter with high-value support
         st.markdown("**Salary Range**")
         current_salary_min = st.session_state.filters.get("salary_min", 0)
-        current_salary_max = st.session_state.filters.get("salary_max", 300000)
+        current_salary_max = st.session_state.filters.get("salary_max", 750000)
 
         salary_range = st.slider(
             "Annual Salary Range",
             min_value=0,
-            max_value=300000,
+            max_value=750000,
             value=(current_salary_min, current_salary_max),
-            step=10000,
+            step=25000,
             format="$%dk",
-            help="Filter jobs by annual salary range (in USD)",
+            help="Filter jobs by annual salary range (in USD). "
+            "Set max to 750k+ to include all high-value positions.",
         )
 
         # Update salary filters
@@ -113,9 +114,8 @@ def _render_search_filters() -> None:
         current_filters["salary_max"] = salary_range[1]
         st.session_state.filters = current_filters
 
-        # Display formatted salary range
-        if salary_range[0] > 0 or salary_range[1] < 300000:
-            st.caption(f"Selected range: ${salary_range[0]:,} - ${salary_range[1]:,}")
+        # Display formatted salary range with improved formatting
+        _display_salary_range(salary_range)
 
         # Clear filters button
         if st.button("Clear All Filters", use_container_width=True):
@@ -234,6 +234,44 @@ def _render_add_company_form() -> None:
             "+ Add Company", use_container_width=True, type="primary"
         ):
             _handle_add_company(new_name, new_url)
+
+
+def _display_salary_range(salary_range: tuple[int, int]) -> None:
+    """Display selected salary range with improved formatting and high-value indicators.
+
+    Args:
+        salary_range: Tuple containing (min_salary, max_salary) values.
+    """
+    min_val, max_val = salary_range
+
+    # Format salary values for display
+    def format_salary(amount: int) -> str:
+        """Format salary amount with appropriate units (k for thousands)."""
+        if amount >= 1000000:
+            return f"${amount / 1000000:.1f}M"
+        if amount >= 1000:
+            return f"${amount // 1000}k"
+        return f"${amount}"
+
+    # Determine if we're showing filtered range or full range
+    is_filtered = min_val > 0 or max_val < 750000
+
+    if is_filtered:
+        if max_val >= 750000:
+            # High-value unbounded range
+            range_text = (
+                f"Selected: {format_salary(min_val)} - {format_salary(max_val)}+"
+            )
+            st.caption(f"💰 {range_text}")
+            st.caption(f"💡 Including all positions above {format_salary(max_val)}")
+        else:
+            # Normal bounded range
+            range_text = (
+                f"Selected: {format_salary(min_val)} - {format_salary(max_val)}"
+            )
+            st.caption(f"💰 {range_text}")
+    else:
+        st.caption("💰 Showing all salary ranges")
 
 
 def _handle_add_company(name: str, url: str) -> None:
