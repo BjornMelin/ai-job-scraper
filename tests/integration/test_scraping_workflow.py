@@ -53,7 +53,7 @@ class TestHappyPathWorkflow:
             "src.ui.utils.background_tasks.JobService.get_active_companies",
             return_value=companies,
         ):
-            task_id = start_background_scraping()
+            task_id = start_background_scraping(stay_active_in_tests=False)
 
         # Assert: Verify complete workflow results
         # In test mode, scraping completes synchronously, so we check the final state
