@@ -255,6 +255,30 @@ def _get_filtered_jobs() -> list[Job]:
         return []
 
 
+def _construct_job_filters(favorites_only: bool = False, **kwargs) -> dict:
+    """Shared utility to construct job filters for database queries.
+
+    Args:
+        favorites_only (bool): Whether to filter for favorite jobs.
+        **kwargs: Additional filter parameters.
+
+    Returns:
+        dict: Filter parameters for JobService.
+    """
+    filters = {
+        "text_search": st.session_state.filters.get("keyword", ""),
+        "company": st.session_state.filters.get("company", []),
+        "application_status": kwargs.get("application_status", []),
+        "date_from": st.session_state.filters.get("date_from"),
+        "date_to": st.session_state.filters.get("date_to"),
+        "favorites_only": favorites_only,
+        "include_archived": False,
+    }
+    # Allow overriding with additional kwargs
+    filters.update(kwargs)
+    return filters
+
+
 def _get_favorites_jobs() -> list[Job]:
     """Get favorite jobs filtered by current filter settings using database query.
 
@@ -262,16 +286,8 @@ def _get_favorites_jobs() -> list[Job]:
         List of filtered favorite Job DTO objects.
     """
     try:
-        # Convert session state filters to JobService format with favorites_only=True
-        filters = {
-            "text_search": st.session_state.filters.get("keyword", ""),
-            "company": st.session_state.filters.get("company", []),
-            "application_status": [],
-            "date_from": st.session_state.filters.get("date_from"),
-            "date_to": st.session_state.filters.get("date_to"),
-            "favorites_only": True,  # Database-level filtering for favorites
-            "include_archived": False,
-        }
+        # Use shared filter construction utility
+        filters = _construct_job_filters(favorites_only=True)
 
         return JobService.get_filtered_jobs(filters)
 
@@ -287,18 +303,8 @@ def _get_applied_jobs() -> list[Job]:
         List of filtered applied Job DTO objects.
     """
     try:
-        # Convert session state filters to JobService format with status filter
-        filters = {
-            "text_search": st.session_state.filters.get("keyword", ""),
-            "company": st.session_state.filters.get("company", []),
-            "application_status": [
-                "Applied"
-            ],  # Database-level filtering for applied jobs
-            "date_from": st.session_state.filters.get("date_from"),
-            "date_to": st.session_state.filters.get("date_to"),
-            "favorites_only": False,
-            "include_archived": False,
-        }
+        # Use shared filter construction utility with applied status filter
+        filters = _construct_job_filters(application_status=["Applied"])
 
         return JobService.get_filtered_jobs(filters)
 

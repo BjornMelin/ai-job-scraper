@@ -246,11 +246,8 @@ class TestApplicationStatuses:
         from src.constants import APPLICATION_STATUSES
 
         for status in APPLICATION_STATUSES:
-            # Should be title case (first letter capitalized)
-            assert status[0].isupper(), f"Status '{status}' should start with uppercase"
-            # Should not be all uppercase or all lowercase
-            assert status != status.upper() or len(status) == 1
-            assert status != status.lower()
+            # Should be title case (first letter capitalized for each word)
+            assert status.istitle(), f"Status '{status}' should be title case"
 
     def test_application_statuses_no_duplicates(self):
         """Test that APPLICATION_STATUSES contains no duplicate values."""

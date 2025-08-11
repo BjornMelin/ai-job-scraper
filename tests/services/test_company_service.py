@@ -916,15 +916,18 @@ class TestCompanyServiceBulkGetOrCreate:
         """Test that bulk get/create properly handles transaction rollback."""
         from unittest.mock import patch
 
+        class MockDatabaseError(Exception):
+            """Custom exception to simulate unexpected database errors in tests."""
+
         company_names = {"TransactionTestCorp1", "TransactionTestCorp2"}
 
         # Mock flush to raise an unexpected error (not integrity error)
         def mock_flush_with_error(*args, **kwargs):  # noqa: ARG001
-            raise Exception("Unexpected database error")  # noqa: TRY002
+            raise MockDatabaseError("Unexpected database error")
 
         with (
             patch.object(test_session, "flush", side_effect=mock_flush_with_error),
-            pytest.raises(Exception, match="Unexpected database error"),
+            pytest.raises(MockDatabaseError, match="Unexpected database error"),
         ):
             CompanyService.bulk_get_or_create_companies(test_session, company_names)
 

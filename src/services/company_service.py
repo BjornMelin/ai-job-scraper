@@ -645,7 +645,7 @@ class CompanyService:
         company_map = {comp.name: comp.id for comp in existing_companies}
 
         # Step 2: Identify missing companies
-        missing_names = company_names - company_map.keys()
+        missing_names = company_names - set(company_map.keys())
 
         # Step 3: Bulk create missing companies if any, handling race conditions
         if missing_names:

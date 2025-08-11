@@ -279,7 +279,7 @@ def format_salary(amount: int) -> str:
             return f"${amount / 1_000_000:.1f}M"
         if amount >= 1_000:
             return f"${amount // 1_000}k"
-        return f"${amount}"  # noqa: TRY300
+        return f"${amount}"
 
     except Exception:
         logger.exception("Error formatting salary")
