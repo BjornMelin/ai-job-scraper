@@ -9,6 +9,8 @@ from datetime import datetime, timedelta, timezone
 
 import streamlit as st
 
+from src.constants import SALARY_DEFAULT_MAX, SALARY_DEFAULT_MIN
+
 
 def init_session_state() -> None:
     """Initialize session state with all required default values.
@@ -22,8 +24,8 @@ def init_session_state() -> None:
             "keyword": "",
             "date_from": datetime.now(timezone.utc) - timedelta(days=30),
             "date_to": datetime.now(timezone.utc),
-            "salary_min": 0,
-            "salary_max": 750000,
+            "salary_min": SALARY_DEFAULT_MIN,
+            "salary_max": SALARY_DEFAULT_MAX,
         },
         "view_mode": "Card",  # Default to more visual card view
         "card_page": 0,
@@ -44,8 +46,8 @@ def clear_filters() -> None:
         "keyword": "",
         "date_from": datetime.now(timezone.utc) - timedelta(days=30),
         "date_to": datetime.now(timezone.utc),
-        "salary_min": 0,
-        "salary_max": 750000,
+        "salary_min": SALARY_DEFAULT_MIN,
+        "salary_max": SALARY_DEFAULT_MAX,
     }
 
 

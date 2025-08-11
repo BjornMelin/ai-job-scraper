@@ -254,3 +254,33 @@ def format_jobs_count(count: int, singular: str = "job", plural: str = "jobs") -
         logger.exception("Error formatting jobs count")
 
     return result
+
+
+def format_salary(amount: int) -> str:
+    """Format salary amount with appropriate units (k/M).
+
+    Args:
+        amount: Salary amount in dollars.
+
+    Returns:
+        str: Formatted salary string (e.g., "$75k", "$1.2M").
+
+    Example:
+        >>> format_salary(75000)
+        "$75k"
+        >>> format_salary(1200000)
+        "$1.2M"
+    """
+    try:
+        if not isinstance(amount, int) or amount < 0:
+            return "$0"
+
+        if amount >= 1_000_000:
+            return f"${amount / 1_000_000:.1f}M"
+        if amount >= 1_000:
+            return f"${amount // 1_000}k"
+        return f"${amount}"
+
+    except Exception:
+        logger.exception("Error formatting salary")
+        return "$0"

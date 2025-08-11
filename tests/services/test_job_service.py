@@ -731,6 +731,28 @@ class TestJobServiceErrorHandling:
         assert "Machine Learning Engineer" in titles
         assert "Data Scientist" in titles
 
+    def test_salary_min_filter_boundary(self, mock_db_session, sample_jobs):
+        """Test filtering by minimum salary where job max salary equals filter."""
+        # Filter where filter minimum exactly matches job's max salary
+        filters = {"salary_min": 170000}  # Data Scientist has max_salary=170000
+        jobs = JobService.get_filtered_jobs(filters)
+
+        # Should include jobs where max_salary == 170,000
+        job_titles = {job.title for job in jobs}
+        assert "Data Scientist" in job_titles
+
+        # Test with partial overlap
+        filters = {
+            "salary_min": 140000
+        }  # Should catch Full Stack (100k-140k) at boundary
+        jobs = JobService.get_filtered_jobs(filters)
+        job_titles = {job.title for job in jobs}
+        assert (
+            "Full Stack Developer" in job_titles
+        )  # min_salary < 140k but max_salary >= 140k
+        assert "Machine Learning Engineer" in job_titles  # Also qualifies
+        assert "Data Scientist" in job_titles  # Also qualifies
+
     def test_salary_max_filter(self, mock_db_session, sample_jobs):
         """Test filtering by maximum salary."""
         # Filter for jobs where min salary <= 110,000 (jobs I can get with 110k exp)
@@ -743,6 +765,17 @@ class TestJobServiceErrorHandling:
         titles = {job.title for job in jobs}
         assert "Full Stack Developer" in titles
         assert "DevOps Engineer" in titles
+
+    def test_salary_max_filter_boundary(self, mock_db_session, sample_jobs):
+        """Test filtering by maximum salary where job min salary equals filter."""
+        # Filter where filter maximum exactly matches job's min salary
+        filters = {"salary_max": 110000}  # DevOps has min_salary=110000
+        jobs = JobService.get_filtered_jobs(filters)
+
+        # Should include jobs where min_salary == 110,000
+        job_titles = {job.title for job in jobs}
+        assert "DevOps Engineer" in job_titles
+        assert "Full Stack Developer" in job_titles  # min_salary=100k <= 110k
 
     def test_salary_range_filter(self, mock_db_session, sample_jobs):
         """Test filtering by both minimum and maximum salary."""
@@ -784,6 +817,58 @@ class TestJobServiceErrorHandling:
         # Should not include the internship with None salary
         job_titles = {job.title for job in jobs}
         assert "Internship Position" not in job_titles
+
+    def test_salary_filter_with_partial_none_values(
+        self, mock_db_session, test_session, sample_companies
+    ):
+        """Test salary filtering handles partially None salary values correctly."""
+        # Create jobs with various None salary scenarios
+        job_with_none_min = JobSQL(
+            company_id=sample_companies[0].id,
+            title="Min Salary None",
+            description="Job with min_salary=None",
+            link="https://example.com/min_none",
+            location="Remote",
+            salary=(None, 120000),
+            content_hash="hash_min_none",
+        )
+        job_with_none_max = JobSQL(
+            company_id=sample_companies[0].id,
+            title="Max Salary None",
+            description="Job with max_salary=None",
+            link="https://example.com/max_none",
+            location="Remote",
+            salary=(90000, None),
+            content_hash="hash_max_none",
+        )
+
+        test_session.add(job_with_none_min)
+        test_session.add(job_with_none_max)
+        test_session.commit()
+        test_session.refresh(job_with_none_min)
+        test_session.refresh(job_with_none_max)
+
+        # Test job with None min_salary: should match if max_salary >= salary_min
+        filters = {"salary_min": 100000}  # max_salary (120k) >= 100k
+        jobs = JobService.get_filtered_jobs(filters)
+        job_titles = {job.title for job in jobs}
+        assert "Min Salary None" in job_titles
+
+        filters = {"salary_min": 130000}  # max_salary (120k) < 130k
+        jobs = JobService.get_filtered_jobs(filters)
+        job_titles = {job.title for job in jobs}
+        assert "Min Salary None" not in job_titles
+
+        # Test job with None max_salary: should match if min_salary <= salary_max
+        filters = {"salary_max": 100000}  # min_salary (90k) <= 100k
+        jobs = JobService.get_filtered_jobs(filters)
+        job_titles = {job.title for job in jobs}
+        assert "Max Salary None" in job_titles
+
+        filters = {"salary_max": 80000}  # min_salary (90k) > 80k
+        jobs = JobService.get_filtered_jobs(filters)
+        job_titles = {job.title for job in jobs}
+        assert "Max Salary None" not in job_titles
 
     def test_salary_filter_edge_cases(self, mock_db_session, sample_jobs):
         """Test salary filtering edge cases."""
@@ -913,23 +998,114 @@ class TestJobServiceErrorHandling:
         assert jobs[0].title == "Full Stack Developer"
         assert jobs[0].application_status == "New"
 
+    def test_salary_combined_with_archived_jobs(
+        self, mock_db_session, test_session, sample_companies
+    ):
+        """Test salary filtering combined with archived jobs."""
+        # Create an archived job with high salary
+        archived_job = JobSQL(
+            company_id=sample_companies[0].id,
+            title="Archived High Salary Position",
+            description="Archived executive role",
+            link="https://example.com/archived",
+            location="San Francisco, CA",
+            salary=(200000, 300000),
+            content_hash="hash_archived",
+            archived=True,
+        )
+        test_session.add(archived_job)
+        test_session.commit()
+
+        # Test salary filter normally excludes archived
+        filters = {"salary_min": 200000}
+        jobs = JobService.get_filtered_jobs(filters)
+        job_titles = {job.title for job in jobs}
+        assert "Archived High Salary Position" not in job_titles
+
+        # Test salary filter with archived included
+        filters = {"salary_min": 200000, "include_archived": True}
+        jobs = JobService.get_filtered_jobs(filters)
+        job_titles = {job.title for job in jobs}
+        assert "Archived High Salary Position" in job_titles
+
+    def test_salary_combined_with_date_filters(
+        self, mock_db_session, test_session, sample_companies
+    ):
+        """Test salary filtering combined with date range filters."""
+        from datetime import datetime, timedelta, timezone
+
+        # Create a job with recent date and good salary
+        recent_job = JobSQL(
+            company_id=sample_companies[0].id,
+            title="Recent High Paying Job",
+            description="Recently posted executive role",
+            link="https://example.com/recent",
+            location="San Francisco, CA",
+            posted_date=datetime.now(timezone.utc) - timedelta(days=5),
+            salary=(180000, 220000),
+            content_hash="hash_recent",
+        )
+
+        # Create an old job with good salary
+        old_job = JobSQL(
+            company_id=sample_companies[0].id,
+            title="Old High Paying Job",
+            description="Old executive role",
+            link="https://example.com/old",
+            location="San Francisco, CA",
+            posted_date=datetime.now(timezone.utc) - timedelta(days=60),
+            salary=(180000, 220000),
+            content_hash="hash_old",
+        )
+
+        test_session.add(recent_job)
+        test_session.add(old_job)
+        test_session.commit()
+
+        # Test salary + recent date filter
+        filters = {
+            "salary_min": 180000,
+            "date_from": datetime.now(timezone.utc) - timedelta(days=30),
+        }
+        jobs = JobService.get_filtered_jobs(filters)
+        job_titles = {job.title for job in jobs}
+        assert "Recent High Paying Job" in job_titles
+        assert "Old High Paying Job" not in job_titles
+
+    def test_salary_combined_with_favorites(
+        self, mock_db_session, test_session, sample_companies
+    ):
+        """Test salary filtering combined with favorites filter."""
+        # Create a favorite job with good salary
+        favorite_job = JobSQL(
+            company_id=sample_companies[0].id,
+            title="Favorite High Paying Job",
+            description="Favorite executive role",
+            link="https://example.com/favorite",
+            location="San Francisco, CA",
+            salary=(180000, 220000),
+            content_hash="hash_favorite",
+            favorite=True,
+        )
+        test_session.add(favorite_job)
+        test_session.commit()
+
+        # Test salary + favorites filter
+        filters = {"salary_min": 180000, "favorites_only": True}
+        jobs = JobService.get_filtered_jobs(filters)
+        job_titles = {job.title for job in jobs}
+        assert "Favorite High Paying Job" in job_titles
+        assert len(jobs) == 1  # Only the favorite should match
+
 
 class TestJobServiceHighValueSalaries:
     """Test suite specifically for high-value salary functionality."""
 
     def test_format_salary_display_helper(self):
         """Test salary formatting helper for UI display."""
+        from src.ui.utils.formatters import format_salary
 
-        # This would be used by the UI component
-        def format_salary(amount: int) -> str:
-            """Format salary amount with appropriate units (k for thousands)."""
-            if amount >= 1000000:
-                return f"${amount / 1000000:.1f}M"
-            if amount >= 1000:
-                return f"${amount // 1000}k"
-            return f"${amount}"
-
-        # Test various amounts
+        # Test various amounts using the shared utility
         assert format_salary(0) == "$0"
         assert format_salary(500) == "$500"
         assert format_salary(75000) == "$75k"
@@ -987,6 +1163,31 @@ class TestJobServiceHighValueSalaries:
         job_titles = {job.title for job in jobs}
         assert "Director Level (750k exact)" in job_titles
         assert "SVP Level (above boundary)" in job_titles
+
+    def test_salary_max_just_above_unbounded_threshold(
+        self, mock_db_session, test_session, sample_companies
+    ):
+        """Test salary_max set just above the unbounded threshold."""
+        from src.constants import SALARY_UNBOUNDED_THRESHOLD
+
+        # Create a job with salary above the threshold
+        high_value_job = JobSQL(
+            company_id=sample_companies[0].id,
+            title="Ultra High Value Position",
+            description="Position with salary above threshold + 1",
+            link="https://example.com/ultra-high",
+            location="San Francisco, CA",
+            salary=(SALARY_UNBOUNDED_THRESHOLD + 1, 2000000),
+            content_hash="hash_ultra_high",
+        )
+        test_session.add(high_value_job)
+        test_session.commit()
+
+        # Test salary_max just above threshold (should still be unbounded)
+        filters = {"salary_max": SALARY_UNBOUNDED_THRESHOLD + 1}
+        jobs = JobService.get_filtered_jobs(filters)
+        job_titles = {job.title for job in jobs}
+        assert "Ultra High Value Position" in job_titles
 
 
 class TestJobServiceDateParsing:

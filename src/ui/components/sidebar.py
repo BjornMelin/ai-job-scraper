@@ -10,10 +10,17 @@ import logging
 import pandas as pd
 import streamlit as st
 
+from src.constants import (
+    SALARY_DEFAULT_MAX,
+    SALARY_SLIDER_FORMAT,
+    SALARY_SLIDER_STEP,
+    SALARY_UNBOUNDED_THRESHOLD,
+)
 
 # Removed direct database import - using service layer instead
 from src.services.company_service import CompanyService
 from src.ui.state.session_state import clear_filters
+from src.ui.utils.formatters import format_salary
 
 logger = logging.getLogger(__name__)
 
@@ -86,33 +93,42 @@ def _render_search_filters() -> None:
                 help="Show jobs posted before this date",
             )
 
-        # Update date filters
-        current_filters = st.session_state.filters.copy()
-        current_filters["date_from"] = date_from
-        current_filters["date_to"] = date_to
-        st.session_state.filters = current_filters
+        # Update date filters using single update call
+        st.session_state.filters.update(
+            {
+                "date_from": date_from,
+                "date_to": date_to,
+            }
+        )
 
         # Salary range filter with high-value support
         st.markdown("**Salary Range**")
         current_salary_min = st.session_state.filters.get("salary_min", 0)
-        current_salary_max = st.session_state.filters.get("salary_max", 750000)
+        current_salary_max = st.session_state.filters.get(
+            "salary_max", SALARY_DEFAULT_MAX
+        )
 
         salary_range = st.slider(
             "Annual Salary Range",
             min_value=0,
-            max_value=750000,
+            max_value=SALARY_UNBOUNDED_THRESHOLD,
             value=(current_salary_min, current_salary_max),
-            step=25000,
-            format="$%dk",
-            help="Filter jobs by annual salary range (in USD). "
-            "Set max to 750k+ to include all high-value positions.",
+            step=SALARY_SLIDER_STEP,
+            format=SALARY_SLIDER_FORMAT,
+            help=(
+                f"Filter jobs by annual salary range (in USD). "
+                f"Set max to {format_salary(SALARY_UNBOUNDED_THRESHOLD)}+ "
+                f"to include all high-value positions."
+            ),
         )
 
-        # Update salary filters
-        current_filters = st.session_state.filters.copy()
-        current_filters["salary_min"] = salary_range[0]
-        current_filters["salary_max"] = salary_range[1]
-        st.session_state.filters = current_filters
+        # Update salary filters using single update call
+        st.session_state.filters.update(
+            {
+                "salary_min": salary_range[0],
+                "salary_max": salary_range[1],
+            }
+        )
 
         # Display formatted salary range with improved formatting
         _display_salary_range(salary_range)
@@ -243,35 +259,19 @@ def _display_salary_range(salary_range: tuple[int, int]) -> None:
         salary_range: Tuple containing (min_salary, max_salary) values.
     """
     min_val, max_val = salary_range
+    is_filtered = min_val > 0 or max_val < SALARY_UNBOUNDED_THRESHOLD
+    is_high_value = max_val >= SALARY_UNBOUNDED_THRESHOLD
 
-    # Format salary values for display
-    def format_salary(amount: int) -> str:
-        """Format salary amount with appropriate units (k for thousands)."""
-        if amount >= 1000000:
-            return f"${amount / 1000000:.1f}M"
-        if amount >= 1000:
-            return f"${amount // 1000}k"
-        return f"${amount}"
-
-    # Determine if we're showing filtered range or full range
-    is_filtered = min_val > 0 or max_val < 750000
-
-    if is_filtered:
-        if max_val >= 750000:
-            # High-value unbounded range
-            range_text = (
-                f"Selected: {format_salary(min_val)} - {format_salary(max_val)}+"
-            )
-            st.caption(f"💰 {range_text}")
-            st.caption(f"💡 Including all positions above {format_salary(max_val)}")
-        else:
-            # Normal bounded range
-            range_text = (
-                f"Selected: {format_salary(min_val)} - {format_salary(max_val)}"
-            )
-            st.caption(f"💰 {range_text}")
-    else:
+    if not is_filtered:
         st.caption("💰 Showing all salary ranges")
+        return
+
+    # Always show selected range (clamp to threshold for display)
+    top = SALARY_UNBOUNDED_THRESHOLD if is_high_value else max_val
+    st.caption(f"💰 Selected: {format_salary(min_val)} - {format_salary(top)}")
+
+    if is_high_value:
+        st.caption(f"💡 Including all positions above {format_salary(max_val)}")
 
 
 def _handle_add_company(name: str, url: str) -> None:
