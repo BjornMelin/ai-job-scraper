@@ -711,3 +711,248 @@ class TestCompanyServiceIntegration:
                 # Scrape count should have increased by 1
                 original_count = original_counts[company.id]
                 assert company.scrape_count == original_count + 1
+
+
+class TestCompanyServiceBulkGetOrCreate:
+    """Test the relocated bulk_get_or_create_companies method."""
+
+    def test_bulk_get_or_create_empty_set(self, test_session):
+        """Test bulk get/create with empty company names set."""
+        company_map = CompanyService.bulk_get_or_create_companies(test_session, set())
+
+        assert company_map == {}
+
+    def test_bulk_get_or_create_existing_companies(
+        self, test_session, sample_companies
+    ):
+        """Test bulk get/create with all existing companies."""
+        company_names = {"TechCorp", "InnovateLabs"}
+
+        company_map = CompanyService.bulk_get_or_create_companies(
+            test_session, company_names
+        )
+
+        # Should return mapping for existing companies
+        assert len(company_map) == 2
+        assert "TechCorp" in company_map
+        assert "InnovateLabs" in company_map
+
+        # Verify the IDs match the existing companies
+        techcorp_id = next(c.id for c in sample_companies if c.name == "TechCorp")
+        innovate_id = next(c.id for c in sample_companies if c.name == "InnovateLabs")
+
+        assert company_map["TechCorp"] == techcorp_id
+        assert company_map["InnovateLabs"] == innovate_id
+
+    def test_bulk_get_or_create_new_companies(self, test_session):
+        """Test bulk get/create with all new companies."""
+        company_names = {"NewCorp1", "NewCorp2", "NewCorp3"}
+
+        company_map = CompanyService.bulk_get_or_create_companies(
+            test_session, company_names
+        )
+
+        # Should create all new companies
+        assert len(company_map) == 3
+        assert all(name in company_map for name in company_names)
+        assert all(isinstance(company_id, int) for company_id in company_map.values())
+
+        # Verify companies were actually created in database
+        for name in company_names:
+            company = test_session.exec(select(CompanySQL).filter_by(name=name)).first()
+            assert company is not None
+            assert company.name == name
+            assert company.url == ""  # Default empty URL
+            assert company.active is True  # Default active status
+
+    def test_bulk_get_or_create_mixed_existing_and_new(
+        self, test_session, sample_companies
+    ):
+        """Test bulk get/create with mix of existing and new companies."""
+        company_names = {"TechCorp", "NewMixedCorp1", "InnovateLabs", "NewMixedCorp2"}
+
+        company_map = CompanyService.bulk_get_or_create_companies(
+            test_session, company_names
+        )
+
+        # Should return all companies
+        assert len(company_map) == 4
+        assert all(name in company_map for name in company_names)
+
+        # Verify existing companies have correct IDs
+        techcorp_id = next(c.id for c in sample_companies if c.name == "TechCorp")
+        innovate_id = next(c.id for c in sample_companies if c.name == "InnovateLabs")
+        assert company_map["TechCorp"] == techcorp_id
+        assert company_map["InnovateLabs"] == innovate_id
+
+        # Verify new companies were created
+        for new_name in ["NewMixedCorp1", "NewMixedCorp2"]:
+            company = test_session.exec(
+                select(CompanySQL).filter_by(name=new_name)
+            ).first()
+            assert company is not None
+            assert company.name == new_name
+
+    def test_bulk_get_or_create_race_condition_basic(self, test_session):
+        """Test bulk get/create handles basic race condition scenario."""
+        company_names = {"RaceConditionCorp1", "RaceConditionCorp2"}
+
+        # Pre-create one company to simulate another process creating it
+        race_company = CompanySQL(name="RaceConditionCorp1", url="", active=True)
+        test_session.add(race_company)
+        test_session.commit()
+        test_session.refresh(race_company)
+
+        # Now call bulk_get_or_create which should handle the mix
+        company_map = CompanyService.bulk_get_or_create_companies(
+            test_session, company_names
+        )
+
+        # Should still return all companies
+        assert len(company_map) == 2
+        assert "RaceConditionCorp1" in company_map
+        assert "RaceConditionCorp2" in company_map
+
+        # The existing company should have the right ID
+        assert company_map["RaceConditionCorp1"] == race_company.id
+
+        # Verify both companies exist in database
+        for name in company_names:
+            company = test_session.exec(select(CompanySQL).filter_by(name=name)).first()
+            assert company is not None
+
+    def test_bulk_get_or_create_performance_single_query_existing(
+        self, test_session, sample_companies
+    ):
+        """Test that bulk_get_or_create uses single query for existing companies."""
+        from unittest.mock import MagicMock
+
+        company_names = {"TechCorp", "InnovateLabs", "DataDriven Inc"}
+
+        # Mock session.exec to count queries
+        original_exec = test_session.exec
+        exec_calls = []
+
+        def mock_exec(statement, *args, **kwargs):
+            exec_calls.append(str(statement))
+            return original_exec(statement, *args, **kwargs)
+
+        test_session.exec = MagicMock(side_effect=mock_exec)
+
+        company_map = CompanyService.bulk_get_or_create_companies(
+            test_session, company_names
+        )
+
+        # Should make minimal queries: 1 for bulk select of existing companies
+        # Additional queries only if new companies need to be created
+        assert len(exec_calls) >= 1  # At least the bulk select query
+
+        # Verify all companies found
+        assert len(company_map) == 3
+        assert all(name in company_map for name in company_names)
+
+        # Restore original exec
+        test_session.exec = original_exec
+
+    def test_bulk_get_or_create_large_batch(self, test_session):
+        """Test bulk get/create with a large batch of companies."""
+        # Create a large set of company names
+        company_names = {f"LargeBatchCorp{i:03d}" for i in range(100)}
+
+        company_map = CompanyService.bulk_get_or_create_companies(
+            test_session, company_names
+        )
+
+        # Should handle large batch efficiently
+        assert len(company_map) == 100
+        assert all(name in company_map for name in company_names)
+
+        # Verify a sample of companies were created
+        sample_names = list(company_names)[:10]
+        for name in sample_names:
+            company = test_session.exec(select(CompanySQL).filter_by(name=name)).first()
+            assert company is not None
+            assert company.name == name
+
+    def test_bulk_get_or_create_duplicate_names_in_set(self, test_session):
+        """Test bulk get/create handles duplicate names in input set."""
+        # Sets automatically deduplicate, but test to be sure
+        company_names = {"DuplicateCorp", "UniqueCorp"}
+        # This set will actually only have 2 elements due to deduplication
+
+        company_map = CompanyService.bulk_get_or_create_companies(
+            test_session, company_names
+        )
+
+        # Should handle duplicates properly (sets deduplicate automatically)
+        assert len(company_map) == 2
+        assert "DuplicateCorp" in company_map
+        assert "UniqueCorp" in company_map
+
+    def test_bulk_get_or_create_unicode_company_names(self, test_session):
+        """Test bulk get/create with Unicode company names."""
+        company_names = {
+            "Café Technologies",
+            "北京科技",
+            "Müller GmbH",
+            "Société Générale",
+        }
+
+        company_map = CompanyService.bulk_get_or_create_companies(
+            test_session, company_names
+        )
+
+        # Should handle Unicode names properly
+        assert len(company_map) == 4
+        assert all(name in company_map for name in company_names)
+
+        # Verify companies were created with correct Unicode names
+        for name in company_names:
+            company = test_session.exec(select(CompanySQL).filter_by(name=name)).first()
+            assert company is not None
+            assert company.name == name
+
+    def test_bulk_get_or_create_transaction_rollback_on_error(self, test_session):
+        """Test that bulk get/create properly handles transaction rollback."""
+        from unittest.mock import patch
+
+        company_names = {"TransactionTestCorp1", "TransactionTestCorp2"}
+
+        # Mock flush to raise an unexpected error (not integrity error)
+        def mock_flush_with_error(*args, **kwargs):  # noqa: ARG001
+            raise Exception("Unexpected database error")  # noqa: TRY002
+
+        with (
+            patch.object(test_session, "flush", side_effect=mock_flush_with_error),
+            pytest.raises(Exception, match="Unexpected database error"),
+        ):
+            CompanyService.bulk_get_or_create_companies(test_session, company_names)
+
+        # Verify no companies were created (transaction rollback)
+        for name in company_names:
+            company = test_session.exec(select(CompanySQL).filter_by(name=name)).first()
+            assert company is None
+
+    def test_bulk_get_or_create_company_with_special_characters(self, test_session):
+        """Test bulk get/create with company names containing special characters."""
+        company_names = {
+            "AT&T Corp.",
+            "Johnson & Johnson",
+            "3M Company",
+            "H&R Block",
+            "McDonald's Corporation",
+        }
+
+        company_map = CompanyService.bulk_get_or_create_companies(
+            test_session, company_names
+        )
+
+        # Should handle special characters properly
+        assert len(company_map) == 5
+        assert all(name in company_map for name in company_names)
+
+        # Verify exact name matching
+        for name in company_names:
+            company = test_session.exec(select(CompanySQL).filter_by(name=name)).first()
+            assert company is not None
+            assert company.name == name

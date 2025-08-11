@@ -255,22 +255,74 @@ def _get_filtered_jobs() -> list[Job]:
         return []
 
 
+def _get_favorites_jobs() -> list[Job]:
+    """Get favorite jobs filtered by current filter settings using database query.
+
+    Returns:
+        List of filtered favorite Job DTO objects.
+    """
+    try:
+        # Convert session state filters to JobService format with favorites_only=True
+        filters = {
+            "text_search": st.session_state.filters.get("keyword", ""),
+            "company": st.session_state.filters.get("company", []),
+            "application_status": [],
+            "date_from": st.session_state.filters.get("date_from"),
+            "date_to": st.session_state.filters.get("date_to"),
+            "favorites_only": True,  # Database-level filtering for favorites
+            "include_archived": False,
+        }
+
+        return JobService.get_filtered_jobs(filters)
+
+    except Exception:
+        logger.exception("Favorites job query failed")
+        return []
+
+
+def _get_applied_jobs() -> list[Job]:
+    """Get applied jobs filtered by current filter settings using database query.
+
+    Returns:
+        List of filtered applied Job DTO objects.
+    """
+    try:
+        # Convert session state filters to JobService format with status filter
+        filters = {
+            "text_search": st.session_state.filters.get("keyword", ""),
+            "company": st.session_state.filters.get("company", []),
+            "application_status": [
+                "Applied"
+            ],  # Database-level filtering for applied jobs
+            "date_from": st.session_state.filters.get("date_from"),
+            "date_to": st.session_state.filters.get("date_to"),
+            "favorites_only": False,
+            "include_archived": False,
+        }
+
+        return JobService.get_filtered_jobs(filters)
+
+    except Exception:
+        logger.exception("Applied job query failed")
+        return []
+
+
 def _render_job_tabs(jobs: list[Job]) -> None:
     """Render the job tabs with filtered content.
 
     Args:
-        jobs: List of all jobs to organize into tabs.
+        jobs: List of all jobs used for calculating All Jobs count.
     """
-    # Calculate tab counts
-    favorites_count = sum(j.favorite for j in jobs)
-    applied_count = sum(j.status == "Applied" for j in jobs)
+    # Get efficiently filtered job lists using database queries
+    favorites = _get_favorites_jobs()
+    applied = _get_applied_jobs()
 
     # Create tabs with counts
     tab1, tab2, tab3 = st.tabs(
         [
             f"All Jobs 📋 ({len(jobs)})",
-            f"Favorites ⭐ ({favorites_count})",
-            f"Applied ✅ ({applied_count})",
+            f"Favorites ⭐ ({len(favorites)})",
+            f"Applied ✅ ({len(applied)})",
         ]
     )
 
@@ -279,7 +331,6 @@ def _render_job_tabs(jobs: list[Job]) -> None:
         _render_job_display(jobs, "all")
 
     with tab2:
-        favorites = [j for j in jobs if j.favorite]
         if not favorites:
             st.info(
                 "💡 No favorite jobs yet. Star jobs you're interested in "
@@ -289,7 +340,6 @@ def _render_job_tabs(jobs: list[Job]) -> None:
             _render_job_display(favorites, "favorites")
 
     with tab3:
-        applied = [j for j in jobs if j.status == "Applied"]
         if not applied:
             st.info(
                 "🚀 No applications yet. Update job status to 'Applied' "
