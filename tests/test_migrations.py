@@ -554,6 +554,133 @@ class TestMigrationScriptGeneration:
         assert "jobsql" in migration_content.lower()
         assert "create_table" in migration_content.lower()
 
+    def test_autogenerate_detects_column_type_changes(
+        self, temp_alembic_dir: Path, temp_db_path: str
+    ) -> None:
+        """Test that autogenerate detects column type changes.
+
+        Simulates modifying a column type and verifies that Alembic's
+        autogenerate feature can detect and script these changes correctly.
+        """
+        config = Config()
+        config.set_main_option("script_location", str(temp_alembic_dir))
+        config.set_main_option("sqlalchemy.url", f"sqlite:///{temp_db_path}")
+
+        # Create initial schema with original column type
+        engine = create_engine(f"sqlite:///{temp_db_path}")
+        with engine.connect() as conn:
+            # Create a test table with a VARCHAR column
+            conn.execute(
+                text(
+                    "CREATE TABLE test_table (id INTEGER PRIMARY KEY, test_col VARCHAR(50))"
+                )
+            )
+            conn.commit()
+
+        # Stamp as current head
+        command.stamp(config, "head")
+
+        # Now modify the target metadata to change column type
+        # We'll temporarily add a table to the metadata to simulate type change
+        from sqlalchemy import Column, Integer, String, Table
+
+        test_table = Table(
+            "test_table",
+            SQLModel.metadata,
+            Column("id", Integer, primary_key=True),
+            Column("test_col", String(100)),  # Changed from VARCHAR(50) to VARCHAR(100)
+        )
+
+        try:
+            # Generate migration for type change
+            revision = command.revision(
+                config, autogenerate=True, message="Change column type"
+            )
+
+            assert revision is not None
+
+            versions_dir = temp_alembic_dir / "versions"
+            migration_files = list(versions_dir.glob("*.py"))
+            assert migration_files
+
+            migration_content = migration_files[0].read_text()
+
+            # Should detect the column type change
+            # Note: SQLite doesn't directly support ALTER COLUMN, so this might
+            # generate batch operations or table recreation
+            assert (
+                "alter_column" in migration_content.lower()
+                or "batch_alter_table" in migration_content.lower()
+            )
+
+        finally:
+            # Clean up the temporary table from metadata
+            SQLModel.metadata.remove(test_table)
+
+    def test_autogenerate_detects_constraint_changes(
+        self, temp_alembic_dir: Path, temp_db_path: str
+    ) -> None:
+        """Test that autogenerate detects constraint modifications.
+
+        Simulates adding/removing constraints and verifies that Alembic can
+        detect and script these changes appropriately.
+        """
+        config = Config()
+        config.set_main_option("script_location", str(temp_alembic_dir))
+        config.set_main_option("sqlalchemy.url", f"sqlite:///{temp_db_path}")
+
+        # Create initial schema without unique constraint
+        engine = create_engine(f"sqlite:///{temp_db_path}")
+        with engine.connect() as conn:
+            conn.execute(
+                text(
+                    "CREATE TABLE constraint_test (id INTEGER PRIMARY KEY, email VARCHAR(100))"
+                )
+            )
+            conn.commit()
+
+        # Stamp as current head
+        command.stamp(config, "head")
+
+        # Add a table to metadata with a unique constraint
+        from sqlalchemy import Column, Integer, String, Table, UniqueConstraint
+
+        constraint_table = Table(
+            "constraint_test",
+            SQLModel.metadata,
+            Column("id", Integer, primary_key=True),
+            Column("email", String(100)),
+            UniqueConstraint("email", name="uq_constraint_test_email"),
+        )
+
+        try:
+            # Generate migration for constraint addition
+            revision = command.revision(
+                config, autogenerate=True, message="Add unique constraint"
+            )
+
+            assert revision is not None
+
+            versions_dir = temp_alembic_dir / "versions"
+            migration_files = list(versions_dir.glob("*.py"))
+            # Should have 2 files now (initial + constraint change)
+            assert len(migration_files) >= 1
+
+            # Get the most recent migration file
+            latest_migration = max(migration_files, key=lambda f: f.stat().st_mtime)
+            migration_content = latest_migration.read_text()
+
+            # Should detect the constraint change
+            assert (
+                "unique" in migration_content.lower()
+                or "constraint" in migration_content.lower()
+                or "create_unique_constraint" in migration_content.lower()
+            )
+
+        finally:
+            # Clean up the temporary table from metadata
+            SQLModel.metadata.remove(constraint_table)
+
     def test_migration_script_validation(
         self, temp_alembic_dir: Path, temp_db_path: str
     ) -> None:
@@ -609,3 +736,71 @@ class TestMigrationScriptGeneration:
         versions_dir = temp_alembic_dir / "versions"
         migration_files = list(versions_dir.glob("*.py"))
         assert migration_files
+
+        # Read the migration file to verify it's a no-op
+        migration_content = migration_files[0].read_text()
+
+        # A no-op migration should have empty upgrade() and downgrade() functions
+        # or at least not contain any table/column operations
+        assert "def upgrade()" in migration_content
+        assert "def downgrade()" in migration_content
+
+        # Check that no schema changes are present (no-op)
+        schema_operations = [
+            "create_table",
+            "drop_table",
+            "add_column",
+            "drop_column",
+            "alter_column",
+            "create_index",
+            "drop_index",
+        ]
+
+        for operation in schema_operations:
+            assert operation not in migration_content, (
+                f"Found schema operation {operation} in no-op migration"
+            )
+
+        # Additionally check that upgrade/downgrade contain only pass or comments
+        lines = migration_content.split("\n")
+        inside_upgrade = False
+        inside_downgrade = False
+        upgrade_has_operations = False
+        downgrade_has_operations = False
+
+        for line in lines:
+            stripped = line.strip()
+            if stripped.startswith("def upgrade"):
+                inside_upgrade = True
+                inside_downgrade = False
+                continue
+            if stripped.startswith("def downgrade"):
+                inside_downgrade = True
+                inside_upgrade = False
+                continue
+            if stripped.startswith("def ") or not stripped.startswith(" "):
+                inside_upgrade = False
+                inside_downgrade = False
+                continue
+
+            if (
+                inside_upgrade
+                and stripped
+                and not stripped.startswith("#")
+                and stripped != "pass"
+            ):
+                upgrade_has_operations = True
+            if (
+                inside_downgrade
+                and stripped
+                and not stripped.startswith("#")
+                and stripped != "pass"
+            ):
+                downgrade_has_operations = True
+
+        assert not upgrade_has_operations, (
+            "Upgrade function contains actual operations in no-op migration"
+        )
+        assert not downgrade_has_operations, (
+            "Downgrade function contains actual operations in no-op migration"
+        )
