@@ -92,6 +92,31 @@ def _render_search_filters() -> None:
         current_filters["date_to"] = date_to
         st.session_state.filters = current_filters
 
+        # Salary range filter
+        st.markdown("**Salary Range**")
+        current_salary_min = st.session_state.filters.get("salary_min", 0)
+        current_salary_max = st.session_state.filters.get("salary_max", 300000)
+
+        salary_range = st.slider(
+            "Annual Salary Range",
+            min_value=0,
+            max_value=300000,
+            value=(current_salary_min, current_salary_max),
+            step=10000,
+            format="$%dk",
+            help="Filter jobs by annual salary range (in USD)",
+        )
+
+        # Update salary filters
+        current_filters = st.session_state.filters.copy()
+        current_filters["salary_min"] = salary_range[0]
+        current_filters["salary_max"] = salary_range[1]
+        st.session_state.filters = current_filters
+
+        # Display formatted salary range
+        if salary_range[0] > 0 or salary_range[1] < 300000:
+            st.caption(f"Selected range: ${salary_range[0]:,} - ${salary_range[1]:,}")
+
         # Clear filters button
         if st.button("Clear All Filters", use_container_width=True):
             clear_filters()

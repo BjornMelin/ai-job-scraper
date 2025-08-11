@@ -22,6 +22,8 @@ def init_session_state() -> None:
             "keyword": "",
             "date_from": datetime.now(timezone.utc) - timedelta(days=30),
             "date_to": datetime.now(timezone.utc),
+            "salary_min": 0,
+            "salary_max": 300000,
         },
         "view_mode": "Card",  # Default to more visual card view
         "card_page": 0,
@@ -42,6 +44,8 @@ def clear_filters() -> None:
         "keyword": "",
         "date_from": datetime.now(timezone.utc) - timedelta(days=30),
         "date_to": datetime.now(timezone.utc),
+        "salary_min": 0,
+        "salary_max": 300000,
     }
 
 

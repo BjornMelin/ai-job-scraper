@@ -710,11 +710,126 @@ class TestJobServiceErrorHandling:
             "date_from": None,
             "date_to": "",
             "favorites_only": False,
+            "salary_min": None,
+            "salary_max": None,
         }
 
         # Should handle gracefully and return all jobs
         jobs = JobService.get_filtered_jobs(filters)
         assert len(jobs) == 5
+
+    def test_salary_min_filter(self, mock_db_session, sample_jobs):
+        """Test filtering by minimum salary."""
+        # Filter for jobs where max salary >= 170,000 (jobs that can pay at least 170k)
+        filters = {"salary_min": 170000}
+        jobs = JobService.get_filtered_jobs(filters)
+
+        # Should include: ML Engineer (140k-180k), Data Scientist (130k-170k)
+        # Should exclude: Full Stack (100k-140k), DevOps (110k-150k), Python (120k-160k)
+        assert len(jobs) == 2
+        titles = {job.title for job in jobs}
+        assert "Machine Learning Engineer" in titles
+        assert "Data Scientist" in titles
+
+    def test_salary_max_filter(self, mock_db_session, sample_jobs):
+        """Test filtering by maximum salary."""
+        # Filter for jobs where min salary <= 110,000 (jobs I can get with 110k exp)
+        filters = {"salary_max": 110000}
+        jobs = JobService.get_filtered_jobs(filters)
+
+        # Should include: Full Stack (100k-140k), DevOps (110k-150k)
+        # Should exclude: Python (120k-160k), ML Engineer (140k-180k), Data Scientist
+        assert len(jobs) == 2
+        titles = {job.title for job in jobs}
+        assert "Full Stack Developer" in titles
+        assert "DevOps Engineer" in titles
+
+    def test_salary_range_filter(self, mock_db_session, sample_jobs):
+        """Test filtering by both minimum and maximum salary."""
+        # Filter for jobs where I can earn 140-160k (max >= 140k AND min <= 160k)
+        filters = {"salary_min": 140000, "salary_max": 160000}
+        jobs = JobService.get_filtered_jobs(filters)
+
+        # Should include:
+        # - Full Stack (100k-140k): max 140k >= 140k ✓, min 100k <= 160k ✓
+        # - DevOps (110k-150k): max 150k >= 140k ✓, min 110k <= 160k ✓
+        # - Python (120k-160k): max 160k >= 140k ✓, min 120k <= 160k ✓
+        # - ML Engineer (140k-180k): max 180k >= 140k ✓, min 140k <= 160k ✓
+        # - Data Scientist (130k-170k): max 170k >= 140k ✓, min 130k <= 160k ✓
+        # All should match!
+        assert len(jobs) == 5
+
+    def test_salary_filter_with_none_values(
+        self, mock_db_session, test_session, sample_companies
+    ):
+        """Test salary filtering handles None salary values gracefully."""
+        # Create a job with None salary
+        job_with_none_salary = JobSQL(
+            company_id=sample_companies[0].id,
+            title="Internship Position",
+            description="Unpaid internship opportunity",
+            link="https://example.com/internship",
+            location="Remote",
+            salary=(None, None),
+            content_hash="hash_internship",
+        )
+        test_session.add(job_with_none_salary)
+        test_session.commit()
+        test_session.refresh(job_with_none_salary)
+
+        # Filter with salary_min should exclude the None salary job
+        filters = {"salary_min": 50000}
+        jobs = JobService.get_filtered_jobs(filters)
+
+        # Should not include the internship with None salary
+        job_titles = {job.title for job in jobs}
+        assert "Internship Position" not in job_titles
+
+    def test_salary_filter_edge_cases(self, mock_db_session, sample_jobs):
+        """Test salary filtering edge cases."""
+        # Very high minimum salary - should return no jobs
+        filters = {"salary_min": 500000}
+        jobs = JobService.get_filtered_jobs(filters)
+        assert len(jobs) == 0
+
+        # Very low maximum salary - should return no jobs
+        filters = {"salary_max": 10000}
+        jobs = JobService.get_filtered_jobs(filters)
+        assert len(jobs) == 0
+
+        # Zero values should be handled gracefully
+        filters = {"salary_min": 0, "salary_max": 0}
+        jobs = JobService.get_filtered_jobs(filters)
+        # With salary_max = 0, no jobs should match (no job has min salary <= 0)
+        assert len(jobs) == 0
+
+    def test_salary_combined_with_other_filters(self, mock_db_session, sample_jobs):
+        """Test salary filtering combined with other filter types."""
+        # Combine salary filter with company filter
+        filters = {
+            "salary_min": 100000,
+            "company": ["TechCorp"],
+        }
+        jobs = JobService.get_filtered_jobs(filters)
+
+        # Should include both TechCorp jobs (both have salaries >= 100k)
+        assert len(jobs) == 2
+        assert all(job.company == "TechCorp" for job in jobs)
+        titles = {job.title for job in jobs}
+        assert titles == {"Senior Python Developer", "Machine Learning Engineer"}
+
+        # Combine salary with text search and status
+        filters = {
+            "salary_max": 150000,
+            "text_search": "Developer",
+            "application_status": ["New"],
+        }
+        jobs = JobService.get_filtered_jobs(filters)
+
+        # Should include Full Stack Developer (New status, max 140k, "Developer")
+        assert len(jobs) == 1
+        assert jobs[0].title == "Full Stack Developer"
+        assert jobs[0].application_status == "New"
 
 
 class TestJobServiceDateParsing:

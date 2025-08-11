@@ -82,6 +82,8 @@ class JobService:
                 - date_from: Start date for filtering
                 - date_to: End date for filtering
                 - favorites_only: Boolean to show only favorites
+                - salary_min: Minimum salary filter (int or None)
+                - salary_max: Maximum salary filter (int or None)
 
         Returns:
             List of Job DTO objects matching the filter criteria.
@@ -131,6 +133,23 @@ class JobService:
                 # Apply favorites filter
                 if filters.get("favorites_only", False):
                     query = query.filter(JobSQL.favorite.is_(True))
+
+                # Apply salary range filters
+                salary_min = filters.get("salary_min")
+                if salary_min is not None:
+                    # Filter where job's max salary is >= our minimum requirement
+                    # This ensures the job's range overlaps with our minimum
+                    query = query.filter(
+                        func.json_extract(JobSQL.salary, "$[1]") >= salary_min
+                    )
+
+                salary_max = filters.get("salary_max")
+                if salary_max is not None:
+                    # Filter where job's min salary is <= our maximum requirement
+                    # This ensures the job's range overlaps with our maximum
+                    query = query.filter(
+                        func.json_extract(JobSQL.salary, "$[0]") <= salary_max
+                    )
 
                 # Filter out archived jobs by default
                 if not filters.get("include_archived", False):
