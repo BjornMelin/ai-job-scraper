@@ -47,23 +47,23 @@ def main() -> None:
     # All paths are relative to the main.py entrypoint file
     pages = [
         st.Page(
-            "src/ui/pages/jobs.py",
+            "ui/pages/jobs.py",
             title="Jobs",
             icon="📋",
             default=True,  # Preserves default behavior from old navigation
         ),
         st.Page(
-            "src/ui/pages/companies.py",
+            "ui/pages/companies.py",
             title="Companies",
             icon="🏢",
         ),
         st.Page(
-            "src/ui/pages/scraping.py",
+            "ui/pages/scraping.py",
             title="Scraping",
             icon="🔍",
         ),
         st.Page(
-            "src/ui/pages/settings.py",
+            "ui/pages/settings.py",
             title="Settings",
             icon="⚙️",
         ),
