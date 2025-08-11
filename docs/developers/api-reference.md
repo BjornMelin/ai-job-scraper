@@ -64,7 +64,10 @@ Provides methods for managing company records.
 
 Provides methods for querying and updating job records.
 
-* `get_filtered_jobs(filters: dict) -> list[JobSQL]`: The primary method for fetching jobs for the UI. Takes a dictionary of filter criteria.
+* `get_filtered_jobs(filters: dict, salary_min: int | None = None, salary_max: int | None = None) -> list[JobSQL]`: The primary method for fetching jobs for the UI. Takes a dictionary of filter criteria and optional salary range parameters.
+  * `salary_min`: Minimum salary filter (inclusive). Jobs with max salary >= this value are included.
+  * `salary_max`: Maximum salary filter (inclusive). Jobs with min salary <= this value are included. When set to 750000, acts as unbounded (includes all jobs >= 750k).
+  * The salary filtering uses smart overlap logic to match jobs whose salary range overlaps with the user's filter range.
 
 * `update_job_status(job_id: int, status: str) -> bool`
 
