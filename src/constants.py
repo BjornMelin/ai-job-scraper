@@ -68,3 +68,12 @@ AI_REGEX = re.compile(
 
 SEARCH_KEYWORDS = ["ai", "machine learning", "data science"]
 SEARCH_LOCATIONS = ["USA", "Remote"]
+
+# Salary filtering constants
+SALARY_UNBOUNDED_THRESHOLD = 750000  # Values at or above this are treated as unbounded
+SALARY_DEFAULT_MIN = 0
+SALARY_DEFAULT_MAX = SALARY_UNBOUNDED_THRESHOLD
+
+# UI constants for salary slider
+SALARY_SLIDER_STEP = 25000
+SALARY_SLIDER_FORMAT = "$%dk"

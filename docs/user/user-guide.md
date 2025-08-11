@@ -24,6 +24,8 @@ On the left sidebar, you have powerful tools to narrow down your search:
 
 * **Search Keywords:** Type any term (like "Python", "Remote", or "Senior") to search across job titles and descriptions.
 
+* **Salary Range:** Use the dual-handle slider to filter jobs by salary range. The slider ranges from $0 to $750k in $25k increments. When you set the maximum to $750k, it automatically includes all jobs above that amount (shown as "$750k+"), capturing executive and high-paying technical positions that may exceed $1M/year.
+
 * **Date Range:** Use the date pickers to find jobs posted within a specific timeframe.
 
 ### Application Tracking

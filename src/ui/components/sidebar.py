@@ -10,10 +10,17 @@ import logging
 import pandas as pd
 import streamlit as st
 
+from src.constants import (
+    SALARY_DEFAULT_MAX,
+    SALARY_SLIDER_FORMAT,
+    SALARY_SLIDER_STEP,
+    SALARY_UNBOUNDED_THRESHOLD,
+)
 
 # Removed direct database import - using service layer instead
 from src.services.company_service import CompanyService
 from src.ui.state.session_state import clear_filters
+from src.ui.utils.formatters import format_salary
 
 logger = logging.getLogger(__name__)
 
@@ -86,11 +93,45 @@ def _render_search_filters() -> None:
                 help="Show jobs posted before this date",
             )
 
-        # Update date filters
-        current_filters = st.session_state.filters.copy()
-        current_filters["date_from"] = date_from
-        current_filters["date_to"] = date_to
-        st.session_state.filters = current_filters
+        # Update date filters using single update call
+        st.session_state.filters.update(
+            {
+                "date_from": date_from,
+                "date_to": date_to,
+            }
+        )
+
+        # Salary range filter with high-value support
+        st.markdown("**Salary Range**")
+        current_salary_min = st.session_state.filters.get("salary_min", 0)
+        current_salary_max = st.session_state.filters.get(
+            "salary_max", SALARY_DEFAULT_MAX
+        )
+
+        salary_range = st.slider(
+            "Annual Salary Range",
+            min_value=0,
+            max_value=SALARY_UNBOUNDED_THRESHOLD,
+            value=(current_salary_min, current_salary_max),
+            step=SALARY_SLIDER_STEP,
+            format=SALARY_SLIDER_FORMAT,
+            help=(
+                f"Filter jobs by annual salary range (in USD). "
+                f"Set max to {format_salary(SALARY_UNBOUNDED_THRESHOLD)}+ "
+                f"to include all high-value positions."
+            ),
+        )
+
+        # Update salary filters using single update call
+        st.session_state.filters.update(
+            {
+                "salary_min": salary_range[0],
+                "salary_max": salary_range[1],
+            }
+        )
+
+        # Display formatted salary range with improved formatting
+        _display_salary_range(salary_range)
 
         # Clear filters button
         if st.button("Clear All Filters", use_container_width=True):
@@ -209,6 +250,28 @@ def _render_add_company_form() -> None:
             "+ Add Company", use_container_width=True, type="primary"
         ):
             _handle_add_company(new_name, new_url)
+
+
+def _display_salary_range(salary_range: tuple[int, int]) -> None:
+    """Display selected salary range with improved formatting and high-value indicators.
+
+    Args:
+        salary_range: Tuple containing (min_salary, max_salary) values.
+    """
+    min_val, max_val = salary_range
+    is_filtered = min_val > 0 or max_val < SALARY_UNBOUNDED_THRESHOLD
+    is_high_value = max_val >= SALARY_UNBOUNDED_THRESHOLD
+
+    if not is_filtered:
+        st.caption("💰 Showing all salary ranges")
+        return
+
+    # Always show selected range (clamp to threshold for display)
+    top = SALARY_UNBOUNDED_THRESHOLD if is_high_value else max_val
+    st.caption(f"💰 Selected: {format_salary(min_val)} - {format_salary(top)}")
+
+    if is_high_value:
+        st.caption(f"💡 Including all positions above {format_salary(max_val)}")
 
 
 def _handle_add_company(name: str, url: str) -> None:

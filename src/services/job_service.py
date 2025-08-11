@@ -13,6 +13,7 @@ from typing import Any
 from sqlalchemy import func, or_
 from sqlalchemy.orm import joinedload
 from sqlmodel import select
+from src.constants import SALARY_DEFAULT_MIN, SALARY_UNBOUNDED_THRESHOLD
 from src.database import db_session
 from src.models import CompanySQL, JobSQL
 from src.schemas import Job
@@ -82,6 +83,8 @@ class JobService:
                 - date_from: Start date for filtering
                 - date_to: End date for filtering
                 - favorites_only: Boolean to show only favorites
+                - salary_min: Minimum salary filter (int or None)
+                - salary_max: Maximum salary filter (int or None)
 
         Returns:
             List of Job DTO objects matching the filter criteria.
@@ -131,6 +134,27 @@ class JobService:
                 # Apply favorites filter
                 if filters.get("favorites_only", False):
                     query = query.filter(JobSQL.favorite.is_(True))
+
+                # Apply salary range filters with high-value support
+                salary_min = filters.get("salary_min")
+                if salary_min is not None and salary_min > SALARY_DEFAULT_MIN:
+                    # Filter where job's max salary is >= our minimum requirement
+                    # This ensures the job's range overlaps with our minimum
+                    query = query.filter(
+                        func.json_extract(JobSQL.salary, "$[1]") >= salary_min
+                    )
+
+                salary_max = filters.get("salary_max")
+                if salary_max is not None and salary_max < SALARY_UNBOUNDED_THRESHOLD:
+                    # Only apply upper limit filter if max is below unbounded threshold
+                    # This treats threshold value as "unbounded" for high-value jobs
+                    # Filter where job's min salary is <= our maximum requirement
+                    query = query.filter(
+                        func.json_extract(JobSQL.salary, "$[0]") <= salary_max
+                    )
+                # Note: When salary_max >= SALARY_UNBOUNDED_THRESHOLD, no upper limit
+                # is applied, effectively including all high-value positions above
+                # the threshold
 
                 # Filter out archived jobs by default
                 if not filters.get("include_archived", False):
