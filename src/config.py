@@ -23,8 +23,8 @@ class Settings(BaseSettings):
         env_file=".env", env_ignore_empty=True, extra="ignore"
     )
 
-    openai_api_key: str
-    groq_api_key: str
+    openai_api_key: str = ""
+    groq_api_key: str = ""
     use_groq: bool = False
     proxy_pool: list[str] = []
     use_proxies: bool = False

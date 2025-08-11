@@ -8,13 +8,14 @@ The module also includes salary parsing functionality with comprehensive
 regex patterns for handling various salary formats from job boards.
 """
 
+import hashlib
 import re
 
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
 
-from pydantic import computed_field, field_validator
+from pydantic import computed_field, field_validator, model_validator
 from sqlalchemy.types import JSON
 from sqlmodel import Column, Field, Relationship, SQLModel
 
@@ -116,6 +117,8 @@ class JobSQL(SQLModel, table=True):
         archived: Flag indicating if the job is archived (soft delete).
     """
 
+    model_config = {"validate_assignment": True}
+
     id: int | None = Field(default=None, primary_key=True)
     company_id: int | None = Field(default=None, foreign_key="companysql.id")
     title: str
@@ -128,7 +131,7 @@ class JobSQL(SQLModel, table=True):
     )
     favorite: bool = False
     notes: str = ""
-    content_hash: str = Field(index=True)
+    content_hash: str = Field(default="", index=True)
     application_status: str = Field(default="New", index=True)
     application_date: datetime | None = None
     archived: bool = Field(default=False, index=True)
@@ -362,6 +365,33 @@ class JobSQL(SQLModel, table=True):
             return [int(val * 12) for val in values]
         return values
 
+    @model_validator(mode="before")
+    @classmethod
+    def generate_content_hash(cls, data):
+        """Auto-generate content hash from job content if not provided.
+
+        Creates a deterministic hash from title, description, and link
+        to enable duplicate detection and content fingerprinting.
+        """
+        # Convert object to dict if needed
+        if not isinstance(data, dict):
+            return data
+
+        # Only generate if content_hash is not provided or is empty
+        if not data.get("content_hash"):
+            title = data.get("title", "")
+            description = data.get("description", "")
+            link = data.get("link", "")
+
+            # Create deterministic content string from key job fields
+            content = f"{title}|{description}|{link}"
+
+            # Generate MD5 hash (acceptable for non-cryptographic fingerprinting)
+            generated_hash = hashlib.md5(content.encode("utf-8")).hexdigest()
+            data["content_hash"] = generated_hash
+
+        return data
+
     @field_validator("salary", mode="before")
     @classmethod
     def parse_salary(cls, value: str | SalaryTuple | None) -> SalaryTuple:
@@ -465,3 +495,34 @@ class JobSQL(SQLModel, table=True):
             return (min(parsed_nums), max(parsed_nums))
 
         return (None, None)
+
+    @classmethod
+    def create_validated(cls, **data) -> "JobSQL":
+        """Create a JobSQL instance with proper Pydantic validation.
+
+        This factory method ensures that Pydantic validators (including model_validator)
+        are executed properly, working around the SQLAlchemy + Pydantic v2 integration
+        issue.
+
+        Args:
+            **data: Job data to validate and create instance from.
+
+        Returns:
+            JobSQL: Validated JobSQL instance with content_hash generated.
+
+        Example:
+            job = JobSQL.create_validated(
+                title="Software Engineer",
+                description="Great role...",
+                link="https://example.com/job/123"
+            )
+        """
+        # Step 1: Use Pydantic's validation on the raw data
+        validated_data = cls.model_validate(data)
+
+        # Step 2: Extract the validated data and create SQLModel instance
+        clean_data = validated_data.model_dump()
+
+        # Step 3: Create the actual table instance (bypasses validation but uses
+        # clean data)
+        return cls(**clean_data)

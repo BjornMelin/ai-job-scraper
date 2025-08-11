@@ -67,8 +67,7 @@ def test_job_crud_operations(session: Session):
     and deleted from the database with proper field handling including
     salary tuples and user-specific fields like favorites and notes.
     """
-    job = JobSQL(
-        company="CRUD Co",
+    job = JobSQL.create_validated(
         title="CRUD Job",
         description="Test desc",
         link="https://crud.co/job",
@@ -101,15 +100,14 @@ def test_job_filtering_queries(session: Session):
     """Test database query filtering capabilities.
 
     Creates sample jobs with different attributes and tests
-    filtering by company name and date ranges to ensure
+    filtering by location and date ranges to ensure
     query operations work correctly.
     """
     now = datetime.now(timezone.utc)
     yesterday = now - timedelta(days=1)
 
     jobs = [
-        JobSQL(
-            company="A",
+        JobSQL.create_validated(
             title="AI Eng",
             description="AI",
             link="a1",
@@ -117,8 +115,7 @@ def test_job_filtering_queries(session: Session):
             posted_date=now,
             salary=(None, None),
         ),
-        JobSQL(
-            company="B",
+        JobSQL.create_validated(
             title="ML Eng",
             description="ML",
             link="b1",
@@ -130,8 +127,8 @@ def test_job_filtering_queries(session: Session):
     session.add_all(jobs)
     session.commit()
 
-    company_a = (session.exec(select(JobSQL).where(JobSQL.company == "A"))).all()
-    assert len(company_a) == 1
+    sf_jobs = (session.exec(select(JobSQL).where(JobSQL.location == "SF"))).all()
+    assert len(sf_jobs) == 1
 
     recent = (session.exec(select(JobSQL).where(JobSQL.posted_date >= yesterday))).all()
     assert len(recent) == 2
@@ -155,8 +152,7 @@ def test_database_constraints(session: Session):
         session.commit()
     session.rollback()
 
-    job1 = JobSQL(
-        company="Const Co",
+    job1 = JobSQL.create_validated(
         title="Job1",
         description="Desc",
         link="https://const.co/job",
@@ -166,8 +162,7 @@ def test_database_constraints(session: Session):
     session.add(job1)
     session.commit()
 
-    job2 = JobSQL(
-        company="Const Co",
+    job2 = JobSQL.create_validated(
         title="Job2",
         description="Desc2",
         link="https://const.co/job",
@@ -191,8 +186,7 @@ def test_database_rollback(session: Session):
     session.commit()
 
     try:
-        job = JobSQL(
-            company="Rollback Co",
+        job = JobSQL.create_validated(
             title="Rollback Job",
             description="Desc",
             link="https://rollback.co/job",
@@ -201,8 +195,7 @@ def test_database_rollback(session: Session):
         )
         session.add(job)
 
-        invalid_job = JobSQL(
-            company="Rollback Co",
+        invalid_job = JobSQL.create_validated(
             title="Invalid",
             description="Invalid",
             link="https://rollback.co/job",
@@ -214,7 +207,9 @@ def test_database_rollback(session: Session):
     except Exception:
         session.rollback()
 
-    jobs = (session.exec(select(JobSQL).where(JobSQL.company == "Rollback Co"))).all()
+    jobs = (
+        session.exec(select(JobSQL).where(JobSQL.link.contains("rollback.co")))
+    ).all()
     assert len(jobs) == 0
 
     companies = (

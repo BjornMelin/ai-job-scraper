@@ -228,6 +228,9 @@ ignore = [
 "src/services/database_sync.py" = [
     "S324", # Use of insecure MD5 hash function (acceptable for non-cryptographic content fingerprinting)
 ]
+"src/models.py" = [
+    "S324", # Use of insecure MD5 hash function (acceptable for non-cryptographic content fingerprinting)
+]
 "src/app_cli.py" = [
     "S603", # subprocess call with controlled input (safe CLI launcher)
 ]

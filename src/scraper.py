@@ -6,7 +6,6 @@ the database by upserting current jobs and deleting stale ones. It preserves
 user-defined fields like favorites during updates.
 """
 
-import hashlib
 import logging
 
 from collections.abc import Sequence
@@ -224,17 +223,8 @@ def _normalize_board_jobs(board_jobs_raw: Sequence[dict]) -> list[JobSQL]:
                     )
                     continue
 
-                # Create content hash for change detection
-                # Using SHA-256 for content fingerprinting
-                # (secure hash for data integrity)
-                title = raw.get("title", "")
-                description = raw.get("description", "")
-                company = raw.get("company", "")
-                content = f"{title}{description}{company}"
-                content_hash = hashlib.sha256(content.encode()).hexdigest()
-
-                # Create JobSQL object
-                job = JobSQL(
+                # Use factory method to ensure proper validation and hash generation
+                job = JobSQL.create_validated(
                     title=raw.get("title", ""),
                     company_id=company_id,
                     description=raw.get("description", ""),
@@ -242,7 +232,6 @@ def _normalize_board_jobs(board_jobs_raw: Sequence[dict]) -> list[JobSQL]:
                     link=raw.get("job_url", ""),
                     posted_date=raw.get("date_posted"),
                     salary=salary,
-                    content_hash=content_hash,
                     application_status="New",
                     last_seen=datetime.now(timezone.utc),
                 )
