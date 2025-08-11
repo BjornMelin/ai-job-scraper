@@ -5,11 +5,16 @@ handling page configuration, theme loading, and navigation using Streamlit's
 built-in st.navigation() for optimal performance and maintainability.
 """
 
+import logging
+
 import streamlit as st
 
+from src.db.migrations import run_migrations
 from src.ui.state.session_state import init_session_state
 from src.ui.styles.theme import load_theme
 from src.ui.utils.database_utils import render_database_health_widget
+
+logger = logging.getLogger(__name__)
 
 
 def main() -> None:
@@ -18,6 +23,10 @@ def main() -> None:
     Configures the Streamlit page, loads theme, initializes state management,
     and sets up navigation using library-first st.navigation() approach.
     """
+    # Run database migrations BEFORE any Streamlit operations
+    # This ensures the database schema is up to date on every startup
+    run_migrations()
+
     # Configure Streamlit page
     st.set_page_config(
         page_title="AI Job Scraper",
