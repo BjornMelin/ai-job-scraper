@@ -17,8 +17,7 @@ from src.ui.utils.background_tasks import (
     stop_all_scraping,
 )
 
-# Import UI test fixtures
-pytest_plugins = ["tests.ui.conftest"]
+# UI test fixtures are auto-loaded from conftest.py files
 
 
 class TestWorkflowIntegration:

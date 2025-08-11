@@ -64,7 +64,7 @@ class TestAddCompanyCallback:
         _add_company_callback()
 
         # Assert
-        mock_company_service.add_company.assert_not_called()
+        mock_company_service["companies_page"].add_company.assert_not_called()
         assert mock_session_state["add_company_error"] == "Company name is required"
 
     def test_add_company_with_empty_url_shows_validation_error(
@@ -78,7 +78,7 @@ class TestAddCompanyCallback:
         _add_company_callback()
 
         # Assert
-        mock_company_service.add_company.assert_not_called()
+        mock_company_service["companies_page"].add_company.assert_not_called()
         assert mock_session_state["add_company_error"] == "Company URL is required"
 
     def test_add_duplicate_company_shows_validation_error(
@@ -90,7 +90,7 @@ class TestAddCompanyCallback:
             {"company_name": "TechCorp", "company_url": "https://techcorp.com/careers"}
         )
 
-        mock_company_service.add_company.side_effect = ValueError(
+        mock_company_service["companies_page"].add_company.side_effect = ValueError(
             "Company 'TechCorp' already exists"
         )
 
@@ -212,7 +212,7 @@ class TestShowCompaniesPage:
     ):
         """Test companies page displays correct title and description."""
         # Arrange
-        mock_company_service.get_all_companies.return_value = []
+        mock_company_service["companies_page"].get_all_companies.return_value = []
 
         # Act
         show_companies_page()
@@ -244,11 +244,13 @@ class TestShowCompaniesPage:
         mock_streamlit,
         mock_session_state,
         mock_company_service,
-        sample_companies,
+        sample_companies_dto,
     ):
         """Test companies page displays list of companies with details."""
         # Arrange
-        mock_company_service.get_all_companies.return_value = sample_companies
+        mock_company_service[
+            "companies_page"
+        ].get_all_companies.return_value = sample_companies_dto
 
         # Act
         show_companies_page()
@@ -269,11 +271,13 @@ class TestShowCompaniesPage:
         mock_streamlit,
         mock_session_state,
         mock_company_service,
-        sample_companies,
+        sample_companies_dto,
     ):
         """Test companies page displays accurate summary statistics."""
         # Arrange
-        mock_company_service.get_all_companies.return_value = sample_companies
+        mock_company_service[
+            "companies_page"
+        ].get_all_companies.return_value = sample_companies_dto
 
         # Act
         show_companies_page()
@@ -303,11 +307,13 @@ class TestShowCompaniesPage:
         mock_streamlit,
         mock_session_state,
         mock_company_service,
-        sample_companies,
+        sample_companies_dto,
     ):
         """Test companies page renders toggle controls for each company."""
         # Arrange
-        mock_company_service.get_all_companies.return_value = sample_companies
+        mock_company_service[
+            "companies_page"
+        ].get_all_companies.return_value = sample_companies_dto
 
         # Act
         show_companies_page()
@@ -316,10 +322,10 @@ class TestShowCompaniesPage:
         toggle_calls = mock_streamlit["toggle"].call_args_list
 
         # Verify toggles are created for each company
-        assert len(toggle_calls) == len(sample_companies)
+        assert len(toggle_calls) == len(sample_companies_dto)
 
         # Check toggle keys and values match companies
-        for i, company in enumerate(sample_companies):
+        for i, company in enumerate(sample_companies_dto):
             call_args = toggle_calls[i]
             assert call_args.kwargs["value"] == company.active
             assert call_args.kwargs["key"] == f"company_active_{company.id}"
@@ -332,7 +338,7 @@ class TestShowCompaniesPage:
     ):
         """Test companies page displays add company form with proper structure."""
         # Arrange
-        mock_company_service.get_all_companies.return_value = []
+        mock_company_service["companies_page"].get_all_companies.return_value = []
 
         # Act
         show_companies_page()
@@ -367,7 +373,7 @@ class TestShowCompaniesPage:
                 "toggle_error": None,
             }
         )
-        mock_company_service.get_all_companies.return_value = []
+        mock_company_service["companies_page"].get_all_companies.return_value = []
 
         # Act
         show_companies_page()
@@ -384,7 +390,9 @@ class TestShowCompaniesPage:
     ):
         """Test companies page handles service failure gracefully."""
         # Arrange
-        mock_company_service.get_all_companies.side_effect = Exception("Database error")
+        mock_company_service[
+            "companies_page"
+        ].get_all_companies.side_effect = Exception("Database error")
 
         # Act
         show_companies_page()
@@ -425,7 +433,9 @@ class TestShowCompaniesPage:
     ):
         """Test companies page calculates statistics correctly for various scenarios."""
         # Arrange
-        mock_company_service.get_all_companies.return_value = company_count
+        mock_company_service[
+            "companies_page"
+        ].get_all_companies.return_value = company_count
 
         # Act
         show_companies_page()

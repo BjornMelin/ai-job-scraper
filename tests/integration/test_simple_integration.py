@@ -7,8 +7,7 @@ from src.ui.utils.background_tasks import (
     start_background_scraping,
 )
 
-# Import UI test fixtures
-pytest_plugins = ["tests.ui.conftest"]
+# UI test fixtures are auto-loaded from conftest.py files
 
 
 class TestSimpleIntegration:

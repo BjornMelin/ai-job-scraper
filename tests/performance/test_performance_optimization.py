@@ -15,7 +15,7 @@ import pytest
 
 from src.database import SessionLocal, create_db_and_tables
 from src.models import CompanySQL
-from src.scraper import bulk_get_or_create_companies
+from src.services.company_service import CompanyService
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -66,7 +66,9 @@ def test_bulk_company_performance():
     with SessionLocal() as session:
         # Measure bulk operation performance
         start_time = time.time()
-        company_map = bulk_get_or_create_companies(session, test_companies)
+        company_map = CompanyService.bulk_get_or_create_companies(
+            session, test_companies
+        )
         bulk_time = time.time() - start_time
 
         session.commit()

@@ -225,7 +225,7 @@ def mock_session_state():
 
 
 @pytest.fixture
-def sample_company():
+def sample_company_dto():
     """Create a sample company DTO for testing."""
     return Company(
         id=1,
@@ -239,7 +239,7 @@ def sample_company():
 
 
 @pytest.fixture
-def sample_companies():
+def sample_companies_dto():
     """Create a list of sample company DTOs for testing."""
     return [
         Company(
@@ -273,7 +273,7 @@ def sample_companies():
 
 
 @pytest.fixture
-def sample_job():
+def sample_job_dto():
     """Create a sample job DTO for testing."""
     return Job(
         id=1,
@@ -299,7 +299,7 @@ def sample_job():
 
 
 @pytest.fixture
-def sample_jobs():
+def sample_jobs_dto():
     """Create a list of sample job DTOs for testing."""
     base_time = datetime.now(timezone.utc)
 

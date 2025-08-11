@@ -434,6 +434,7 @@ ignored-modules = [
 
 [dependency-groups]
 dev = [
+    "psutil>=7.0.0",
     "pylint>=3.3.7",
     "pytest-asyncio>=1.1.0",
     "pytest-cov>=6.2.1",

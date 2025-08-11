@@ -530,10 +530,10 @@ def _render_statistics_dashboard(jobs: list[Job]) -> None:
     # Calculate statistics
     total_jobs = len(jobs)
     favorites = sum(j.favorite for j in jobs)
-    applied = sum(j.status == "Applied" for j in jobs)
-    interested = sum(j.status == "Interested" for j in jobs)
-    new_jobs = sum(j.status == "New" for j in jobs)
-    rejected = sum(j.status == "Rejected" for j in jobs)
+    applied = sum(j.application_status == "Applied" for j in jobs)
+    interested = sum(j.application_status == "Interested" for j in jobs)
+    new_jobs = sum(j.application_status == "New" for j in jobs)
+    rejected = sum(j.application_status == "Rejected" for j in jobs)
 
     # Render metric cards
     _render_metric_cards(

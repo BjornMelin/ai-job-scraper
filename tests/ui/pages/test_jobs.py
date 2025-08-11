@@ -17,40 +17,54 @@ from src.ui.pages.jobs import (
     _render_job_tabs,
     _render_page_header,
     _render_statistics_dashboard,
-    _save_job_notes,
     render_jobs_page,
-    show_job_details_modal,
 )
 
 
 class TestJobDetailsModal:
     """Test job details modal functionality."""
 
-    def test_show_job_details_modal_displays_job_info(self, mock_streamlit, sample_job):
+    def test_show_job_details_modal_displays_job_info(
+        self, mock_streamlit, sample_job_dto
+    ):
         """Test modal displays complete job information."""
-        # Act
-        show_job_details_modal(sample_job)
+        # Act - Test the underlying functions directly
+        from src.ui.helpers.job_modal import (
+            render_job_description,
+            render_job_header,
+            render_job_status,
+            render_notes_section,
+        )
 
-        # Assert
+        # Call the functions directly to test their behavior
+        render_job_header(sample_job_dto)
+        render_job_status(sample_job_dto)
+        render_notes_section(sample_job_dto)
+        render_job_description(sample_job_dto)
+
+        # Assert markdown calls contain job information
         markdown_calls = [
             call.args[0] for call in mock_streamlit["markdown"].call_args_list
         ]
 
         # Check that key job information is displayed
-        assert any(sample_job.title in call for call in markdown_calls)
-        assert any(sample_job.company in call for call in markdown_calls)
-        assert any(sample_job.location in call for call in markdown_calls)
-        assert any(sample_job.description in call for call in markdown_calls)
+        html_content = " ".join(markdown_calls)
+        assert sample_job_dto.title in html_content
+        assert sample_job_dto.company in html_content
+        assert sample_job_dto.location in html_content
+        assert sample_job_dto.description in html_content
 
     def test_show_job_details_modal_displays_status_with_icon(
-        self, mock_streamlit, sample_job
+        self, mock_streamlit, sample_job_dto
     ):
         """Test modal displays application status with appropriate icon."""
         # Arrange
-        sample_job.application_status = "Applied"
+        sample_job_dto.application_status = "Applied"
 
-        # Act
-        show_job_details_modal(sample_job)
+        # Act - Test helper function directly
+        from src.ui.helpers.job_modal import render_job_status
+
+        render_job_status(sample_job_dto)
 
         # Assert
         markdown_calls = [
@@ -62,26 +76,30 @@ class TestJobDetailsModal:
         assert status_calls
 
     def test_show_job_details_modal_creates_notes_text_area(
-        self, mock_streamlit, sample_job
+        self, mock_streamlit, sample_job_dto
     ):
         """Test modal creates text area for job notes."""
-        # Act
-        show_job_details_modal(sample_job)
+        # Act - Test helper function directly
+        from src.ui.helpers.job_modal import render_notes_section
+
+        render_notes_section(sample_job_dto)
 
         # Assert
         text_area_calls = mock_streamlit["text_area"].call_args_list
         notes_call = text_area_calls[0]  # Should be the first (and only) text area
 
         assert notes_call.args[0] == "Your notes about this position"
-        assert notes_call.kwargs["key"] == f"modal_notes_{sample_job.id}"
-        assert notes_call.kwargs["value"] == (sample_job.notes or "")
+        assert notes_call.kwargs["key"] == f"modal_notes_{sample_job_dto.id}"
+        assert notes_call.kwargs["value"] == (sample_job_dto.notes or "")
 
     def test_show_job_details_modal_creates_action_buttons(
-        self, mock_streamlit, sample_job
+        self, mock_streamlit, sample_job_dto
     ):
         """Test modal creates save notes, apply now, and close buttons."""
-        # Act
-        show_job_details_modal(sample_job)
+        # Act - Test helper function directly
+        from src.ui.helpers.job_modal import render_action_buttons
+
+        render_action_buttons(sample_job_dto, "test notes")
 
         # Assert
         button_calls = mock_streamlit["button"].call_args_list
@@ -91,14 +109,16 @@ class TestJobDetailsModal:
         assert "Close" in button_labels
 
     def test_show_job_details_modal_creates_apply_link_button(
-        self, mock_streamlit, sample_job
+        self, mock_streamlit, sample_job_dto
     ):
         """Test modal creates apply now link button when job has link."""
         # Arrange
-        sample_job.link = "https://example.com/apply"
+        sample_job_dto.link = "https://example.com/apply"
 
-        # Act
-        show_job_details_modal(sample_job)
+        # Act - Test helper function directly
+        from src.ui.helpers.job_modal import render_action_buttons
+
+        render_action_buttons(sample_job_dto, "test notes")
 
         # Assert
         link_button_calls = mock_streamlit["link_button"].call_args_list
@@ -106,36 +126,10 @@ class TestJobDetailsModal:
 
         apply_button = link_button_calls[0]
         assert apply_button.args[0] == "Apply Now"
-        assert apply_button.args[1] == sample_job.link
+        assert apply_button.args[1] == sample_job_dto.link
 
-    def test_save_job_notes_updates_notes_via_service(self, mock_job_service):
-        """Test saving job notes calls service to update notes."""
-        # Arrange
-        job_id = 1
-        new_notes = "Updated notes content"
-        mock_job_service.update_notes.return_value = True
-
-        with patch("streamlit.success") as mock_success:
-            # Act
-            _save_job_notes(job_id, new_notes)
-
-            # Assert
-            mock_job_service.update_notes.assert_called_once_with(job_id, new_notes)
-            mock_success.assert_called_once_with("Notes saved successfully!")
-
-    def test_save_job_notes_handles_service_failure(self, mock_job_service):
-        """Test saving job notes handles service failure gracefully."""
-        # Arrange
-        job_id = 1
-        new_notes = "Updated notes"
-        mock_job_service.update_notes.side_effect = Exception("Database error")
-
-        with patch("streamlit.error") as mock_error:
-            # Act
-            _save_job_notes(job_id, new_notes)
-
-            # Assert
-            mock_error.assert_called_once_with("Failed to update notes")
+    # Note: Save job notes functionality is now handled through data editor
+    # These tests are removed as the function _save_job_notes no longer exists
 
 
 class TestJobDetailsModalHandling:
@@ -144,36 +138,36 @@ class TestJobDetailsModalHandling:
     def test_handle_job_details_modal_shows_modal_when_job_selected(
         self,
         mock_streamlit,  # pylint: disable=unused-argument
-        sample_jobs,
+        sample_jobs_dto,
         mock_session_state,
     ):
         """Test modal handler shows modal when job is selected."""
         # Arrange
-        mock_session_state["view_job_id"] = sample_jobs[0].id
+        mock_session_state["view_job_id"] = sample_jobs_dto[0].id
 
         with patch("src.ui.pages.jobs.show_job_details_modal") as mock_show_modal:
             # Act
-            _handle_job_details_modal(sample_jobs)
+            _handle_job_details_modal(sample_jobs_dto)
 
             # Assert
-            mock_show_modal.assert_called_once_with(sample_jobs[0])
+            mock_show_modal.assert_called_once_with(sample_jobs_dto[0])
 
     def test_handle_job_details_modal_clears_selection_when_job_not_found(
-        self, sample_jobs, mock_session_state
+        self, sample_jobs_dto, mock_session_state
     ):
         """Test modal handler clears selection when job not found in current list."""
         # Arrange
         mock_session_state["view_job_id"] = 999  # Non-existent job ID
 
         # Act
-        _handle_job_details_modal(sample_jobs)
+        _handle_job_details_modal(sample_jobs_dto)
 
         # Assert
         assert mock_session_state["view_job_id"] is None
 
     def test_handle_job_details_modal_does_nothing_when_no_job_selected(
         self,
-        sample_jobs,
+        sample_jobs_dto,
         mock_session_state,
     ):
         """Test modal handler does nothing when no job is selected."""
@@ -181,7 +175,7 @@ class TestJobDetailsModalHandling:
 
         with patch("src.ui.pages.jobs.show_job_details_modal") as mock_show_modal:
             # Act
-            _handle_job_details_modal(sample_jobs)
+            _handle_job_details_modal(sample_jobs_dto)
 
             # Assert
             mock_show_modal.assert_not_called()
@@ -228,7 +222,7 @@ class TestJobActionBar:
     ):
         """Test action bar creates refresh jobs button."""
         # Arrange
-        mock_company_service.get_active_companies_count.return_value = 3
+        mock_company_service["jobs_page"].get_active_companies_count.return_value = 3
 
         # Act
         _render_action_bar()
@@ -361,11 +355,26 @@ class TestJobTabs:
     """Test job tabs rendering and functionality."""
 
     def test_render_job_tabs_creates_three_tabs_with_counts(
-        self, mock_streamlit, sample_jobs
+        self, mock_streamlit, sample_jobs_dto, mock_job_service, mock_session_state
     ):
         """Test job tabs creates all jobs, favorites, and applied tabs with counts."""
+        # Arrange - configure service mocks to return filtered data and session state
+        favorites = [j for j in sample_jobs_dto if j.favorite]
+        applied = [j for j in sample_jobs_dto if j.application_status == "Applied"]
+
+        # Initialize session state filters
+        mock_session_state.filters = {}
+
+        mock_job_service["jobs_page"].get_filtered_jobs.side_effect = lambda filters: (
+            favorites
+            if filters.get("favorites_only")
+            else applied
+            if filters.get("application_status") == ["Applied"]
+            else sample_jobs_dto
+        )
+
         # Act
-        _render_job_tabs(sample_jobs)
+        _render_job_tabs(sample_jobs_dto)
 
         # Assert
         tabs_calls = mock_streamlit["tabs"].call_args_list
@@ -375,7 +384,7 @@ class TestJobTabs:
         assert len(tab_labels) == 3
 
         # Check tab labels contain correct counts
-        # Based on sample_jobs: 4 total, 2 favorites, 1 applied
+        # Based on sample_jobs_dto: 4 total, 2 favorites, 1 applied
         assert "All Jobs 📋 (4)" in tab_labels
         assert "Favorites ⭐ (2)" in tab_labels
         assert "Applied ✅ (1)" in tab_labels
@@ -441,11 +450,11 @@ class TestJobStatistics:
     """Test job statistics dashboard."""
 
     def test_render_statistics_dashboard_displays_metrics(
-        self, mock_streamlit, sample_jobs
+        self, mock_streamlit, sample_jobs_dto
     ):
         """Test statistics dashboard displays all job metrics."""
         # Act
-        _render_statistics_dashboard(sample_jobs)
+        _render_statistics_dashboard(sample_jobs_dto)
 
         # Assert
         markdown_calls = [
@@ -461,11 +470,11 @@ class TestJobStatistics:
         assert "2" in html_content  # Favorites (2 jobs marked as favorite)
 
     def test_render_statistics_dashboard_calculates_application_rate(
-        self, mock_streamlit, sample_jobs
+        self, mock_streamlit, sample_jobs_dto
     ):
         """Test statistics dashboard calculates correct application rate."""
         # Act
-        _render_statistics_dashboard(sample_jobs)
+        _render_statistics_dashboard(sample_jobs_dto)
 
         # Assert
         markdown_calls = [
@@ -477,11 +486,11 @@ class TestJobStatistics:
         assert "25.0%" in html_content or "25%" in html_content
 
     def test_render_statistics_dashboard_displays_progress_bars(
-        self, mock_streamlit, sample_jobs
+        self, mock_streamlit, sample_jobs_dto
     ):
         """Test statistics dashboard displays progress bars for job statuses."""
         # Act
-        _render_statistics_dashboard(sample_jobs)
+        _render_statistics_dashboard(sample_jobs_dto)
 
         # Assert
         progress_calls = mock_streamlit["progress"].call_args_list
@@ -498,20 +507,20 @@ class TestJobFiltering:
     ):
         """Test job filtering calls service with correct filter parameters."""
         # Arrange
-        mock_session_state["filters"] = {
+        mock_session_state.filters = {
             "keyword": "engineer",
             "company": ["Tech Corp"],
             "date_from": None,
             "date_to": None,
         }
-        mock_job_service.get_filtered_jobs.return_value = []
+        mock_job_service["jobs_page"].get_filtered_jobs.return_value = []
 
         # Act
         _get_filtered_jobs()
 
         # Assert
-        mock_job_service.get_filtered_jobs.assert_called_once()
-        call_args = mock_job_service.get_filtered_jobs.call_args[0][0]
+        mock_job_service["jobs_page"].get_filtered_jobs.assert_called_once()
+        call_args = mock_job_service["jobs_page"].get_filtered_jobs.call_args[0][0]
 
         assert call_args["text_search"] == "engineer"
         assert call_args["company"] == ["Tech Corp"]
@@ -523,8 +532,10 @@ class TestJobFiltering:
     ):
         """Test job filtering handles service failure gracefully."""
         # Arrange
-        mock_session_state["filters"] = {}
-        mock_job_service.get_filtered_jobs.side_effect = Exception("Database error")
+        mock_session_state.filters = {}
+        mock_job_service["jobs_page"].get_filtered_jobs.side_effect = Exception(
+            "Database error"
+        )
 
         # Act
         result = _get_filtered_jobs()
@@ -545,9 +556,11 @@ class TestJobsPageIntegration:
         active_companies=3,
     ):
         """Common setup for jobs page tests."""
-        mock_session_state["filters"] = {}
-        mock_job_service.get_filtered_jobs.return_value = jobs
-        mock_company_service.get_active_companies_count.return_value = active_companies
+        mock_session_state.filters = {}
+        mock_job_service["jobs_page"].get_filtered_jobs.return_value = jobs
+        mock_company_service[
+            "jobs_page"
+        ].get_active_companies_count.return_value = active_companies
 
     def test_render_jobs_page_displays_complete_interface(  # pylint: disable=R0917
         self,
@@ -555,12 +568,12 @@ class TestJobsPageIntegration:
         mock_session_state,
         mock_job_service,
         mock_company_service,
-        sample_jobs,
+        sample_jobs_dto,
         ensure_proper_job_data_types,
     ):
         """Test complete jobs page renders all components."""
         # Arrange - ensure proper data types to prevent MagicMock string errors
-        validated_jobs = ensure_proper_job_data_types(sample_jobs)
+        validated_jobs = ensure_proper_job_data_types(sample_jobs_dto)
         self._setup_jobs_page_test(
             mock_session_state, mock_job_service, mock_company_service, validated_jobs
         )
@@ -719,6 +732,8 @@ class TestJobsPageIntegration:
     def test_job_tabs_calculate_correct_counts(
         self,
         mock_streamlit,
+        mock_session_state,
+        mock_job_service,
         request,
         scenario_name,
     ):
@@ -728,6 +743,21 @@ class TestJobsPageIntegration:
         jobs = scenario["jobs"]
         expected_favorites = scenario["expected_favorites"]
         expected_applied = scenario["expected_applied"]
+
+        # Initialize session state filters
+        mock_session_state.filters = {}
+
+        # Set up service mocks to return filtered data
+        favorites = [j for j in jobs if j.favorite] if jobs else []
+        applied = [j for j in jobs if j.application_status == "Applied"] if jobs else []
+
+        mock_job_service["jobs_page"].get_filtered_jobs.side_effect = lambda filters: (
+            favorites
+            if filters.get("favorites_only")
+            else applied
+            if filters.get("application_status") == ["Applied"]
+            else jobs
+        )
 
         # Act
         _render_job_tabs(jobs)
