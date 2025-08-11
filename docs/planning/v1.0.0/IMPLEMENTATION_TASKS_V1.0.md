@@ -185,7 +185,7 @@ The following tasks have been identified during the final QA review and must be 
 
 - **Priority**: **Medium**
 
-- **Status**: **PENDING**
+- **Status**: **✅ COMPLETED** (PR #32)
 
 - **Prerequisites**: `T1.1`, `T1.3`
 
@@ -196,15 +196,15 @@ The following tasks have been identified during the final QA review and must be 
 - **Description**: This task groups the remaining architectural and performance improvements identified during the QA review to enhance maintainability and UI responsiveness.
 
 - **Sub-tasks & Instructions**:
-  - **T1.6.1: Relocate `bulk_get_or_create_companies`**:
+  - **T1.6.1: Relocate `bulk_get_or_create_companies`**: ✅ **COMPLETED**
     - **Instructions**: Move the `bulk_get_or_create_companies` function from `src/scraper.py` to `src/services/company_service.py`.
     - **Instructions**: Update the import and function call within `src/scraper.py` to reflect the new location.
     - **Success Criteria**: The scraper module is now purely for orchestration, and all company-related database logic resides in the `CompanyService`.
-  - **T1.6.2: Optimize UI Tab Filtering**:
+  - **T1.6.2: Optimize UI Tab Filtering**: ✅ **COMPLETED**
     - **Instructions**: Modify `JobService.get_filtered_jobs` to accept `favorites_only: bool` and `application_status: list` as parameters to push filtering to the database.
     - **Instructions**: In `src/ui/pages/jobs.py`, update the "Favorites" and "Applied" tabs to call the service with these new parameters instead of filtering the full job list in Python.
     - **Success Criteria**: The UI remains functionally identical, but performance is significantly improved for large datasets as filtering now happens in the database.
-  - **T1.6.3: Centralize Application Status Constants**:
+  - **T1.6.3: Centralize Application Status Constants**: ✅ **COMPLETED**
     - **Instructions**: In `src/constants.py`, define a new constant: `APPLICATION_STATUSES = ["New", "Interested", "Applied", "Rejected"]`.
     - **Instructions**: In `src/ui/components/cards/job_card.py`, import and use this constant for the `st.selectbox` options, removing the hardcoded list.
     - **Success Criteria**: The application statuses are now managed from a single source of truth, reducing the risk of inconsistency.
