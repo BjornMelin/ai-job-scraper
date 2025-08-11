@@ -70,7 +70,7 @@ _PHRASES_TO_REMOVE: list[str] = [
 ]
 
 
-class CompanySQL(SQLModel, table=True):
+class CompanySQL(SQLModel, table=True, extend_existing=True):
     """SQLModel for company records.
 
     Attributes:
@@ -97,7 +97,7 @@ class CompanySQL(SQLModel, table=True):
     jobs: list["JobSQL"] = Relationship(back_populates="company_relation")
 
 
-class JobSQL(SQLModel, table=True):
+class JobSQL(SQLModel, table=True, extend_existing=True):
     """SQLModel for job records.
 
     Attributes:
