@@ -33,8 +33,41 @@ from src.models import CompanySQL, JobSQL  # noqa: F401, E402
 # Set target_metadata to SQLModel.metadata for autogenerate support
 target_metadata = SQLModel.metadata
 
+# Naming convention for cleaner constraint names
+NAMING_CONVENTION = {
+    "ix": "ix_%(column_0_label)s",
+    "uq": "uq_%(table_name)s_%(column_0_name)s",
+    "ck": "ck_%(table_name)s_%(constraint_name)s",
+    "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
+    "pk": "pk_%(table_name)s",
+}
+
+# Common configuration shared by online and offline modes
+COMMON_CFG = {
+    "target_metadata": target_metadata,
+    "compare_type": True,
+    "render_as_batch": True,  # Enable batch mode for SQLite
+    "naming_convention": NAMING_CONVENTION,
+}
+
 # other values from the config, defined by the needs of env.py,
 # can be acquired using config.get_main_option("option_name")
+
+
+def _configure_offline() -> None:
+    """Configure context for offline migrations."""
+    url = config.get_main_option("sqlalchemy.url")
+    context.configure(
+        url=url,
+        literal_binds=True,
+        dialect_opts={"paramstyle": "named"},
+        **COMMON_CFG,
+    )
+
+
+def _configure_online(connection) -> None:
+    """Configure context for online migrations."""
+    context.configure(connection=connection, **COMMON_CFG)
 
 
 def run_migrations_offline() -> None:
@@ -49,27 +82,7 @@ def run_migrations_offline() -> None:
     script output.
 
     """
-    url = config.get_main_option("sqlalchemy.url")
-
-    # Naming convention for cleaner constraint names
-    naming_convention = {
-        "ix": "ix_%(column_0_label)s",
-        "uq": "uq_%(table_name)s_%(column_0_name)s",
-        "ck": "ck_%(table_name)s_%(constraint_name)s",
-        "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
-        "pk": "pk_%(table_name)s",
-    }
-
-    context.configure(
-        url=url,
-        target_metadata=target_metadata,
-        literal_binds=True,
-        dialect_opts={"paramstyle": "named"},
-        compare_type=True,
-        render_as_batch=True,  # Enable batch mode for SQLite
-        naming_convention=naming_convention,
-    )
-
+    _configure_offline()
     with context.begin_transaction():
         context.run_migrations()
 
@@ -92,38 +105,15 @@ def run_migrations_online() -> None:
             poolclass=pool.NullPool,
         )
 
-    # Naming convention for cleaner constraint names
-    naming_convention = {
-        "ix": "ix_%(column_0_label)s",
-        "uq": "uq_%(table_name)s_%(column_0_name)s",
-        "ck": "ck_%(table_name)s_%(constraint_name)s",
-        "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
-        "pk": "pk_%(table_name)s",
-    }
-
     if hasattr(connectable, "connect"):
         # We have an engine, create a connection
         with connectable.connect() as connection:
-            context.configure(
-                connection=connection,
-                target_metadata=target_metadata,
-                compare_type=True,
-                render_as_batch=True,  # Enable batch mode for SQLite
-                naming_convention=naming_convention,
-            )
-
+            _configure_online(connection)
             with context.begin_transaction():
                 context.run_migrations()
     else:
         # We already have a connection
-        context.configure(
-            connection=connectable,
-            target_metadata=target_metadata,
-            compare_type=True,
-            render_as_batch=True,  # Enable batch mode for SQLite
-            naming_convention=naming_convention,
-        )
-
+        _configure_online(connectable)
         with context.begin_transaction():
             context.run_migrations()
 

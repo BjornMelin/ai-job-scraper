@@ -54,22 +54,51 @@ def startup_alembic_dir() -> Generator[Path, None, None]:
         versions_dir = alembic_dir / "versions"
         versions_dir.mkdir()
 
+        # Create script.py.mako template required for autogenerate
+        script_mako = alembic_dir / "script.py.mako"
+        script_mako.write_text("""\"\"\"${message}
+
+Revision ID: ${up_revision}
+Revises: ${down_revision | comma,n}
+Create Date: ${create_date}
+
+\"\"\"
+from alembic import op
+import sqlalchemy as sa
+import sqlmodel
+${imports if imports else ""}
+
+# revision identifiers, used by Alembic.
+revision = ${repr(up_revision)}
+down_revision = ${repr(down_revision)}
+branch_labels = ${repr(branch_labels)}
+depends_on = ${repr(depends_on)}
+
+
+def upgrade() -> None:
+    ${upgrades if upgrades else "pass"}
+
+
+def downgrade() -> None:
+    ${downgrades if downgrades else "pass"}
+""")
+
         # Create env.py that simulates the real application configuration
         env_py = alembic_dir / "env.py"
         env_py.write_text("""
 from logging.config import fileConfig
 from sqlalchemy import engine_from_config, pool
 from alembic import context
-from src.config import Settings
 from src.models import SQLModel, CompanySQL, JobSQL
 
 # This simulates the real env.py that will be created
-app_settings = Settings()
 config = context.config
-config.set_main_option("sqlalchemy.url", app_settings.db_url)
+
+# Allow connection injection for testing
+connectable = context.config.attributes.get('connection', None)
 
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 target_metadata = SQLModel.metadata
 
@@ -86,13 +115,16 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 def run_migrations_online() -> None:
-    connectable = engine_from_config(
-        config.get_section(config.config_ini_section),
-        prefix="sqlalchemy.",
-        poolclass=pool.NullPool,
-    )
+    if connectable is None:
+        connectable_local = engine_from_config(
+            config.get_section(config.config_ini_section),
+            prefix="sqlalchemy.",
+            poolclass=pool.NullPool,
+        )
+    else:
+        connectable_local = connectable
 
-    with connectable.connect() as connection:
+    with connectable_local.connect() as connection:
         context.configure(
             connection=connection, target_metadata=target_metadata
         )
@@ -204,8 +236,8 @@ class TestMigrationStartupIntegration:
         assert callable(run_migrations)
 
         # Should not raise errors when called (even with no migrations)
-        with pytest.raises(RuntimeError, match="Migration failed"):
-            run_migrations()
+        # This should be safe to call with no migrations present
+        run_migrations()  # Should complete successfully without errors
 
     def test_startup_migration_on_fresh_database(
         self, temp_db_path: str, startup_alembic_dir: Path
@@ -274,10 +306,10 @@ class TestMigrationStartupIntegration:
         config.set_main_option("script_location", str(startup_alembic_dir))
         config.set_main_option("sqlalchemy.url", f"sqlite:///{temp_db_path}")
 
-        # Stamp existing database as base
+        # Properly stamp the existing database as base revision
         command.stamp(config, "base")
 
-        # Create migration for "new features"
+        # Create migration for "new features" - this simulates schema evolution
         command.revision(config, autogenerate=True, message="Startup upgrade test")
 
         # Simulate startup migration
@@ -295,11 +327,13 @@ class TestMigrationStartupIntegration:
             assert len(jobs) == 1
             assert jobs[0].title == "Existing Job"
 
-        # Verify migration was applied
+        # Verify migration was applied (should have a specific version now, not 'base')
         with engine.connect() as conn:
             result = conn.execute(text("SELECT version_num FROM alembic_version"))
             versions = result.fetchall()
             assert len(versions) == 1
+            # Should not be 'base' anymore after upgrade
+            assert versions[0][0] != "base"
 
     def test_startup_migration_idempotency(
         self, temp_db_path: str, startup_alembic_dir: Path
@@ -465,15 +499,21 @@ class TestMainAppIntegration:
 
         def mock_run_migrations():
             nonlocal migration_completed
-            # Simulate successful migration
-            config = Config()
-            config.set_main_option("script_location", str(startup_alembic_dir))
-            config.set_main_option("sqlalchemy.url", f"sqlite:///{temp_db_path}")
+            try:
+                # Simulate successful migration
+                config = Config()
+                config.set_main_option("script_location", str(startup_alembic_dir))
+                config.set_main_option("sqlalchemy.url", f"sqlite:///{temp_db_path}")
 
-            command.revision(config, autogenerate=True, message="Startup sequence test")
-            command.upgrade(config, "head")
+                command.revision(
+                    config, autogenerate=True, message="Startup sequence test"
+                )
+                command.upgrade(config, "head")
 
-            migration_completed = True
+                migration_completed = True
+            except Exception:
+                migration_completed = False
+                raise
 
         def mock_streamlit_main():
             nonlocal app_started
