@@ -9,6 +9,51 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 
 
+class MockSessionState:
+    """Mock session state that behaves like both a dict and an object."""
+
+    def __init__(self):
+        self._data = {}
+
+    def __getitem__(self, key):
+        """Retrieve an item from the session state by key."""
+        return self._data[key]
+
+    def __setitem__(self, key, value):
+        """Set an item in the session state."""
+        self._data[key] = value
+
+    def __getattr__(self, name):
+        """Retrieve an attribute from the session state."""
+        return self._data.get(name)
+
+    def __setattr__(self, name, value):
+        """Set an attribute in the session state."""
+        if name.startswith("_"):
+            super().__setattr__(name, value)
+        else:
+            self._data[name] = value
+
+    def get(self, key, default=None):
+        """Get value with default fallback."""
+        return self._data.get(key, default)
+
+    def update(self, other):
+        """Update internal data dictionary."""
+        self._data.update(other)
+
+    def __contains__(self, key):
+        """Check if key exists in session state."""
+        return key in self._data
+
+    def __delattr__(self, name):
+        """Delete an attribute from the session state."""
+        if name.startswith("_"):
+            super().__delattr__(name)
+        elif name in self._data:
+            del self._data[name]
+
+
 @pytest.fixture
 def mock_streamlit():
     """Minimal Streamlit mock for integration tests."""
@@ -24,6 +69,9 @@ def mock_streamlit():
         ("warning", patch("streamlit.warning")),
         ("progress", patch("streamlit.progress")),
         ("spinner", patch("streamlit.spinner")),
+        ("button", patch("streamlit.button")),
+        ("columns", patch("streamlit.columns")),
+        ("metric", patch("streamlit.metric")),
     ]
 
     # Start all patches and collect mocks
@@ -34,6 +82,18 @@ def mock_streamlit():
         started_patches.append(p)
 
     try:
+        # Configure columns to return mock column objects
+        def mock_columns_func(*args, **_kwargs):
+            """Mock columns function that returns appropriate number of columns."""
+            if args:
+                num_cols = args[0] if isinstance(args[0], int) else len(args[0])
+            else:
+                num_cols = 2  # Default
+            return [MagicMock() for _ in range(num_cols)]
+
+        mocks["columns"].side_effect = mock_columns_func
+        mocks["button"].return_value = False
+
         # Configure spinner context manager
         mock_spinner_obj = MagicMock()
         mocks["spinner"].return_value.__enter__ = Mock(return_value=mock_spinner_obj)
@@ -46,13 +106,43 @@ def mock_streamlit():
             p.stop()
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def mock_session_state():
     """Mock Streamlit session state for integration tests."""
-    session_state = {}
+    session_state = MockSessionState()
+    # Mark as test environment
+    session_state._test_mode = True
 
     with patch("streamlit.session_state", session_state):
         yield session_state
+        # Clear after each test
+        session_state._data.clear()
+
+
+@pytest.fixture
+def mock_job_service():
+    """Mock JobService for integration tests."""
+    with (
+        patch("src.ui.utils.background_tasks.JobService") as mock_service_bg,
+        patch("src.services.job_service.JobService") as mock_service_core,
+        patch("src.ui.pages.scraping.JobService") as mock_service_scraping,
+    ):
+        # Configure all mock instances with the same behavior
+        for mock_service in [mock_service_bg, mock_service_core, mock_service_scraping]:
+            mock_service.get_active_companies.return_value = [
+                "TestCompany1",
+                "TestCompany2",
+            ]
+            mock_service.get_filtered_jobs.return_value = []
+            mock_service.update_job_status.return_value = True
+            mock_service.toggle_favorite.return_value = True
+            mock_service.update_notes.return_value = True
+            mock_service.bulk_update_jobs.return_value = True
+            mock_service.get_all_jobs.return_value = []
+            mock_service.get_job_by_id.return_value = None
+
+        # Return the background tasks mock directly since most tests need that one
+        yield mock_service_bg
 
 
 @pytest.fixture(autouse=True)
@@ -73,6 +163,16 @@ def prevent_real_system_execution():
                 "skipped": 0,
             },
         ) as mock_scrape_all,
+        patch(
+            "src.ui.utils.background_tasks.scrape_all",
+            return_value={
+                "inserted": 0,
+                "updated": 0,
+                "archived": 0,
+                "deleted": 0,
+                "skipped": 0,
+            },
+        ) as mock_scrape_all_bg,
         patch(
             "src.ui.pages.jobs._execute_scraping_safely",
             return_value={
@@ -124,6 +224,7 @@ def prevent_real_system_execution():
 
         yield {
             "scrape_all": mock_scrape_all,
+            "scrape_all_bg": mock_scrape_all_bg,
             "execute_scraping": mock_execute_scraping,
             "asyncio_run": mock_asyncio_run,
             "session": mock_session_instance,

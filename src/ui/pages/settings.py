@@ -117,16 +117,16 @@ def save_settings(settings: dict[str, Any]) -> None:
     Args:
         settings: Dictionary containing settings to save.
     """
-    # Save to session state
-    st.session_state["llm_provider"] = settings["llm_provider"]
-    st.session_state["max_jobs_per_company"] = settings["max_jobs_per_company"]
+    # Save to session state with defaults
+    st.session_state["llm_provider"] = settings.get("llm_provider", "OpenAI")
+    st.session_state["max_jobs_per_company"] = settings.get("max_jobs_per_company", 50)
 
     # Note: In a production app, you would save API keys securely
     # For now, we'll just note that they should be set as environment variables
     logger.info(
         "Settings updated: LLM Provider=%s, Max Jobs=%s",
-        settings["llm_provider"],
-        settings["max_jobs_per_company"],
+        st.session_state["llm_provider"],
+        st.session_state["max_jobs_per_company"],
     )
 
 
