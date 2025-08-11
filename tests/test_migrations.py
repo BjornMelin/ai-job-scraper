@@ -572,7 +572,8 @@ class TestMigrationScriptGeneration:
             # Create a test table with a VARCHAR column
             conn.execute(
                 text(
-                    "CREATE TABLE test_table (id INTEGER PRIMARY KEY, test_col VARCHAR(50))"
+                    "CREATE TABLE test_table "
+                    "(id INTEGER PRIMARY KEY, test_col VARCHAR(50))"
                 )
             )
             conn.commit()
@@ -634,7 +635,8 @@ class TestMigrationScriptGeneration:
         with engine.connect() as conn:
             conn.execute(
                 text(
-                    "CREATE TABLE constraint_test (id INTEGER PRIMARY KEY, email VARCHAR(100))"
+                    "CREATE TABLE constraint_test "
+                    "(id INTEGER PRIMARY KEY, email VARCHAR(100))"
                 )
             )
             conn.commit()
