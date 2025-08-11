@@ -409,7 +409,7 @@ class TestMigrationStartupIntegration:
         import tempfile
 
         with tempfile.NamedTemporaryFile(delete=True) as tmp_file:
-            missing_db_path = tmp_file.name + "_nonexistent.db"
+            missing_db_path = f"{tmp_file.name}_nonexistent.db"
 
         config = Config()
         config.set_main_option("script_location", str(startup_alembic_dir))
