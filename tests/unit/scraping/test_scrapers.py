@@ -320,7 +320,7 @@ def test_scrape_job_boards(mock_scrape_jobs: Any) -> None:
 
     # Should return a list of job dictionaries
     assert isinstance(result, list)
-    assert len(result) >= 1  # At least one job should be returned
+    assert result  # At least one job should be returned
 
     # Verify structure of returned jobs
     for job in result:

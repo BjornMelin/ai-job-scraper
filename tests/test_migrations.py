@@ -666,7 +666,7 @@ class TestMigrationScriptGeneration:
             versions_dir = temp_alembic_dir / "versions"
             migration_files = list(versions_dir.glob("*.py"))
             # Should have 2 files now (initial + constraint change)
-            assert len(migration_files) >= 1
+            assert migration_files
 
             # Get the most recent migration file
             latest_migration = max(migration_files, key=lambda f: f.stat().st_mtime)

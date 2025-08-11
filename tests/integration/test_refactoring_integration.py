@@ -372,6 +372,21 @@ class TestScrapeToUIWorkflow:
         assert len(jobs) == 1  # Should find the Applied job
         assert jobs[0].application_status == "Applied"
 
+    def _calculate_expected_count(
+        self, total_items: int, modulo: int, target_remainder: int
+    ) -> int:
+        """Helper method to calculate expected count for modulo-based filtering.
+
+        Args:
+            total_items: Total number of items to check.
+            modulo: The modulo value to use.
+            target_remainder: The target remainder for matching items.
+
+        Returns:
+            Count of items that match the condition.
+        """
+        return len([i for i in range(total_items) if i % modulo == target_remainder])
+
     def test_performance_integration(self, test_session, mock_db_session):
         """Test that refactored methods maintain good performance characteristics."""
         # Test bulk_get_or_create_companies performance with larger dataset
@@ -411,15 +426,15 @@ class TestScrapeToUIWorkflow:
         # Test filtering performance with larger dataset
         filters = {"application_status": ["Applied"]}
         applied_jobs = JobService.get_filtered_jobs(filters)
-        expected_applied = len(
-            [i for i in range(50) if i % 4 == 2]
+        expected_applied = self._calculate_expected_count(
+            50, 4, 2
         )  # Applied is index 2
         assert len(applied_jobs) == expected_applied
 
         # Test favorites filtering performance
         filters = {"favorites_only": True}
         favorite_jobs = JobService.get_filtered_jobs(filters)
-        expected_favorites = len([i for i in range(50) if i % 5 == 0])  # Every 5th
+        expected_favorites = self._calculate_expected_count(50, 5, 0)  # Every 5th
         assert len(favorite_jobs) == expected_favorites
 
         # Test combined filtering performance

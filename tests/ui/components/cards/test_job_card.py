@@ -348,7 +348,7 @@ class TestJobGridRendering:
         # Assert
         # Should create columns for each row of jobs
         columns_calls = mock_streamlit["columns"].call_args_list
-        assert len(columns_calls) >= 1  # At least one row of columns
+        assert columns_calls  # At least one row of columns
 
     def test_render_jobs_grid_handles_empty_job_list(self, mock_streamlit):
         """Test jobs grid handles empty job list gracefully."""

@@ -1551,7 +1551,7 @@ class TestJobServiceDatabaseOptimizedFiltering:
 
         # Should find recent Applied jobs
         applied_jobs = [job for job in jobs if job.application_status == "Applied"]
-        assert len(applied_jobs) >= 1  # At least Python Developer should match
+        assert applied_jobs  # At least Python Developer should match
 
         # All returned jobs should be recent and Applied
         assert all(job.application_status == "Applied" for job in jobs)
@@ -1650,7 +1650,7 @@ class TestJobServiceDatabaseOptimizedFiltering:
         jobs = JobService.get_filtered_jobs(filters)
 
         # Verify that the query contains application_status filtering
-        assert len(query_strings) >= 1
+        assert query_strings
         query_string = " ".join(query_strings)
 
         # The query should include a WHERE clause for application_status

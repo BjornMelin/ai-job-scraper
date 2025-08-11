@@ -845,7 +845,7 @@ class TestCompanyServiceBulkGetOrCreate:
 
         # Should make minimal queries: 1 for bulk select of existing companies
         # Additional queries only if new companies need to be created
-        assert len(exec_calls) >= 1  # At least the bulk select query
+        assert exec_calls  # At least the bulk select query
 
         # Verify all companies found
         assert len(company_map) == 3
