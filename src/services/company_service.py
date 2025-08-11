@@ -22,6 +22,9 @@ from datetime import datetime, timezone
 # Import Any for proper type hints
 from typing import Any
 
+import sqlalchemy.exc
+import sqlmodel
+
 from sqlmodel import func, select
 from src.database import db_session
 from src.database_listeners.monitoring_listeners import performance_monitor
@@ -31,6 +34,7 @@ from src.schemas import Company
 logger = logging.getLogger(__name__)
 
 # Type aliases for better readability
+type CompanyMapping = dict[str, int]
 type CompanyStatsList = list[dict[str, Any]]
 type ScrapeUpdateBatch = list[dict[str, Any]]
 
@@ -611,3 +615,91 @@ class CompanyService:
         except Exception:
             logger.exception("Failed to get active companies count")
             raise
+
+    @staticmethod
+    @performance_monitor
+    def bulk_get_or_create_companies(
+        session: sqlmodel.Session, company_names: set[str]
+    ) -> CompanyMapping:
+        """Efficiently get or create multiple companies in bulk.
+
+        This function eliminates N+1 query patterns by:
+        1. Bulk loading existing companies in a single query
+        2. Bulk creating missing companies
+        3. Returning a name->ID mapping for O(1) lookups
+
+        Args:
+            session: Database session.
+            company_names: Set of unique company names to process.
+
+        Returns:
+            dict[str, int]: Mapping of company names to their database IDs.
+        """
+        if not company_names:
+            return {}
+
+        # Step 1: Bulk load existing companies in single query
+        existing_companies = session.exec(
+            sqlmodel.select(CompanySQL).where(CompanySQL.name.in_(company_names))
+        ).all()
+        company_map = {comp.name: comp.id for comp in existing_companies}
+
+        # Step 2: Identify missing companies
+        missing_names = company_names - set(company_map.keys())
+
+        # Step 3: Bulk create missing companies if any, handling race conditions
+        if missing_names:
+            new_companies = [
+                CompanySQL(name=name, url="", active=True) for name in missing_names
+            ]
+            session.add_all(new_companies)
+
+            try:
+                session.flush()  # Get IDs without committing transaction
+                # Add new companies to the mapping
+                company_map |= {comp.name: comp.id for comp in new_companies}
+                logger.info("Bulk created %d new companies", len(missing_names))
+            except sqlalchemy.exc.IntegrityError:
+                # Handle race condition: another process created some companies
+                # Roll back and re-query to get the actual IDs
+                session.rollback()
+
+                # Re-query for all companies that were supposed to be missing
+                retry_companies = session.exec(
+                    sqlmodel.select(CompanySQL).where(
+                        CompanySQL.name.in_(missing_names)
+                    )
+                ).all()
+
+                # Update the mapping with companies that were created by other processes
+                company_map |= {comp.name: comp.id for comp in retry_companies}
+
+                # Create only the companies that are still truly missing
+                if still_missing := missing_names - {
+                    comp.name for comp in retry_companies
+                }:
+                    remaining_companies = [
+                        CompanySQL(name=name, url="", active=True)
+                        for name in still_missing
+                    ]
+                    session.add_all(remaining_companies)
+                    session.flush()
+                    company_map |= {comp.name: comp.id for comp in remaining_companies}
+                    logger.info(
+                        "Bulk created %d new companies (after handling race condition)",
+                        len(still_missing),
+                    )
+                else:
+                    logger.info(
+                        "No new companies to create "
+                        "(all were created by other processes)"
+                    )
+
+        logger.debug(
+            "Bulk processed %d companies: %d existing, %d new",
+            len(company_names),
+            len(existing_companies),
+            len(missing_names),
+        )
+
+        return company_map

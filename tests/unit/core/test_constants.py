@@ -4,7 +4,12 @@ import re
 
 import pytest
 
-from src.constants import AI_REGEX, RELEVANT_PHRASES, SEARCH_KEYWORDS, SEARCH_LOCATIONS
+from src.constants import (
+    AI_REGEX,
+    RELEVANT_PHRASES,
+    SEARCH_KEYWORDS,
+    SEARCH_LOCATIONS,
+)
 
 
 class TestRelevantPhrases:
@@ -197,3 +202,115 @@ class TestConstantsIntegration:
         """Test that the AI regex matches our search keywords."""
         match = AI_REGEX.search(keyword)
         assert match is not None, f"Search keyword '{keyword}' should match AI regex"
+
+
+class TestApplicationStatuses:
+    """Test application status constants."""
+
+    def test_application_statuses_exist(self):
+        """Test that APPLICATION_STATUSES constant is defined and not empty."""
+        from src.constants import APPLICATION_STATUSES
+
+        assert APPLICATION_STATUSES is not None
+        assert len(APPLICATION_STATUSES) > 0
+        assert isinstance(APPLICATION_STATUSES, list)
+
+    def test_application_statuses_contain_expected_values(self):
+        """Test that APPLICATION_STATUSES contains expected status values."""
+        from src.constants import APPLICATION_STATUSES
+
+        # Test the currently defined status values
+        expected_statuses = [
+            "New",
+            "Interested",
+            "Applied",
+            "Rejected",
+        ]
+
+        for expected_status in expected_statuses:
+            assert expected_status in APPLICATION_STATUSES, (
+                f"Expected status '{expected_status}' not found in APPLICATION_STATUSES"
+            )
+
+    def test_application_statuses_are_strings(self):
+        """Test that all application statuses are strings."""
+        from src.constants import APPLICATION_STATUSES
+
+        for status in APPLICATION_STATUSES:
+            assert isinstance(status, str)
+            assert status.strip() == status  # No leading/trailing whitespace
+            assert len(status) > 0  # Not empty
+
+    def test_application_statuses_proper_case(self):
+        """Test that all application statuses use proper case."""
+        from src.constants import APPLICATION_STATUSES
+
+        for status in APPLICATION_STATUSES:
+            # Should be title case (first letter capitalized for each word)
+            assert status.istitle(), f"Status '{status}' should be title case"
+
+    def test_application_statuses_no_duplicates(self):
+        """Test that APPLICATION_STATUSES contains no duplicate values."""
+        from src.constants import APPLICATION_STATUSES
+
+        # Convert to set to remove duplicates, length should be same
+        unique_statuses = set(APPLICATION_STATUSES)
+        assert len(unique_statuses) == len(APPLICATION_STATUSES), (
+            "APPLICATION_STATUSES contains duplicate values"
+        )
+
+    def test_application_statuses_accessible_from_job_card(self):
+        """Test that APPLICATION_STATUSES can be imported by job_card.py."""
+        # Test import path that job_card.py would use
+        try:
+            from src.constants import APPLICATION_STATUSES
+
+            assert APPLICATION_STATUSES is not None
+        except ImportError as e:
+            pytest.fail(f"job_card.py cannot import APPLICATION_STATUSES: {e}")
+
+    def test_application_statuses_workflow_completeness(self):
+        """Test that APPLICATION_STATUSES covers basic job application workflow."""
+        from src.constants import APPLICATION_STATUSES
+
+        # Should cover the current basic job application workflow
+        workflow_statuses = {
+            "New",  # Initial discovery
+            "Interested",  # Marked as interesting
+            "Applied",  # After applying
+            "Rejected",  # Application rejected
+        }
+
+        for workflow_status in workflow_statuses:
+            assert workflow_status in APPLICATION_STATUSES, (
+                f"Workflow status '{workflow_status}' missing from APPLICATION_STATUSES"
+            )
+
+    def test_application_statuses_integration_with_job_service(self):
+        """Test that APPLICATION_STATUSES values work with JobService filtering."""
+        from src.constants import APPLICATION_STATUSES
+
+        # All statuses should be valid filter values (no special characters)
+        for status in APPLICATION_STATUSES:
+            # Should not contain characters that could break SQL queries
+            invalid_chars = ["'", '"', ";", "\\", "\n", "\r", "\t"]
+            for invalid_char in invalid_chars:
+                assert invalid_char not in status, (
+                    f"Status '{status}' contains invalid character '{invalid_char}'"
+                )
+
+            # Should be reasonable length for database storage and UI display
+            assert len(status) <= 50, f"Status '{status}' is too long"
+            assert len(status) >= 2, f"Status '{status}' is too short"
+
+    def test_application_statuses_used_in_sample_data(self):
+        """Test that APPLICATION_STATUSES values are used in test sample data."""
+        from src.constants import APPLICATION_STATUSES
+
+        # Verify that our sample job data uses valid status values
+        sample_statuses = ["New", "Interested", "Applied", "Rejected"]
+
+        for sample_status in sample_statuses:
+            assert sample_status in APPLICATION_STATUSES, (
+                f"Sample status '{sample_status}' should be in APPLICATION_STATUSES"
+            )

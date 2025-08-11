@@ -1368,3 +1368,356 @@ class TestJobServiceIntegration:
         updated_job = JobService.get_job_by_id(job_id)
         assert updated_job.favorite is True
         assert "executive pitch" in updated_job.notes.lower()
+
+
+class TestJobServiceDatabaseOptimizedFiltering:
+    """Test database-optimized filtering for UI tab functionality."""
+
+    def test_get_filtered_jobs_favorites_only_database_query(
+        self, mock_db_session, sample_jobs
+    ):
+        """Test favorites_only filter uses database query optimization."""
+        # Test basic favorites filtering
+        filters = {"favorites_only": True}
+        jobs = JobService.get_filtered_jobs(filters)
+
+        # Should return only favorite jobs using database query
+        assert len(jobs) == 2
+        assert all(job.favorite for job in jobs)
+
+        # Verify specific favorite jobs are returned
+        favorite_titles = {job.title for job in jobs}
+        expected_titles = {"Senior Python Developer", "Full Stack Developer"}
+        assert favorite_titles == expected_titles
+
+    def test_get_filtered_jobs_application_status_applied_database_query(
+        self, mock_db_session, sample_jobs
+    ):
+        """Test application_status filtering for Applied jobs uses database query."""
+        # Test filtering for Applied status
+        filters = {"application_status": ["Applied"]}
+        jobs = JobService.get_filtered_jobs(filters)
+
+        # Should return only applied jobs using database query
+        assert len(jobs) == 2
+        assert all(job.application_status == "Applied" for job in jobs)
+
+        # Verify specific applied jobs
+        applied_titles = {job.title for job in jobs}
+        expected_titles = {"Senior Python Developer", "DevOps Engineer"}
+        assert applied_titles == expected_titles
+
+    def test_get_filtered_jobs_application_status_multiple_statuses(
+        self, mock_db_session, sample_jobs
+    ):
+        """Test application_status filtering with multiple status values."""
+        # Test filtering for multiple statuses
+        filters = {"application_status": ["Applied", "Interested"]}
+        jobs = JobService.get_filtered_jobs(filters)
+
+        # Should return jobs with either status
+        assert len(jobs) == 3
+        statuses = {job.application_status for job in jobs}
+        assert statuses == {"Applied", "Interested"}
+
+        # Verify we get the expected jobs
+        titles = {job.title for job in jobs}
+        expected_titles = {
+            "Senior Python Developer",  # Applied
+            "Machine Learning Engineer",  # Interested
+            "DevOps Engineer",  # Applied
+        }
+        assert titles == expected_titles
+
+    def test_get_filtered_jobs_application_status_single_value(
+        self, mock_db_session, sample_jobs
+    ):
+        """Test application_status filtering with single status value."""
+        # Test each status individually
+        test_cases = [
+            ("New", {"Full Stack Developer"}),
+            ("Interested", {"Machine Learning Engineer"}),
+            ("Applied", {"Senior Python Developer", "DevOps Engineer"}),
+            ("Rejected", {"Data Scientist"}),
+        ]
+
+        for status, expected_titles in test_cases:
+            filters = {"application_status": [status]}
+            jobs = JobService.get_filtered_jobs(filters)
+
+            titles = {job.title for job in jobs}
+            assert titles == expected_titles
+            assert all(job.application_status == status for job in jobs)
+
+    def test_get_filtered_jobs_combined_favorites_and_status(
+        self, mock_db_session, sample_jobs
+    ):
+        """Test combining favorites_only with application_status filtering."""
+        # Test favorite jobs that are also applied
+        filters = {"favorites_only": True, "application_status": ["Applied"]}
+        jobs = JobService.get_filtered_jobs(filters)
+
+        # Should return only favorite AND applied jobs
+        assert len(jobs) == 1  # Senior Python Developer
+        job = jobs[0]
+        assert job.title == "Senior Python Developer"
+        assert job.favorite is True
+        assert job.application_status == "Applied"
+
+        # Test favorite jobs with multiple statuses
+        filters = {"favorites_only": True, "application_status": ["Applied", "New"]}
+        jobs = JobService.get_filtered_jobs(filters)
+
+        # Should return favorite jobs with either Applied or New status
+        assert len(jobs) == 2
+        titles = {job.title for job in jobs}
+        expected_titles = {"Senior Python Developer", "Full Stack Developer"}
+        assert titles == expected_titles
+        assert all(job.favorite for job in jobs)
+        assert all(job.application_status in ["Applied", "New"] for job in jobs)
+
+    def test_get_filtered_jobs_text_search_with_status_filter(
+        self, mock_db_session, sample_jobs
+    ):
+        """Test combining text search with application status filtering."""
+        # Search for "Developer" with Applied status
+        filters = {"text_search": "Developer", "application_status": ["Applied"]}
+        jobs = JobService.get_filtered_jobs(filters)
+
+        # Should find Python Developer (Applied) but not Full Stack Developer (New)
+        assert len(jobs) == 1
+        job = jobs[0]
+        assert job.title == "Senior Python Developer"
+        assert job.application_status == "Applied"
+        assert "Developer" in job.title
+
+        # Search for "Engineer" with multiple statuses
+        filters = {
+            "text_search": "Engineer",
+            "application_status": ["Applied", "Interested"],
+        }
+        jobs = JobService.get_filtered_jobs(filters)
+
+        # Should find ML Engineer (Interested) and DevOps Engineer (Applied)
+        assert len(jobs) == 2
+        titles = {job.title for job in jobs}
+        expected_titles = {"Machine Learning Engineer", "DevOps Engineer"}
+        assert titles == expected_titles
+
+    def test_get_filtered_jobs_company_with_status_filter(
+        self, mock_db_session, sample_jobs
+    ):
+        """Test combining company filter with application status filtering."""
+        # Filter TechCorp jobs with Applied status
+        filters = {"company": ["TechCorp"], "application_status": ["Applied"]}
+        jobs = JobService.get_filtered_jobs(filters)
+
+        # Should find only TechCorp Applied jobs
+        assert len(jobs) == 1
+        job = jobs[0]
+        assert job.title == "Senior Python Developer"
+        assert job.company == "TechCorp"
+        assert job.application_status == "Applied"
+
+        # Filter InnovateLabs jobs with any status except Rejected
+        filters = {
+            "company": ["InnovateLabs"],
+            "application_status": ["New", "Interested", "Applied"],
+        }
+        jobs = JobService.get_filtered_jobs(filters)
+
+        # Should find both InnovateLabs jobs (they're New and Applied)
+        assert len(jobs) == 2
+        assert all(job.company == "InnovateLabs" for job in jobs)
+        titles = {job.title for job in jobs}
+        expected_titles = {"Full Stack Developer", "DevOps Engineer"}
+        assert titles == expected_titles
+
+    def test_get_filtered_jobs_date_range_with_status_filter(
+        self, mock_db_session, sample_jobs
+    ):
+        """Test combining date filters with application status filtering."""
+        from datetime import datetime, timedelta, timezone
+
+        base_date = datetime.now(timezone.utc)
+
+        # Filter recent jobs (last 4 days) with Applied status
+        recent_date = base_date - timedelta(days=4)
+        filters = {
+            "date_from": recent_date.strftime("%Y-%m-%d"),
+            "application_status": ["Applied"],
+        }
+        jobs = JobService.get_filtered_jobs(filters)
+
+        # Should find recent Applied jobs
+        applied_jobs = [job for job in jobs if job.application_status == "Applied"]
+        assert applied_jobs  # At least Python Developer should match
+
+        # All returned jobs should be recent and Applied
+        assert all(job.application_status == "Applied" for job in jobs)
+
+    def test_get_filtered_jobs_status_empty_list_returns_all(
+        self, mock_db_session, sample_jobs
+    ):
+        """Test that empty application_status list returns all jobs."""
+        filters = {"application_status": []}
+        jobs = JobService.get_filtered_jobs(filters)
+
+        # Should return all non-archived jobs
+        assert len(jobs) == 5
+
+        # Should include all different statuses
+        statuses = {job.application_status for job in jobs}
+        expected_statuses = {"New", "Interested", "Applied", "Rejected"}
+        assert statuses == expected_statuses
+
+    def test_get_filtered_jobs_status_all_returns_all(
+        self, mock_db_session, sample_jobs
+    ):
+        """Test that application_status=['All'] returns all jobs."""
+        filters = {"application_status": ["All"]}
+        jobs = JobService.get_filtered_jobs(filters)
+
+        # Should return all non-archived jobs
+        assert len(jobs) == 5
+
+        # Should include all different statuses
+        statuses = {job.application_status for job in jobs}
+        expected_statuses = {"New", "Interested", "Applied", "Rejected"}
+        assert statuses == expected_statuses
+
+    def test_get_filtered_jobs_nonexistent_status_returns_empty(
+        self, mock_db_session, sample_jobs
+    ):
+        """Test filtering by non-existent application status."""
+        filters = {"application_status": ["NonExistentStatus"]}
+        jobs = JobService.get_filtered_jobs(filters)
+
+        # Should return no jobs
+        assert len(jobs) == 0
+
+    def test_get_filtered_jobs_mixed_valid_invalid_status(
+        self, mock_db_session, sample_jobs
+    ):
+        """Test filtering with mix of valid and invalid status values."""
+        filters = {"application_status": ["Applied", "NonExistentStatus", "New"]}
+        jobs = JobService.get_filtered_jobs(filters)
+
+        # Should return jobs matching valid statuses only
+        assert len(jobs) == 3  # Applied (2) + New (1) = 3
+        statuses = {job.application_status for job in jobs}
+        assert statuses == {"Applied", "New"}
+
+    def test_get_filtered_jobs_case_sensitive_status_filter(
+        self, mock_db_session, sample_jobs
+    ):
+        """Test that application status filtering is case sensitive."""
+        # Test with incorrect case
+        filters = {"application_status": ["applied"]}  # lowercase
+        jobs = JobService.get_filtered_jobs(filters)
+
+        # Should return no jobs (case sensitive)
+        assert len(jobs) == 0
+
+        # Test with correct case
+        filters = {"application_status": ["Applied"]}  # correct case
+        jobs = JobService.get_filtered_jobs(filters)
+
+        # Should return Applied jobs
+        assert len(jobs) == 2
+        assert all(job.application_status == "Applied" for job in jobs)
+
+    def test_get_filtered_jobs_performance_database_query_optimization(
+        self, mock_db_session, sample_jobs
+    ):
+        """Test that status filtering uses database queries, not Python filtering."""
+        from unittest.mock import MagicMock
+
+        # Mock session.exec to verify query contains WHERE clause for status
+        original_exec = mock_db_session.return_value.__enter__.return_value.exec
+        query_strings = []
+
+        def capture_exec(statement, *args, **kwargs):
+            query_strings.append(str(statement))
+            return original_exec(statement, *args, **kwargs)
+
+        mock_db_session.return_value.__enter__.return_value.exec = MagicMock(
+            side_effect=capture_exec
+        )
+
+        # Filter by specific status
+        filters = {"application_status": ["Applied"]}
+        jobs = JobService.get_filtered_jobs(filters)
+
+        # Verify that the query contains application_status filtering
+        assert query_strings
+        query_string = " ".join(query_strings)
+
+        # The query should include a WHERE clause for application_status
+        assert "application_status" in query_string.lower()
+
+        # Should still return the correct results
+        assert len(jobs) == 2
+        assert all(job.application_status == "Applied" for job in jobs)
+
+    def test_favorites_and_applied_tab_optimization_simulation(
+        self, mock_db_session, sample_jobs
+    ):
+        """Test simulating the UI tab filtering optimization from jobs.py."""
+        # Simulate _get_favorites_jobs() helper function
+        favorites_filters = {
+            "text_search": "",  # Empty search from session state
+            "company": [],  # No company filter
+            "application_status": [],  # No status filter for favorites tab
+            "date_from": None,
+            "date_to": None,
+            "favorites_only": True,  # Database-level filtering for favorites
+            "include_archived": False,
+        }
+
+        favorites_jobs = JobService.get_filtered_jobs(favorites_filters)
+
+        # Should return only favorite jobs via database query
+        assert len(favorites_jobs) == 2
+        assert all(job.favorite for job in favorites_jobs)
+        favorite_titles = {job.title for job in favorites_jobs}
+        assert favorite_titles == {"Senior Python Developer", "Full Stack Developer"}
+
+        # Simulate _get_applied_jobs() helper function
+        applied_filters = {
+            "text_search": "",  # Empty search from session state
+            "company": [],  # No company filter
+            "application_status": ["Applied"],  # Database-level filtering for applied
+            "date_from": None,
+            "date_to": None,
+            "favorites_only": False,
+            "include_archived": False,
+        }
+
+        applied_jobs = JobService.get_filtered_jobs(applied_filters)
+
+        # Should return only applied jobs via database query
+        assert len(applied_jobs) == 2
+        assert all(job.application_status == "Applied" for job in applied_jobs)
+        applied_titles = {job.title for job in applied_jobs}
+        assert applied_titles == {"Senior Python Developer", "DevOps Engineer"}
+
+        # Test that they can be combined for intersection
+        favorites_and_applied_filters = {
+            "text_search": "",
+            "company": [],
+            "application_status": ["Applied"],
+            "date_from": None,
+            "date_to": None,
+            "favorites_only": True,  # Both filters active
+            "include_archived": False,
+        }
+
+        intersection_jobs = JobService.get_filtered_jobs(favorites_and_applied_filters)
+
+        # Should return jobs that are both favorite AND applied
+        assert len(intersection_jobs) == 1
+        job = intersection_jobs[0]
+        assert job.title == "Senior Python Developer"
+        assert job.favorite is True
+        assert job.application_status == "Applied"

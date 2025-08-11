@@ -14,6 +14,7 @@ from typing import Any
 import pandas as pd
 import streamlit as st
 
+from src.constants import APPLICATION_STATUSES
 from src.schemas import Job
 from src.services.job_service import JobService
 from src.ui.styles.styles import apply_job_grid_styles
@@ -68,7 +69,7 @@ def render_job_card(job: Job) -> None:
 
         with col1:
             # Status selectbox with on_change callback
-            status_options = ["New", "Interested", "Applied", "Rejected"]
+            status_options = APPLICATION_STATUSES
             current_index = (
                 status_options.index(job.application_status)
                 if job.application_status in status_options
