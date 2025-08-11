@@ -121,10 +121,11 @@ def show_companies_page() -> None:
     # Initialize session state and display feedback
     _init_and_display_feedback()
 
-    # Add new company section using expander with form
-    with st.expander("+ Add New Company", expanded=False), st.form("add_company_form"):
-        st.markdown("### Add a New Company")
+    # Add new company section using form with clear visual hierarchy
+    st.markdown("### + Add New Company")
+    st.markdown("Add a new company to start tracking job opportunities")
 
+    with st.form("add_company_form", border=True):
         col1, col2 = st.columns(2)
         with col1:
             st.text_input(
