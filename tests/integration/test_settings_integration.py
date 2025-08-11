@@ -251,7 +251,7 @@ class TestSettingsIntegration:
                         time.sleep(0.1)
 
                     # Verify the edge case value was handled correctly
-                    # (invalid values like 0 and negative numbers get replaced with default)
+                    # Invalid values (0, negative) replaced with default
                     expected_value = case["max_jobs_per_company"]
                     if expected_value < 1:  # Invalid values get replaced with default
                         from src.scraper_company_pages import (
@@ -280,7 +280,8 @@ class TestSettingsIntegration:
                 # Start background scraping
                 start_scraping()
 
-                # In test environment, scraping runs synchronously, so update settings after
+                # # In test environment, scraping runs synchronously, so update settings
+                # # after
                 save_settings({"max_jobs_per_company": 75})
 
                 # Wait for scraping to complete (should be immediate in test mode)

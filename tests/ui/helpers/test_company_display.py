@@ -281,7 +281,7 @@ class TestRenderCompanyCard:
     def test_render_company_card_creates_container_and_columns(
         self, mock_streamlit, sample_company_dto
     ):
-        """Test that company card creates bordered container with proper column layout."""
+        """Test company card creates bordered container with proper column layout."""
         # Arrange
         mock_callback = Mock()
 
@@ -302,23 +302,23 @@ class TestRenderCompanyCard:
         # Arrange
         mock_callback = Mock()
 
-        with patch("src.ui.helpers.company_display.render_company_info") as mock_info:
-            with patch(
+        with (
+            patch("src.ui.helpers.company_display.render_company_info") as mock_info,
+            patch(
                 "src.ui.helpers.company_display.render_company_statistics"
-            ) as mock_stats:
-                with patch(
-                    "src.ui.helpers.company_display.render_company_toggle"
-                ) as mock_toggle:
-                    # Act
-                    render_company_card(sample_company_dto, mock_callback)
+            ) as mock_stats,
+            patch(
+                "src.ui.helpers.company_display.render_company_toggle"
+            ) as mock_toggle,
+        ):
+            # Act
+            render_company_card(sample_company_dto, mock_callback)
 
-                    # Assert
-                    # Check all render functions are called with correct parameters
-                    mock_info.assert_called_once_with(sample_company_dto)
-                    mock_stats.assert_called_once_with(sample_company_dto)
-                    mock_toggle.assert_called_once_with(
-                        sample_company_dto, mock_callback
-                    )
+            # Assert
+            # Check all render functions are called with correct parameters
+            mock_info.assert_called_once_with(sample_company_dto)
+            mock_stats.assert_called_once_with(sample_company_dto)
+            mock_toggle.assert_called_once_with(sample_company_dto, mock_callback)
 
     def test_render_company_card_with_different_company_data(self, mock_streamlit):
         """Test company card with different company configurations."""
@@ -338,27 +338,29 @@ class TestRenderCompanyCard:
         ]
         mock_callback = Mock()
 
-        with patch("src.ui.helpers.company_display.render_company_info") as mock_info:
-            with patch(
+        with (
+            patch("src.ui.helpers.company_display.render_company_info") as mock_info,
+            patch(
                 "src.ui.helpers.company_display.render_company_statistics"
-            ) as mock_stats:
-                with patch(
-                    "src.ui.helpers.company_display.render_company_toggle"
-                ) as mock_toggle:
-                    # Act - Render cards for all companies
-                    for company in companies:
-                        render_company_card(company, mock_callback)
+            ) as mock_stats,
+            patch(
+                "src.ui.helpers.company_display.render_company_toggle"
+            ) as mock_toggle,
+        ):
+            # Act - Render cards for all companies
+            for company in companies:
+                render_company_card(company, mock_callback)
 
-                    # Assert - Each company was rendered
-                    assert mock_info.call_count == 3
-                    assert mock_stats.call_count == 3
-                    assert mock_toggle.call_count == 3
+            # Assert - Each company was rendered
+            assert mock_info.call_count == 3
+            assert mock_stats.call_count == 3
+            assert mock_toggle.call_count == 3
 
-                    # Check each company was passed correctly
-                    for i, company in enumerate(companies):
-                        assert mock_info.call_args_list[i][0][0] == company
-                        assert mock_stats.call_args_list[i][0][0] == company
-                        assert mock_toggle.call_args_list[i][0][0] == company
+            # Check each company was passed correctly
+            for i, company in enumerate(companies):
+                assert mock_info.call_args_list[i][0][0] == company
+                assert mock_stats.call_args_list[i][0][0] == company
+                assert mock_toggle.call_args_list[i][0][0] == company
 
     def test_render_company_card_container_context_manager(
         self, mock_streamlit, sample_company_dto
@@ -395,24 +397,22 @@ class TestRenderCompanyCard:
             col.__enter__ = Mock(return_value=col)
             col.__exit__ = Mock(return_value=None)
 
-        with patch("src.ui.helpers.company_display.render_company_info") as mock_info:
-            with patch(
-                "src.ui.helpers.company_display.render_company_statistics"
-            ) as mock_stats:
-                with patch(
-                    "src.ui.helpers.company_display.render_company_toggle"
-                ) as mock_toggle:
-                    # Act
-                    render_company_card(sample_company_dto, mock_callback)
+        with (
+            patch("src.ui.helpers.company_display.render_company_info"),
+            patch("src.ui.helpers.company_display.render_company_statistics"),
+            patch("src.ui.helpers.company_display.render_company_toggle"),
+        ):
+            # Act
+            render_company_card(sample_company_dto, mock_callback)
 
-                    # Assert
-                    # Check all columns are used as context managers
-                    mock_col1.__enter__.assert_called()
-                    mock_col1.__exit__.assert_called()
-                    mock_col2.__enter__.assert_called()
-                    mock_col2.__exit__.assert_called()
-                    mock_col3.__enter__.assert_called()
-                    mock_col3.__exit__.assert_called()
+            # Assert
+            # Check all columns are used as context managers
+            mock_col1.__enter__.assert_called()
+            mock_col1.__exit__.assert_called()
+            mock_col2.__enter__.assert_called()
+            mock_col2.__exit__.assert_called()
+            mock_col3.__enter__.assert_called()
+            mock_col3.__exit__.assert_called()
 
 
 class TestCompanyDisplayIntegration:
@@ -480,50 +480,54 @@ class TestCompanyDisplayIntegration:
 
         mock_callback = Mock()
 
-        with patch("src.ui.helpers.company_display.render_company_info") as mock_info:
-            with patch(
+        with (
+            patch("src.ui.helpers.company_display.render_company_info") as mock_info,
+            patch(
                 "src.ui.helpers.company_display.render_company_statistics"
-            ) as mock_stats:
-                with patch(
-                    "src.ui.helpers.company_display.render_company_toggle"
-                ) as mock_toggle:
-                    # Act
-                    for company in companies:
-                        render_company_card(company, mock_callback)
+            ) as mock_stats,
+            patch(
+                "src.ui.helpers.company_display.render_company_toggle"
+            ) as mock_toggle,
+        ):
+            # Act
+            for company in companies:
+                render_company_card(company, mock_callback)
 
-                    # Assert
-                    # All companies were processed
-                    assert mock_info.call_count == 4
-                    assert mock_stats.call_count == 4
-                    assert mock_toggle.call_count == 4
+            # Assert
+            # All companies were processed
+            assert mock_info.call_count == 4
+            assert mock_stats.call_count == 4
+            assert mock_toggle.call_count == 4
 
-                    # Each company data was passed correctly
-                    for i, company in enumerate(companies):
-                        assert mock_info.call_args_list[i][0][0] == company
-                        assert mock_stats.call_args_list[i][0][0] == company
-                        assert mock_toggle.call_args_list[i][0][0] == company
+            # Each company data was passed correctly
+            for i, company in enumerate(companies):
+                assert mock_info.call_args_list[i][0][0] == company
+                assert mock_stats.call_args_list[i][0][0] == company
+                assert mock_toggle.call_args_list[i][0][0] == company
 
     def test_company_display_error_handling(self, mock_streamlit, sample_company_dto):
         """Test that display components handle errors gracefully."""
         # Arrange
         mock_callback = Mock()
 
-        with patch("src.ui.helpers.company_display.render_company_info") as mock_info:
-            with patch(
+        with (
+            patch("src.ui.helpers.company_display.render_company_info") as mock_info,
+            patch(
                 "src.ui.helpers.company_display.render_company_statistics"
-            ) as mock_stats:
-                with patch(
-                    "src.ui.helpers.company_display.render_company_toggle"
-                ) as mock_toggle:
-                    # Configure one component to raise an exception
-                    mock_stats.side_effect = Exception("Display error")
+            ) as mock_stats,
+            patch(
+                "src.ui.helpers.company_display.render_company_toggle"
+            ) as mock_toggle,
+        ):
+            # Configure one component to raise an exception
+            mock_stats.side_effect = Exception("Display error")
 
-                    # Act & Assert - Should not raise exception
-                    render_company_card(sample_company_dto, mock_callback)
+            # Act & Assert - Should not raise exception
+            render_company_card(sample_company_dto, mock_callback)
 
-                    # Other components should still be called
-                    mock_info.assert_called_once()
-                    mock_toggle.assert_called_once()
+            # Other components should still be called
+            mock_info.assert_called_once()
+            mock_toggle.assert_called_once()
 
     def test_company_display_callback_preservation(
         self, mock_streamlit, sample_companies_dto

@@ -193,68 +193,74 @@ class TestSettingsLoading:
     def test_load_settings_with_environment_variables(self):
         """Test loading settings when environment variables are set."""
         # Arrange
-        with patch.dict(
-            os.environ,
-            {
-                "OPENAI_API_KEY": "sk-env-openai-key",
-                "GROQ_API_KEY": "gsk_env_groq_key",
-            },
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    "OPENAI_API_KEY": "sk-env-openai-key",
+                    "GROQ_API_KEY": "gsk_env_groq_key",
+                },
+            ),
+            patch("streamlit.session_state", new_callable=dict) as mock_session,
         ):
-            with patch("streamlit.session_state", new_callable=dict) as mock_session:
-                mock_session.update(
-                    {
-                        "llm_provider": "Groq",
-                        "max_jobs_per_company": 75,
-                    }
-                )
+            mock_session.update(
+                {
+                    "llm_provider": "Groq",
+                    "max_jobs_per_company": 75,
+                }
+            )
 
-                # Act
-                settings = load_settings()
+            # Act
+            settings = load_settings()
 
-                # Assert
-                assert settings["openai_api_key"] == "sk-env-openai-key"
-                assert settings["groq_api_key"] == "gsk_env_groq_key"
-                assert settings["llm_provider"] == "Groq"
-                assert settings["max_jobs_per_company"] == 75
+            # Assert
+            assert settings["openai_api_key"] == "sk-env-openai-key"
+            assert settings["groq_api_key"] == "gsk_env_groq_key"
+            assert settings["llm_provider"] == "Groq"
+            assert settings["max_jobs_per_company"] == 75
 
     def test_load_settings_with_defaults(self):
         """Test loading settings with default values when nothing is set."""
         # Arrange
-        with patch.dict(os.environ, {}, clear=True):
-            with patch("streamlit.session_state", new_callable=dict):
-                # Act
-                settings = load_settings()
+        with (
+            patch.dict(os.environ, {}, clear=True),
+            patch("streamlit.session_state", new_callable=dict),
+        ):
+            # Act
+            settings = load_settings()
 
-                # Assert
-                assert settings["openai_api_key"] == ""
-                assert settings["groq_api_key"] == ""
-                assert settings["llm_provider"] == "OpenAI"  # Default
-                assert settings["max_jobs_per_company"] == 50  # Default
+            # Assert
+            assert settings["openai_api_key"] == ""
+            assert settings["groq_api_key"] == ""
+            assert settings["llm_provider"] == "OpenAI"  # Default
+            assert settings["max_jobs_per_company"] == 50  # Default
 
     def test_load_settings_mixed_sources(self):
         """Test loading settings from mixed sources (env vars + session state)."""
         # Arrange
-        with patch.dict(
-            os.environ,
-            {"OPENAI_API_KEY": "sk-env-key"},
-            clear=True,
+        with (
+            patch.dict(
+                os.environ,
+                {"OPENAI_API_KEY": "sk-env-key"},
+                clear=True,
+            ),
+            patch("streamlit.session_state", new_callable=dict) as mock_session,
         ):
-            with patch("streamlit.session_state", new_callable=dict) as mock_session:
-                mock_session.update(
-                    {
-                        "llm_provider": "OpenAI",
-                        "max_jobs_per_company": 100,
-                    }
-                )
+            mock_session.update(
+                {
+                    "llm_provider": "OpenAI",
+                    "max_jobs_per_company": 100,
+                }
+            )
 
-                # Act
-                settings = load_settings()
+            # Act
+            settings = load_settings()
 
-                # Assert
-                assert settings["openai_api_key"] == "sk-env-key"  # From env
-                assert settings["groq_api_key"] == ""  # Not set
-                assert settings["llm_provider"] == "OpenAI"  # From session
-                assert settings["max_jobs_per_company"] == 100  # From session
+            # Assert
+            assert settings["openai_api_key"] == "sk-env-key"  # From env
+            assert settings["groq_api_key"] == ""  # Not set
+            assert settings["llm_provider"] == "OpenAI"  # From session
+            assert settings["max_jobs_per_company"] == 100  # From session
 
 
 class TestSettingsSaving:
@@ -301,17 +307,19 @@ class TestSettingsSaving:
             "max_jobs_per_company": 60,
         }
 
-        with patch("streamlit.session_state", new_callable=dict):
-            with patch("src.ui.pages.settings.logger") as mock_logger:
-                # Act
-                save_settings(test_settings)
+        with (
+            patch("streamlit.session_state", new_callable=dict),
+            patch("src.ui.pages.settings.logger") as mock_logger,
+        ):
+            # Act
+            save_settings(test_settings)
 
-                # Assert
-                mock_logger.info.assert_called_once()
-                call_args = mock_logger.info.call_args[0]
-                assert "Settings updated" in call_args[0]
-                assert "OpenAI" in str(call_args)
-                assert "60" in str(call_args)
+            # Assert
+            mock_logger.info.assert_called_once()
+            call_args = mock_logger.info.call_args[0]
+            assert "Settings updated" in call_args[0]
+            assert "OpenAI" in str(call_args)
+            assert "60" in str(call_args)
 
 
 class TestSettingsPageRendering:
@@ -499,16 +507,18 @@ class TestSettingsPageRendering:
         # Arrange
         mock_streamlit["button"].return_value = True  # Simulate button click
 
-        with patch.dict(os.environ, {"OPENAI_API_KEY": "sk-test-key"}):
-            with patch("src.ui.pages.settings.test_api_connection") as mock_test:
-                mock_test.return_value = (True, "✅ Connected successfully")
+        with (
+            patch.dict(os.environ, {"OPENAI_API_KEY": "sk-test-key"}),
+            patch("src.ui.pages.settings.test_api_connection") as mock_test,
+        ):
+            mock_test.return_value = (True, "✅ Connected successfully")
 
-                # Act
-                show_settings_page()
+            # Act
+            show_settings_page()
 
-                # Assert
-                mock_test.assert_called()
-                mock_streamlit["success"].assert_called()
+            # Assert
+            mock_test.assert_called()
+            mock_streamlit["success"].assert_called()
 
     def test_settings_page_handles_api_connection_test_failure(
         self, mock_streamlit, mock_session_state
@@ -517,16 +527,18 @@ class TestSettingsPageRendering:
         # Arrange
         mock_streamlit["button"].return_value = True  # Simulate button click
 
-        with patch.dict(os.environ, {"OPENAI_API_KEY": "sk-invalid-key"}):
-            with patch("src.ui.pages.settings.test_api_connection") as mock_test:
-                mock_test.return_value = (False, "❌ Authentication failed")
+        with (
+            patch.dict(os.environ, {"OPENAI_API_KEY": "sk-invalid-key"}),
+            patch("src.ui.pages.settings.test_api_connection") as mock_test,
+        ):
+            mock_test.return_value = (False, "❌ Authentication failed")
 
-                # Act
-                show_settings_page()
+            # Act
+            show_settings_page()
 
-                # Assert
-                mock_test.assert_called()
-                mock_streamlit["error"].assert_called()
+            # Assert
+            mock_test.assert_called()
+            mock_streamlit["error"].assert_called()
 
     def test_settings_page_saves_settings_successfully(
         self, mock_streamlit, mock_session_state
@@ -627,13 +639,15 @@ class TestSettingsPageBoundaryConditions:
     def test_settings_page_handles_missing_session_state(self, mock_streamlit):
         """Test settings page handles missing session state gracefully."""
         # Arrange
-        with patch("streamlit.session_state", new_callable=dict):
-            with patch.dict(os.environ, {}, clear=True):
-                # Act & Assert - should not raise exception
-                show_settings_page()
+        with (
+            patch("streamlit.session_state", new_callable=dict),
+            patch.dict(os.environ, {}, clear=True),
+        ):
+            # Act & Assert - should not raise exception
+            show_settings_page()
 
-                # Verify page still renders basic elements
-                mock_streamlit["title"].assert_called_with("Settings")
+            # Verify page still renders basic elements
+            mock_streamlit["title"].assert_called_with("Settings")
 
     def test_settings_page_handles_invalid_session_values(
         self, mock_streamlit, mock_session_state
@@ -747,36 +761,38 @@ class TestSettingsPageIntegration:
             True,
         ]  # Test buttons
 
-        with patch.dict(
-            os.environ,
-            {"OPENAI_API_KEY": "sk-test", "GROQ_API_KEY": "gsk_test"},
+        with (
+            patch.dict(
+                os.environ,
+                {"OPENAI_API_KEY": "sk-test", "GROQ_API_KEY": "gsk_test"},
+            ),
+            patch("src.ui.pages.settings.test_api_connection") as mock_test,
         ):
-            with patch("src.ui.pages.settings.test_api_connection") as mock_test:
-                mock_test.side_effect = [
-                    (True, "✅ OpenAI connected"),
-                    (False, "❌ Groq failed"),
-                ]
+            mock_test.side_effect = [
+                (True, "✅ OpenAI connected"),
+                (False, "❌ Groq failed"),
+            ]
 
-                # Act
-                show_settings_page()
+            # Act
+            show_settings_page()
 
-                # Assert - Both APIs were tested
-                assert mock_test.call_count == 2
-                test_calls = mock_test.call_args_list
+            # Assert - Both APIs were tested
+            assert mock_test.call_count == 2
+            test_calls = mock_test.call_args_list
 
-                # Check OpenAI test
-                openai_call = test_calls[0]
-                assert openai_call.args[0] == "OpenAI"
-                assert openai_call.args[1] == "sk-test"
+            # Check OpenAI test
+            openai_call = test_calls[0]
+            assert openai_call.args[0] == "OpenAI"
+            assert openai_call.args[1] == "sk-test"
 
-                # Check Groq test
-                groq_call = test_calls[1]
-                assert groq_call.args[0] == "Groq"
-                assert groq_call.args[1] == "gsk_test"
+            # Check Groq test
+            groq_call = test_calls[1]
+            assert groq_call.args[0] == "Groq"
+            assert groq_call.args[1] == "gsk_test"
 
-                # Check feedback was displayed
-                mock_streamlit["success"].assert_called()
-                mock_streamlit["error"].assert_called()
+            # Check feedback was displayed
+            mock_streamlit["success"].assert_called()
+            mock_streamlit["error"].assert_called()
 
     def test_settings_persistence_across_page_loads(
         self, mock_streamlit, mock_session_state

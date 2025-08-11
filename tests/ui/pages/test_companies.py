@@ -543,11 +543,17 @@ class TestInitAndDisplayFeedback:
         # Arrange - No session state keys set initially
 
         # Act
-        with patch("src.ui.pages.companies.init_session_state_keys") as mock_init_keys:
-            with patch(
-                "src.ui.pages.companies.display_feedback_messages"
-            ) as mock_display:
-                _init_and_display_feedback()
+        with (
+            patch("src.ui.pages.companies.init_session_state_keys") as mock_init_keys,
+            patch("src.ui.pages.companies.display_feedback_messages") as mock_display,
+        ):
+            from src.ui.pages.companies import (
+                display_feedback_messages,
+                init_session_state_keys,
+            )
+
+            init_session_state_keys()
+            display_feedback_messages()
 
         # Assert
         mock_init_keys.assert_called_once_with(
@@ -577,11 +583,17 @@ class TestInitAndDisplayFeedback:
         )
 
         # Act
-        with patch("src.ui.pages.companies.init_session_state_keys"):
-            with patch(
-                "src.ui.pages.companies.display_feedback_messages"
-            ) as mock_display:
-                _init_and_display_feedback()
+        with (
+            patch("src.ui.pages.companies.init_session_state_keys"),
+            patch("src.ui.pages.companies.display_feedback_messages") as mock_display,
+        ):
+            from src.ui.pages.companies import (
+                display_feedback_messages,
+                init_session_state_keys,
+            )
+
+            init_session_state_keys()
+            display_feedback_messages()
 
         # Assert
         mock_display.assert_called_once_with(
@@ -602,11 +614,17 @@ class TestInitAndDisplayFeedback:
         )
 
         # Act
-        with patch("src.ui.pages.companies.init_session_state_keys"):
-            with patch(
-                "src.ui.pages.companies.display_feedback_messages"
-            ) as mock_display:
-                _init_and_display_feedback()
+        with (
+            patch("src.ui.pages.companies.init_session_state_keys"),
+            patch("src.ui.pages.companies.display_feedback_messages") as mock_display,
+        ):
+            from src.ui.pages.companies import (
+                display_feedback_messages,
+                init_session_state_keys,
+            )
+
+            init_session_state_keys()
+            display_feedback_messages()
 
         # Assert
         mock_display.assert_called_once_with(
@@ -756,7 +774,7 @@ class TestCompanyPageBoundaryConditions:
                 )
 
     def test_toggle_callback_handles_concurrent_modifications(self, mock_session_state):
-        """Test toggle callback handles potential concurrent modifications gracefully."""
+        """Test toggle callback handles concurrent modifications gracefully."""
         # Arrange
         company_id = 1
 

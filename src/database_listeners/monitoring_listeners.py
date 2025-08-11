@@ -29,12 +29,12 @@ def performance_monitor(func):
     """
 
     @functools.wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(self, *args, **kwargs):
         start_time = time.time()
         func_name = f"{func.__module__}.{func.__qualname__}"
 
         try:
-            result = func(*args, **kwargs)
+            result = func(self, *args, **kwargs)
             execution_time = time.time() - start_time
 
             if execution_time > SLOW_QUERY_THRESHOLD:

@@ -150,7 +150,7 @@ class TestRenderJobStatus:
         mock_streamlit["columns"].assert_called_once_with(2)
 
     @pytest.mark.parametrize(
-        "status,expected_icon",
+        ("status", "expected_icon"),
         [
             ("New", "🔵"),
             ("Interested", "🟡"),
@@ -407,7 +407,7 @@ class TestRenderActionButtons:
         # Mock button clicks
         mock_streamlit["button"].return_value = False
 
-        with patch("src.ui.utils.job_utils.save_job_notes") as mock_save_notes:
+        with patch("src.ui.utils.job_utils.save_job_notes"):
             render_action_buttons(sample_job_dto, notes_value)
 
             # Verify UI structure

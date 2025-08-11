@@ -71,9 +71,11 @@ class TestGetOrCreateCompany:
         company_name = "Error Corp"
 
         # Mock session to raise exception on commit
-        with patch.object(session, "commit", side_effect=Exception("Database error")):
-            with pytest.raises(Exception, match="Database error"):
-                get_or_create_company(session, company_name)
+        with (
+            patch.object(session, "commit", side_effect=Exception("Database error")),
+            pytest.raises(Exception, match="Database error"),
+        ):
+            get_or_create_company(session, company_name)
 
 
 class TestNormalizeBoardJobs:
@@ -209,7 +211,6 @@ class TestNormalizeBoardJobs:
         mock_company_service.bulk_get_or_create_companies.return_value = {"Corp": 1}
 
         test_cases = [
-            # (min_amount, max_amount, expected_salary)
             (100000, 150000, "$100000-$150000"),
             (100000, None, "$100000+"),
             (None, 150000, "$150000"),

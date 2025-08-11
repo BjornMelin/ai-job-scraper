@@ -264,7 +264,7 @@ class TestExtractJobLists:
         mock_scraper_instance = Mock()
         mock_scraper_class.return_value = mock_scraper_instance
         mock_scraper_instance.run.return_value = {
-            "https://test.com/careers": "invalid response format",  # Not a dict with 'jobs'
+            "https://test.com/careers": "invalid response format"  # Not dict
         }
 
         result = extract_job_lists(state)
@@ -639,7 +639,7 @@ class TestNormalizeJobs:
         }
 
         # Mock the company creation flow
-        def mock_exec_side_effect(query):
+        def mock_exec_side_effect(_query):
             mock_result = Mock()
             mock_result.first.return_value = None
             return mock_result

@@ -506,13 +506,15 @@ class TestSyncJobs:
         )
 
         # Mock the _sync_single_job_optimized to raise an exception
-        with patch.object(
-            engine,
-            "_sync_single_job_optimized",
-            side_effect=Exception("Database error"),
+        with (
+            patch.object(
+                engine,
+                "_sync_single_job_optimized",
+                side_effect=Exception("Database error"),
+            ),
+            pytest.raises(Exception, match="Database error"),
         ):
-            with pytest.raises(Exception, match="Database error"):
-                engine.sync_jobs([problem_job])
+            engine.sync_jobs([problem_job])
 
         # Verify no jobs were inserted due to rollback
         inserted_jobs = test_session.exec(
@@ -974,7 +976,9 @@ class TestContentHashGeneration:
         if job.posted_date:
             content_parts.append(job.posted_date.isoformat())
 
-        expected_hash = hashlib.md5("".join(content_parts).encode("utf-8")).hexdigest()
+        expected_hash = hashlib.sha256(
+            "".join(content_parts).encode("utf-8")
+        ).hexdigest()
         assert hash_result == expected_hash
 
 
@@ -1089,9 +1093,11 @@ class TestSyncStatisticsAndUtilities:
         engine = SmartSyncEngine(session=test_session)
 
         # Mock session.exec to raise an exception
-        with patch.object(test_session, "exec", side_effect=Exception("Cleanup error")):
-            with pytest.raises(Exception, match="Cleanup error"):
-                engine.cleanup_old_jobs()
+        with (
+            patch.object(test_session, "exec", side_effect=Exception("Cleanup error")),
+            pytest.raises(Exception, match="Cleanup error"),
+        ):
+            engine.cleanup_old_jobs()
 
 
 class TestConcurrencyAndEdgeCases:
@@ -1106,7 +1112,7 @@ class TestConcurrencyAndEdgeCases:
         # Simulate concurrent modification by updating a job during sync
         existing_job = sample_jobs[0]
 
-        def modify_job_during_sync(*args, **kwargs):
+        def modify_job_during_sync():
             # Modify the job in the database during sync
             concurrent_job = test_session.exec(
                 select(JobSQL).where(JobSQL.id == existing_job.id)
@@ -1243,11 +1249,13 @@ class TestErrorHandling:
         """Test handling of database connection errors."""
         engine = SmartSyncEngine()
 
-        with patch.object(
-            engine, "_get_session", side_effect=Exception("Connection failed")
+        with (
+            patch.object(
+                engine, "_get_session", side_effect=Exception("Connection failed")
+            ),
+            pytest.raises(Exception, match="Connection failed"),
         ):
-            with pytest.raises(Exception, match="Connection failed"):
-                engine.sync_jobs([])
+            engine.sync_jobs([])
 
     def test_sync_jobs_partial_failure_recovery(self, test_session, sample_companies):
         """Test recovery from partial failures during sync."""
@@ -1275,16 +1283,18 @@ class TestErrorHandling:
         # Mock to make second job fail
         call_count = 0
 
-        def failing_insert(session, job):
+        def failing_insert(_session, _job):
             nonlocal call_count
             call_count += 1
             if call_count == 2:  # Second job fails
-                raise Exception("Insert failed")
+                raise RuntimeError("Insert failed")
             return "inserted"
 
-        with patch.object(engine, "_insert_new_job", side_effect=failing_insert):
-            with pytest.raises(Exception, match="Insert failed"):
-                engine.sync_jobs(jobs)
+        with (
+            patch.object(engine, "_insert_new_job", side_effect=failing_insert),
+            pytest.raises(Exception, match="Insert failed"),
+        ):
+            engine.sync_jobs(jobs)
 
         # Verify rollback - no jobs should be inserted
         inserted_jobs = test_session.exec(

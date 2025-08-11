@@ -503,7 +503,7 @@ class TestViewModeIntegration:
         mock_streamlit["selectbox"].side_effect = [Exception("Mock error"), "List"]
 
         # First call should raise exception
-        with pytest.raises(Exception):
+        with pytest.raises(ValueError, match="some message"):
             select_view_mode("error_test")
 
         # Reset side effect for normal operation

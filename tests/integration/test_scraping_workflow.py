@@ -558,7 +558,7 @@ class TestProxyIntegrationWorkflow:
         prevent_real_system_execution["scrape_all"].return_value = scraping_results
         prevent_real_system_execution["scrape_all_bg"].return_value = scraping_results
 
-        # Act: Run scraping workflow (proxy configuration doesn't affect mocked scraping)
+        # Act: Run scraping workflow (mocked proxy config has no effect)
         start_background_scraping()
 
         # Assert: Workflow completed successfully
@@ -587,7 +587,7 @@ class TestProxyIntegrationWorkflow:
         prevent_real_system_execution["scrape_all"].return_value = scraping_results
         prevent_real_system_execution["scrape_all_bg"].return_value = scraping_results
 
-        # Act: Run scraping workflow (proxy configuration doesn't affect mocked scraping)
+        # Act: Run scraping workflow (mocked proxy config has no effect)
         start_background_scraping()
 
         # Assert: Workflow completed successfully
@@ -703,9 +703,7 @@ class TestDataFlowIntegration:
         prevent_real_system_execution["scrape_all"].return_value = scraping_results
         prevent_real_system_execution["scrape_all_bg"].return_value = scraping_results
 
-        # Act: Run complete workflow while tracking session state changes
-        initial_state = dict(mock_session_state._data)
-
+        # Act: Run complete workflow and track state changes
         # Start scraping (completes synchronously)
         task_id = start_background_scraping()
 

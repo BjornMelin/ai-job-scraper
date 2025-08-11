@@ -108,7 +108,7 @@ def mock_streamlit():
             def decorator(func):
                 # Create a wrapper that acts like both the original function
                 # and has an open method
-                def wrapper(*args, **kwargs):
+                def wrapper(_self, *args, **kwargs):
                     # Just call the original function directly
                     return func(*args, **kwargs)
 
@@ -530,7 +530,7 @@ def prevent_real_system_execution():
             def decorator(func):
                 # Create a wrapper that acts like both the original function
                 # and has an open method
-                def wrapper(*args, **kwargs):
+                def wrapper(_self, *args, **kwargs):
                     # Just call the original function directly
                     return func(*args, **kwargs)
 
