@@ -512,8 +512,11 @@ class CompanySQL(SQLModel, table=True, extend_existing=True):
     scrape_count: int = Field(default=0)
     success_rate: float = Field(default=1.0)
 
-    # Relationships
-    jobs: list["JobSQL"] = Relationship(back_populates="company_relation")
+    # Relationships with cascade delete automation
+    jobs: list["JobSQL"] = Relationship(
+        back_populates="company_relation",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"},
+    )
 
     @field_validator("last_scraped", mode="before")
     @classmethod
@@ -555,7 +558,9 @@ class JobSQL(SQLModel, table=True, extend_existing=True):
     model_config = {"validate_assignment": True}
 
     id: int | None = Field(default=None, primary_key=True)
-    company_id: int | None = Field(default=None, foreign_key="companysql.id")
+    company_id: int | None = Field(
+        default=None, foreign_key="companysql.id", ondelete="CASCADE"
+    )
     title: str
     description: str
     link: str = Field(unique=True)
@@ -574,7 +579,7 @@ class JobSQL(SQLModel, table=True, extend_existing=True):
         default=None, index=True, description="Timezone-aware datetime (UTC)"
     )  # Index for stale job queries
 
-    # Relationships
+    # Relationships with cascade delete support
     company_relation: "CompanySQL" = Relationship(back_populates="jobs")
 
     @computed_field  # type: ignore[misc]

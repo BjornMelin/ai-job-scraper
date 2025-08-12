@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 import pytest
 
-from src.ui.utils.formatters import (
+from src.ui.utils.ui_helpers import (
     calculate_eta,
     calculate_progress_percentage,
     calculate_scraping_speed,

@@ -14,9 +14,9 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import joinedload
 from sqlmodel import select
 from src.constants import SALARY_DEFAULT_MIN, SALARY_UNBOUNDED_THRESHOLD
-from src.database import db_session
 from src.models import CompanySQL, JobSQL
 from src.schemas import Job
+from src.services.base_service import BaseService
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ type JobCountStats = dict[str, int]
 type JobUpdateBatch = list[dict[str, Any]]
 
 
-class JobService:
+class JobService(BaseService):
     """Service class for job data operations.
 
     Provides static methods for querying, filtering, and updating job records
@@ -34,8 +34,8 @@ class JobService:
     and the database models.
     """
 
-    @staticmethod
-    def _to_dto(job_sql: JobSQL) -> Job:
+    @classmethod
+    def _to_dto(cls, job_sql: JobSQL) -> Job:
         """Convert a single SQLModel object to its Pydantic DTO.
 
         Helper method for consistent DTO conversion that eliminates
@@ -71,8 +71,8 @@ class JobService:
         """
         return [cls._to_dto(js) for js in jobs_sql]
 
-    @staticmethod
-    def get_filtered_jobs(filters: FilterDict) -> list[Job]:
+    @classmethod
+    def get_filtered_jobs(cls, filters: FilterDict) -> list[Job]:
         """Get jobs filtered by the provided criteria.
 
         Args:
@@ -93,7 +93,7 @@ class JobService:
             Exception: If database query fails.
         """
         try:
-            with db_session() as session:
+            with cls.get_session_with_relationships() as session:
                 # Start with base query, eagerly loading company relationship
                 query = select(JobSQL).options(joinedload(JobSQL.company_relation))
 
@@ -122,12 +122,12 @@ class JobService:
 
                 # Apply date filters
                 if date_from := filters.get("date_from"):
-                    date_from = JobService._parse_date(date_from)
+                    date_from = cls._parse_date(date_from)
                     if date_from:
                         query = query.filter(JobSQL.posted_date >= date_from)
 
                 if date_to := filters.get("date_to"):
-                    date_to = JobService._parse_date(date_to)
+                    date_to = cls._parse_date(date_to)
                     if date_to:
                         query = query.filter(JobSQL.posted_date <= date_to)
 
@@ -166,7 +166,7 @@ class JobService:
                 jobs_sql = session.exec(query).all()
 
                 # Convert SQLModel objects to Pydantic DTOs using helper
-                jobs = JobService._to_dtos(jobs_sql)
+                jobs = cls._to_dtos(jobs_sql)
 
                 logger.info("Retrieved %d jobs with filters: %s", len(jobs), filters)
                 return jobs
@@ -175,8 +175,8 @@ class JobService:
             logger.exception("Failed to get filtered jobs")
             raise
 
-    @staticmethod
-    def update_job_status(job_id: int, status: str) -> bool:
+    @classmethod
+    def update_job_status(cls, job_id: int, status: str) -> bool:
         """Update the application status of a job.
 
         Args:
@@ -190,7 +190,7 @@ class JobService:
             Exception: If database update fails.
         """
         try:
-            with db_session() as session:
+            with cls.get_session_with_relationships() as session:
                 job = session.exec(select(JobSQL).filter_by(id=job_id)).first()
                 if not job:
                     logger.warning("Job with ID %s not found", job_id)
@@ -220,8 +220,8 @@ class JobService:
             logger.exception("Failed to update job status for job %s", job_id)
             raise
 
-    @staticmethod
-    def toggle_favorite(job_id: int) -> bool:
+    @classmethod
+    def toggle_favorite(cls, job_id: int) -> bool:
         """Toggle the favorite status of a job.
 
         Args:
@@ -234,7 +234,7 @@ class JobService:
             Exception: If database update fails.
         """
         try:
-            with db_session() as session:
+            with cls.get_session_with_relationships() as session:
                 job = session.exec(select(JobSQL).filter_by(id=job_id)).first()
                 if not job:
                     logger.warning("Job with ID %s not found", job_id)
@@ -249,8 +249,8 @@ class JobService:
             logger.exception("Failed to toggle favorite for job %s", job_id)
             raise
 
-    @staticmethod
-    def update_notes(job_id: int, notes: str) -> bool:
+    @classmethod
+    def update_notes(cls, job_id: int, notes: str) -> bool:
         """Update the notes for a job.
 
         Args:
@@ -264,7 +264,7 @@ class JobService:
             Exception: If database update fails.
         """
         try:
-            with db_session() as session:
+            with cls.get_session_with_relationships() as session:
                 job = session.exec(select(JobSQL).filter_by(id=job_id)).first()
                 if not job:
                     logger.warning("Job with ID %s not found", job_id)
@@ -279,8 +279,8 @@ class JobService:
             logger.exception("Failed to update notes for job %s", job_id)
             raise
 
-    @staticmethod
-    def get_job_by_id(job_id: int) -> Job | None:
+    @classmethod
+    def get_job_by_id(cls, job_id: int) -> Job | None:
         """Get a single job by its ID.
 
         Args:
@@ -293,7 +293,7 @@ class JobService:
             Exception: If database query fails.
         """
         try:
-            with db_session() as session:
+            with cls.get_session_with_relationships() as session:
                 job_sql = session.exec(
                     select(JobSQL)
                     .options(joinedload(JobSQL.company_relation))
@@ -302,7 +302,7 @@ class JobService:
 
                 if job_sql:
                     # Convert to DTO using helper method
-                    job = JobService._to_dto(job_sql)
+                    job = cls._to_dto(job_sql)
 
                     logger.info("Retrieved job %s: %s", job_id, job.title)
                     return job
@@ -313,8 +313,10 @@ class JobService:
             logger.exception("Failed to get job %s", job_id)
             raise
 
-    @staticmethod
-    def get_job_counts_by_status() -> JobCountStats:
+    @classmethod
+    def get_job_counts_by_status(
+        cls,
+    ) -> JobCountStats:
         """Get count of jobs grouped by application status.
 
         Returns:
@@ -324,7 +326,7 @@ class JobService:
             Exception: If database query fails.
         """
         try:
-            with db_session() as session:
+            with cls.get_session_with_relationships() as session:
                 results = session.exec(
                     select(JobSQL.application_status, func.count(JobSQL.id))
                     .filter(JobSQL.archived.is_(False))
@@ -339,8 +341,8 @@ class JobService:
             logger.exception("Failed to get job counts")
             raise
 
-    @staticmethod
-    def archive_job(job_id: int) -> bool:
+    @classmethod
+    def archive_job(cls, job_id: int) -> bool:
         """Archive a job (soft delete).
 
         Args:
@@ -353,7 +355,7 @@ class JobService:
             Exception: If database update fails.
         """
         try:
-            with db_session() as session:
+            with cls.get_session_with_relationships() as session:
                 job = session.exec(select(JobSQL).filter_by(id=job_id)).first()
                 if not job:
                     logger.warning("Job with ID %s not found", job_id)
@@ -368,8 +370,10 @@ class JobService:
             logger.exception("Failed to archive job %s", job_id)
             raise
 
-    @staticmethod
-    def get_active_companies() -> list[str]:
+    @classmethod
+    def get_active_companies(
+        cls,
+    ) -> list[str]:
         """Get list of active company names for scraping.
 
         Returns:
@@ -379,7 +383,7 @@ class JobService:
             Exception: If database query fails.
         """
         try:
-            with db_session() as session:
+            with cls.get_session_with_relationships() as session:
                 # Query for active companies, ordered by name for consistency
                 query = (
                     select(CompanySQL.name)
@@ -396,8 +400,8 @@ class JobService:
             logger.exception("Failed to get active companies")
             raise
 
-    @staticmethod
-    def _parse_date(date_input: str | datetime | None) -> datetime | None:
+    @classmethod
+    def _parse_date(cls, date_input: str | datetime | None) -> datetime | None:
         """Parse date input into datetime object.
 
         Supports common formats encountered when scraping job sites:
@@ -452,8 +456,8 @@ class JobService:
 
         return None
 
-    @staticmethod
-    def bulk_update_jobs(job_updates: JobUpdateBatch) -> bool:
+    @classmethod
+    def bulk_update_jobs(cls, job_updates: JobUpdateBatch) -> bool:
         """Bulk update job records with favorite, status, and notes changes.
 
         Args:
@@ -470,7 +474,7 @@ class JobService:
             return True
 
         try:
-            with db_session() as session:
+            with cls.get_session_with_relationships() as session:
                 for update in job_updates:
                     job = session.exec(
                         select(JobSQL).filter_by(id=update["id"])
@@ -497,8 +501,9 @@ class JobService:
             logger.exception("Failed to bulk update jobs")
             raise
 
-    @staticmethod
+    @classmethod
     def get_jobs_with_company_names_direct_join(
+        cls,
         filters: FilterDict,
     ) -> list[dict[str, Any]]:
         """Alternative implementation using direct SQL JOIN as suggested by Sourcery.
@@ -516,7 +521,7 @@ class JobService:
             Exception: If database query fails.
         """
         try:
-            with db_session() as session:
+            with cls.get_session_with_relationships() as session:
                 # Use explicit JOIN to get company names directly
 
                 query = select(JobSQL, CompanySQL.name.label("company_name")).join(
@@ -543,12 +548,12 @@ class JobService:
                     query = query.filter(JobSQL.application_status.in_(status_filter))
 
                 if date_from := filters.get("date_from"):
-                    date_from = JobService._parse_date(date_from)
+                    date_from = cls._parse_date(date_from)
                     if date_from:
                         query = query.filter(JobSQL.posted_date >= date_from)
 
                 if date_to := filters.get("date_to"):
-                    date_to = JobService._parse_date(date_to)
+                    date_to = cls._parse_date(date_to)
                     if date_to:
                         query = query.filter(JobSQL.posted_date <= date_to)
 

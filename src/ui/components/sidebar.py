@@ -20,7 +20,7 @@ from src.constants import (
 # Removed direct database import - using service layer instead
 from src.services.company_service import CompanyService
 from src.ui.state.session_state import clear_filters
-from src.ui.utils.formatters import format_salary
+from src.ui.utils.ui_helpers import format_salary
 
 logger = logging.getLogger(__name__)
 
@@ -182,14 +182,21 @@ def _render_company_management() -> None:
                 comp_df,
                 column_config={
                     "Active": st.column_config.CheckboxColumn(
-                        "Active", help="Toggle to enable/disable scraping"
+                        "Active",
+                        width="small",
+                        help="Toggle to enable/disable scraping",
                     ),
                     "URL": st.column_config.LinkColumn(
-                        "URL", help="Company careers page URL"
+                        "URL", width="large", help="Company careers page URL"
+                    ),
+                    "Name": st.column_config.TextColumn("Company Name", width="medium"),
+                    "id": st.column_config.NumberColumn(
+                        "ID", width="small", disabled=True
                     ),
                 },
                 hide_index=True,
                 use_container_width=True,
+                height=400,  # Streamlit 1.47+ height parameter
             )
 
             if st.button("💾 Save Changes", use_container_width=True, type="primary"):

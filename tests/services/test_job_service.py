@@ -1103,7 +1103,7 @@ class TestJobServiceHighValueSalaries:
 
     def test_format_salary_display_helper(self):
         """Test salary formatting helper for UI display."""
-        from src.ui.utils.formatters import format_salary
+        from src.ui.utils.ui_helpers import format_salary
 
         # Test various amounts using the shared utility
         assert format_salary(0) == "$0"

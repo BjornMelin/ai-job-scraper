@@ -18,7 +18,7 @@ from src.scraper import scrape_all
 from src.services.company_service import CompanyService
 from src.services.job_service import JobService
 from src.ui.components.sidebar import render_sidebar
-from src.ui.utils.streamlit_context import is_streamlit_context
+from src.ui.utils.ui_helpers import is_streamlit_context
 
 logger = logging.getLogger(__name__)
 
@@ -551,14 +551,25 @@ def _render_list_view(df: pd.DataFrame, tab_key: str) -> None:
         df.drop(columns=["Description"]),
         column_config={
             "Link": st.column_config.LinkColumn("Link", display_text="Apply"),
-            "Favorite": st.column_config.CheckboxColumn("Favorite ⭐"),
-            "Status": st.column_config.SelectboxColumn(
-                "Status 🔄", options=["New", "Interested", "Applied", "Rejected"]
+            "Favorite": st.column_config.CheckboxColumn(
+                "Favorite ⭐", width="small", help="Mark as favorite"
             ),
-            "Notes": st.column_config.TextColumn("Notes 📝"),
+            "Status": st.column_config.SelectboxColumn(
+                "Status 🔄",
+                options=["New", "Interested", "Applied", "Rejected"],
+                width="medium",
+                help="Application status",
+            ),
+            "Notes": st.column_config.TextColumn(
+                "Notes 📝", width="large", help="Personal notes about this job"
+            ),
+            "Company": st.column_config.TextColumn("Company", width="medium"),
+            "Title": st.column_config.TextColumn("Job Title", width="large"),
+            "Location": st.column_config.TextColumn("Location", width="medium"),
         },
         hide_index=False,
         use_container_width=True,
+        height=600,  # Streamlit 1.47+ height parameter
     )
 
     # Save changes button
@@ -647,7 +658,7 @@ def _render_metric_cards(
     favorites: int,
     rejected: int,
 ) -> None:
-    """Render the metric cards section.
+    """Render the metric cards section using enhanced st.metric components.
 
     Args:
         total_jobs: Total number of jobs.
@@ -660,77 +671,57 @@ def _render_metric_cards(
     col1, col2, col3, col4, col5, col6 = st.columns(6)
 
     with col1:
-        st.markdown(
-            f"""
-            <div class="metric-card">
-                <div class="metric-value">{total_jobs}</div>
-                <div class="metric-label">Total Jobs</div>
-            </div>
-        """,
-            unsafe_allow_html=True,
-        )
+        st.metric("Total Jobs", total_jobs)
 
     with col2:
-        st.markdown(
-            f"""
-            <div class="metric-card">
-                <div class="metric-value" style="color: var(--primary-color);">
-                    {new_jobs}
-                </div>
-                <div class="metric-label">New</div>
-            </div>
-        """,
-            unsafe_allow_html=True,
+        # Calculate percentage of new jobs
+        new_percentage = (new_jobs / total_jobs * 100) if total_jobs > 0 else 0
+        st.metric(
+            "New Jobs",
+            new_jobs,
+            delta=f"{new_percentage:.1f}%" if new_percentage > 0 else None,
         )
 
     with col3:
-        st.markdown(
-            f"""
-            <div class="metric-card">
-                <div class="metric-value" style="color: var(--warning-color);">
-                    {interested}
-                </div>
-                <div class="metric-label">Interested</div>
-            </div>
-        """,
-            unsafe_allow_html=True,
+        # Calculate percentage of interested jobs
+        interested_percentage = (interested / total_jobs * 100) if total_jobs > 0 else 0
+        st.metric(
+            "Interested",
+            interested,
+            delta=f"{interested_percentage:.1f}%"
+            if interested_percentage > 0
+            else None,
+            delta_color="normal",
         )
 
     with col4:
-        st.markdown(
-            f"""
-            <div class="metric-card">
-                <div class="metric-value" style="color: var(--success-color);">
-                    {applied}
-                </div>
-                <div class="metric-label">Applied</div>
-            </div>
-        """,
-            unsafe_allow_html=True,
+        # Calculate percentage of applied jobs
+        applied_percentage = (applied / total_jobs * 100) if total_jobs > 0 else 0
+        st.metric(
+            "Applied",
+            applied,
+            delta=f"{applied_percentage:.1f}%" if applied_percentage > 0 else None,
+            delta_color="normal",
         )
 
     with col5:
-        st.markdown(
-            f"""
-            <div class="metric-card">
-                <div class="metric-value" style="color: #f59e0b;">{favorites}</div>
-                <div class="metric-label">Favorites</div>
-            </div>
-        """,
-            unsafe_allow_html=True,
+        # Calculate percentage of favorites
+        favorites_percentage = (favorites / total_jobs * 100) if total_jobs > 0 else 0
+        st.metric(
+            "Favorites",
+            favorites,
+            delta=f"{favorites_percentage:.1f}%" if favorites_percentage > 0 else None,
+            delta_color="normal",
         )
 
     with col6:
-        st.markdown(
-            f"""
-            <div class="metric-card">
-                <div class="metric-value" style="color: var(--danger-color);">
-                    {rejected}
-                </div>
-                <div class="metric-label">Rejected</div>
-            </div>
-        """,
-            unsafe_allow_html=True,
+        # Calculate percentage of rejected jobs
+        rejected_percentage = (rejected / total_jobs * 100) if total_jobs > 0 else 0
+        st.metric(
+            "Rejected",
+            rejected,
+            delta=f"{rejected_percentage:.1f}%" if rejected_percentage > 0 else None,
+            delta_color="inverse",
         )
 
 
@@ -778,16 +769,16 @@ def _render_progress_visualization(
             st.progress(pct / 100)
 
     with col2:
-        # Application rate metric
+        # Application rate metric using st.metric
         application_rate = (applied / total_jobs) * 100 if total_jobs > 0 else 0
-        st.markdown(
-            f"""
-            <div class="metric-card">
-                <div class="metric-value">{application_rate:.1f}%</div>
-                <div class="metric-label">Application Rate</div>
-            </div>
-        """,
-            unsafe_allow_html=True,
+        # Calculate delta compared to a benchmark (e.g., 20% target application rate)
+        target_rate = 20.0
+        rate_delta = application_rate - target_rate
+        st.metric(
+            "Application Rate",
+            f"{application_rate:.1f}%",
+            delta=f"{rate_delta:+.1f}%" if abs(rate_delta) >= 0.1 else None,
+            delta_color="normal" if rate_delta >= 0 else "inverse",
         )
 
 

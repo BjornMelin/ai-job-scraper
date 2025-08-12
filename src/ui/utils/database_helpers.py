@@ -1,8 +1,11 @@
-"""Streamlit-optimized database utilities for the AI Job Scraper.
+"""Database helper utilities consolidating database utilities and session management.
 
-This module provides library-first database utilities specifically designed for
-Streamlit's execution model, ensuring optimal session management, preventing
-state contamination, and integrating performance monitoring.
+This consolidated module combines database utilities and session state helpers
+for optimal organization and reduced file count.
+
+Consolidates:
+- database_utils.py: Streamlit-optimized database utilities
+- session_helpers.py: Session state helper utilities
 """
 
 import logging
@@ -19,6 +22,67 @@ from sqlmodel import Session
 from src.database import get_connection_pool_status, get_session
 
 logger = logging.getLogger(__name__)
+
+
+# ===============================================================================
+# SESSION STATE HELPERS (from session_helpers.py)
+# ===============================================================================
+
+
+def init_session_state_keys(keys: list[str], default_value: Any = None) -> None:
+    """Initialize multiple session state keys with a default value.
+
+    Args:
+        keys: List of session state keys to initialize.
+        default_value: Default value to set if key doesn't exist.
+
+    Examples:
+        >>> # Initialize feedback keys
+        >>> init_session_state_keys(
+        ...     ["add_company_error", "add_company_success"], None
+        ... )
+
+        >>> # Initialize form keys with empty strings
+        >>> init_session_state_keys(["company_name", "company_url"], "")
+    """
+    for key in keys:
+        if key not in st.session_state:
+            st.session_state[key] = default_value
+
+
+def display_feedback_messages(success_keys: list[str], error_keys: list[str]) -> None:
+    """Display and clear feedback messages from session state.
+
+    This function displays success and error messages stored in session state,
+    then clears them to prevent them from showing again on subsequent runs.
+
+    Args:
+        success_keys: List of session state keys containing success messages.
+        error_keys: List of session state keys containing error messages.
+
+    Examples:
+        >>> # Display feedback for company operations
+        >>> display_feedback_messages(
+        ...     success_keys=["add_company_success", "toggle_success"],
+        ...     error_keys=["add_company_error", "toggle_error"],
+        ... )
+    """
+    # Display and clear success messages
+    for key in success_keys:
+        if st.session_state.get(key):
+            st.success(f"✅ {st.session_state[key]}")
+            st.session_state[key] = None
+
+    # Display and clear error messages
+    for key in error_keys:
+        if st.session_state.get(key):
+            st.error(f"❌ {st.session_state[key]}")
+            st.session_state[key] = None
+
+
+# ===============================================================================
+# DATABASE UTILITIES (from database_utils.py)
+# ===============================================================================
 
 
 @st.cache_resource

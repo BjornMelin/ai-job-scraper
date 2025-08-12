@@ -15,15 +15,14 @@ from src.services.job_service import JobService
 from src.ui.components.progress.company_progress_card import (
     render_company_progress_card,
 )
-from src.ui.utils.background_tasks import (
+from src.ui.utils.background_helpers import (
     get_company_progress,
     is_scraping_active,
     start_background_scraping,
     stop_all_scraping,
+    throttled_rerun,
 )
-from src.ui.utils.formatters import calculate_eta
-from src.ui.utils.refresh import throttled_rerun
-from src.ui.utils.streamlit_context import is_streamlit_context
+from src.ui.utils.ui_helpers import calculate_eta, is_streamlit_context
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +38,7 @@ def render_scraping_page() -> None:
         st.session_state.last_refresh = 0.0
 
     # Process scraping trigger (runs every second via @st.fragment)
-    from src.ui.utils.background_tasks import process_scraping_trigger
+    from src.ui.utils.background_helpers import process_scraping_trigger
 
     process_scraping_trigger()
 

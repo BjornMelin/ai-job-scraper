@@ -64,8 +64,8 @@ def render_job_card(job: Job) -> None:
             if job.favorite:
                 st.markdown("⭐")
 
-        # Interactive controls row
-        col1, col2, col3 = st.columns(3)
+        # Interactive controls row - using popover for job actions
+        col1, col2 = st.columns([2, 1])
 
         with col1:
             # Status selectbox with on_change callback
@@ -85,27 +85,45 @@ def render_job_card(job: Job) -> None:
                 args=(job.id,),
             )
 
-        with col2:
-            # Favorite toggle button with heart icons
-            favorite_icon = "❤️" if job.favorite else "🤍"
+        with col2, st.popover("⚡ Actions", use_container_width=True):
+            # Favorite toggle
+            favorite_text = (
+                "❤️ Remove Favorite" if job.favorite else "🤍 Add to Favorites"
+            )
             if st.button(
-                favorite_icon,
-                key=f"favorite_{job.id}",
-                help="Toggle favorite",
-                on_click=_handle_favorite_toggle,
-                args=(job.id,),
+                favorite_text,
+                key=f"popover_favorite_{job.id}",
+                use_container_width=True,
             ):
-                pass  # onClick is handled by the on_click parameter
+                _handle_favorite_toggle(job.id)
 
-        with col3:
             # View Details button
             if st.button(
-                "View Details",
-                key=f"details_{job.id}",
-                on_click=_handle_view_details,
-                args=(job.id,),
+                "👀 View Details",
+                key=f"popover_details_{job.id}",
+                use_container_width=True,
             ):
-                pass  # onClick is handled by the on_click parameter
+                _handle_view_details(job.id)
+
+            # Quick Apply link (if available)
+            if job.link and st.button(
+                "🚀 Quick Apply",
+                key=f"popover_apply_{job.id}",
+                use_container_width=True,
+                type="primary",
+            ):
+                # Open in new tab using JavaScript
+                link_html = f'<a href="{job.link}" target="_blank">Opening...</a>'
+                st.write(link_html, unsafe_allow_html=True)
+
+            # Add Notes shortcut
+            st.divider()
+            if st.button(
+                "📝 Add Notes",
+                key=f"popover_notes_{job.id}",
+                use_container_width=True,
+            ):
+                _handle_view_details(job.id)  # Open modal for notes editing
 
 
 def _format_posted_date(posted_date: Any) -> str:  # noqa: PLR0911

@@ -18,7 +18,7 @@ from src.database import create_db_and_tables, get_connection_pool_status
 from src.models import CompanySQL
 from src.services.company_service import CompanyService
 from src.services.job_service import JobService
-from src.ui.utils.database_utils import (
+from src.ui.utils.database_helpers import (
     background_task_session,
     clean_session_state,
     get_database_health,

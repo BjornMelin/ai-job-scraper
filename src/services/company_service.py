@@ -26,9 +26,9 @@ import sqlalchemy.exc
 import sqlmodel
 
 from sqlmodel import func, select
-from src.database import db_session
 from src.models import CompanySQL, JobSQL
 from src.schemas import Company
+from src.services.base_service import BaseService
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +69,7 @@ def calculate_weighted_success_rate(
     return weight * current_rate + current_weight * new_success
 
 
-class CompanyService:
+class CompanyService(BaseService):
     """Service class for company data operations.
 
     Provides static methods for querying, creating, and updating company records
@@ -88,8 +88,8 @@ class CompanyService:
     - Comprehensive error handling with detailed logging
     """
 
-    @staticmethod
-    def _to_dto(company_sql: CompanySQL) -> Company:
+    @classmethod
+    def _to_dto(cls, company_sql: CompanySQL) -> Company:
         """Convert a single SQLModel object to its Pydantic DTO.
 
         Helper method for consistent DTO conversion that eliminates
@@ -126,8 +126,8 @@ class CompanyService:
         """
         return [cls._to_dto(c) for c in companies_sql]
 
-    @staticmethod
-    def get_all_companies() -> list[Company]:
+    @classmethod
+    def get_all_companies(cls) -> list[Company]:
         """Get all companies ordered by name.
 
         Returns:
@@ -137,23 +137,23 @@ class CompanyService:
             Exception: If database query fails.
         """
         try:
-            with db_session() as session:
+            with cls.get_session_with_relationships() as session:
                 companies_sql = session.exec(
                     select(CompanySQL).order_by(CompanySQL.name)
                 ).all()
 
                 # Convert SQLModel objects to Pydantic DTOs
-                companies = CompanyService._to_dtos(companies_sql)
+                companies = cls._to_dtos(companies_sql)
 
-                logger.info("Retrieved %d companies", len(companies))
+                cls.log_operation("get_all_companies", count=len(companies))
                 return companies
 
-        except Exception:
-            logger.exception("Failed to get all companies")
+        except Exception as e:
+            cls.handle_service_error("get_all_companies", e)
             raise
 
-    @staticmethod
-    def add_company(name: str, url: str) -> Company:
+    @classmethod
+    def add_company(cls, name: str, url: str) -> Company:
         """Add a new company to the database.
 
         Args:
@@ -176,7 +176,7 @@ class CompanyService:
             name = name.strip()
             url = url.strip()
 
-            with db_session() as session:
+            with cls.get_session_with_relationships() as session:
                 # Check if company already exists
                 if session.exec(select(CompanySQL).filter_by(name=name)).first():
                     error_msg = f"Company '{name}' already exists"
@@ -196,19 +196,19 @@ class CompanyService:
                 session.refresh(company)  # Ensure all fields are populated
 
                 # Convert to DTO before returning
-                company_dto = CompanyService._to_dto(company)
-                logger.info("Added new company: %s (ID: %s)", name, company.id)
+                company_dto = cls._to_dto(company)
+                cls.log_operation("add_company", name=name, id=company.id)
                 return company_dto
 
         except ValueError:
             # Re-raise validation errors as-is
             raise
-        except Exception:
-            logger.exception("Failed to add company '%s'", name)
+        except Exception as e:
+            cls.handle_service_error("add_company", e, name=name)
             raise
 
-    @staticmethod
-    def toggle_company_active(company_id: int) -> bool:
+    @classmethod
+    def toggle_company_active(cls, company_id: int) -> bool:
         """Toggle the active status of a company.
 
         Args:
@@ -221,7 +221,7 @@ class CompanyService:
             Exception: If database update fails or company not found.
         """
         try:
-            with db_session() as session:
+            with cls.get_session_with_relationships() as session:
                 company = session.exec(
                     select(CompanySQL).filter_by(id=company_id)
                 ).first()
@@ -249,8 +249,10 @@ class CompanyService:
             )
             raise
 
-    @staticmethod
-    def get_active_companies() -> list[Company]:
+    @classmethod
+    def get_active_companies(
+        cls,
+    ) -> list[Company]:
         """Get all active companies ordered by name.
 
         Returns:
@@ -260,7 +262,7 @@ class CompanyService:
             Exception: If database query fails.
         """
         try:
-            with db_session() as session:
+            with cls.get_session_with_relationships() as session:
                 companies_sql = session.exec(
                     select(CompanySQL)
                     .filter(CompanySQL.active.is_(True))
@@ -268,18 +270,18 @@ class CompanyService:
                 ).all()
 
                 # Convert SQLModel objects to Pydantic DTOs
-                companies = CompanyService._to_dtos(companies_sql)
+                companies = cls._to_dtos(companies_sql)
 
-                logger.info("Retrieved %d active companies", len(companies))
+                cls.log_operation("get_active companies", count=len(companies))
                 return companies
 
-        except Exception:
-            logger.exception("Failed to get active companies")
+        except Exception as e:
+            cls.handle_service_error("get active companies", e)
             raise
 
-    @staticmethod
+    @classmethod
     def update_company_scrape_stats(
-        company_id: int, success: bool, last_scraped: datetime | None = None
+        cls, company_id: int, success: bool, last_scraped: datetime | None = None
     ) -> bool:
         """Update company scraping statistics.
 
@@ -298,7 +300,7 @@ class CompanyService:
             if last_scraped is None:
                 last_scraped = datetime.now(timezone.utc)
 
-            with db_session() as session:
+            with cls.get_session_with_relationships() as session:
                 company = session.exec(
                     select(CompanySQL).filter_by(id=company_id)
                 ).first()
@@ -333,12 +335,12 @@ class CompanyService:
             )
             raise
 
-    @staticmethod
-    def delete_company(company_id: int) -> bool:
-        """Delete a company and all associated jobs.
+    @classmethod
+    def delete_company(cls, company_id: int) -> bool:
+        """Delete a company and associated jobs using SQLModel relationship automation.
 
-        Removes company record and cascades deletion to all related job records.
-        Provides comprehensive logging of deletion operation.
+        Uses SQLModel's cascade delete configuration to automatically handle
+        related job records without manual deletion logic.
 
         Args:
             company_id: Database ID of the company to delete.
@@ -350,8 +352,8 @@ class CompanyService:
             Exception: If database operation fails.
         """
         try:
-            with db_session() as session:
-                # First check if company exists
+            with cls.get_session_with_relationships() as session:
+                # Get company with job count for logging
                 company = session.exec(
                     select(CompanySQL).filter_by(id=company_id)
                 ).first()
@@ -364,30 +366,25 @@ class CompanyService:
 
                 company_name = company.name
 
-                # Delete associated jobs first (explicit cascade)
-                job_count = session.exec(
-                    select(func.count(JobSQL.id)).where(JobSQL.company_id == company_id)
-                ).first()
-
-                if job_count:
+                # Get job count for logging before deletion
+                job_count = (
                     session.exec(
-                        sqlmodel.delete(JobSQL).where(JobSQL.company_id == company_id)
-                    )
-                    logger.info(
-                        "Deleting %d jobs associated with company '%s'",
-                        job_count,
-                        company_name,
-                    )
+                        select(func.count(JobSQL.id)).where(
+                            JobSQL.company_id == company_id
+                        )
+                    ).first()
+                    or 0
+                )
 
-                # Delete the company
+                # SQLModel relationship automation handles cascade deletion
                 session.delete(company)
                 session.commit()
 
                 logger.info(
-                    "Successfully deleted company '%s' (ID: %s) and %d associated jobs",
+                    "Successfully deleted company '%s' (ID: %s) with %d jobs",
                     company_name,
                     company_id,
-                    job_count or 0,
+                    job_count,
                 )
                 return True
 
@@ -395,8 +392,8 @@ class CompanyService:
             logger.exception("Failed to delete company with ID %s", company_id)
             raise
 
-    @staticmethod
-    def get_company_by_id(company_id: int) -> Company | None:
+    @classmethod
+    def get_company_by_id(cls, company_id: int) -> Company | None:
         """Get a single company by its ID.
 
         Args:
@@ -409,11 +406,11 @@ class CompanyService:
             Exception: If database query fails.
         """
         try:
-            with db_session() as session:
+            with cls.get_session_with_relationships() as session:
                 if company_sql := session.exec(
                     select(CompanySQL).filter_by(id=company_id)
                 ).first():
-                    company = CompanyService._to_dto(company_sql)
+                    company = cls._to_dto(company_sql)
                     logger.info("Retrieved company %s: %s", company_id, company.name)
                     return company
                 logger.warning("Company with ID %s not found", company_id)
@@ -423,8 +420,8 @@ class CompanyService:
             logger.exception("Failed to get company %s", company_id)
             raise
 
-    @staticmethod
-    def get_company_by_name(name: str) -> Company | None:
+    @classmethod
+    def get_company_by_name(cls, name: str) -> Company | None:
         """Get a company by its name.
 
         Args:
@@ -440,11 +437,11 @@ class CompanyService:
             if not name or not name.strip():
                 return None
 
-            with db_session() as session:
+            with cls.get_session_with_relationships() as session:
                 if company_sql := session.exec(
                     select(CompanySQL).filter_by(name=name.strip())
                 ).first():
-                    company = CompanyService._to_dto(company_sql)
+                    company = cls._to_dto(company_sql)
                     logger.info(
                         "Retrieved company by name '%s': ID %s", name, company.id
                     )
@@ -456,8 +453,10 @@ class CompanyService:
             logger.exception("Failed to get company by name '%s'", name)
             raise
 
-    @staticmethod
-    def get_companies_with_job_counts() -> CompanyStatsList:
+    @classmethod
+    def get_companies_with_job_counts(
+        cls,
+    ) -> CompanyStatsList:
         """Get all companies with their job counts in a single optimized query.
 
         This method uses a LEFT JOIN to efficiently retrieve company data along
@@ -470,7 +469,7 @@ class CompanyService:
             Exception: If database query fails.
         """
         try:
-            with db_session() as session:
+            with cls.get_session_with_relationships() as session:
                 # Use LEFT JOIN to get companies with job counts in single query
                 # This avoids N+1 queries when displaying company statistics
 
@@ -504,12 +503,12 @@ class CompanyService:
                 )
                 return companies_with_stats
 
-        except Exception:
-            logger.exception("Failed to get companies with job counts")
+        except Exception as e:
+            cls.handle_service_error("get companies with job counts", e)
             raise
 
-    @staticmethod
-    def bulk_update_scrape_stats(updates: ScrapeUpdateBatch) -> int:
+    @classmethod
+    def bulk_update_scrape_stats(cls, updates: ScrapeUpdateBatch) -> int:
         """Bulk update scraping statistics using SQLAlchemy 2.0 built-in operations.
 
         Uses SQLAlchemy's native bulk update for optimal performance while preserving
@@ -529,7 +528,7 @@ class CompanyService:
             return 0
 
         try:
-            with db_session() as session:
+            with cls.get_session_with_relationships() as session:
                 # For complex business logic like weighted averages, we need to fetch
                 # current values first, then use individual updates per company
                 for update in updates:
@@ -556,12 +555,14 @@ class CompanyService:
                 logger.info("Updated scrape stats for %d companies", len(updates))
                 return len(updates)
 
-        except Exception:
-            logger.exception("Failed to bulk update scrape stats")
+        except Exception as e:
+            cls.handle_service_error("bulk update scrape stats", e)
             raise
 
-    @staticmethod
-    def get_companies_for_management() -> list[dict[str, Any]]:
+    @classmethod
+    def get_companies_for_management(
+        cls,
+    ) -> list[dict[str, Any]]:
         """Get all companies formatted for management UI display.
 
         Returns:
@@ -571,7 +572,7 @@ class CompanyService:
             Exception: If database query fails.
         """
         try:
-            with db_session() as session:
+            with cls.get_session_with_relationships() as session:
                 companies_sql = session.exec(
                     select(CompanySQL).order_by(CompanySQL.name)
                 ).all()
@@ -591,12 +592,12 @@ class CompanyService:
                 )
                 return companies_data
 
-        except Exception:
-            logger.exception("Failed to get companies for management")
+        except Exception as e:
+            cls.handle_service_error("get companies for management", e)
             raise
 
-    @staticmethod
-    def update_company_active_status(company_id: int, active: bool) -> bool:
+    @classmethod
+    def update_company_active_status(cls, company_id: int, active: bool) -> bool:
         """Update the active status of a company.
 
         Args:
@@ -610,7 +611,7 @@ class CompanyService:
             Exception: If database update fails or company not found.
         """
         try:
-            with db_session() as session:
+            with cls.get_session_with_relationships() as session:
                 company = session.exec(
                     select(CompanySQL).filter_by(id=company_id)
                 ).first()
@@ -637,8 +638,10 @@ class CompanyService:
             )
             raise
 
-    @staticmethod
-    def get_active_companies_count() -> int:
+    @classmethod
+    def get_active_companies_count(
+        cls,
+    ) -> int:
         """Get the count of active companies.
 
         Returns:
@@ -648,7 +651,7 @@ class CompanyService:
             Exception: If database query fails.
         """
         try:
-            with db_session() as session:
+            with cls.get_session_with_relationships() as session:
                 count_result = session.exec(
                     select(func.count(CompanySQL.id)).where(CompanySQL.active.is_(True))
                 ).one()
@@ -661,13 +664,13 @@ class CompanyService:
                 logger.info("Retrieved active companies count: %d", count)
                 return count
 
-        except Exception:
-            logger.exception("Failed to get active companies count")
+        except Exception as e:
+            cls.handle_service_error("get active companies count", e)
             raise
 
-    @staticmethod
+    @classmethod
     def bulk_get_or_create_companies(
-        session: sqlmodel.Session, company_names: set[str]
+        cls, session: sqlmodel.Session, company_names: set[str]
     ) -> CompanyMapping:
         """Efficiently get or create multiple companies in bulk.
 
@@ -752,12 +755,12 @@ class CompanyService:
 
         return company_map
 
-    @staticmethod
-    def bulk_delete_companies(company_ids: list[int]) -> int:
-        """Delete multiple companies and their associated jobs in a single operation.
+    @classmethod
+    def bulk_delete_companies(cls, company_ids: list[int]) -> int:
+        """Delete multiple companies using SQLModel relationship automation.
 
-        Uses efficient bulk operations to delete companies and cascade to jobs,
-        avoiding N+1 query problems for large datasets.
+        Uses SQLModel's cascade delete configuration to automatically handle
+        related job records without manual deletion logic.
 
         Args:
             company_ids: List of company database IDs to delete.
@@ -772,8 +775,8 @@ class CompanyService:
             return 0
 
         try:
-            with db_session() as session:
-                # First get company names for logging before deletion
+            with cls.get_session_with_relationships() as session:
+                # Get company details for logging before deletion
                 companies_to_delete = session.exec(
                     select(CompanySQL.name, CompanySQL.id).where(
                         CompanySQL.id.in_(company_ids)
@@ -797,34 +800,25 @@ class CompanyService:
                     or 0
                 )
 
-                # Delete associated jobs first (foreign key constraint)
-                if job_count > 0:
-                    session.exec(
-                        sqlmodel.delete(JobSQL).where(JobSQL.company_id.in_(found_ids))
-                    )
-                    logger.info(
-                        "Bulk deleted %d jobs associated with companies", job_count
-                    )
-
-                # Delete companies using bulk operation
+                # SQLModel cascade delete handles job deletion automatically
                 deleted_count = session.exec(
                     sqlmodel.delete(CompanySQL).where(CompanySQL.id.in_(found_ids))
                 ).rowcount
 
                 logger.info(
-                    "Bulk deleted %d companies: %s (and %d associated jobs)",
+                    "Bulk deleted %d companies: %s (with %d jobs via cascade)",
                     deleted_count,
                     ", ".join(company_names),
                     job_count,
                 )
                 return deleted_count
 
-        except Exception:
-            logger.exception("Failed to bulk delete companies")
+        except Exception as e:
+            cls.handle_service_error("bulk delete companies", e)
             raise
 
-    @staticmethod
-    def bulk_update_status(company_ids: list[int], active: bool) -> int:
+    @classmethod
+    def bulk_update_status(cls, company_ids: list[int], active: bool) -> int:
         """Update the active status of multiple companies in a single operation.
 
         Uses efficient bulk update to modify company active status,
@@ -844,7 +838,7 @@ class CompanyService:
             return 0
 
         try:
-            with db_session() as session:
+            with cls.get_session_with_relationships() as session:
                 # Get company names for logging
                 companies_to_update = session.exec(
                     select(CompanySQL.name, CompanySQL.id).where(
@@ -875,6 +869,6 @@ class CompanyService:
                 )
                 return updated_count
 
-        except Exception:
-            logger.exception("Failed to bulk update company status")
+        except Exception as e:
+            cls.handle_service_error("bulk update company status", e)
             raise

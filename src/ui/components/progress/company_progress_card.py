@@ -24,8 +24,8 @@ from datetime import datetime, timezone
 
 import streamlit as st
 
-from src.ui.utils.background_tasks import CompanyProgress
-from src.ui.utils.formatters import (
+from src.ui.utils.background_helpers import CompanyProgress
+from src.ui.utils.ui_helpers import (
     calculate_scraping_speed,
     format_duration,
     format_jobs_count,
