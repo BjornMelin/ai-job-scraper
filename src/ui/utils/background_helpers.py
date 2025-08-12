@@ -169,7 +169,7 @@ def start_background_scraping(stay_active_in_tests: bool = False) -> str:
     st.session_state.scraping_active = True
     st.session_state.scraping_status = "Initializing scraping..."
 
-    logger.info("Scraping trigger set - will be processed by fragment")
+    logger.info("Scraping trigger set - will be processed manually")
     return task_id
 
 

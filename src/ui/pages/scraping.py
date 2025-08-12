@@ -20,7 +20,6 @@ from src.ui.utils.background_helpers import (
     is_scraping_active,
     start_background_scraping,
     stop_all_scraping,
-    throttled_rerun,
 )
 from src.ui.utils.ui_helpers import calculate_eta, is_streamlit_context
 
@@ -33,14 +32,9 @@ def render_scraping_page() -> None:
     This function orchestrates the rendering of the scraping dashboard including
     the header, control buttons, and real-time progress monitoring.
     """
-    # Initialize auto-refresh tracking in session state
-    if "last_refresh" not in st.session_state:
-        st.session_state.last_refresh = 0.0
-
-    # Process scraping trigger (runs every second via @st.fragment)
-    from src.ui.utils.background_helpers import process_scraping_trigger
-
-    process_scraping_trigger()
+    # Initialize session state for manual refresh control
+    if "manual_refresh_count" not in st.session_state:
+        st.session_state.manual_refresh_count = 0
 
     # Page header
     st.markdown("# 🔍 Job Scraping Dashboard")
@@ -51,30 +45,47 @@ def render_scraping_page() -> None:
     # Control buttons section
     _render_control_buttons()
 
+    # Manual refresh control section
+    if is_scraping_active():
+        st.markdown("---")
+        col_refresh, col_info = st.columns([1, 4])
+        with col_refresh:
+            if st.button("🔄 Refresh Progress", key="refresh_progress_btn"):
+                st.session_state.manual_refresh_count += 1
+                st.rerun()
+        with col_info:
+            st.caption("Click to update progress data manually")
+
     # Show progress dashboard only if scraping is active
     if is_scraping_active():
         _render_progress_dashboard()
-        _handle_auto_refresh()
 
-    # Recent activity summary
+    # Recent activity summary with manual refresh
     _render_activity_summary()
 
+    # Show manual refresh information
+    _render_manual_refresh_info()
 
-@st.fragment(run_every=2)  # Auto-refresh status indicators
+
 def _render_status_indicators() -> None:
-    """Render real-time status indicators with auto-updating fragment."""
+    """Render status indicators with manual refresh capability."""
     # Get current state
     is_scraping = is_scraping_active()
 
-    # Status indicator with timestamp
+    # Status indicator with manual refresh timestamp
     status_text = "🟢 ACTIVE" if is_scraping else "⚪️ IDLE"
     current_time = datetime.now(timezone.utc).strftime("%H:%M:%S")
 
-    col1, col2 = st.columns([3, 1])
+    col1, col2, col3 = st.columns([2, 1, 1])
     with col1:
         st.markdown(f"**Scraping Status:** {status_text}")
     with col2:
-        st.caption(f"As of {current_time}")
+        st.caption(f"Last check: {current_time}")
+    with col3:
+        if st.button(
+            "🔄 Refresh Status", key="refresh_status_btn", help="Update status manually"
+        ):
+            st.rerun()
 
     # Show current status with st.status()
     current_status = st.session_state.get(
@@ -103,10 +114,10 @@ def _render_control_buttons() -> None:
     st.markdown("---")
     st.markdown("### 🎛️ Scraping Controls")
 
-    # Render status indicators as fragment
+    # Render status indicators with manual refresh
     _render_status_indicators()
 
-    # Get active companies (non-fragment data)
+    # Get active companies (static configuration data)
     try:
         active_companies = JobService.get_active_companies()
     except Exception:
@@ -117,7 +128,7 @@ def _render_control_buttons() -> None:
             "Please check the database connection."
         )
 
-    # Get current scraping state (refreshed via fragment)
+    # Get current scraping state (refreshed manually)
     is_scraping = is_scraping_active()
 
     # Use horizontal flex container for control buttons
@@ -200,7 +211,7 @@ def _render_control_buttons() -> None:
                     logger.exception("Error resetting progress")
                     st.error("❌ Error resetting progress")
 
-    # Show company status (static data, no fragment needed)
+    # Show company status (static configuration data)
     st.markdown(f"**Active Companies:** {len(active_companies)} configured")
     if active_companies:
         companies_text = ", ".join(active_companies[:3])  # Show first 3
@@ -209,25 +220,29 @@ def _render_control_buttons() -> None:
         st.caption(companies_text)
 
 
-@st.fragment(run_every=1)  # Faster refresh for better real-time experience
 def _render_progress_dashboard() -> None:
-    """Render the real-time progress dashboard with auto-updating fragments."""
+    """Render the progress dashboard with manual refresh capability."""
     if not is_scraping_active():
         return  # Don't render if not scraping
 
     st.markdown("---")
 
-    # Header with real-time indicator and live timestamp
-    col_header, col_indicator = st.columns([4, 1])
+    # Header with manual refresh indicator
+    col_header, col_timestamp, col_refresh = st.columns([3, 1, 1])
     with col_header:
-        st.markdown("### 📊 Real-time Progress Dashboard")
-    with col_indicator:
+        st.markdown("### 📊 Progress Dashboard")
+    with col_timestamp:
         current_time = datetime.now(timezone.utc).strftime("%H:%M:%S")
-        st.markdown(f"🔄 **Live** `{current_time}`")
+        st.caption(f"Updated: {current_time}")
+    with col_refresh:
+        if st.button(
+            "🔄 Update", key="refresh_dashboard_btn", help="Refresh dashboard data"
+        ):
+            st.rerun()
 
-    # Get progress data with debugging
+    # Get progress data
     company_progress = get_company_progress()
-    logger.info("Fragment update: %d companies in progress", len(company_progress))
+    logger.info("Dashboard update: %d companies in progress", len(company_progress))
 
     # Calculate overall metrics
     total_jobs_found = sum(company.jobs_found for company in company_progress.values())
@@ -307,18 +322,22 @@ def _render_company_grid(companies: list) -> None:
                     render_company_progress_card(companies[i + j])
 
 
-@st.fragment(run_every=3)  # Slower refresh for summary data
 def _render_activity_summary() -> None:
-    """Render recent activity summary section with auto-updating fragment."""
+    """Render recent activity summary section with manual refresh capability."""
     st.markdown("---")
 
-    # Header with last updated time
-    col_header, col_timestamp = st.columns([3, 1])
+    # Header with manual refresh capability
+    col_header, col_timestamp, col_refresh = st.columns([2, 1, 1])
     with col_header:
         st.markdown("### 📈 Recent Activity")
     with col_timestamp:
         update_time = datetime.now(timezone.utc).strftime("%H:%M:%S")
         st.caption(f"Updated: {update_time}")
+    with col_refresh:
+        if st.button(
+            "🔄 Refresh", key="refresh_activity_btn", help="Update activity summary"
+        ):
+            st.rerun()
 
     # Get latest results from session state
     results = st.session_state.get("scraping_results", {})
@@ -361,16 +380,21 @@ def _render_activity_summary() -> None:
     )
 
 
-def _handle_auto_refresh() -> None:
-    """Handle automatic page refresh while scraping is active.
+def _render_manual_refresh_info() -> None:
+    """Render information about manual refresh functionality."""
+    with st.expander("💡 About Manual Refresh", expanded=False):
+        st.markdown("""
+        **Manual Refresh Mode**: This dashboard updates when you click refresh
+        buttons or interact with controls.
 
-    Implements throttled refresh every ~2 seconds to provide real-time updates
-    without excessive refresh calls that could cause UI flicker.
-    """
-    try:
-        throttled_rerun(should_rerun=is_scraping_active())
-    except Exception:
-        logger.exception("Error in auto-refresh handler")
+        - **🔄 Refresh Status**: Update scraping status indicator
+        - **🔄 Refresh Progress**: Update progress data during active scraping
+        - **🔄 Update Dashboard**: Refresh dashboard metrics and company progress
+        - **🔄 Refresh Activity**: Update recent activity summary
+
+        This approach provides better performance and reduces CPU usage
+        compared to auto-refresh.
+        """)
 
 
 def _render_metrics(items: list[tuple[str, object, str]]) -> None:
