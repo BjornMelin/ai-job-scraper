@@ -18,8 +18,11 @@ import re
 # that occurs when clicking the Stop button during scraping operations
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime
 from decimal import Decimal
+
+# Modern datetime handling library for better timezone support
+import pendulum
 
 from babel.numbers import NumberFormatError, parse_decimal, parse_number
 from price_parser import Price
@@ -490,7 +493,7 @@ class LibrarySalaryParser:
 
 
 class CompanySQL(SQLModel, table=True, extend_existing=True):
-    """SQLModel for company records.
+    """SQLModel for company records with hybrid properties for computed fields.
 
     Attributes:
         id: Primary key identifier.
@@ -515,25 +518,58 @@ class CompanySQL(SQLModel, table=True, extend_existing=True):
     # Relationships
     jobs: list["JobSQL"] = Relationship(back_populates="company_relation")
 
+    # Computed properties for company statistics (Python-side only for reliability)
+    @computed_field  # type: ignore[misc]
+    @property
+    def total_jobs_count(self) -> int:
+        """Get total job count for this company."""
+        return len(self.jobs) if self.jobs else 0
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def active_jobs_count(self) -> int:
+        """Get active (non-archived) job count for this company."""
+        return len([j for j in self.jobs if not j.archived]) if self.jobs else 0
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def last_job_posted(self) -> datetime | None:
+        """Get the most recent job posting date."""
+        if not self.jobs:
+            return None
+        return max((j.posted_date for j in self.jobs if j.posted_date), default=None)
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def success_rate_percentage(self) -> float:
+        """Get success rate as a percentage (0-100)."""
+        return round(self.success_rate * 100, 1)
+
     @field_validator("last_scraped", mode="before")
     @classmethod
     def ensure_timezone_aware(cls, v) -> datetime | None:
-        """Ensure datetime is timezone-aware (UTC) - simplified validator."""
+        """Ensure datetime is timezone-aware (UTC) using Pendulum."""
         if v is None:
             return None
         if isinstance(v, str):
             try:
-                parsed = datetime.fromisoformat(v.replace("Z", "+00:00"))
-                return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
-            except ValueError:
+                # Use Pendulum to parse string and convert to Python datetime in UTC
+                parsed_dt = pendulum.parse(v)
+                if parsed_dt:
+                    return parsed_dt.in_timezone("UTC").to_datetime()
+            except (ValueError, TypeError):
                 return None
         if isinstance(v, datetime):
-            return v if v.tzinfo else v.replace(tzinfo=timezone.utc)
+            if v.tzinfo:
+                # Convert to UTC using Pendulum
+                return pendulum.instance(v).in_timezone("UTC").to_datetime()
+            # Assume naive datetime is UTC
+            return pendulum.instance(v, tz="UTC").to_datetime()
         return None
 
 
 class JobSQL(SQLModel, table=True, extend_existing=True):
-    """SQLModel for job records.
+    """SQLModel for job records with hybrid properties and computed fields.
 
     Attributes:
         id: Primary key identifier.
@@ -555,16 +591,22 @@ class JobSQL(SQLModel, table=True, extend_existing=True):
     model_config = {"validate_assignment": True}
 
     id: int | None = Field(default=None, primary_key=True)
-    company_id: int | None = Field(default=None, foreign_key="companysql.id")
-    title: str
+    company_id: int | None = Field(
+        default=None,
+        foreign_key="companysql.id",
+        index=True,  # Index for foreign key queries
+    )
+    title: str = Field(index=True)  # Index for title searches
     description: str
     link: str = Field(unique=True)
-    location: str
-    posted_date: datetime | None = None
+    location: str = Field(index=True)  # Index for location filtering
+    posted_date: datetime | None = Field(
+        default=None, index=True
+    )  # Index for date filtering
     salary: tuple[int | None, int | None] = Field(
         default=(None, None), sa_column=Column(JSON)
     )
-    favorite: bool = False
+    favorite: bool = Field(default=False, index=True)  # Index for favorites filtering
     notes: str = ""
     content_hash: str = Field(default="", index=True)
     application_status: str = Field(default="New", index=True)
@@ -576,6 +618,54 @@ class JobSQL(SQLModel, table=True, extend_existing=True):
 
     # Relationships
     company_relation: "CompanySQL" = Relationship(back_populates="jobs")
+
+    # Computed properties for enhanced job information
+    @computed_field  # type: ignore[misc]
+    @property
+    def salary_min(self) -> int | None:
+        """Get minimum salary value."""
+        return self.salary[0] if self.salary else None
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def salary_max(self) -> int | None:
+        """Get maximum salary value."""
+        return self.salary[1] if self.salary else None
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def salary_range_display(self) -> str:
+        """Get formatted salary range for display."""
+        if not self.salary or self.salary == (None, None):
+            return "Not specified"
+        min_sal, max_sal = self.salary
+        if min_sal and max_sal:
+            if min_sal == max_sal:
+                return f"${min_sal:,}"
+            return f"${min_sal:,} - ${max_sal:,}"
+        if min_sal:
+            return f"From ${min_sal:,}"
+        if max_sal:
+            return f"Up to ${max_sal:,}"
+        return "Not specified"
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def days_since_posted(self) -> int | None:
+        """Get days since job was posted using Pendulum for better timezone handling."""
+        if not self.posted_date:
+            return None
+        # Convert posted_date to Pendulum instance and calculate difference
+        posted_pendulum = pendulum.instance(self.posted_date)
+        now_utc = pendulum.now("UTC")
+        return (now_utc - posted_pendulum).days
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def is_recently_posted(self) -> bool:
+        """Check if job was posted within the last 7 days."""
+        days = self.days_since_posted
+        return days is not None and days <= 7
 
     @computed_field  # type: ignore[misc]
     @property
@@ -627,22 +717,44 @@ class JobSQL(SQLModel, table=True, extend_existing=True):
     @field_validator("posted_date", "application_date", "last_seen", mode="before")
     @classmethod
     def ensure_datetime_timezone_aware(cls, v) -> datetime | None:
-        """Ensure datetime fields are timezone-aware (UTC) - simplified validator."""
+        """Ensure datetime fields are timezone-aware (UTC) using Pendulum."""
         if v is None:
             return None
         if isinstance(v, str):
-            try:
-                parsed = datetime.fromisoformat(v.replace("Z", "+00:00"))
-                return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
-            except ValueError:
-                try:
-                    parsed = datetime.strptime(v, "%Y-%m-%d")  # noqa: DTZ007
-                    return parsed.replace(tzinfo=timezone.utc)
-                except ValueError:
-                    return None
+            # Use Pendulum to parse various string formats to UTC datetime
+            parsed_dt = cls._parse_string_to_utc_datetime(v)
+            if parsed_dt:
+                return parsed_dt
         if isinstance(v, datetime):
-            return v if v.tzinfo else v.replace(tzinfo=timezone.utc)
+            return cls._convert_datetime_to_utc(v)
         return None
+
+    @staticmethod
+    def _parse_string_to_utc_datetime(v: str) -> datetime | None:
+        """Parse string to UTC datetime using Pendulum."""
+        try:
+            parsed_dt = pendulum.parse(v)
+            if parsed_dt:
+                return parsed_dt.in_timezone("UTC").to_datetime()
+        except (ValueError, TypeError):
+            # Try parsing date-only strings
+            try:
+                date_only = pendulum.parse(v, exact=True).date()
+                return pendulum.datetime(
+                    date_only.year, date_only.month, date_only.day, tz="UTC"
+                ).to_datetime()
+            except (ValueError, TypeError):
+                pass
+        return None
+
+    @staticmethod
+    def _convert_datetime_to_utc(v: datetime) -> datetime:
+        """Convert datetime to UTC using Pendulum."""
+        if v.tzinfo:
+            # Convert to UTC using Pendulum
+            return pendulum.instance(v).in_timezone("UTC").to_datetime()
+        # Assume naive datetime is UTC
+        return pendulum.instance(v, tz="UTC").to_datetime()
 
     @field_validator("salary", mode="before")
     @classmethod

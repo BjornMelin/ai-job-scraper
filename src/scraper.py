@@ -11,8 +11,16 @@ import logging
 from collections.abc import Sequence
 from datetime import datetime, timezone
 
+# Rich imports for beautiful CLI output
+import pendulum
+
+# Rich imports for beautiful CLI output
 import sqlmodel
 import typer
+
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
 
 from .constants import AI_REGEX, SEARCH_KEYWORDS, SEARCH_LOCATIONS
 from .database import SessionLocal
@@ -25,6 +33,9 @@ from .utils import random_delay
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Rich console for beautiful terminal output
+console = Console()
 
 # Type aliases for better readability
 type CompanyMapping = dict[str, int]
@@ -83,10 +94,15 @@ def scrape_all(max_jobs_per_company: int | None = None) -> SyncStats:
         Exception: If any part of the scraping or normalization fails, errors are
             logged but the function continues where possible.
     """
-    logger.info("=" * 60)
-    logger.info("🚀 STARTING COMPREHENSIVE JOB SCRAPING WORKFLOW")
-    logger.info("=" * 60)
-    start_time = datetime.now(timezone.utc)
+    # Rich panel for workflow start
+    console.print(
+        Panel.fit(
+            "🚀 STARTING COMPREHENSIVE JOB SCRAPING WORKFLOW",
+            title="[bold blue]AI Job Scraper[/bold blue]",
+            style="blue",
+        )
+    )
+    start_time = pendulum.now("UTC")
 
     # Validate max_jobs_per_company parameter
     if max_jobs_per_company is not None:
@@ -97,31 +113,38 @@ def scrape_all(max_jobs_per_company: int | None = None) -> SyncStats:
 
     # Log the job limit being used
     limit = max_jobs_per_company or DEFAULT_MAX_JOBS_PER_COMPANY
-    logger.info("Using job limit: %d jobs per company", limit)
+    console.print(f"[yellow]Using job limit: {limit} jobs per company[/yellow]")
 
     # Step 1: Scrape company pages using the decoupled workflow
-    logger.info("Scraping company career pages...")
+    console.print("[bold cyan]Step 1:[/bold cyan] Scraping company career pages...")
     try:
         company_jobs = scrape_company_pages(max_jobs_per_company)
-        logger.info("Retrieved %d jobs from company pages", len(company_jobs))
+        console.print(
+            f"[green]✓ Retrieved {len(company_jobs)} jobs from company pages[/green]"
+        )
     except Exception:
         logger.exception("Company scraping failed")
+        console.print("[red]✗ Company scraping failed[/red]")
         company_jobs = []
 
     random_delay()
 
     # Step 2: Scrape job boards
-    logger.info("Scraping job boards...")
+    console.print("[bold cyan]Step 2:[/bold cyan] Scraping job boards...")
     try:
         board_jobs_raw = scrape_job_boards(SEARCH_KEYWORDS, SEARCH_LOCATIONS)
-        logger.info("Retrieved %d raw jobs from job boards", len(board_jobs_raw))
+        console.print(
+            f"[green]✓ Retrieved {len(board_jobs_raw)} raw jobs from job boards[/green]"
+        )
     except Exception:
         logger.exception("Job board scraping failed")
+        console.print("[red]✗ Job board scraping failed[/red]")
         board_jobs_raw = []
 
     # Step 3: Normalize board jobs to JobSQL objects
+    console.print("[bold cyan]Step 3:[/bold cyan] Normalizing job data...")
     board_jobs = _normalize_board_jobs(board_jobs_raw)
-    logger.info("Normalized %d jobs from job boards", len(board_jobs))
+    console.print(f"[green]✓ Normalized {len(board_jobs)} jobs from job boards[/green]")
 
     # Step 4: Safety guard against mass-archiving when both scrapers fail
     if not company_jobs and not board_jobs:
@@ -209,25 +232,55 @@ def scrape_all(max_jobs_per_company: int | None = None) -> SyncStats:
     sync_engine = SmartSyncEngine()
     sync_stats = sync_engine.sync_jobs(dedup_jobs)
 
-    # Calculate and log total execution time
-    end_time = datetime.now(timezone.utc)
+    # Calculate and log total execution time using Pendulum
+    end_time = pendulum.now("UTC")
     duration = (end_time - start_time).total_seconds()
 
-    logger.info("=" * 60)
-    logger.info("✅ SCRAPING WORKFLOW COMPLETED SUCCESSFULLY")
-    logger.info("📊 Final Statistics:")
-    logger.info("  • Total jobs scraped: %d", len(all_jobs))
-    logger.info("  • Jobs from active companies: %d", len(company_filtered_jobs))
-    logger.info("  • AI/ML relevant jobs: %d", len(filtered_jobs))
-    logger.info("  • Unique jobs after deduplication: %d", len(dedup_jobs))
-    logger.info("  • Database sync results:")
-    logger.info("    - Inserted: %d new jobs", sync_stats.get("inserted", 0))
-    logger.info("    - Updated: %d existing jobs", sync_stats.get("updated", 0))
-    logger.info("    - Archived: %d stale jobs", sync_stats.get("archived", 0))
-    logger.info("    - Deleted: %d jobs", sync_stats.get("deleted", 0))
-    logger.info("    - Skipped: %d unchanged jobs", sync_stats.get("skipped", 0))
-    logger.info("⏱️  Total execution time: %.2f seconds", duration)
-    logger.info("=" * 60)
+    # Create a beautiful Rich table for final statistics
+    console.print(
+        Panel.fit(
+            "✅ SCRAPING WORKFLOW COMPLETED SUCCESSFULLY",
+            title="[bold green]Success[/bold green]",
+            style="green",
+        )
+    )
+
+    # Create statistics table
+    stats_table = Table(
+        title="📊 Final Statistics", show_header=True, header_style="bold blue"
+    )
+    stats_table.add_column("Category", style="cyan", no_wrap=True)
+    stats_table.add_column("Count", justify="right", style="magenta")
+
+    # Add job processing stats
+    stats_table.add_row("Total jobs scraped", str(len(all_jobs)))
+    stats_table.add_row("Jobs from active companies", str(len(company_filtered_jobs)))
+    stats_table.add_row("AI/ML relevant jobs", str(len(filtered_jobs)))
+    stats_table.add_row("Unique jobs after deduplication", str(len(dedup_jobs)))
+    stats_table.add_row("", "")  # Spacer row
+
+    # Add database sync results
+    stats_table.add_row(
+        "🆕 New jobs inserted", str(sync_stats.get("inserted", 0)), style="green"
+    )
+    stats_table.add_row(
+        "🔄 Existing jobs updated", str(sync_stats.get("updated", 0)), style="yellow"
+    )
+    stats_table.add_row(
+        "📋 Jobs archived", str(sync_stats.get("archived", 0)), style="blue"
+    )
+    stats_table.add_row(
+        "🗑️  Jobs deleted", str(sync_stats.get("deleted", 0)), style="red"
+    )
+    stats_table.add_row(
+        "⏭️  Jobs skipped (unchanged)", str(sync_stats.get("skipped", 0)), style="dim"
+    )
+    stats_table.add_row("", "")  # Spacer row
+    stats_table.add_row(
+        "⏱️  Total execution time", f"{duration:.2f} seconds", style="bold"
+    )
+
+    console.print(stats_table)
 
     return sync_stats
 
@@ -339,13 +392,23 @@ def scrape(
 ) -> None:
     """CLI command to run the full scraping workflow."""
     sync_stats = scrape_all(max_jobs_per_company)
-    print("\nScraping completed successfully!")
-    print("📊 Sync Statistics:")
-    print(f"  ✅ Inserted: {sync_stats['inserted']} new jobs")
-    print(f"  🔄 Updated: {sync_stats['updated']} existing jobs")
-    print(f"  📋 Archived: {sync_stats['archived']} stale jobs with user data")
-    print(f"  🗑️  Deleted: {sync_stats['deleted']} stale jobs without user data")
-    print(f"  ⏭️  Skipped: {sync_stats['skipped']} jobs (no changes)")
+
+    # Create a simple summary table for CLI output
+    console.print("\n[bold green]Scraping completed successfully![/bold green]")
+
+    summary_table = Table(
+        title="📊 Sync Statistics Summary", show_header=True, header_style="bold blue"
+    )
+    summary_table.add_column("Operation", style="cyan")
+    summary_table.add_column("Count", justify="right", style="magenta")
+
+    summary_table.add_row("✅ New jobs inserted", str(sync_stats["inserted"]))
+    summary_table.add_row("🔄 Jobs updated", str(sync_stats["updated"]))
+    summary_table.add_row("📋 Jobs archived", str(sync_stats["archived"]))
+    summary_table.add_row("🗑️  Jobs deleted", str(sync_stats["deleted"]))
+    summary_table.add_row("⏭️  Jobs skipped", str(sync_stats["skipped"]))
+
+    console.print(summary_table)
 
 
 if __name__ == "__main__":

@@ -60,15 +60,53 @@ def render_scraping_page() -> None:
     _render_activity_summary()
 
 
+@st.fragment(run_every=2)  # Auto-refresh status indicators
+def _render_status_indicators() -> None:
+    """Render real-time status indicators with auto-updating fragment."""
+    # Get current state
+    is_scraping = is_scraping_active()
+
+    # Status indicator with timestamp
+    status_text = "🟢 ACTIVE" if is_scraping else "⚪️ IDLE"
+    current_time = datetime.now(timezone.utc).strftime("%H:%M:%S")
+
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        st.markdown(f"**Scraping Status:** {status_text}")
+    with col2:
+        st.caption(f"As of {current_time}")
+
+    # Show current status with st.status()
+    current_status = st.session_state.get(
+        "scraping_status", "Ready to start scraping..."
+    )
+
+    # Use st.status() for better visual progress indication
+    if is_scraping:
+        with st.status("Scraping in progress...", expanded=True, state="running"):
+            st.write(current_status)
+            # Add progress context if available
+            company_progress = get_company_progress()
+            if company_progress:
+                completed = sum(
+                    1 for c in company_progress.values() if c.status == "Completed"
+                )
+                total = len(company_progress)
+                st.write(f"Progress: {completed}/{total} companies completed")
+    else:
+        with st.status("Scraping idle", expanded=False, state="complete"):
+            st.write(current_status)
+
+
 def _render_control_buttons() -> None:
     """Render the main control buttons: Start, Stop, and Reset."""
     st.markdown("---")
     st.markdown("### 🎛️ Scraping Controls")
 
-    # Get current state
-    is_scraping = is_scraping_active()
+    # Render status indicators as fragment
+    _render_status_indicators()
 
-    # Get active companies
+    # Get active companies (non-fragment data)
     try:
         active_companies = JobService.get_active_companies()
     except Exception:
@@ -79,101 +117,90 @@ def _render_control_buttons() -> None:
             "Please check the database connection."
         )
 
-    # Status indicator
-    status_text = "🟢 ACTIVE" if is_scraping else "⚪️ IDLE"
-    st.markdown(f"**Scraping Status:** {status_text}")
+    # Get current scraping state (refreshed via fragment)
+    is_scraping = is_scraping_active()
 
-    # Create three columns for the main control buttons
-    col1, col2, col3 = st.columns(3)
+    # Use horizontal flex container for control buttons
+    with st.container():
+        control_cols = st.columns(3, gap="large")
 
-    with col1:
-        # START button - calls start_background_scraping()
-        start_disabled = is_scraping or not active_companies
-        if st.button(
-            "🚀 Start",
-            disabled=start_disabled,
-            use_container_width=True,
-            type="primary",
-            help="Begin scraping jobs from all active company sources"
-            if active_companies
-            else "No active companies configured",
-        ):
-            try:
-                start_background_scraping()
-                st.success(
-                    f"🚀 Scraping initiated! Monitoring {len(active_companies)} "
-                    f"companies. Progress will appear below."
-                )
-                st.balloons()  # Celebratory feedback
-                st.rerun()
-            except Exception as e:
-                logger.exception("Failed to start scraping")
-                st.error(f"❌ Failed to start scraping: {e!s}")
-                st.exception(e)  # Show detailed error for debugging
-
-    with col2:
-        # STOP button
-        if st.button(
-            "⏹️ Stop",
-            disabled=not is_scraping,
-            use_container_width=True,
-            type="secondary",
-            help="Stop the current scraping operation",
-        ):
-            try:
-                stopped_count = stop_all_scraping()
-                if stopped_count > 0:
-                    st.warning(
-                        f"⚠️ Scraping stopped. {stopped_count} task(s) cancelled."
-                    )
+        with control_cols[0]:
+            # START button - calls start_background_scraping()
+            start_disabled = is_scraping or not active_companies
+            if st.button(
+                "🚀 Start",
+                disabled=start_disabled,
+                use_container_width=True,
+                type="primary",
+                help="Begin scraping jobs from all active company sources"
+                if active_companies
+                else "No active companies configured",
+            ):
+                try:
+                    start_background_scraping()
+                    # Use st.status for better feedback
+                    with st.status("Starting scraping...", state="running"):
+                        st.write(f"Monitoring {len(active_companies)} companies")
+                        st.write("Progress will appear below")
+                    st.balloons()  # Celebratory feedback
                     st.rerun()
-                else:
-                    st.info("No active scraping tasks found to stop")
-            except Exception:
-                logger.exception("Error stopping scraping")
-                st.error("❌ Error stopping scraping")
+                except Exception as e:
+                    logger.exception("Failed to start scraping")
+                    st.error(f"❌ Failed to start scraping: {e!s}")
+                    st.exception(e)  # Show detailed error for debugging
 
-    with col3:
-        # RESET button
-        if st.button(
-            "🔄 Reset",
-            disabled=is_scraping,
-            use_container_width=True,
-            help="Clear progress data and reset dashboard",
-        ):
-            try:
-                # Clear progress data from session state
-                progress_keys = [
-                    "task_progress",
-                    "company_progress",
-                    "scraping_results",
-                ]
-                cleared_count = 0
-                for key in progress_keys:
-                    if key in st.session_state:
-                        if hasattr(st.session_state[key], "clear"):
-                            st.session_state[key].clear()
-                        cleared_count += 1
+        with control_cols[1]:
+            # STOP button
+            if st.button(
+                "⏹️ Stop",
+                disabled=not is_scraping,
+                use_container_width=True,
+                type="secondary",
+                help="Stop the current scraping operation",
+            ):
+                try:
+                    stopped_count = stop_all_scraping()
+                    if stopped_count > 0:
+                        with st.status("Stopping scraping...", state="complete"):
+                            st.write(f"{stopped_count} task(s) cancelled")
+                        st.rerun()
+                    else:
+                        st.info("No active scraping tasks found to stop")
+                except Exception:
+                    logger.exception("Error stopping scraping")
+                    st.error("❌ Error stopping scraping")
 
-                st.success(
-                    f"✨ Progress data reset successfully! "
-                    f"Cleared {cleared_count} data stores."
-                )
-                st.rerun()
-            except Exception:
-                logger.exception("Error resetting progress")
-                st.error("❌ Error resetting progress")
+        with control_cols[2]:
+            # RESET button
+            if st.button(
+                "🔄 Reset",
+                disabled=is_scraping,
+                use_container_width=True,
+                help="Clear progress data and reset dashboard",
+            ):
+                try:
+                    # Clear progress data from session state
+                    progress_keys = [
+                        "task_progress",
+                        "company_progress",
+                        "scraping_results",
+                    ]
+                    cleared_count = 0
+                    for key in progress_keys:
+                        if key in st.session_state:
+                            if hasattr(st.session_state[key], "clear"):
+                                st.session_state[key].clear()
+                            cleared_count += 1
 
-    # Show current status
-    current_status = st.session_state.get(
-        "scraping_status", "Ready to start scraping..."
-    )
-    if is_scraping:
-        st.info(f"🔄 {current_status}")
-    else:
-        st.success(f"✅ {current_status}")
+                    with st.status("Resetting progress data...", state="complete"):
+                        st.write(f"Cleared {cleared_count} data stores")
+                        st.write("Dashboard is now ready for new scraping session")
+                    st.rerun()
+                except Exception:
+                    logger.exception("Error resetting progress")
+                    st.error("❌ Error resetting progress")
 
-    # Show company status
+    # Show company status (static data, no fragment needed)
     st.markdown(f"**Active Companies:** {len(active_companies)} configured")
     if active_companies:
         companies_text = ", ".join(active_companies[:3])  # Show first 3
@@ -182,7 +209,7 @@ def _render_control_buttons() -> None:
         st.caption(companies_text)
 
 
-@st.fragment(run_every=2)  # Auto-refresh every 2 seconds
+@st.fragment(run_every=1)  # Faster refresh for better real-time experience
 def _render_progress_dashboard() -> None:
     """Render the real-time progress dashboard with auto-updating fragments."""
     if not is_scraping_active():
@@ -190,12 +217,13 @@ def _render_progress_dashboard() -> None:
 
     st.markdown("---")
 
-    # Header with real-time indicator
+    # Header with real-time indicator and live timestamp
     col_header, col_indicator = st.columns([4, 1])
     with col_header:
         st.markdown("### 📊 Real-time Progress Dashboard")
     with col_indicator:
-        st.markdown("🔄 **Auto-updating**")
+        current_time = datetime.now(timezone.utc).strftime("%H:%M:%S")
+        st.markdown(f"🔄 **Live** `{current_time}`")
 
     # Get progress data with debugging
     company_progress = get_company_progress()
@@ -279,10 +307,18 @@ def _render_company_grid(companies: list) -> None:
                     render_company_progress_card(companies[i + j])
 
 
+@st.fragment(run_every=3)  # Slower refresh for summary data
 def _render_activity_summary() -> None:
-    """Render recent activity summary section."""
+    """Render recent activity summary section with auto-updating fragment."""
     st.markdown("---")
-    st.markdown("### 📈 Recent Activity")
+
+    # Header with last updated time
+    col_header, col_timestamp = st.columns([3, 1])
+    with col_header:
+        st.markdown("### 📈 Recent Activity")
+    with col_timestamp:
+        update_time = datetime.now(timezone.utc).strftime("%H:%M:%S")
+        st.caption(f"Updated: {update_time}")
 
     # Get latest results from session state
     results = st.session_state.get("scraping_results", {})

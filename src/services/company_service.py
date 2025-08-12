@@ -25,10 +25,32 @@ from typing import Any
 import sqlalchemy.exc
 import sqlmodel
 
+from sqlalchemy.orm import selectinload
+
+# Import streamlit for caching decorators
+try:
+    import streamlit as st
+except ImportError:
+    # Create dummy decorator for non-Streamlit environments
+    class _DummyStreamlit:
+        @staticmethod
+        def cache_data(**_kwargs):
+            def decorator(func):
+                return func
+
+            return decorator
+
+    st = _DummyStreamlit()
+
 from sqlmodel import func, select
 from src.database import db_session
 from src.models import CompanySQL, JobSQL
 from src.schemas import Company
+from src.utils.cache_manager import (
+    COMPANY_CACHE_PREFIX,
+    STATS_CACHE_PREFIX,
+    get_cache_manager,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -127,6 +149,7 @@ class CompanyService:
         return [cls._to_dto(c) for c in companies_sql]
 
     @staticmethod
+    @st.cache_data(ttl=60)  # Cache for 1 minute
     def get_all_companies() -> list[Company]:
         """Get all companies ordered by name.
 
@@ -138,8 +161,11 @@ class CompanyService:
         """
         try:
             with db_session() as session:
+                # Use selectinload to eagerly load job relationships
                 companies_sql = session.exec(
-                    select(CompanySQL).order_by(CompanySQL.name)
+                    select(CompanySQL)
+                    .options(selectinload(CompanySQL.jobs))
+                    .order_by(CompanySQL.name)
                 ).all()
 
                 # Convert SQLModel objects to Pydantic DTOs
@@ -250,6 +276,7 @@ class CompanyService:
             raise
 
     @staticmethod
+    @st.cache_data(ttl=30)  # Cache for 30 seconds (more dynamic)
     def get_active_companies() -> list[Company]:
         """Get all active companies ordered by name.
 
@@ -261,8 +288,10 @@ class CompanyService:
         """
         try:
             with db_session() as session:
+                # Use selectinload to eagerly load job relationships
                 companies_sql = session.exec(
                     select(CompanySQL)
+                    .options(selectinload(CompanySQL.jobs))
                     .filter(CompanySQL.active.is_(True))
                     .order_by(CompanySQL.name)
                 ).all()
@@ -463,40 +492,46 @@ class CompanyService:
         This method uses a LEFT JOIN to efficiently retrieve company data along
         with job counts, avoiding N+1 query problems when displaying statistics.
 
+        Enhanced with caching for improved performance.
+
         Returns:
             List of dictionaries containing company data and job statistics.
 
         Raises:
             Exception: If database query fails.
         """
+        cache_manager = get_cache_manager()
+        cache_key = "companies_with_job_counts"
+
+        # Try to get from cache first
+        cached_result = cache_manager.get(cache_key, STATS_CACHE_PREFIX)
+        if cached_result is not None:
+            logger.debug("Cache hit for companies with job counts")
+            return cached_result
+
         try:
             with db_session() as session:
-                # Use LEFT JOIN to get companies with job counts in single query
-                # This avoids N+1 queries when displaying company statistics
-
-                query = (
-                    select(
-                        CompanySQL,
-                        func.count(JobSQL.id).label("total_jobs"),
-                        func.count(func.nullif(JobSQL.archived, True)).label(
-                            "active_jobs"
-                        ),
-                    )
-                    .outerjoin(JobSQL, CompanySQL.id == JobSQL.company_id)
-                    .group_by(CompanySQL.id)
+                # Use selectinload to load job relationships, then calculate in Python
+                # This leverages computed properties efficiently
+                companies_sql = session.exec(
+                    select(CompanySQL)
+                    .options(selectinload(CompanySQL.jobs))
                     .order_by(CompanySQL.name)
-                )
-
-                results = session.exec(query).all()
+                ).all()
 
                 companies_with_stats = [
                     {
                         "company": company,
-                        "total_jobs": total_jobs or 0,
-                        "active_jobs": active_jobs or 0,
+                        "total_jobs": company.total_jobs_count,
+                        "active_jobs": company.active_jobs_count,
                     }
-                    for company, total_jobs, active_jobs in results
+                    for company in companies_sql
                 ]
+
+                # Cache for 3 minutes (job counts can change but not super frequently)
+                cache_manager.set(
+                    cache_key, companies_with_stats, STATS_CACHE_PREFIX, memory_ttl=180
+                )
 
                 logger.info(
                     "Retrieved %d companies with job counts",
@@ -530,8 +565,17 @@ class CompanyService:
 
         try:
             with db_session() as session:
-                # For complex business logic like weighted averages, we need to fetch
-                # current values first, then use individual updates per company
+                # Step 1: Bulk load all companies to update in a single query
+                company_ids = [update["company_id"] for update in updates]
+                companies = session.exec(
+                    select(CompanySQL).where(CompanySQL.id.in_(company_ids))
+                ).all()
+
+                # Step 2: Create lookup dict for efficient updates
+                companies_by_id = {comp.id: comp for comp in companies}
+
+                # Step 3: Apply updates using business logic
+                updated_count = 0
                 for update in updates:
                     company_id = update["company_id"]
                     success = update["success"]
@@ -539,11 +583,7 @@ class CompanyService:
                         "last_scraped", datetime.now(timezone.utc)
                     )
 
-                    company = session.exec(
-                        select(CompanySQL).filter_by(id=company_id)
-                    ).first()
-
-                    if company:
+                    if company := companies_by_id.get(company_id):
                         company.scrape_count += 1
 
                         # Calculate new success rate using weighted average helper
@@ -552,9 +592,10 @@ class CompanyService:
                         )
 
                         company.last_scraped = last_scraped
+                        updated_count += 1
 
-                logger.info("Updated scrape stats for %d companies", len(updates))
-                return len(updates)
+                logger.info("Updated scrape stats for %d companies", updated_count)
+                return updated_count
 
         except Exception:
             logger.exception("Failed to bulk update scrape stats")
@@ -638,8 +679,11 @@ class CompanyService:
             raise
 
     @staticmethod
+    @st.cache_data(ttl=60)  # Cache for 1 minute
     def get_active_companies_count() -> int:
         """Get the count of active companies.
+
+        Enhanced with multi-level caching for improved performance.
 
         Returns:
             Number of active companies.
@@ -647,6 +691,15 @@ class CompanyService:
         Raises:
             Exception: If database query fails.
         """
+        cache_manager = get_cache_manager()
+        cache_key = "active_companies_count"
+
+        # Try to get from cache first
+        cached_result = cache_manager.get(cache_key, COMPANY_CACHE_PREFIX)
+        if cached_result is not None:
+            logger.debug("Cache hit for active companies count")
+            return cached_result
+
         try:
             with db_session() as session:
                 count_result = session.exec(
@@ -656,6 +709,11 @@ class CompanyService:
                 # Extract scalar value from potential tuple result
                 count = (
                     count_result[0] if isinstance(count_result, tuple) else count_result
+                )
+
+                # Cache for 5 minutes (company counts don't change frequently)
+                cache_manager.set(
+                    cache_key, count, COMPANY_CACHE_PREFIX, memory_ttl=300
                 )
 
                 logger.info("Retrieved active companies count: %d", count)
@@ -686,9 +744,11 @@ class CompanyService:
         if not company_names:
             return {}
 
-        # Step 1: Bulk load existing companies in single query
+        # Step 1: Bulk load existing companies in single query with job relationships
         existing_companies = session.exec(
-            sqlmodel.select(CompanySQL).where(CompanySQL.name.in_(company_names))
+            sqlmodel.select(CompanySQL)
+            .options(selectinload(CompanySQL.jobs))
+            .where(CompanySQL.name.in_(company_names))
         ).all()
         company_map = {comp.name: comp.id for comp in existing_companies}
 

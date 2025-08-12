@@ -107,9 +107,10 @@ def db_session() -> Generator[Session, None, None]:
 
     Provides automatic session commit/rollback and cleanup for service operations.
     This eliminates the duplicate session management pattern across services.
+    Uses SQLAlchemy 2.0 best practices with optimized settings.
 
     Yields:
-        Session: SQLModel database session.
+        Session: SQLModel database session configured for optimal performance.
 
     Example:
         ```python
@@ -121,8 +122,32 @@ def db_session() -> Generator[Session, None, None]:
     """
     session = get_session()
     try:
+        # Configure session for optimal performance
+        session.expire_on_commit = False  # Prevent lazy loading issues
         yield session
         session.commit()
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+
+
+@contextmanager
+def db_session_no_autocommit() -> Generator[Session, None, None]:
+    """Database session context manager without automatic commit.
+
+    Use for complex transactions where you need manual commit control.
+    The caller is responsible for calling session.commit() when needed.
+
+    Yields:
+        Session: SQLModel database session without auto-commit.
+    """
+    session = get_session()
+    try:
+        session.expire_on_commit = False
+        yield session
+        # No automatic commit - caller must handle
     except Exception:
         session.rollback()
         raise

@@ -1,5 +1,6 @@
 """Configuration settings for the AI Job Scraper application."""
 
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -43,3 +44,50 @@ class Settings(BaseSettings):
         "PRAGMA optimize",  # Auto-optimize indexes
     ]
     db_monitoring: bool = False  # Toggle slow-query logging on/off
+
+    # Enhanced configuration with validation and aliases
+    log_level: str = Field(
+        default="INFO",
+        description="Logging level for the application",
+        validation_alias="SCRAPER_LOG_LEVEL",
+    )
+
+    @field_validator("db_url")
+    @classmethod
+    def validate_db_url(cls, v: str) -> str:
+        """Validate database URL format."""
+        if not v:
+            raise ValueError("Database URL cannot be empty")
+
+        supported_schemes = ("sqlite://", "postgresql://", "mysql://")
+        if not v.startswith(supported_schemes) and not v.startswith("sqlite:"):
+            # For relative paths, assume SQLite
+            return f"sqlite:///{v}"
+        return v
+
+    @field_validator("proxy_pool")
+    @classmethod
+    def validate_proxy_urls(cls, v: list[str]) -> list[str]:
+        """Validate proxy URLs format."""
+        validated_proxies = []
+        for original_proxy in v:
+            if original_proxy and not original_proxy.startswith(
+                ("http://", "https://", "socks5://")
+            ):
+                # Assume HTTP proxy if no scheme specified
+                formatted_proxy = f"http://{original_proxy}"
+            else:
+                formatted_proxy = original_proxy
+            if formatted_proxy:  # Only add non-empty proxies
+                validated_proxies.append(formatted_proxy)
+        return validated_proxies
+
+    @field_validator("log_level")
+    @classmethod
+    def validate_log_level(cls, v: str) -> str:
+        """Validate logging level."""
+        valid_levels = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
+        if v.upper() not in valid_levels:
+            error_msg = f"Invalid log level: {v}. Must be one of {valid_levels}"
+            raise ValueError(error_msg)
+        return v.upper()

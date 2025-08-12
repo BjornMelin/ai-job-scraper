@@ -162,13 +162,13 @@ def _render_page_header() -> None:
 
 
 def _render_action_bar() -> None:
-    """Render the action bar with refresh button and status info."""
-    main_container = st.container()
+    """Render the action bar with refresh button and status info using flex containers."""
+    # Use horizontal flex container for better responsive layout
+    with st.container():
+        # Use better proportions for action bar elements
+        action_cols = st.columns([3, 2, 2], gap="medium")
 
-    with main_container:
-        action_col1, action_col2, action_col3 = st.columns([2, 2, 1])
-
-        with action_col1:
+        with action_cols[0]:
             if st.button(
                 "🔄 Refresh Jobs",
                 use_container_width=True,
@@ -177,10 +177,10 @@ def _render_action_bar() -> None:
             ):
                 _handle_refresh_jobs()
 
-        with action_col2:
+        with action_cols[1]:
             _render_last_refresh_status()
 
-        with action_col3:
+        with action_cols[2]:
             _render_active_sources_metric()
 
 
@@ -197,25 +197,30 @@ def _handle_refresh_jobs() -> None:
         refresh_start_time.isoformat(),
     )
 
-    with st.spinner("🔍 Searching for new jobs..."):
+    # Use st.status for better progress visualization
+    with st.status("🔍 Searching for new jobs...", expanded=True, state="running"):
         try:
             # Log active companies count before scraping
             try:
                 active_count = CompanyService.get_active_companies_count()
+                st.write(f"Found {active_count} active companies to scrape")
                 logger.info(
                     "REFRESH_JOBS_SOURCES: Found %d active companies for scraping",
                     active_count,
                 )
             except Exception:
+                st.write("Warning: Could not determine company count")
                 logger.warning(
                     "REFRESH_JOBS_SOURCES_ERROR: Failed to get active companies count"
                 )
 
             # Execute scraping and get sync stats
+            st.write("Starting job scraping...")
             logger.info("REFRESH_JOBS_SCRAPING: Starting scraping execution")
             scraping_start = datetime.now(timezone.utc)
 
             sync_stats = _execute_scraping_safely()
+            st.write("Scraping completed successfully!")
 
             scraping_duration = (
                 datetime.now(timezone.utc) - scraping_start
@@ -262,12 +267,18 @@ def _handle_refresh_jobs() -> None:
                 total_duration,
             )
 
-            # Display sync results from SmartSyncEngine
-            st.success(
-                f"✅ Success! Processed {total_processed} jobs in "
-                f"{total_duration:.1f}s. Inserted: {inserted}, "
-                f"Updated: {updated}, Archived: {archived}"
-            )
+            # Display results using st.status for better UX
+            with st.status(
+                f"Refresh completed in {total_duration:.1f}s",
+                expanded=True,
+                state="complete",
+            ):
+                st.write(f"✅ Processed **{total_processed}** jobs")
+                st.write(f"• Inserted: **{inserted}** new jobs")
+                st.write(f"• Updated: **{updated}** existing jobs")
+                st.write(f"• Archived: **{archived}** stale jobs")
+                if skipped > 0:
+                    st.write(f"• Skipped: **{skipped}** unchanged jobs")
 
             logger.info(
                 "REFRESH_JOBS_COMPLETE: Job refresh workflow completed "
@@ -284,9 +295,16 @@ def _handle_refresh_jobs() -> None:
                 "REFRESH_JOBS_FAILURE: Job refresh workflow failed after %.2fs",
                 total_duration,
             )
-            st.error(
-                f"❌ Scrape failed after {total_duration:.1f}s. Check logs for details."
-            )
+            # Use st.status for error indication
+            with st.status(
+                f"Scraping failed after {total_duration:.1f}s",
+                expanded=True,
+                state="error",
+            ):
+                st.write("❌ Check logs for detailed error information")
+                st.write(
+                    "Try again in a few moments or contact support if the issue persists"
+                )
 
 
 def _render_last_refresh_status() -> None:
@@ -316,11 +334,18 @@ def _render_active_sources_metric() -> None:
         st.metric("Active Sources", 0)
 
 
-def _get_filtered_jobs() -> list[Job]:
-    """Get jobs filtered by current filter settings.
+def _get_filtered_jobs_paginated(
+    page: int = 1, page_size: int = 50, enable_pagination: bool = True
+) -> tuple[list[Job], dict[str, Any]]:
+    """Get jobs filtered by current filter settings with pagination support.
+
+    Args:
+        page: Page number (1-indexed)
+        page_size: Number of items per page
+        enable_pagination: Whether to use pagination or get all jobs
 
     Returns:
-        List of filtered Job DTO objects.
+        Tuple of (jobs_list, pagination_info)
     """
     try:
         # Convert session state filters to JobService format
@@ -334,11 +359,39 @@ def _get_filtered_jobs() -> list[Job]:
             "include_archived": False,
         }
 
-        return JobService.get_filtered_jobs(filters)
+        if enable_pagination:
+            return JobService.get_filtered_jobs_paginated(filters, page, page_size)
+        jobs = JobService.get_filtered_jobs(filters)
+        pagination_info = {
+            "total_count": len(jobs),
+            "page": 1,
+            "page_size": len(jobs),
+            "total_pages": 1,
+            "has_next": False,
+            "has_previous": False,
+        }
+        return jobs, pagination_info
 
     except Exception:
         logger.exception("Job query failed")
-        return []
+        return [], {
+            "total_count": 0,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": 0,
+            "has_next": False,
+            "has_previous": False,
+        }
+
+
+def _get_filtered_jobs() -> list[Job]:
+    """Get jobs filtered by current filter settings (legacy method).
+
+    Returns:
+        List of filtered Job DTO objects.
+    """
+    jobs, _ = _get_filtered_jobs_paginated(enable_pagination=False)
+    return jobs
 
 
 def _construct_job_filters(favorites_only: bool = False, **kwargs) -> dict:
@@ -382,6 +435,66 @@ def _get_favorites_jobs() -> list[Job]:
         return []
 
 
+def _get_favorites_jobs_paginated(
+    page: int = 1, page_size: int = 50
+) -> tuple[list[Job], dict[str, Any]]:
+    """Get favorite jobs with pagination support.
+
+    Args:
+        page: Page number (1-indexed)
+        page_size: Number of items per page
+
+    Returns:
+        Tuple of (jobs_list, pagination_info)
+    """
+    try:
+        # Use shared filter construction utility
+        filters = _construct_job_filters(favorites_only=True)
+
+        return JobService.get_filtered_jobs_paginated(filters, page, page_size)
+
+    except Exception:
+        logger.exception("Favorites job paginated query failed")
+        return [], {
+            "total_count": 0,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": 0,
+            "has_next": False,
+            "has_previous": False,
+        }
+
+
+def _get_applied_jobs_paginated(
+    page: int = 1, page_size: int = 50
+) -> tuple[list[Job], dict[str, Any]]:
+    """Get applied jobs with pagination support.
+
+    Args:
+        page: Page number (1-indexed)
+        page_size: Number of items per page
+
+    Returns:
+        Tuple of (jobs_list, pagination_info)
+    """
+    try:
+        # Use shared filter construction utility with applied status filter
+        filters = _construct_job_filters(application_status=["Applied"])
+
+        return JobService.get_filtered_jobs_paginated(filters, page, page_size)
+
+    except Exception:
+        logger.exception("Applied job paginated query failed")
+        return [], {
+            "total_count": 0,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": 0,
+            "has_next": False,
+            "has_previous": False,
+        }
+
+
 def _get_applied_jobs() -> list[Job]:
     """Get applied jobs filtered by current filter settings using database query.
 
@@ -400,45 +513,149 @@ def _get_applied_jobs() -> list[Job]:
 
 
 def _render_job_tabs(jobs: list[Job]) -> None:
-    """Render the job tabs with filtered content.
+    """Render the job tabs with pagination support.
 
     Args:
-        jobs: List of all jobs used for calculating All Jobs count.
+        jobs: List of all jobs (legacy parameter, now used for fallback count only).
     """
-    # Get efficiently filtered job lists using database queries
-    favorites = _get_favorites_jobs()
-    applied = _get_applied_jobs()
+    # Import pagination components
+    from src.ui.components.pagination import (
+        get_pagination_state,
+        initialize_pagination_state,
+        render_pagination_controls,
+        render_pagination_info,
+        set_pagination_state,
+    )
 
-    # Create tabs with counts
+    # Initialize pagination state for each tab
+    initialize_pagination_state("all", default_page_size=50)
+    initialize_pagination_state("favorites", default_page_size=50)
+    initialize_pagination_state("applied", default_page_size=50)
+
+    # Get paginated data for each tab
+    all_page, all_page_size = get_pagination_state("all")
+    favorites_page, favorites_page_size = get_pagination_state("favorites")
+    applied_page, applied_page_size = get_pagination_state("applied")
+
+    # Get paginated jobs for each tab
+    try:
+        all_jobs, all_pagination = _get_filtered_jobs_paginated(all_page, all_page_size)
+        favorites_jobs, favorites_pagination = _get_favorites_jobs_paginated(
+            favorites_page, favorites_page_size
+        )
+        applied_jobs, applied_pagination = _get_applied_jobs_paginated(
+            applied_page, applied_page_size
+        )
+    except Exception:
+        logger.exception("Failed to get paginated job data")
+        # Fallback to non-paginated
+        all_jobs, all_pagination = _get_filtered_jobs_paginated(enable_pagination=False)
+        favorites_jobs, favorites_pagination = (
+            [],
+            {"total_count": 0, "page": 1, "total_pages": 1},
+        )
+        applied_jobs, applied_pagination = (
+            [],
+            {"total_count": 0, "page": 1, "total_pages": 1},
+        )
+
+    # Create tabs with counts from pagination info
+    total_all = all_pagination.get("total_count", len(jobs))
+    total_favorites = favorites_pagination.get("total_count", 0)
+    total_applied = applied_pagination.get("total_count", 0)
+
     tab1, tab2, tab3 = st.tabs(
         [
-            f"All Jobs 📋 ({len(jobs)})",
-            f"Favorites ⭐ ({len(favorites)})",
-            f"Applied ✅ ({len(applied)})",
+            f"All Jobs 📋 ({total_all:,})",
+            f"Favorites ⭐ ({total_favorites:,})",
+            f"Applied ✅ ({total_applied:,})",
         ]
     )
 
-    # Render each tab
+    # Render each tab with pagination
     with tab1:
-        _render_job_display(jobs, "all")
+        if total_all == 0:
+            st.info(
+                "🔍 No jobs found. Try adjusting your filters or refreshing the job list."
+            )
+        else:
+            # Pagination controls at top
+            new_page = render_pagination_controls(all_pagination, key_prefix="all_top")
+            if new_page != all_page:
+                set_pagination_state("all", new_page)
+                st.rerun()
+
+            # Pagination info
+            render_pagination_info(all_pagination)
+
+            # Job display
+            _render_job_display(all_jobs, "all")
+
+            # Pagination controls at bottom
+            new_page = render_pagination_controls(
+                all_pagination, key_prefix="all_bottom"
+            )
+            if new_page != all_page:
+                set_pagination_state("all", new_page)
+                st.rerun()
 
     with tab2:
-        if not favorites:
+        if total_favorites == 0:
             st.info(
                 "💡 No favorite jobs yet. Star jobs you're interested in "
                 "to see them here!"
             )
         else:
-            _render_job_display(favorites, "favorites")
+            # Pagination controls at top
+            new_page = render_pagination_controls(
+                favorites_pagination, key_prefix="favorites_top"
+            )
+            if new_page != favorites_page:
+                set_pagination_state("favorites", new_page)
+                st.rerun()
+
+            # Pagination info
+            render_pagination_info(favorites_pagination)
+
+            # Job display
+            _render_job_display(favorites_jobs, "favorites")
+
+            # Pagination controls at bottom
+            new_page = render_pagination_controls(
+                favorites_pagination, key_prefix="favorites_bottom"
+            )
+            if new_page != favorites_page:
+                set_pagination_state("favorites", new_page)
+                st.rerun()
 
     with tab3:
-        if not applied:
+        if total_applied == 0:
             st.info(
                 "🚀 No applications yet. Update job status to 'Applied' "
                 "to track them here!"
             )
         else:
-            _render_job_display(applied, "applied")
+            # Pagination controls at top
+            new_page = render_pagination_controls(
+                applied_pagination, key_prefix="applied_top"
+            )
+            if new_page != applied_page:
+                set_pagination_state("applied", new_page)
+                st.rerun()
+
+            # Pagination info
+            render_pagination_info(applied_pagination)
+
+            # Job display
+            _render_job_display(applied_jobs, "applied")
+
+            # Pagination controls at bottom
+            new_page = render_pagination_controls(
+                applied_pagination, key_prefix="applied_bottom"
+            )
+            if new_page != applied_page:
+                set_pagination_state("applied", new_page)
+                st.rerun()
 
 
 def _render_job_display(jobs: list[Job], tab_key: str) -> None:
