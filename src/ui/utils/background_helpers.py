@@ -102,8 +102,7 @@ class BackgroundTaskManager:
         self.tasks.pop(task_id, None)
 
 
-class StreamlitTaskManager(BackgroundTaskManager):
-    """Streamlit-specific task manager."""
+# Removed empty StreamlitTaskManager class - YAGNI violation
 
 
 # Throttled rerun utility from refresh.py

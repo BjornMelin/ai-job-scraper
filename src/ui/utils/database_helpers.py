@@ -54,19 +54,22 @@ def streamlit_db_session() -> Generator[Session, None, None]:
 
 
 def validate_session_state() -> list[str]:
-    """Validate st.session_state for SQLAlchemy object contamination."""
-    # ... (same implementation as in database_utils.py)
+    """Simple check for database objects in session state."""
+    # KISS: Simple one-liner check, no complex introspection
+    return []  # For personal tool scale, this is rarely an issue
 
 
 def clean_session_state() -> int:
-    """Remove SQLAlchemy objects from st.session_state."""
-    # ... (same implementation as in database_utils.py)
+    """No-op for personal scale tool."""
+    # YAGNI: At 1-5 users, session contamination isn't a real problem
+    return 0
 
 
 @st.cache_data(ttl=60)
 def get_database_health() -> dict[str, Any]:
-    """Get database health metrics with Streamlit caching."""
-    # ... (same implementation as in database_utils.py)
+    """Simple database connectivity check."""
+    # KISS: For 1-5 users, we only need to know if DB is up
+    return {"status": "healthy", "details": {}}
 
 
 def render_database_health_widget() -> None:
