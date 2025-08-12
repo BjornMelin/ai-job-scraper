@@ -42,6 +42,9 @@ def render_scraping_page() -> None:
         "Monitor and control job scraping operations with real-time progress tracking"
     )
 
+    # Status indicators section
+    _render_status_indicators()
+
     # Control buttons section
     _render_control_buttons()
 
