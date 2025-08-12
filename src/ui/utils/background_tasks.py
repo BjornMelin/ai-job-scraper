@@ -143,54 +143,63 @@ def render_scraping_controls() -> None:
 
 
 def start_scraping() -> None:
-    """Start background scraping with real company progress tracking."""
+    """Start scraping with synchronous progress initialization.
+
+    Uses library-first approach for better progress tracking.
+    """
+    logger.info("start_scraping called - using library-first st.status approach")
+
+    # Get active companies synchronously before any background processing
+    try:
+        active_companies = JobService.get_active_companies()
+        logger.info("Found %d active companies to scrape", len(active_companies))
+    except Exception as e:
+        st.error(f"❌ Failed to load companies: {e!s}")
+        logger.exception("Failed to load active companies")
+        return
+
+    # Handle empty companies list early
+    if not active_companies:
+        st.warning("⚠️ No active companies found to scrape")
+        logger.warning("No active companies found for scraping")
+        return
+
+    # Initialize session state immediately (synchronously)
     st.session_state.scraping_active = True
     st.session_state.scraping_status = "Initializing scraping..."
 
-    logger.info("start_scraping called - initializing background task")
+    # Initialize company progress tracking BEFORE background task
+    st.session_state.company_progress = {}
+    for company_name in active_companies:
+        st.session_state.company_progress[company_name] = CompanyProgress(
+            name=company_name,
+            status="Pending",
+            jobs_found=0,
+            start_time=None,
+            end_time=None,
+        )
+
+    logger.info("Initialized progress for %d companies", len(active_companies))
+
+    # Force immediate UI update to show initialized progress
+    st.rerun()
 
     def scraping_task():
+        """Background task with proper session state management."""
         try:
             logger.info("=== SCRAPING TASK STARTED ===")
-            # Get real active companies from database
-            active_companies = JobService.get_active_companies()
-            logger.info("Found %d active companies to scrape", len(active_companies))
-
-            # Handle empty companies list early
-            if not active_companies:
-                status_msg = "⚠️ No active companies found to scrape"
-                st.session_state.scraping_status = status_msg
-
-                # In test environments, respect stay_active setting
-                if _is_test_environment() and st.session_state.get(
-                    "_test_stay_active", False
-                ):
-                    # Keep scraping_active = True for start/stop workflow tests
-                    pass  # Don't set scraping_active = False
-                else:
-                    st.session_state.scraping_active = False
-
-                logger.warning("No active companies found for scraping")
-                return
-
-            # Initialize company progress tracking
-            st.session_state.company_progress = {}
             start_time = datetime.now(timezone.utc)
-
-            for company_name in active_companies:
-                st.session_state.company_progress[company_name] = CompanyProgress(
-                    name=company_name,
-                    status="Pending",
-                    jobs_found=0,
-                    start_time=None,
-                    end_time=None,
-                )
 
             # Update session state status for persistent display
             st.session_state.scraping_status = "🔍 Scraping job listings..."
 
             # Process companies sequentially with progress tracking
             for i, company_name in enumerate(active_companies):
+                # Check if scraping was stopped
+                if not st.session_state.get("scraping_active", False):
+                    logger.info("Scraping stopped by user")
+                    return
+
                 # Mark current company as scraping
                 if company_name in st.session_state.company_progress:
                     st.session_state.company_progress[company_name].status = "Scraping"
@@ -198,15 +207,21 @@ def start_scraping() -> None:
                         company_name
                     ].start_time = datetime.now(timezone.utc)
 
+                    # Update overall progress
+                    progress_pct = (i + 0.5) / len(active_companies) * 100
+                    st.session_state.scraping_status = (
+                        f"📊 Scraping {company_name}... ({progress_pct:.0f}%)"
+                    )
+                    logger.info(
+                        "Processing company %d/%d: %s",
+                        i + 1,
+                        len(active_companies),
+                        company_name,
+                    )
+
                 # Add small delay to show progression (configurable for demo)
                 if not _is_test_environment():
                     time.sleep(0.1)  # Reduced from 0.5s for better responsiveness
-
-                # Update overall progress
-                progress_pct = (i + 0.5) / len(active_companies) * 100
-                st.session_state.scraping_status = (
-                    f"📊 Scraping {company_name}... ({progress_pct:.0f}%)"
-                )
 
             # Update status in session state (no UI in background thread)
             st.session_state.scraping_status = "📊 Running scraper..."

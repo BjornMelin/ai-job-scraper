@@ -20,21 +20,12 @@ from src.database import (
 
 # Models - removed from __init__.py to prevent double import conflicts with Alembic
 # Import models directly in modules where they are needed instead
-# Scraper modules
-from src.scraper import scrape, scrape_all
-from src.scraper_company_pages import (
-    State,
-    extract_details,
-    extract_job_lists,
-    load_active_companies,
-    normalize_jobs,
-    scrape_company_pages,
-)
+# Scraper modules - imports removed to prevent double model imports in Streamlit
+# Import scraper functions directly in modules where needed instead
 from src.scraper_job_boards import scrape_job_boards
 
-# Seed module
-from src.seed import seed
-
+# Seed module - import removed to prevent double model imports in Streamlit
+# Import seed function directly when needed
 # Utilities
 from src.utils import (
     get_extraction_model,
@@ -54,28 +45,19 @@ __all__ = [
     "SessionLocal",
     # Configuration
     "Settings",
-    # Company pages scraper
-    "State",
+    # Database
     "create_db_and_tables",
     "db_session",
     "engine",
-    "extract_details",
-    "extract_job_lists",
+    "get_session",
     # Utilities
     "get_extraction_model",
     "get_llm_client",
     "get_proxy",
-    "get_session",
-    "load_active_companies",
-    "normalize_jobs",
     "random_delay",
     "random_user_agent",
-    # Main scraper functions
-    "scrape",
-    "scrape_all",
-    "scrape_company_pages",
+    # Main scraper functions - removed to prevent double model imports
     # Job board scraper
     "scrape_job_boards",
-    # Seed
-    "seed",
+    # Seed module - removed to prevent double model imports
 ]
