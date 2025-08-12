@@ -54,13 +54,60 @@ def streamlit_db_session() -> Generator[Session, None, None]:
 
 
 def validate_session_state() -> list[str]:
-    """Check for database objects in session state."""
-    return []
+    """Validate st.session_state for SQLAlchemy object contamination.
+
+    Returns:
+        List of keys in st.session_state that are SQLAlchemy objects.
+    """
+    contaminated_keys = []
+    try:
+        from sqlalchemy import Engine
+        from sqlalchemy.ext.declarative import DeclarativeMeta
+        from sqlalchemy.orm import Session as SASession
+
+        for key, value in st.session_state.items():
+            # Check for SQLAlchemy Session, Engine, or mapped class instance
+            if isinstance(value, SASession | Engine | Session) or (
+                hasattr(value, "__class__")
+                and isinstance(value.__class__, DeclarativeMeta)
+            ):
+                contaminated_keys.append(key)
+    except ImportError:
+        # SQLAlchemy not available, no contamination possible
+        pass
+    except Exception:
+        logger.exception("Error validating session state")
+    return contaminated_keys
 
 
 def clean_session_state() -> int:
-    """Remove database objects from session state."""
-    return 0
+    """Remove SQLAlchemy objects from st.session_state.
+
+    Returns:
+        Number of keys removed from session state.
+    """
+    removed = 0
+    try:
+        from sqlalchemy import Engine
+        from sqlalchemy.ext.declarative import DeclarativeMeta
+        from sqlalchemy.orm import Session as SASession
+
+        keys_to_remove = []
+        for key, value in st.session_state.items():
+            if isinstance(value, Session | SASession | Engine) or (
+                hasattr(value, "__class__")
+                and isinstance(value.__class__, DeclarativeMeta)
+            ):
+                keys_to_remove.append(key)
+        for key in keys_to_remove:
+            del st.session_state[key]
+            removed += 1
+    except ImportError:
+        # SQLAlchemy not available, nothing to clean
+        pass
+    except Exception:
+        logger.exception("Error cleaning session state")
+    return removed
 
 
 @st.cache_data(ttl=60)
