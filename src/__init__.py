@@ -49,11 +49,11 @@ __all__ = [
     "create_db_and_tables",
     "db_session",
     "engine",
-    "get_session",
     # Utilities
     "get_extraction_model",
     "get_llm_client",
     "get_proxy",
+    "get_session",
     "random_delay",
     "random_user_agent",
     # Main scraper functions - removed to prevent double model imports
