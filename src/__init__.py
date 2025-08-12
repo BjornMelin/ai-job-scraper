@@ -27,12 +27,14 @@ from src.scraper_job_boards import scrape_job_boards
 # Seed module - import removed to prevent double model imports in Streamlit
 # Import seed function directly when needed
 # Utilities
-from src.utils import (
+# Import the missing function separately to avoid linter issues
+from .utils import (
     get_extraction_model,
     get_llm_client,
     get_proxy,
     random_delay,
     random_user_agent,
+    resolve_jobspy_proxies,
 )
 
 __all__ = [
@@ -56,6 +58,7 @@ __all__ = [
     "get_session",
     "random_delay",
     "random_user_agent",
+    "resolve_jobspy_proxies",
     # Main scraper functions - removed to prevent double model imports
     # Job board scraper
     "scrape_job_boards",

@@ -80,3 +80,6 @@ SALARY_SLIDER_FORMAT = "$%dk"
 
 # Application status options
 APPLICATION_STATUSES = ["New", "Interested", "Applied", "Rejected"]
+
+# Background processing constants
+BACKGROUND_PREFETCH_INTERVAL = 300  # 5 minutes between cache prefetch cycles
