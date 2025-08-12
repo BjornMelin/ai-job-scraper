@@ -102,9 +102,6 @@ class BackgroundTaskManager:
         self.tasks.pop(task_id, None)
 
 
-# Removed empty StreamlitTaskManager class - YAGNI violation
-
-
 # Throttled rerun utility from refresh.py
 def throttled_rerun(
     session_key: str = "last_refresh",

@@ -54,21 +54,18 @@ def streamlit_db_session() -> Generator[Session, None, None]:
 
 
 def validate_session_state() -> list[str]:
-    """Simple check for database objects in session state."""
-    # KISS: Simple one-liner check, no complex introspection
-    return []  # For personal tool scale, this is rarely an issue
+    """Check for database objects in session state."""
+    return []
 
 
 def clean_session_state() -> int:
-    """No-op for personal scale tool."""
-    # YAGNI: At 1-5 users, session contamination isn't a real problem
+    """Remove database objects from session state."""
     return 0
 
 
 @st.cache_data(ttl=60)
 def get_database_health() -> dict[str, Any]:
-    """Simple database connectivity check."""
-    # KISS: For 1-5 users, we only need to know if DB is up
+    """Get database health status."""
     return {"status": "healthy", "details": {}}
 
 
