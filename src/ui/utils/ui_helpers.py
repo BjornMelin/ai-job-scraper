@@ -59,9 +59,10 @@ def calculate_eta(
     """Calculate estimated time of arrival for completing all companies."""
     try:
         # Validate inputs
-        if not all(
-            isinstance(x, int)
-            for x in [total_companies, completed_companies, time_elapsed]
+        if not (
+            isinstance(total_companies, int)
+            and isinstance(completed_companies, int)
+            and isinstance(time_elapsed, int)
         ):
             return "Unknown"
 
@@ -230,34 +231,37 @@ class SafeIntValidator(BaseModel):
     @classmethod
     def convert_to_safe_int(cls, v: Any) -> int:
         """Convert various input types to safe non-negative integers."""
-        result = 0
+        try:
+            if v is None:
+                return 0
+            if isinstance(
+                v, bool
+            ):  # Check bool before int since bool is subclass of int
+                return int(v)
+            if isinstance(v, int | float):
+                return max(
+                    0,
+                    int(v)
+                    if isinstance(v, int)
+                    else (
+                        int(v)
+                        if v.__class__.__name__ != "float" or v.is_finite()
+                        else 0
+                    ),
+                )
+            if isinstance(v, str):
+                v = v.strip()
+                if v:
+                    try:
+                        return max(0, int(float(v)))
+                    except (ValueError, TypeError):
+                        # Extract first number from string
+                        import re
 
-        if v is None:
-            result = 0
-        elif isinstance(v, bool):  # Check bool before int since bool is subclass of int
-            result = int(v)
-        elif isinstance(v, int):
-            result = max(0, v)
-        elif isinstance(v, float):
-            result = max(0, int(v)) if v.is_finite() else 0
-        elif isinstance(v, str):
-            v = v.strip()
-            if v:
-                # Try direct conversion first
-                try:
-                    result = max(0, int(float(v)))
-                except (ValueError, TypeError):
-                    # Extract first number from string
-                    import re
-
-                    match = re.search(r"-?\d+(?:\.\d+)?", v)
-                    if match:
-                        try:
-                            result = max(0, int(float(match.group())))
-                        except (ValueError, TypeError):
-                            result = 0
-
-        return result
+                        match = re.search(r"-?\d+(?:\.\d+)?", v)
+                        return max(0, int(float(match.group()))) if match else 0
+        except (ValueError, TypeError, AttributeError):
+            return 0
 
 
 def safe_int(value: Any, default: int = 0) -> int:
