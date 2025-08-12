@@ -38,6 +38,28 @@ logger = logging.getLogger(__name__)
 # Suppress SQLAlchemy warnings common in Streamlit context
 suppress_sqlalchemy_warnings()
 
+# Thread-safe lock for atomic session state operations
+_session_state_lock = threading.Lock()
+
+
+def _atomic_check_and_set(key: str, check_value: Any, set_value: Any) -> bool:
+    """Atomically check session state value and set new value if match.
+
+    Args:
+        key: Session state key to check/set
+        check_value: Expected current value to check for
+        set_value: New value to set if check passes
+
+    Returns:
+        True if check passed and value was set, False otherwise
+    """
+    with _session_state_lock:
+        current_value = st.session_state.get(key)
+        if current_value == check_value:
+            st.session_state[key] = set_value
+            return True
+        return False
+
 
 def _is_test_environment() -> bool:
     """Detect if we're running in a test environment."""
@@ -416,14 +438,11 @@ def process_scraping_trigger() -> None:
     """Process scraping trigger using Streamlit native fragment approach.
 
     This function runs every second and checks if scraping needs to be triggered.
-    It replaces the complex threading approach with a simple, reliable method.
+    Uses atomic check-and-set to prevent race conditions between fragments.
     """
-    # Only process if trigger is set
-    if not st.session_state.get("scraping_trigger", False):
+    # Atomically check if trigger is set and reset it to prevent race conditions
+    if not _atomic_check_and_set("scraping_trigger", True, False):
         return
-
-    # Reset trigger immediately to prevent multiple executions
-    st.session_state.scraping_trigger = False
 
     logger.info("Processing scraping trigger - starting actual scraping")
 

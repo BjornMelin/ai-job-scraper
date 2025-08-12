@@ -5,6 +5,7 @@ adding new companies and toggling their active status for scraping.
 """
 
 import logging
+import uuid
 
 import streamlit as st
 
@@ -164,27 +165,63 @@ def _select_none_callback() -> None:
 
 
 def _bulk_delete_callback() -> None:
-    """Callback function to handle bulk deletion of selected companies."""
+    """Callback function to handle bulk deletion of selected companies.
+
+    Uses idempotency tokens to prevent duplicate operations from rapid clicks.
+    """
     try:
         selected_ids = list(st.session_state.get("selected_companies", set()))
         if not selected_ids:
             st.session_state.bulk_operation_error = "No companies selected for deletion"
             return
 
-        # Check if user confirmed deletion
+        # Check if user confirmed deletion with idempotency token
         if st.session_state.get("bulk_delete_confirmed", False):
+            # Generate or get existing operation token for this confirmation
+            operation_token = st.session_state.get("bulk_delete_token")
+            if not operation_token:
+                st.session_state.bulk_operation_error = "Invalid operation token"
+                return
+
+            # Check if this operation was already executed
+            executed_tokens = st.session_state.get("executed_delete_tokens", set())
+            if operation_token in executed_tokens:
+                logger.warning(
+                    "Duplicate bulk delete attempt blocked by idempotency token: %s",
+                    operation_token,
+                )
+                return
+
+            # Execute the deletion
             deleted_count = CompanyService.bulk_delete_companies(selected_ids)
+
+            # Mark this token as executed to prevent duplicates
+            executed_tokens.add(operation_token)
+            st.session_state.executed_delete_tokens = executed_tokens
+
+            # Clear state
             st.session_state.bulk_operation_success = (
                 f"Successfully deleted {deleted_count} companies"
             )
             st.session_state.selected_companies.clear()
             st.session_state.bulk_delete_confirmed = False
             st.session_state.show_bulk_delete_confirm = False
-            logger.info("User bulk deleted %d companies", deleted_count)
+            st.session_state.bulk_delete_token = None
+
+            logger.info(
+                "User bulk deleted %d companies with token %s",
+                deleted_count,
+                operation_token,
+            )
             st.rerun()
         else:
+            # Generate new operation token for this confirmation
+            operation_token = str(uuid.uuid4())
+            st.session_state.bulk_delete_token = operation_token
+
             # Show confirmation dialog
             st.session_state.show_bulk_delete_confirm = True
+            logger.info("Generated bulk delete token: %s", operation_token)
             st.rerun()
 
     except Exception as e:
