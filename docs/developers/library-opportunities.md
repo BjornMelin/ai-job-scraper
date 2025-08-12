@@ -3,6 +3,7 @@
 This file tracks library-first opportunities discovered during development to reduce code complexity and improve maintainability.
 
 ## Format
+
 Each entry should include:
 
 - **Date**: Discovery date
@@ -31,8 +32,8 @@ Each entry should include:
 
 - **Library Solution**: price-parser + babel for currency/decimal handling + custom logic for salary-specific patterns
 
-- **Complexity Reduction**: 
-  - ~45% codebase reduction (363+ → ~200 lines active code)
+- **Complexity Reduction**:
+  - ~45% codebase reduction (363+ → ~200 lines of active code)
   - Eliminated ~200 lines of regex patterns and edge case handling
   - Improved maintainability through library-first approach
 
