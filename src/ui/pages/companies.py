@@ -241,33 +241,6 @@ def _bulk_delete_callback() -> None:
     st.rerun()
 
 
-def _execute_bulk_delete() -> None:
-    """Execute bulk deletion with simple error handling."""
-    try:
-        selected_ids = list(st.session_state.get("selected_companies", set()))
-        if not selected_ids:
-            st.session_state.bulk_operation_error = "No companies selected for deletion"
-            return
-
-        # Execute the deletion
-        deleted_count = CompanyService.bulk_delete_companies(selected_ids)
-
-        # Clear state and show success
-        st.session_state.bulk_operation_success = (
-            f"Successfully deleted {deleted_count} companies"
-        )
-        st.session_state.selected_companies.clear()
-        st.session_state.show_bulk_delete_confirm = False
-
-        logger.info("User bulk deleted %d companies", deleted_count)
-        st.rerun()
-
-    except Exception as e:
-        st.session_state.bulk_operation_error = f"Failed to delete companies: {e}"
-        st.session_state.show_bulk_delete_confirm = False
-        logger.exception("Failed to bulk delete companies")
-
-
 def _bulk_activate_callback() -> None:
     """Callback function to handle bulk activation of selected companies."""
     try:
