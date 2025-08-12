@@ -674,18 +674,14 @@ class JobSQL(SQLModel, table=True, extend_existing=True):
         except ValueError:
             # Try parsing date-only strings
             try:
-
-                # Try common date formats
+                # Try common date formats with timezone awareness
                 for fmt in ["%Y-%m-%d", "%m/%d/%Y", "%d/%m/%Y"]:
                     try:
-                        date_obj = datetime.strptime(v, fmt).date()
-                        return datetime.combine(
-                            date_obj, datetime.min.time(), tzinfo=timezone.utc
-                        )
+                        return datetime.strptime(v, fmt).replace(tzinfo=timezone.utc)
                     except ValueError:
                         continue
             except Exception:
-                pass
+                salary_logger.debug("Failed to parse date string: %s", v)
         return None
 
     @staticmethod

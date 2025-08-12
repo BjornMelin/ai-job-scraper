@@ -77,10 +77,6 @@ def get_database_health() -> dict[str, Any]:
             result = session.execute(text("SELECT 1"))
             result.scalar()
             session.close()
-            return {
-                "status": "healthy",
-                "details": {"connected": True, "message": "Database accessible"},
-            }
         except Exception as e:
             session.close()
             logger.warning("Database health check failed: %s", str(e))
@@ -88,8 +84,13 @@ def get_database_health() -> dict[str, Any]:
                 "status": "unhealthy",
                 "details": {"connected": False, "error": str(e)},
             }
+        else:
+            return {
+                "status": "healthy",
+                "details": {"connected": True, "message": "Database accessible"},
+            }
     except Exception as e:
-        logger.error("Failed to create database session: %s", str(e))
+        logger.exception("Failed to create database session")
         return {
             "status": "error",
             "details": {"connected": False, "error": f"Session creation failed: {e}"},

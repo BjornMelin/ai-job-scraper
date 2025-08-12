@@ -126,15 +126,16 @@ def warm_startup_cache(
                 stats["duration_seconds"],
             )
 
-            return stats
-
         except Exception:
             stats["status"] = "failed"
             stats["duration_seconds"] = round(time.time() - start_time, 2)
             logger.exception(
                 "Cache warmup failed after %.2fs", stats["duration_seconds"]
             )
+        else:
             return stats
+
+        return stats
 
     if background and hasattr(st, "session_state"):
         # Run in background thread for Streamlit

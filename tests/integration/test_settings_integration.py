@@ -16,7 +16,7 @@ from src.ui.utils.background_helpers import (
     get_company_progress,
     get_scraping_results,
     is_scraping_active,
-    start_scraping,
+    start_background_scraping,
 )
 
 
@@ -60,7 +60,7 @@ class TestSettingsIntegration:
                 }
 
                 # Start scraping (this should use the settings)
-                start_scraping()
+                start_background_scraping()
 
                 # Wait for background thread to process
                 timeout = 5
@@ -123,7 +123,7 @@ class TestSettingsIntegration:
                 }
 
                 # Start background task
-                start_scraping()
+                start_background_scraping()
 
                 # Wait for completion
                 timeout = 5
@@ -157,7 +157,7 @@ class TestSettingsIntegration:
                     mock_scrape_all.return_value = {"Test Company": case["limit"]}
 
                     # Start scraping
-                    start_scraping()
+                    start_background_scraping()
 
                     # Wait for completion
                     timeout = 3
@@ -187,7 +187,7 @@ class TestSettingsIntegration:
                 }
 
                 # Start scraping
-                start_scraping()
+                start_background_scraping()
 
                 # Check progress during execution
                 progress = get_company_progress()
@@ -242,7 +242,7 @@ class TestSettingsIntegration:
                 ) as mock_scrape_all:
                     mock_scrape_all.return_value = {}
 
-                    start_scraping()
+                    start_background_scraping()
 
                     # Should not crash, even with edge case values
                     timeout = 3
@@ -278,7 +278,7 @@ class TestSettingsIntegration:
                 mock_scrape_all.return_value = {"Concurrent Corp": 50}
 
                 # Start background scraping
-                start_scraping()
+                start_background_scraping()
 
                 # # In test environment, scraping runs synchronously, so update settings
                 # # after
@@ -314,7 +314,7 @@ class TestSettingsIntegration:
                 mock_scrape_all.side_effect = Exception("Scraping failed")
 
                 # Start scraping
-                start_scraping()
+                start_background_scraping()
 
                 # Wait for error handling
                 timeout = 5
@@ -352,7 +352,7 @@ class TestSettingsIntegration:
             ) as mock_scrape_all:
                 mock_scrape_all.return_value = {"Cleanup Corp": 35}
 
-                start_scraping()
+                start_background_scraping()
 
                 # Wait for completion
                 timeout = 5
@@ -398,7 +398,7 @@ class TestSettingsWithRealScenarios:
                 mock_scrape_all.side_effect = slow_scrape
 
                 # Start scraping
-                start_scraping()
+                start_background_scraping()
 
                 # Immediately change settings (user action)
                 save_settings({"max_jobs_per_company": 60})
@@ -443,7 +443,7 @@ class TestSettingsWithRealScenarios:
                     )
 
                     # Start scraping
-                    start_scraping()
+                    start_background_scraping()
 
                     # Wait for completion
                     timeout = 5
@@ -502,7 +502,7 @@ class TestSettingsWithRealScenarios:
             mock_companies.return_value = []
 
             # Start scraping
-            start_scraping()
+            start_background_scraping()
 
             # Wait for quick completion
             timeout = 3
@@ -541,7 +541,7 @@ class TestSettingsWithRealScenarios:
                     ) as mock_scrape_all:
                         mock_scrape_all.return_value = {f"Stress{i} Corp": limit}
 
-                        start_scraping()
+                        start_background_scraping()
 
                         # Quick completion
                         timeout = 2

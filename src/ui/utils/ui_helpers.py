@@ -103,19 +103,24 @@ def format_duration(seconds: int | float) -> str:
         minutes = (seconds % 3600) // 60
         remaining_seconds = seconds % 60
 
+        # Build result based on largest unit
+        result = ""
         if hours > 0:
+            result = f"{hours}h"
             if minutes > 0:
-                return f"{hours}h {minutes}m"
-            return f"{hours}h"
-        if minutes > 0:
+                result += f" {minutes}m"
+        elif minutes > 0:
+            result = f"{minutes}m"
             if remaining_seconds > 0:
-                return f"{minutes}m {remaining_seconds}s"
-            return f"{minutes}m"
-        return f"{remaining_seconds}s"
+                result += f" {remaining_seconds}s"
+        else:
+            result = f"{remaining_seconds}s"
 
     except Exception:
         logger.exception("Error formatting duration")
         return "0s"
+    else:
+        return result
 
 
 def format_timestamp(dt: datetime | None, format_str: str = "%H:%M:%S") -> str:
@@ -168,39 +173,40 @@ def format_jobs_count(count: int, singular: str = "job", plural: str = "jobs") -
         else:
             count = int(count)
 
-        if count == 1:
-            return f"1 {singular}"
-        return f"{count} {plural}"
+        result = f"1 {singular}" if count == 1 else f"{count} {plural}"
 
     except Exception:
         logger.exception("Error formatting jobs count")
         return "0 jobs"
+    else:
+        return result
 
 
 def format_salary(amount: int | float | None) -> str:
     """Format salary amount with k/M suffixes."""
     try:
-        if amount is None or not isinstance(amount, int | float):
-            return "$0"
-
-        # Handle negative amounts
-        if amount < 0:
+        if amount is None or not isinstance(amount, int | float) or amount < 0:
             return "$0"
 
         amount = int(amount)  # Convert to integer
 
         if amount == 0:
             return "$0"
-        if amount < 1000:
-            return f"${amount}"
-        if amount < 1000000:
-            return f"${amount // 1000}k"
 
-        millions = amount / 1000000
-        return f"${millions:.1f}M"
+        # Format based on amount range
+        if amount < 1000:
+            result = f"${amount}"
+        elif amount < 1000000:
+            result = f"${amount // 1000}k"
+        else:
+            millions = amount / 1000000
+            result = f"${millions:.1f}M"
+
     except Exception:
         logger.exception("Error formatting salary")
         return "$0"
+    else:
+        return result
 
 
 # Streamlit context from streamlit_context.py
@@ -224,7 +230,34 @@ class SafeIntValidator(BaseModel):
     @classmethod
     def convert_to_safe_int(cls, v: Any) -> int:
         """Convert various input types to safe non-negative integers."""
-        # ... [rest of the SafeIntValidator implementation from validation_utils.py]
+        result = 0
+
+        if v is None:
+            result = 0
+        elif isinstance(v, bool):  # Check bool before int since bool is subclass of int
+            result = int(v)
+        elif isinstance(v, int):
+            result = max(0, v)
+        elif isinstance(v, float):
+            result = max(0, int(v)) if v.is_finite() else 0
+        elif isinstance(v, str):
+            v = v.strip()
+            if v:
+                # Try direct conversion first
+                try:
+                    result = max(0, int(float(v)))
+                except (ValueError, TypeError):
+                    # Extract first number from string
+                    import re
+
+                    match = re.search(r"-?\d+(?:\.\d+)?", v)
+                    if match:
+                        try:
+                            result = max(0, int(float(match.group())))
+                        except (ValueError, TypeError):
+                            result = 0
+
+        return result
 
 
 def safe_int(value: Any, default: int = 0) -> int:

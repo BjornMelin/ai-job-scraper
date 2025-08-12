@@ -123,7 +123,7 @@ def mock_session_state():
 def mock_job_service():
     """Mock JobService for integration tests."""
     with (
-        patch("src.ui.utils.background_tasks.JobService") as mock_service_bg,
+        patch("src.ui.utils.background_helpers.JobService") as mock_service_bg,
         patch("src.services.job_service.JobService") as mock_service_core,
         patch("src.ui.pages.scraping.JobService") as mock_service_scraping,
     ):
@@ -164,7 +164,7 @@ def prevent_real_system_execution():
             },
         ) as mock_scrape_all,
         patch(
-            "src.ui.utils.background_tasks.scrape_all",
+            "src.scraper.scrape_all",
             return_value={
                 "inserted": 0,
                 "updated": 0,
