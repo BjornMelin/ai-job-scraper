@@ -114,6 +114,9 @@ class JobService:
         Returns:
             Filtered query object
         """
+        if not filters:
+            return query  # Early return for empty filters
+
         # Apply text search filter
         if text_search := filters.get("text_search", "").strip():
             query = query.filter(
