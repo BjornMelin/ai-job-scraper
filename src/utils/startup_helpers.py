@@ -1,10 +1,9 @@
 """Startup helpers for application initialization.
 
 This module provides utilities for application startup including:
-- Cache warming with common queries
-- Background prefetching of frequently accessed data
+- Simple cache warming using Streamlit's native caching
 - Performance monitoring and initialization logging
-- Streamlit session state initialization for cache warming
+- Streamlit session state initialization
 """
 
 import logging
@@ -12,6 +11,8 @@ import threading
 import time
 
 from typing import Any
+
+from src.constants import BACKGROUND_PREFETCH_INTERVAL
 
 try:
     import streamlit as st
@@ -34,13 +35,11 @@ except ImportError:
 
 from src.services.company_service import CompanyService
 from src.services.job_service import JobService
-from src.utils.cache_manager import get_cache_manager
 
 logger = logging.getLogger(__name__)
 
 # Startup configuration
 CACHE_WARMUP_TIMEOUT = 30  # seconds
-BACKGROUND_PREFETCH_INTERVAL = 300  # 5 minutes
 
 
 def warm_startup_cache(
@@ -220,13 +219,12 @@ def initialize_performance_optimizations() -> dict[str, Any]:
     results = {
         "cache_warmup": {},
         "background_prefetch": False,
-        "cache_manager_initialized": False,
         "startup_time": time.time(),
     }
 
     try:
         # Initialize cache manager
-        get_cache_manager()  # Initialize but don't store unused reference
+        # Cache manager no longer needed - using native Streamlit caching
         results["cache_manager_initialized"] = True
         logger.debug("Cache manager initialized successfully")
 
@@ -259,8 +257,8 @@ def get_cache_performance_stats() -> dict[str, Any]:
         Dictionary with current cache performance metrics
     """
     try:
-        cache_manager = get_cache_manager()
-        stats = cache_manager.get_stats()
+        # No complex cache stats with Streamlit native caching
+        stats = {"message": "Using native Streamlit caching"}
 
         # Add additional context
         stats["timestamp"] = time.time()

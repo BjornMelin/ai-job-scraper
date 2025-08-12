@@ -4,11 +4,7 @@ This module provides the JobService class with static methods for querying
 and updating job records. It handles database operations for job filtering,
 status updates, favorite toggling, and notes management.
 
-Enhanced with multi-level caching and pagination for 50% faster page loads:
-- Memory + disk caching using cachetools and diskcache
-- Pagination support with LIMIT/OFFSET for large datasets
-- Smart cache invalidation and background prefetching
-- Optimized queries with eager loading strategies
+Simple caching using Streamlit's native @st.cache_data decorator.
 """
 
 import logging
@@ -38,12 +34,6 @@ from src.constants import SALARY_DEFAULT_MIN, SALARY_UNBOUNDED_THRESHOLD
 from src.database import db_session
 from src.models import CompanySQL, JobSQL
 from src.schemas import Job
-from src.utils.cache_manager import (
-    JOB_CACHE_PREFIX,
-    STATS_CACHE_PREFIX,
-    cache_key_for_filters,
-    get_cache_manager,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -51,11 +41,6 @@ logger = logging.getLogger(__name__)
 type FilterDict = dict[str, Any]
 type JobCountStats = dict[str, int]
 type JobUpdateBatch = list[dict[str, Any]]
-type PaginationInfo = dict[str, Any]
-
-# Pagination constants
-DEFAULT_PAGE_SIZE = 50
-MAX_PAGE_SIZE = 200
 
 
 class JobService:
@@ -102,116 +87,6 @@ class JobService:
             ValidationError: If any SQLModel data doesn't match DTO schema.
         """
         return [cls._to_dto(js) for js in jobs_sql]
-
-    @staticmethod
-    def get_filtered_jobs_paginated(
-        filters: FilterDict, page: int = 1, page_size: int = DEFAULT_PAGE_SIZE
-    ) -> tuple[list[Job], PaginationInfo]:
-        """Get jobs filtered by criteria with pagination support.
-
-        This method implements efficient pagination using LIMIT/OFFSET and includes
-        comprehensive caching to achieve 50% faster page loads through:
-        - Multi-level caching (memory + disk) for frequently accessed pages
-        - Smart cache keys based on filter combinations
-        - Eager loading optimization for related data
-
-        Args:
-            filters: Dictionary containing filter criteria
-            page: Page number (1-indexed)
-            page_size: Number of items per page (max MAX_PAGE_SIZE)
-
-        Returns:
-            Tuple of (jobs_list, pagination_info) where pagination_info contains:
-            - total_count: Total number of jobs matching filters
-            - page: Current page number
-            - page_size: Items per page
-            - total_pages: Total number of pages
-            - has_next: Whether there are more pages
-            - has_previous: Whether there are previous pages
-
-        Raises:
-            Exception: If database query fails.
-        """
-        # Validate and sanitize pagination parameters
-        page = max(1, page)
-        page_size = min(max(1, page_size), MAX_PAGE_SIZE)
-
-        cache_manager = get_cache_manager()
-
-        # Generate cache key including pagination params
-        cache_key_data = {
-            **filters,
-            "page": page,
-            "page_size": page_size,
-            "method": "paginated",
-        }
-        cache_key = cache_key_for_filters(cache_key_data)
-
-        # Try to get from cache first
-        cached_result = cache_manager.get(cache_key, JOB_CACHE_PREFIX)
-        if cached_result is not None:
-            logger.debug("Cache hit for paginated jobs query")
-            return cached_result
-
-        try:
-            with db_session() as session:
-                # Build base query with eager loading
-                base_query = select(JobSQL).options(joinedload(JobSQL.company_relation))
-
-                # Apply all filters (reuse existing filter logic)
-                filtered_query = JobService._apply_filters_to_query(base_query, filters)
-
-                # Get total count for pagination (without LIMIT/OFFSET)
-                count_query = select(func.count()).select_from(
-                    filtered_query.subquery()
-                )
-                total_count = session.exec(count_query).first() or 0
-
-                # Calculate pagination info
-                total_pages = (
-                    total_count + page_size - 1
-                ) // page_size  # Ceiling division
-                offset = (page - 1) * page_size
-
-                # Apply pagination to main query
-                paginated_query = filtered_query.limit(page_size).offset(offset)
-
-                # Execute paginated query
-                jobs_sql = session.exec(paginated_query).all()
-
-                # Convert to DTOs
-                jobs = JobService._to_dtos(jobs_sql)
-
-                # Build pagination info
-                pagination_info: PaginationInfo = {
-                    "total_count": total_count,
-                    "page": page,
-                    "page_size": page_size,
-                    "total_pages": total_pages,
-                    "has_next": page < total_pages,
-                    "has_previous": page > 1,
-                    "offset": offset,
-                }
-
-                result = (jobs, pagination_info)
-
-                # Cache the result with 5-minute TTL for frequently accessed data
-                cache_manager.set(cache_key, result, JOB_CACHE_PREFIX, memory_ttl=300)
-
-                logger.info(
-                    "Retrieved page %d/%d with %d jobs (total: %d) with filters: %s",
-                    page,
-                    total_pages,
-                    len(jobs),
-                    total_count,
-                    filters,
-                )
-
-                return result
-
-        except Exception:
-            logger.exception("Failed to get paginated jobs")
-            raise
 
     @staticmethod
     def _apply_filters_to_query(query, filters: FilterDict):
@@ -280,11 +155,11 @@ class JobService:
         return query.order_by(JobSQL.posted_date.desc().nullslast())
 
     @staticmethod
+    @st.cache_data(ttl=300)  # Cache for 5 minutes
     def get_filtered_jobs(filters: FilterDict) -> list[Job]:
         """Get jobs filtered by the provided criteria.
 
-        Enhanced with caching for improved performance. For large datasets,
-        consider using get_filtered_jobs_paginated() instead.
+        Uses simple Streamlit caching for improved performance.
 
         Args:
             filters: Dictionary containing filter criteria:
@@ -303,18 +178,6 @@ class JobService:
         Raises:
             Exception: If database query fails.
         """
-        cache_manager = get_cache_manager()
-
-        # Generate cache key for the filters
-        cache_key_data = {**filters, "method": "all_jobs"}
-        cache_key = cache_key_for_filters(cache_key_data)
-
-        # Try to get from cache first
-        cached_result = cache_manager.get(cache_key, JOB_CACHE_PREFIX)
-        if cached_result is not None:
-            logger.debug("Cache hit for jobs query")
-            return cached_result
-
         try:
             with db_session() as session:
                 # Start with base query, eagerly loading company relationship
@@ -327,9 +190,6 @@ class JobService:
 
                 # Convert SQLModel objects to Pydantic DTOs using helper
                 jobs = JobService._to_dtos(jobs_sql)
-
-                # Cache the result with shorter TTL for all jobs (can be large)
-                cache_manager.set(cache_key, jobs, JOB_CACHE_PREFIX, memory_ttl=120)
 
                 logger.info("Retrieved %d jobs with filters: %s", len(jobs), filters)
                 return jobs
@@ -478,10 +338,11 @@ class JobService:
             raise
 
     @staticmethod
+    @st.cache_data(ttl=120)  # Cache for 2 minutes
     def get_job_counts_by_status() -> JobCountStats:
         """Get count of jobs grouped by application status.
 
-        Enhanced with caching for improved performance.
+        Uses simple Streamlit caching for improved performance.
 
         Returns:
             Dictionary mapping status names to counts.
@@ -489,15 +350,6 @@ class JobService:
         Raises:
             Exception: If database query fails.
         """
-        cache_manager = get_cache_manager()
-        cache_key = "job_counts_by_status"
-
-        # Try to get from cache first
-        cached_result = cache_manager.get(cache_key, STATS_CACHE_PREFIX)
-        if cached_result is not None:
-            logger.debug("Cache hit for job counts by status")
-            return cached_result
-
         try:
             with db_session() as session:
                 results = session.exec(
@@ -507,10 +359,6 @@ class JobService:
                 ).all()
 
                 counts = dict(results)
-
-                # Cache for 2 minutes (stats change frequently with user actions)
-                cache_manager.set(cache_key, counts, STATS_CACHE_PREFIX, memory_ttl=120)
-
                 logger.info("Job counts by status: %s", counts)
                 return counts
 
@@ -766,96 +614,24 @@ class JobService:
             raise
 
     @staticmethod
-    def invalidate_job_cache(job_id: int | None = None) -> bool:
-        """Invalidate job-related cache entries.
+    def invalidate_job_cache(job_id: int | None = None) -> bool:  # noqa: ARG004
+        """Clear Streamlit cache for job-related data.
 
         Args:
-            job_id: If provided, invalidate specific job caches only
+            job_id: Ignored - Streamlit cache is cleared globally
 
         Returns:
             True if cache invalidation was successful
         """
         try:
-            cache_manager = get_cache_manager()
+            # Clear relevant Streamlit caches
+            JobService.get_filtered_jobs.clear()
+            JobService.get_job_counts_by_status.clear()
+            JobService.get_active_companies.clear()
 
-            if job_id:
-                # Invalidate specific job cache
-                cache_manager.delete(f"job_{job_id}", JOB_CACHE_PREFIX)
-                logger.debug("Invalidated cache for job %d", job_id)
-            else:
-                # Invalidate all job-related caches
-                cache_manager.clear(JOB_CACHE_PREFIX)
-                cache_manager.clear(STATS_CACHE_PREFIX)
-                logger.info("Invalidated all job and statistics caches")
-
-            return True
+            logger.info("Cleared Streamlit job caches")
         except Exception:
-            logger.exception("Failed to invalidate job cache")
+            logger.exception("Failed to clear Streamlit cache")
             return False
-
-    @staticmethod
-    def prefetch_common_queries(background: bool = True) -> dict[str, int]:  # noqa: ARG004
-        """Prefetch common job queries to warm the cache.
-
-        Args:
-            background: Whether to run prefetching in background (for future use)
-
-        Returns:
-            Dictionary with prefetch statistics
-        """
-        stats = {"queries_prefetched": 0, "items_cached": 0}
-
-        try:
-            # Common filter combinations to prefetch
-            common_filters = [
-                {"favorites_only": True},  # Favorites view
-                {"application_status": ["New"]},  # New jobs
-                {"application_status": ["Applied"]},  # Applied jobs
-                {"application_status": ["Interested"]},  # Interested jobs
-                {},  # All jobs (first page only)
-            ]
-
-            for filters in common_filters:
-                try:
-                    # Prefetch first page of each common filter
-                    jobs, pagination_info = JobService.get_filtered_jobs_paginated(
-                        filters, page=1, page_size=DEFAULT_PAGE_SIZE
-                    )
-                    stats["queries_prefetched"] += 1
-                    stats["items_cached"] += len(jobs)
-
-                    # Also prefetch job counts for statistics
-                    if not filters:  # Only for "all jobs" case
-                        JobService.get_job_counts_by_status()
-                        stats["queries_prefetched"] += 1
-
-                except Exception:
-                    logger.exception(
-                        "Failed to prefetch query with filters: %s", filters
-                    )
-                    continue
-
-            logger.info(
-                "Prefetched %d queries with %d total items",
-                stats["queries_prefetched"],
-                stats["items_cached"],
-            )
-
-        except Exception:
-            logger.exception("Failed to prefetch common queries")
-
-        return stats
-
-    @staticmethod
-    def get_cache_stats() -> dict[str, Any]:
-        """Get job service cache performance statistics.
-
-        Returns:
-            Dictionary with cache performance metrics
-        """
-        try:
-            cache_manager = get_cache_manager()
-            return cache_manager.get_stats()
-        except Exception:
-            logger.exception("Failed to get cache stats")
-            return {}
+        else:
+            return True

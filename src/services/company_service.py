@@ -46,10 +46,9 @@ from sqlmodel import func, select
 from src.database import db_session
 from src.models import CompanySQL, JobSQL
 from src.schemas import Company
-from src.utils.cache_manager import (
-    COMPANY_CACHE_PREFIX,
-    STATS_CACHE_PREFIX,
-    get_cache_manager,
+from src.ui.utils.ui_helpers import (
+    calculate_active_jobs_count,
+    calculate_total_jobs_count,
 )
 
 logger = logging.getLogger(__name__)
@@ -486,13 +485,14 @@ class CompanyService:
             raise
 
     @staticmethod
+    @st.cache_data(ttl=180)  # Cache for 3 minutes
     def get_companies_with_job_counts() -> CompanyStatsList:
         """Get all companies with their job counts in a single optimized query.
 
         This method uses a LEFT JOIN to efficiently retrieve company data along
         with job counts, avoiding N+1 query problems when displaying statistics.
 
-        Enhanced with caching for improved performance.
+        Uses simple Streamlit caching for improved performance.
 
         Returns:
             List of dictionaries containing company data and job statistics.
@@ -500,15 +500,6 @@ class CompanyService:
         Raises:
             Exception: If database query fails.
         """
-        cache_manager = get_cache_manager()
-        cache_key = "companies_with_job_counts"
-
-        # Try to get from cache first
-        cached_result = cache_manager.get(cache_key, STATS_CACHE_PREFIX)
-        if cached_result is not None:
-            logger.debug("Cache hit for companies with job counts")
-            return cached_result
-
         try:
             with db_session() as session:
                 # Use selectinload to load job relationships, then calculate in Python
@@ -522,16 +513,11 @@ class CompanyService:
                 companies_with_stats = [
                     {
                         "company": company,
-                        "total_jobs": company.total_jobs_count,
-                        "active_jobs": company.active_jobs_count,
+                        "total_jobs": calculate_total_jobs_count(company.jobs),
+                        "active_jobs": calculate_active_jobs_count(company.jobs),
                     }
                     for company in companies_sql
                 ]
-
-                # Cache for 3 minutes (job counts can change but not super frequently)
-                cache_manager.set(
-                    cache_key, companies_with_stats, STATS_CACHE_PREFIX, memory_ttl=180
-                )
 
                 logger.info(
                     "Retrieved %d companies with job counts",
@@ -679,11 +665,11 @@ class CompanyService:
             raise
 
     @staticmethod
-    @st.cache_data(ttl=60)  # Cache for 1 minute
+    @st.cache_data(ttl=300)  # Cache for 5 minutes
     def get_active_companies_count() -> int:
         """Get the count of active companies.
 
-        Enhanced with multi-level caching for improved performance.
+        Uses simple Streamlit caching for improved performance.
 
         Returns:
             Number of active companies.
@@ -691,15 +677,6 @@ class CompanyService:
         Raises:
             Exception: If database query fails.
         """
-        cache_manager = get_cache_manager()
-        cache_key = "active_companies_count"
-
-        # Try to get from cache first
-        cached_result = cache_manager.get(cache_key, COMPANY_CACHE_PREFIX)
-        if cached_result is not None:
-            logger.debug("Cache hit for active companies count")
-            return cached_result
-
         try:
             with db_session() as session:
                 count_result = session.exec(
@@ -709,11 +686,6 @@ class CompanyService:
                 # Extract scalar value from potential tuple result
                 count = (
                     count_result[0] if isinstance(count_result, tuple) else count_result
-                )
-
-                # Cache for 5 minutes (company counts don't change frequently)
-                cache_manager.set(
-                    cache_key, count, COMPANY_CACHE_PREFIX, memory_ttl=300
                 )
 
                 logger.info("Retrieved active companies count: %d", count)
