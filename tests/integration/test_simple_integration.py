@@ -80,10 +80,10 @@ class TestSimpleIntegration:
         companies = ["TestCorp"]
 
         with patch(
-            "src.ui.utils.background_tasks.JobService.get_active_companies",
+            "src.services.job_service.JobService.get_active_companies",
             return_value=companies,
         ) as mock_get_companies:
-            from src.ui.utils.background_helpers import JobService
+            from src.services.job_service import JobService
 
             result = JobService.get_active_companies()
             assert result == companies

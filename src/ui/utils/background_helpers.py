@@ -82,24 +82,23 @@ def _is_test_environment() -> bool:
     )
 
 
-# Consolidated background task manager
-class BackgroundTaskManager:
-    """Simple background task manager for compatibility."""
+# Direct session state operations - no custom task manager needed
+def add_task(task_id: str, task_info: TaskInfo) -> None:
+    """Store task info directly in session state."""
+    if "tasks" not in st.session_state:
+        st.session_state.tasks = {}
+    st.session_state.tasks[task_id] = task_info
 
-    def __init__(self):
-        self.tasks = {}
 
-    def add_task(self, task_id: str, task_info: TaskInfo) -> None:
-        """Add a task to tracking."""
-        self.tasks[task_id] = task_info
+def get_task(task_id: str) -> TaskInfo | None:
+    """Get task info from session state."""
+    return st.session_state.get("tasks", {}).get(task_id)
 
-    def get_task(self, task_id: str) -> TaskInfo | None:
-        """Get task information."""
-        return self.tasks.get(task_id)
 
-    def remove_task(self, task_id: str) -> None:
-        """Remove a task from tracking."""
-        self.tasks.pop(task_id, None)
+def remove_task(task_id: str) -> None:
+    """Remove task from session state."""
+    if "tasks" in st.session_state:
+        st.session_state.tasks.pop(task_id, None)
 
 
 # Throttled rerun utility from refresh.py
@@ -130,13 +129,6 @@ def is_scraping_active() -> bool:
 def get_scraping_results() -> dict[str, Any]:
     """Get results from the last scraping operation."""
     return st.session_state.get("scraping_results", {})
-
-
-def get_task_manager() -> BackgroundTaskManager:
-    """Get or create the task manager instance."""
-    if "task_manager" not in st.session_state:
-        st.session_state.task_manager = BackgroundTaskManager()
-    return st.session_state.task_manager
 
 
 def start_background_scraping(stay_active_in_tests: bool = False) -> str:

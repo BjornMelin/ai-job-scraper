@@ -5,23 +5,32 @@ background task management, data formatting, validation, and other helper functi
 """
 
 from .background_helpers import (
-    BackgroundTaskManager,
+    CompanyProgress,
     ProgressInfo,
     TaskInfo,
+    add_task,
+    get_company_progress,
     get_scraping_progress,
-    get_task_manager,
+    get_scraping_results,
+    get_task,
     is_scraping_active,
+    remove_task,
     start_background_scraping,
     stop_all_scraping,
 )
 
 __all__ = [
-    "BackgroundTaskManager",
+    "CompanyProgress",
     "ProgressInfo",
     "TaskInfo",
+    "_is_test_environment",
+    "add_task",
+    "get_company_progress",
     "get_scraping_progress",
-    "get_task_manager",
+    "get_scraping_results",
+    "get_task",
     "is_scraping_active",
+    "remove_task",
     "start_background_scraping",
     "stop_all_scraping",
 ]

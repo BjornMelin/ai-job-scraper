@@ -425,14 +425,12 @@ def mock_job_service():
     with (
         patch("src.ui.pages.jobs.JobService") as mock_service_jobs,
         patch("src.ui.components.cards.job_card.JobService") as mock_service_cards,
-        patch("src.ui.utils.background_tasks.JobService") as mock_service_bg,
         patch("src.services.job_service.JobService") as mock_service_core,
     ):
         # Configure all mock instances with the same behavior
         for mock_service in [
             mock_service_jobs,
             mock_service_cards,
-            mock_service_bg,
             mock_service_core,
         ]:
             mock_service.get_filtered_jobs.return_value = []
@@ -448,7 +446,6 @@ def mock_job_service():
         yield {
             "jobs_page": mock_service_jobs,
             "cards": mock_service_cards,
-            "background_tasks": mock_service_bg,
             "core": mock_service_core,
         }
 
