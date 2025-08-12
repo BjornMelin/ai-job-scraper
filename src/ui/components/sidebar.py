@@ -48,76 +48,49 @@ def _render_search_filters() -> None:
         # Get company list from database
         companies = _get_company_list()
 
-        # Company filter with popover help
-        col1, col2 = st.columns([4, 1])
-        with col1:
-            selected_companies = st.multiselect(
-                "Filter by Company",
-                options=companies,
-                default=st.session_state.filters["company"] or None,
-                placeholder="All companies",
-            )
-        with col2:
-            with st.popover("ℹ️", help="Company filter help"):
-                st.markdown(
-                    "**Company Filter**\n\n"
-                    "• Select one or more companies to filter jobs\n"
-                    "• Leave empty to see jobs from all companies\n"
-                    "• Use Ctrl+Click to select multiple companies"
-                )
+        # Company filter with better default
+        selected_companies = st.multiselect(
+            "Filter by Company",
+            options=companies,
+            default=st.session_state.filters["company"] or None,
+            placeholder="All companies",
+            help="Select one or more companies to filter jobs",
+        )
 
         # Update filters in state manager
         current_filters = st.session_state.filters.copy()
         current_filters["company"] = selected_companies
         st.session_state.filters = current_filters
 
-        # Keyword search with popover help
-        col1, col2 = st.columns([4, 1])
-        with col1:
-            keyword_value = st.text_input(
-                "Search Keywords",
-                value=st.session_state.filters["keyword"],
-                placeholder="e.g., Python, Machine Learning, Remote",
-            )
-        with col2:
-            with st.popover("ℹ️", help="Keyword search help"):
-                st.markdown(
-                    "**Keyword Search**\n\n"
-                    "• Searches job titles and descriptions\n"
-                    "• Use multiple keywords separated by commas\n"
-                    "• Search is case-insensitive\n"
-                    "• Examples: 'Python', 'Remote, Senior', 'ML Engineer'"
-                )
+        # Keyword search with placeholder
+        keyword_value = st.text_input(
+            "Search Keywords",
+            value=st.session_state.filters["keyword"],
+            placeholder="e.g., Python, Machine Learning, Remote",
+            help="Search in job titles and descriptions",
+        )
 
         # Update keyword in filters
         current_filters = st.session_state.filters.copy()
         current_filters["keyword"] = keyword_value
         st.session_state.filters = current_filters
 
-        # Date range with popover help
-        col_header, col_help = st.columns([4, 1])
-        with col_header:
-            st.markdown("**Date Range**")
-        with col_help:
-            with st.popover("ℹ️", help="Date range filter help"):
-                st.markdown(
-                    "**Date Range Filter**\n\n"
-                    "• Filter jobs by their posting date\n"
-                    "• Leave 'From' empty to see all older jobs\n"
-                    "• Leave 'To' empty to include jobs through today\n"
-                    "• Use this to find recent opportunities or historical data"
-                )
-
+        # Date range with column layout
+        st.markdown("**Date Range**")
         col1, col2 = st.columns(2)
+
         with col1:
             date_from = st.date_input(
                 "From",
                 value=st.session_state.filters["date_from"],
+                help="Show jobs posted after this date",
             )
+
         with col2:
             date_to = st.date_input(
                 "To",
                 value=st.session_state.filters["date_to"],
+                help="Show jobs posted before this date",
             )
 
         # Update date filters using single update call
@@ -129,24 +102,11 @@ def _render_search_filters() -> None:
         )
 
         # Salary range filter with high-value support
+        st.markdown("**Salary Range**")
         current_salary_min = st.session_state.filters.get("salary_min", 0)
         current_salary_max = st.session_state.filters.get(
             "salary_max", SALARY_DEFAULT_MAX
         )
-
-        # Salary range header with popover help
-        col_header, col_help = st.columns([4, 1])
-        with col_header:
-            st.markdown("**Salary Range**")
-        with col_help:
-            with st.popover("ℹ️", help="Salary range filter help"):
-                st.markdown(
-                    "**Salary Range Filter**\n\n"
-                    f"• Filter jobs by annual salary (USD)\n"
-                    f"• Set max to {format_salary(SALARY_UNBOUNDED_THRESHOLD)}+ for high-value positions\n"
-                    "• Only jobs with salary data will be shown\n"
-                    "• Use this to find opportunities in your target range"
-                )
 
         salary_range = st.slider(
             "Annual Salary Range",
@@ -155,7 +115,11 @@ def _render_search_filters() -> None:
             value=(current_salary_min, current_salary_max),
             step=SALARY_SLIDER_STEP,
             format=SALARY_SLIDER_FORMAT,
-            label_visibility="collapsed",  # Hide label since we have header above
+            help=(
+                f"Filter jobs by annual salary range (in USD). "
+                f"Set max to {format_salary(SALARY_UNBOUNDED_THRESHOLD)}+ "
+                f"to include all high-value positions."
+            ),
         )
 
         # Update salary filters using single update call
@@ -214,38 +178,29 @@ def _render_company_management() -> None:
 
         if not comp_df.empty:
             st.markdown("**Existing Companies**")
-            # Show companies with individual toggles for better UX
-            st.markdown("**Active Companies**")
-            for _, company in comp_df.iterrows():
-                col1, col2, col3 = st.columns([3, 1, 1])
-                with col1:
-                    st.write(f"**{company['Name']}**")
-                    st.caption(company["URL"])
-                with col2:
-                    # Use st.toggle for better UX than checkbox
-                    is_active = st.toggle(
+            edited_comp = st.data_editor(
+                comp_df,
+                column_config={
+                    "Active": st.column_config.CheckboxColumn(
                         "Active",
-                        value=company["Active"],
-                        key=f"toggle_company_{company['id']}",
-                        help="Enable/disable scraping for this company",
-                    )
-                    # Update company status if changed
-                    if is_active != company["Active"]:
-                        try:
-                            CompanyService.update_company_active_status(
-                                company["id"], is_active
-                            )
-                            st.success(
-                                f"{'Enabled' if is_active else 'Disabled'} {company['Name']}"
-                            )
-                            st.rerun()
-                        except Exception:
-                            st.error(f"Failed to update {company['Name']}")
-                with col3:
-                    # Add quick link to careers page
-                    st.link_button("🔗", company["URL"], help="Visit careers page")
+                        width="small",
+                        help="Toggle to enable/disable scraping",
+                    ),
+                    "URL": st.column_config.LinkColumn(
+                        "URL", width="large", help="Company careers page URL"
+                    ),
+                    "Name": st.column_config.TextColumn("Company Name", width="medium"),
+                    "id": st.column_config.NumberColumn(
+                        "ID", width="small", disabled=True
+                    ),
+                },
+                hide_index=True,
+                use_container_width=True,
+                height=400,  # Streamlit 1.47+ height parameter
+            )
 
-            # Toggles save immediately, no save button needed
+            if st.button("💾 Save Changes", use_container_width=True, type="primary"):
+                _save_company_changes(edited_comp)
 
         # Add new company section
         _render_add_company_form()
@@ -284,28 +239,18 @@ def _save_company_changes(edited_comp: pd.DataFrame) -> None:
 
 def _render_add_company_form() -> None:
     """Render form for adding new companies using service layer."""
-    # Header with popover help
-    col_header, col_help = st.columns([4, 1])
-    with col_header:
-        st.markdown("**Add New Company**")
-    with col_help:
-        with st.popover("ℹ️", help="Add company help"):
-            st.markdown(
-                "**Adding Companies**\n\n"
-                "• Company names must be unique\n"
-                "• Use the main careers page URL\n"
-                "• URL must start with http:// or https://\n"
-                "• Added companies are active by default"
-            )
+    st.markdown("**Add New Company**")
 
     with st.form("add_company_form", clear_on_submit=True):
         new_name = st.text_input(
             "Company Name",
             placeholder="e.g., OpenAI",
+            help="Enter the company name",
         )
         new_url = st.text_input(
             "Careers Page URL",
             placeholder="e.g., https://openai.com/careers",
+            help="Enter the URL of the company's careers page",
         )
 
         if st.form_submit_button(
