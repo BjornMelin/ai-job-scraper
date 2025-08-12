@@ -123,7 +123,7 @@ def mock_session_state():
 def mock_job_service():
     """Mock JobService for integration tests."""
     with (
-        patch("src.ui.utils.background_helpers.JobService") as mock_service_bg,
+        patch("src.services.job_service.JobService") as mock_service_bg,
         patch("src.services.job_service.JobService") as mock_service_core,
         patch("src.ui.pages.scraping.JobService") as mock_service_scraping,
     ):

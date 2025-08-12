@@ -44,7 +44,7 @@ class TestSimpleIntegration:
 
         # Act: Start scraping (runs synchronously in test environment)
         with patch(
-            "src.ui.utils.background_tasks.JobService.get_active_companies",
+            "src.services.job_service.JobService.get_active_companies",
             return_value=companies,
         ):
             task_id = start_background_scraping()
@@ -143,7 +143,7 @@ class TestSimpleIntegration:
         prevent_real_system_execution["scrape_all_bg"].return_value = expected_results
 
         with patch(
-            "src.ui.utils.background_tasks.JobService.get_active_companies",
+            "src.services.job_service.JobService.get_active_companies",
             return_value=companies,
         ):
             # Start scraping - should complete synchronously

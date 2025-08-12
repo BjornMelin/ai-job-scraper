@@ -50,7 +50,7 @@ class TestHappyPathWorkflow:
         # Act: Start scraping workflow
         # In test environment, scraping runs synchronously and completes immediately
         with patch(
-            "src.ui.utils.background_tasks.JobService.get_active_companies",
+            "src.services.job_service.JobService.get_active_companies",
             return_value=companies,
         ):
             task_id = start_background_scraping(stay_active_in_tests=False)
@@ -114,7 +114,7 @@ class TestHappyPathWorkflow:
         # Act: Start scraping workflow
         # In test environment, scraping runs synchronously
         with patch(
-            "src.ui.utils.background_tasks.JobService.get_active_companies",
+            "src.services.job_service.JobService.get_active_companies",
             return_value=companies,
         ):
             start_background_scraping()

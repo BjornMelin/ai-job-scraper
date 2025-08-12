@@ -34,11 +34,11 @@ class TestWorkflowIntegration:
         # Act 1: Start scraping
         with (
             patch(
-                "src.ui.utils.background_tasks.JobService.get_active_companies",
+                "src.services.job_service.JobService.get_active_companies",
                 return_value=companies,
             ),
             patch(
-                "src.ui.utils.background_tasks.scrape_all",
+                "src.scraper.scrape_all",
                 return_value={"TechCorp": 10, "DataInc": 15},
             ),
         ):
@@ -152,7 +152,7 @@ class TestWorkflowIntegration:
         for _cycle in range(3):
             # Act: Start scraping
             with patch(
-                "src.ui.utils.background_tasks.JobService.get_active_companies",
+                "src.services.job_service.JobService.get_active_companies",
                 return_value=companies,
             ):
                 task_id = start_background_scraping(stay_active_in_tests=False)
@@ -369,7 +369,7 @@ class TestWorkflowIntegration:
         with (
             patch("src.config.Settings", return_value=test_settings),
             patch(
-                "src.ui.utils.background_tasks.JobService.get_active_companies",
+                "src.services.job_service.JobService.get_active_companies",
                 return_value=companies,
             ),
         ):
@@ -392,7 +392,7 @@ class TestWorkflowIntegration:
         with (
             patch("src.config.Settings", return_value=test_settings),
             patch(
-                "src.ui.utils.background_tasks.JobService.get_active_companies",
+                "src.services.job_service.JobService.get_active_companies",
                 return_value=companies,
             ),
         ):
@@ -416,7 +416,7 @@ class TestConcurrentScenarios:
         for _i in range(5):
             # Start
             with patch(
-                "src.ui.utils.background_tasks.JobService.get_active_companies",
+                "src.services.job_service.JobService.get_active_companies",
                 return_value=companies,
             ):
                 task_id = start_background_scraping(stay_active_in_tests=False)

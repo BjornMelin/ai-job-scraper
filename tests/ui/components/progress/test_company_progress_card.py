@@ -169,7 +169,7 @@ class TestCompanyProgressCardProgressBar:
         )
         card = CompanyProgressCard()
 
-        with patch("src.ui.utils.background_tasks.datetime") as mock_datetime:
+        with patch("src.ui.utils.background_helpers.datetime") as mock_datetime:
             # Mock current time to be 1 minute after start (should show ~50% progress)
             mock_datetime.now.return_value = datetime(
                 2024, 1, 1, 10, 1, tzinfo=timezone.utc
@@ -369,7 +369,7 @@ class TestCompanyProgressCardTimingInfo:
             patch(
                 "src.ui.components.progress.company_progress_card.format_duration"
             ) as mock_format_duration,
-            patch("src.ui.utils.background_tasks.datetime") as mock_datetime,
+            patch("src.ui.utils.background_helpers.datetime") as mock_datetime,
         ):
             # Mock current time to be 2 minutes after start
             mock_datetime.now.return_value = datetime(
