@@ -4,10 +4,8 @@ import os
 import tempfile
 
 from pathlib import Path
+from unittest.mock import patch
 
-import pytest
-
-from pydantic import ValidationError
 from src.config import Settings
 
 
@@ -15,24 +13,30 @@ class TestSettings:
     """Test cases for Settings configuration."""
 
     def test_default_settings(self):
-        """Test default configuration values."""
-        os.environ["OPENAI_API_KEY"] = "test-openai-key"
-        os.environ["GROQ_API_KEY"] = "test-groq-key"
+        """Test default configuration values with empty environment."""
+        # Set all environment variables to empty strings to test defaults
+        env_overrides = {
+            "OPENAI_API_KEY": "",
+            "GROQ_API_KEY": "",
+            "USE_GROQ": "",
+            "PROXY_POOL": "",
+            "USE_PROXIES": "",
+            "USE_CHECKPOINTING": "",
+            "DB_URL": "",
+            "EXTRACTION_MODEL": "",
+        }
 
-        try:
+        with patch.dict(os.environ, env_overrides, clear=False):
             settings = Settings()
 
-            assert settings.openai_api_key == "test-openai-key"
-            assert settings.groq_api_key == "test-groq-key"
+            assert settings.openai_api_key == ""  # Now defaults to empty string
+            assert settings.groq_api_key == ""  # Now defaults to empty string
             assert settings.use_groq is False
             assert settings.proxy_pool == []
             assert settings.use_proxies is False
             assert settings.use_checkpointing is False
             assert settings.db_url == "sqlite:///jobs.db"
             assert settings.extraction_model == "gpt-4o-mini"
-        finally:
-            del os.environ["OPENAI_API_KEY"]
-            del os.environ["GROQ_API_KEY"]
 
     def test_environment_variable_override(self):
         """Test that environment variables override defaults."""
@@ -158,14 +162,18 @@ class TestSettings:
                 os.environ.pop(key, None)
 
     def test_settings_validation_required_fields(self):
-        """Test validation for required fields."""
-        if "OPENAI_API_KEY" in os.environ:
-            del os.environ["OPENAI_API_KEY"]
-        if "GROQ_API_KEY" in os.environ:
-            del os.environ["GROQ_API_KEY"]
+        """Test validation behavior - API keys are now optional with empty defaults."""
+        # Set API keys to empty strings
+        env_overrides = {
+            "OPENAI_API_KEY": "",
+            "GROQ_API_KEY": "",
+        }
 
-        with pytest.raises(ValidationError):
-            Settings()
+        with patch.dict(os.environ, env_overrides, clear=False):
+            # Should succeed now that API keys are optional
+            settings = Settings()
+            assert settings.openai_api_key == ""  # Empty string default
+            assert settings.groq_api_key == ""  # Empty string default
 
     def test_settings_serialization(self):
         """Test settings serialization and deserialization."""

@@ -7,7 +7,6 @@ delays for evasion, normalizes data to JobSQL models, and saves to the
 database. Checkpointing is optional for resumability.
 """
 
-import hashlib
 import logging
 
 from datetime import datetime, timezone
@@ -267,11 +266,8 @@ def normalize_jobs(state: State) -> dict[str, list[JobSQL]]:
             finally:
                 session.close()
 
-            # Create content hash
-            content = f"{raw['title']}{raw.get('description', '')}{raw['company']}"
-            content_hash = hashlib.sha256(content.encode()).hexdigest()
-
-            job = JobSQL(
+            # Use factory method to ensure proper validation and hash generation
+            job = JobSQL.create_validated(
                 company_id=company_id,
                 title=raw["title"],
                 description=raw.get("description", ""),
@@ -279,7 +275,6 @@ def normalize_jobs(state: State) -> dict[str, list[JobSQL]]:
                 location=raw.get("location", ""),
                 posted_date=posted,
                 salary=raw.get("salary", ""),
-                content_hash=content_hash,
                 application_status="New",
                 last_seen=datetime.now(timezone.utc),
             )

@@ -27,7 +27,6 @@ import sqlmodel
 
 from sqlmodel import func, select
 from src.database import db_session
-from src.database_listeners.monitoring_listeners import performance_monitor
 from src.models import CompanySQL, JobSQL
 from src.schemas import Company
 
@@ -128,7 +127,6 @@ class CompanyService:
         return [cls._to_dto(c) for c in companies_sql]
 
     @staticmethod
-    @performance_monitor
     def get_all_companies() -> list[Company]:
         """Get all companies ordered by name.
 
@@ -155,7 +153,6 @@ class CompanyService:
             raise
 
     @staticmethod
-    @performance_monitor
     def add_company(name: str, url: str) -> Company:
         """Add a new company to the database.
 
@@ -211,7 +208,6 @@ class CompanyService:
             raise
 
     @staticmethod
-    @performance_monitor
     def toggle_company_active(company_id: int) -> bool:
         """Toggle the active status of a company.
 
@@ -254,7 +250,6 @@ class CompanyService:
             raise
 
     @staticmethod
-    @performance_monitor
     def get_active_companies() -> list[Company]:
         """Get all active companies ordered by name.
 
@@ -283,7 +278,6 @@ class CompanyService:
             raise
 
     @staticmethod
-    @performance_monitor
     def update_company_scrape_stats(
         company_id: int, success: bool, last_scraped: datetime | None = None
     ) -> bool:
@@ -340,7 +334,6 @@ class CompanyService:
             raise
 
     @staticmethod
-    @performance_monitor
     def get_company_by_id(company_id: int) -> Company | None:
         """Get a single company by its ID.
 
@@ -369,7 +362,6 @@ class CompanyService:
             raise
 
     @staticmethod
-    @performance_monitor
     def get_company_by_name(name: str) -> Company | None:
         """Get a company by its name.
 
@@ -403,7 +395,6 @@ class CompanyService:
             raise
 
     @staticmethod
-    @performance_monitor
     def get_companies_with_job_counts() -> CompanyStatsList:
         """Get all companies with their job counts in a single optimized query.
 
@@ -456,7 +447,6 @@ class CompanyService:
             raise
 
     @staticmethod
-    @performance_monitor
     def bulk_update_scrape_stats(updates: ScrapeUpdateBatch) -> int:
         """Bulk update scraping statistics using SQLAlchemy 2.0 built-in operations.
 
@@ -509,7 +499,6 @@ class CompanyService:
             raise
 
     @staticmethod
-    @performance_monitor
     def get_companies_for_management() -> list[dict[str, Any]]:
         """Get all companies formatted for management UI display.
 
@@ -545,7 +534,6 @@ class CompanyService:
             raise
 
     @staticmethod
-    @performance_monitor
     def update_company_active_status(company_id: int, active: bool) -> bool:
         """Update the active status of a company.
 
@@ -588,7 +576,6 @@ class CompanyService:
             raise
 
     @staticmethod
-    @performance_monitor
     def get_active_companies_count() -> int:
         """Get the count of active companies.
 
@@ -617,7 +604,6 @@ class CompanyService:
             raise
 
     @staticmethod
-    @performance_monitor
     def bulk_get_or_create_companies(
         session: sqlmodel.Session, company_names: set[str]
     ) -> CompanyMapping:

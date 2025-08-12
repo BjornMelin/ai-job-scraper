@@ -48,19 +48,16 @@ class Company(BaseModel):
     @field_validator("url")
     @classmethod
     def validate_url(cls, v: str) -> str:
-        """Validate that URL is not empty.
+        """Validate and normalize URL.
 
         Args:
             v: URL value to validate.
 
         Returns:
-            Validated URL string.
-
-        Raises:
-            ValueError: If URL is empty or whitespace-only.
+            Validated URL string, or empty string if not provided.
         """
         if not v or not v.strip():
-            raise ValueError("URL cannot be empty")
+            return ""  # Allow empty URLs for companies without careers pages
         return v.strip()
 
     @field_validator("name")

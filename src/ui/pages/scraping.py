@@ -320,15 +320,15 @@ def _handle_auto_refresh() -> None:
         logger.exception("Error in auto-refresh handler")
 
 
-# Execute page when loaded by st.navigation()
-# Only run when in a proper Streamlit context (not during test imports)
-if is_streamlit_context():
-    render_scraping_page()
-
-
 def _render_metrics(items: list[tuple[str, object, str]]) -> None:
     """Render a row of metrics using a concise helper to reduce boilerplate."""
     cols = st.columns(len(items))
     for col, (label, value, help_text) in zip(cols, items, strict=False):
         with col:
             st.metric(label=label, value=value, help=help_text)
+
+
+# Execute page when loaded by st.navigation()
+# Only run when in a proper Streamlit context (not during test imports)
+if is_streamlit_context():
+    render_scraping_page()

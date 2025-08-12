@@ -12,6 +12,7 @@ from typing import Any
 from unittest.mock import patch
 
 import pytest
+import sqlmodel
 
 from sqlmodel import Session, select
 from src.models import CompanySQL
@@ -97,6 +98,10 @@ def test_seed_partial_existing(
     Validates that existing company data is preserved (not overwritten)
     when seeding runs with partial existing data.
     """
+    # Clear any existing companies to ensure clean test state
+    session.exec(sqlmodel.text("DELETE FROM companysql"))
+    session.commit()
+
     existing = CompanySQL(name="Anthropic", url="custom-url", active=False)
     session.add(existing)
     session.commit()
@@ -138,6 +143,8 @@ def test_seed_cli_execution(session: Session) -> None:
     """
     runner = CliRunner()
     with patch("src.seed.engine", session.bind):
-        result = runner.invoke(app, ["seed"])
+        result = runner.invoke(
+            app, []
+        )  # No arguments needed, seed() is the default command
         assert result.exit_code == 0
         assert "Seeded" in result.output

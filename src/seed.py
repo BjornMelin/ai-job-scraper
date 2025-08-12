@@ -21,7 +21,7 @@ def seed() -> None:
     """Seed the database with initial active AI companies.
 
     This function defines a hardcoded list of core AI companies, checks for their
-    existence in the database by URL (to avoid duplicates), adds any missing ones,
+    existence in the database by name (to avoid duplicates), adds any missing ones,
     commits the changes, and prints the count of added companies. It is designed
     to be idempotent, allowing safe repeated executions without creating duplicates.
 
@@ -60,9 +60,9 @@ def seed() -> None:
         added = 0
         # Iterate over each company in the list
         for comp in companies:
-            # Query the database to check if a company with this URL already exists
+            # Query the database to check if a company with this name already exists
             existing = session.exec(
-                sqlmodel.select(CompanySQL).where(CompanySQL.url == comp.url)
+                sqlmodel.select(CompanySQL).where(CompanySQL.name == comp.name)
             ).first()
             # If no existing entry, add the new company and increment the counter
             if not existing:

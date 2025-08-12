@@ -922,7 +922,7 @@ class TestCompanyServiceBulkGetOrCreate:
         company_names = {"TransactionTestCorp1", "TransactionTestCorp2"}
 
         # Mock flush to raise an unexpected error (not integrity error)
-        def mock_flush_with_error(*args, **kwargs):  # noqa: ARG001
+        def mock_flush_with_error(self):  # noqa: ARG001
             raise MockDatabaseError("Unexpected database error")
 
         with (

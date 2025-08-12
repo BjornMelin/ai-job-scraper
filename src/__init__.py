@@ -18,9 +18,8 @@ from src.database import (
     get_session,
 )
 
-# Models
-from src.models import CompanySQL, JobSQL
-
+# Models - removed from __init__.py to prevent double import conflicts with Alembic
+# Import models directly in modules where they are needed instead
 # Scraper modules
 from src.scraper import scrape, scrape_all
 from src.scraper_company_pages import (
@@ -51,16 +50,13 @@ __all__ = [
     "RELEVANT_PHRASES",
     "SEARCH_KEYWORDS",
     "SEARCH_LOCATIONS",
-    # Models
-    "CompanySQL",
-    "JobSQL",
+    # Database
     "SessionLocal",
     # Configuration
     "Settings",
     # Company pages scraper
     "State",
     "create_db_and_tables",
-    # Database
     "db_session",
     "engine",
     "extract_details",

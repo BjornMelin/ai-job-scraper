@@ -228,6 +228,9 @@ ignore = [
 "src/services/database_sync.py" = [
     "S324", # Use of insecure MD5 hash function (acceptable for non-cryptographic content fingerprinting)
 ]
+"src/models.py" = [
+    "S324", # Use of insecure MD5 hash function (acceptable for non-cryptographic content fingerprinting)
+]
 "src/app_cli.py" = [
     "S603", # subprocess call with controlled input (safe CLI launcher)
 ]
@@ -434,6 +437,7 @@ ignored-modules = [
 
 [dependency-groups]
 dev = [
+    "psutil>=7.0.0",
     "pylint>=3.3.7",
     "pytest-asyncio>=1.1.0",
     "pytest-cov>=6.2.1",

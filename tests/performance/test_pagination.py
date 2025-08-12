@@ -150,7 +150,11 @@ def normalize_job_data(job_data: dict[str, Any], _company: str) -> dict[str, Any
                 break
 
         # Apply defaults and transformations
-        if target_field == "location" and (not value or not value.strip()):
+        if target_field == "location" and value:
+            value = str(value).strip()
+            if not value:
+                value = "Unknown"
+        elif target_field == "location" and not value:
             value = "Unknown"
         elif target_field == "posted_date" and (not value or not value.strip()):
             value = None
@@ -348,7 +352,7 @@ class TestPaginationDetection:
         params = list(sig.parameters.keys())
 
         assert "page_content" in params
-        assert "company" in params
+        assert "_company" in params
         assert len(params) == 2
 
     def test_detect_pagination_elements_error_handling(self):
