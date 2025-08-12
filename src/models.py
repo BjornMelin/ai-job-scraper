@@ -26,7 +26,11 @@ import sqlalchemy
 
 from babel.numbers import NumberFormatError, parse_decimal, parse_number
 from price_parser import Price
-from pydantic import computed_field, field_validator, model_validator
+from pydantic import (
+    computed_field,
+    field_validator,
+    model_validator,
+)
 from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.types import JSON
 from sqlmodel import Column, Field, Relationship, SQLModel
@@ -531,7 +535,7 @@ class CompanySQL(SQLModel, table=True, extend_existing=True):
     url: str
     active: bool = Field(default=True, index=True)  # Index for active status filtering
     last_scraped: datetime | None = Field(
-        default=None, index=True
+        default=None, index=True, description="Timezone-aware datetime (UTC)"
     )  # Index for scraping recency
     scrape_count: int = Field(default=0)
     success_rate: float = Field(default=1.0)
@@ -541,15 +545,8 @@ class CompanySQL(SQLModel, table=True, extend_existing=True):
 
     @field_validator("last_scraped", mode="before")
     @classmethod
-    def normalize_last_scraped_timezone(cls, v) -> datetime | None:
-        """Normalize last_scraped to timezone-aware UTC datetime.
-
-        Args:
-            v: Input datetime value.
-
-        Returns:
-            Timezone-aware datetime in UTC, or None.
-        """
+    def ensure_timezone_aware(cls, v) -> datetime | None:
+        """Ensure datetime is timezone-aware (UTC) - simplified validator."""
         if v is None:
             return None
         if isinstance(v, str):
@@ -602,7 +599,7 @@ class JobSQL(SQLModel, table=True, extend_existing=True):
     application_date: datetime | None = None
     archived: bool = Field(default=False, index=True)
     last_seen: datetime | None = Field(
-        default=None, index=True
+        default=None, index=True, description="Timezone-aware datetime (UTC)"
     )  # Index for stale job queries
 
     # Relationships
@@ -655,60 +652,22 @@ class JobSQL(SQLModel, table=True, extend_existing=True):
 
         return data
 
-    @field_validator("posted_date", mode="before")
+    @field_validator("posted_date", "application_date", "last_seen", mode="before")
     @classmethod
-    def normalize_posted_date_timezone(cls, v) -> datetime | None:
-        """Normalize posted_date to timezone-aware UTC datetime.
-
-        This validator ensures that all posted_date values are timezone-aware,
-        assuming naive datetimes are in UTC (common for jobspy data).
-
-        Args:
-            v: Input datetime value from various sources.
-
-        Returns:
-            Timezone-aware datetime in UTC, or None.
-        """
+    def ensure_datetime_timezone_aware(cls, v) -> datetime | None:
+        """Ensure datetime fields are timezone-aware (UTC) - simplified validator."""
         if v is None:
             return None
         if isinstance(v, str):
             try:
-                # Handle ISO format strings
                 parsed = datetime.fromisoformat(v.replace("Z", "+00:00"))
                 return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
             except ValueError:
-                # Try basic date format
                 try:
                     parsed = datetime.strptime(v, "%Y-%m-%d")  # noqa: DTZ007
                     return parsed.replace(tzinfo=timezone.utc)
                 except ValueError:
-                    salary_logger.warning("Failed to parse posted_date: %s", v)
                     return None
-        if isinstance(v, datetime):
-            # Assume naive datetimes from external sources are UTC
-            return v if v.tzinfo else v.replace(tzinfo=timezone.utc)
-        return None
-
-    @field_validator("application_date", "last_seen", mode="before")
-    @classmethod
-    def normalize_datetime_timezone(cls, v) -> datetime | None:
-        """Normalize datetime fields to timezone-aware UTC.
-
-        Args:
-            v: Input datetime value.
-
-        Returns:
-            Timezone-aware datetime in UTC, or None.
-        """
-        if v is None:
-            return None
-        if isinstance(v, str):
-            try:
-                parsed = datetime.fromisoformat(v.replace("Z", "+00:00"))
-                return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
-            except ValueError:
-                salary_logger.warning("Failed to parse datetime: %s", v)
-                return None
         if isinstance(v, datetime):
             return v if v.tzinfo else v.replace(tzinfo=timezone.utc)
         return None

@@ -14,7 +14,7 @@ type hints for safe data transfer across application layers.
 """
 
 from datetime import datetime, timezone
-from typing import Any, ClassVar
+from typing import ClassVar
 
 from pydantic import BaseModel, field_validator
 
@@ -80,15 +80,8 @@ class Company(BaseModel):
 
     @field_validator("last_scraped", mode="before")
     @classmethod
-    def ensure_last_scraped_timezone_aware(cls, v: Any) -> datetime | None:
-        """Ensure last_scraped datetime is timezone-aware (UTC).
-
-        Args:
-            v: Input datetime value (can be naive, aware, string, or None).
-
-        Returns:
-            Timezone-aware datetime in UTC, or None.
-        """
+    def ensure_timezone_aware(cls, v) -> datetime | None:
+        """Ensure datetime is timezone-aware (UTC) - simplified validator."""
         if v is None:
             return None
         if isinstance(v, str):
@@ -205,58 +198,22 @@ class Job(BaseModel):
             raise ValueError("Job title cannot be empty")
         return v.strip()
 
-    @field_validator("posted_date", mode="before")
+    @field_validator("posted_date", "application_date", "last_seen", mode="before")
     @classmethod
-    def ensure_posted_date_timezone_aware(cls, v: Any) -> datetime | None:
-        """Ensure posted_date datetime is timezone-aware (UTC).
-
-        This validator normalizes all posted_date inputs to UTC timezone-aware
-        datetime objects, handling common cases from job scrapers like jobspy.
-
-        Args:
-            v: Input datetime value (can be naive, aware, string, or None).
-
-        Returns:
-            Timezone-aware datetime in UTC, or None.
-        """
+    def ensure_datetime_timezone_aware(cls, v) -> datetime | None:
+        """Ensure datetime fields are timezone-aware (UTC) - simplified validator."""
         if v is None:
             return None
         if isinstance(v, str):
             try:
-                # Handle ISO format with Z suffix
                 parsed = datetime.fromisoformat(v.replace("Z", "+00:00"))
                 return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
             except ValueError:
-                # Try basic date parsing
                 try:
                     parsed = datetime.strptime(v, "%Y-%m-%d")  # noqa: DTZ007
                     return parsed.replace(tzinfo=timezone.utc)
                 except ValueError:
                     return None
-        if isinstance(v, datetime):
-            # Assume naive datetimes from jobspy are UTC
-            return v if v.tzinfo else v.replace(tzinfo=timezone.utc)
-        return None
-
-    @field_validator("application_date", "last_seen", mode="before")
-    @classmethod
-    def ensure_datetime_timezone_aware(cls, v: Any) -> datetime | None:
-        """Ensure datetime fields are timezone-aware (UTC).
-
-        Args:
-            v: Input datetime value (can be naive, aware, string, or None).
-
-        Returns:
-            Timezone-aware datetime in UTC, or None.
-        """
-        if v is None:
-            return None
-        if isinstance(v, str):
-            try:
-                parsed = datetime.fromisoformat(v.replace("Z", "+00:00"))
-                return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
-            except ValueError:
-                return None
         if isinstance(v, datetime):
             return v if v.tzinfo else v.replace(tzinfo=timezone.utc)
         return None
