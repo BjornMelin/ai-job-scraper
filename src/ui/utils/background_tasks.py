@@ -131,7 +131,7 @@ def render_scraping_controls() -> None:
         if not st.session_state.scraping_active and st.button(
             "🔍 Start Scraping", type="primary"
         ):
-            start_scraping(status_container)
+            start_scraping()
 
     with col2:
         if st.session_state.scraping_active and st.button(
@@ -142,19 +142,19 @@ def render_scraping_controls() -> None:
             st.rerun()
 
 
-def start_scraping(status_container: Any | None = None) -> None:
+def start_scraping() -> None:
     """Start background scraping with real company progress tracking."""
     st.session_state.scraping_active = True
     st.session_state.scraping_status = "Initializing scraping..."
 
-    # Use provided container or create new one
-    if status_container is None:
-        status_container = st.empty()
+    logger.info("start_scraping called - initializing background task")
 
     def scraping_task():
         try:
+            logger.info("=== SCRAPING TASK STARTED ===")
             # Get real active companies from database
             active_companies = JobService.get_active_companies()
+            logger.info("Found %d active companies to scrape", len(active_companies))
 
             # Handle empty companies list early
             if not active_companies:
@@ -170,9 +170,6 @@ def start_scraping(status_container: Any | None = None) -> None:
                 else:
                     st.session_state.scraping_active = False
 
-                if not _is_test_environment():
-                    with status_container.container():
-                        st.warning(status_msg)
                 logger.warning("No active companies found for scraping")
                 return
 
@@ -211,14 +208,9 @@ def start_scraping(status_container: Any | None = None) -> None:
                     f"📊 Scraping {company_name}... ({progress_pct:.0f}%)"
                 )
 
-            # Show UI components only in non-test environments
-            ui_status = None
-            if not _is_test_environment():
-                with status_container.container():
-                    ui_status = st.status("🔍 Scraping job listings...", expanded=True)
-                    ui_status.__enter__()
-                    st.write("📊 Initializing scraping workflow...")
-                    st.session_state.scraping_status = "📊 Running scraper..."
+            # Update status in session state (no UI in background thread)
+            st.session_state.scraping_status = "📊 Running scraper..."
+            logger.info("Background scraping workflow initialized")
 
             # Get job limit from session state and validate it
             from src.scraper_company_pages import DEFAULT_MAX_JOBS_PER_COMPANY
@@ -234,7 +226,9 @@ def start_scraping(status_container: Any | None = None) -> None:
                 max_jobs_per_company = DEFAULT_MAX_JOBS_PER_COMPANY
 
             # Execute scraping (preserves existing scraper.py logic)
+            logger.info("Starting scrape_all with max_jobs=%d", max_jobs_per_company)
             result = scrape_all(max_jobs_per_company)
+            logger.info("scrape_all completed with result: %s", result)
 
             # Update company progress with real results
             for company_name in active_companies:
@@ -260,14 +254,8 @@ def start_scraping(status_container: Any | None = None) -> None:
                 f"{len(active_companies)} companies"
             )
 
-            if ui_status is not None:
-                ui_status.update(
-                    label=completion_msg,
-                    state="complete",
-                )
-                ui_status.__exit__(None, None, None)
-
             st.session_state.scraping_status = completion_msg
+            logger.info("Scraping completed: %s", completion_msg)
 
             # Store results
             st.session_state.scraping_results = result
@@ -295,9 +283,6 @@ def start_scraping(status_container: Any | None = None) -> None:
                             company_progress.error = str(e)
                         company_progress.end_time = datetime.now(timezone.utc)
 
-            if not _is_test_environment():
-                with status_container.container():
-                    st.error(error_msg)
             st.session_state.scraping_status = error_msg
 
             # In test environments, respect stay_active setting even on error
@@ -315,9 +300,11 @@ def start_scraping(status_container: Any | None = None) -> None:
         scraping_task()
     else:
         # Store thread reference for proper cleanup
+        logger.info("Creating background thread for scraping task")
         thread = threading.Thread(target=scraping_task, daemon=False)
         st.session_state.scraping_thread = thread
         thread.start()
+        logger.info("Background thread started: %s", thread.is_alive())
 
 
 # Simple API functions (preserve compatibility)
@@ -347,6 +334,7 @@ def start_background_scraping(stay_active_in_tests: bool = False) -> str:
                              even after completion. Used for start/stop workflow tests.
     """
     task_id = str(uuid.uuid4())
+    logger.info("start_background_scraping called with task_id: %s", task_id)
 
     # Initialize session state
     if "scraping_active" not in st.session_state:
@@ -368,6 +356,7 @@ def start_background_scraping(stay_active_in_tests: bool = False) -> str:
         st.session_state._test_stay_active = stay_active_in_tests
 
     # Start the actual scraping (delegate to existing function)
+    logger.info("Calling start_scraping() function")
     start_scraping()
 
     return task_id
