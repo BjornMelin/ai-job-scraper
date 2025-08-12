@@ -9,7 +9,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from src.ui.utils.background_tasks import (
+from src.ui.utils.background_helpers import (
     BackgroundTaskManager,
     CompanyProgress,
     ProgressInfo,
@@ -21,7 +21,6 @@ from src.ui.utils.background_tasks import (
     get_task_manager,
     is_scraping_active,
     start_background_scraping,
-    start_scraping,
     stop_all_scraping,
 )
 

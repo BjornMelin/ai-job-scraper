@@ -8,7 +8,7 @@ on Streamlit session state threading issues.
 
 from unittest.mock import patch
 
-from src.ui.utils.background_tasks import (
+from src.ui.utils.background_helpers import (
     CompanyProgress,
     get_company_progress,
     get_scraping_results,

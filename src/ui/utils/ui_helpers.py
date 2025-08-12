@@ -1,0 +1,255 @@
+"""Comprehensive UI utilities for formatting, context detection, and validation.
+
+This module consolidates utilities for:
+- Data formatting
+- Streamlit context detection
+- Safe integer and job count validation
+
+Provides a library-first approach to UI-related utility functions.
+"""
+
+import logging
+
+from datetime import datetime, timezone
+from typing import Any
+
+from pydantic import BaseModel, Field, ValidationError, field_validator
+
+logger = logging.getLogger(__name__)
+
+
+# Formatters from formatters.py
+def calculate_scraping_speed(
+    jobs_found: int,
+    start_time: datetime | None,
+    end_time: datetime | None = None,
+) -> float:
+    """Calculate scraping speed in jobs per minute."""
+    try:
+        if not isinstance(jobs_found, int) or jobs_found < 0:
+            return 0.0
+
+        if start_time is None:
+            return 0.0
+
+        effective_end_time = end_time or datetime.now(timezone.utc)
+        duration = effective_end_time - start_time
+        duration_minutes = duration.total_seconds() / 60.0
+
+        if duration_minutes <= 0:
+            return 0.0
+
+        speed = jobs_found / duration_minutes
+        return round(speed, 1)
+
+    except Exception:
+        logger.exception("Error calculating scraping speed")
+        return 0.0
+
+
+def calculate_eta(
+    total_companies: int, completed_companies: int, time_elapsed: int
+) -> str:
+    """Calculate estimated time of arrival for completing all companies."""
+    try:
+        # Validate inputs
+        if not all(
+            isinstance(x, int)
+            for x in [total_companies, completed_companies, time_elapsed]
+        ):
+            return "Unknown"
+
+        if total_companies <= 0 or completed_companies < 0 or time_elapsed < 0:
+            return "Unknown"
+
+        # Check if done
+        if completed_companies >= total_companies:
+            return "Done"
+
+        # Check if no progress
+        if completed_companies == 0 or time_elapsed == 0:
+            return "Calculating..."
+
+        # Calculate ETA
+        remaining_companies = total_companies - completed_companies
+        time_per_company = time_elapsed / completed_companies
+        remaining_time = remaining_companies * time_per_company
+
+        return format_duration(int(remaining_time))
+
+    except Exception:
+        logger.exception("Error calculating ETA")
+        return "Unknown"
+
+
+def format_duration(seconds: int | float) -> str:
+    """Format duration in seconds to human-readable string."""
+    try:
+        if not isinstance(seconds, (int, float)) or seconds < 0:
+            return "0s"
+
+        seconds = int(seconds)  # Truncate to integer
+
+        if seconds == 0:
+            return "0s"
+
+        hours = seconds // 3600
+        minutes = (seconds % 3600) // 60
+        remaining_seconds = seconds % 60
+
+        if hours > 0:
+            if minutes > 0:
+                return f"{hours}h {minutes}m"
+            return f"{hours}h"
+        if minutes > 0:
+            if remaining_seconds > 0:
+                return f"{minutes}m {remaining_seconds}s"
+            return f"{minutes}m"
+        return f"{remaining_seconds}s"
+
+    except Exception:
+        logger.exception("Error formatting duration")
+        return "0s"
+
+
+def format_timestamp(dt: datetime | None, format_str: str = "%H:%M:%S") -> str:
+    """Format datetime to string or return N/A for None."""
+    try:
+        if dt is None:
+            return "N/A"
+
+        if not isinstance(dt, datetime):
+            return "N/A"
+
+        return dt.strftime(format_str)
+
+    except Exception:
+        logger.exception("Error formatting timestamp")
+        return "N/A"
+
+
+def calculate_progress_percentage(completed: int, total: int) -> float:
+    """Calculate progress percentage with proper rounding."""
+    try:
+        if not all(isinstance(x, (int, float)) for x in [completed, total]):
+            return 0.0
+
+        if total <= 0 or completed < 0:
+            return 0.0
+
+        if completed >= total:
+            return 100.0
+
+        percentage = (completed / total) * 100
+        return round(percentage, 1)
+
+    except Exception:
+        logger.exception("Error calculating progress percentage")
+        return 0.0
+
+
+def format_jobs_count(count: int, singular: str = "job", plural: str = "jobs") -> str:
+    """Format job count with proper singular/plural form."""
+    try:
+        # Handle invalid input gracefully
+        if count is None:
+            count = 0
+        elif not isinstance(count, (int, float)):
+            try:
+                count = int(count)
+            except (ValueError, TypeError):
+                count = 0
+        else:
+            count = int(count)
+
+        if count == 1:
+            return f"1 {singular}"
+        return f"{count} {plural}"
+
+    except Exception:
+        logger.exception("Error formatting jobs count")
+        return "0 jobs"
+
+
+def format_salary(amount: int | float | None) -> str:
+    """Format salary amount with k/M suffixes."""
+    try:
+        if amount is None or not isinstance(amount, (int, float)):
+            return "$0"
+
+        # Handle negative amounts
+        if amount < 0:
+            return "$0"
+
+        amount = int(amount)  # Convert to integer
+
+        if amount == 0:
+            return "$0"
+        if amount < 1000:
+            return f"${amount}"
+        if amount < 1000000:
+            return f"${amount // 1000}k"
+        millions = amount / 1000000
+        return f"${millions:.1f}M"
+
+    except Exception:
+        logger.exception("Error formatting salary")
+        return "$0"
+
+
+# Streamlit context from streamlit_context.py
+def is_streamlit_context() -> bool:
+    """Check if we're running in a proper Streamlit context."""
+    try:
+        from streamlit.runtime.scriptrunner import get_script_run_ctx
+
+        return get_script_run_ctx() is not None
+    except (ImportError, AttributeError):
+        return False
+
+
+# Validation utilities from validation_utils.py
+class SafeIntValidator(BaseModel):
+    """Pydantic model for safe integer validation."""
+
+    value: int = Field(ge=0, description="Non-negative integer value")
+
+    @field_validator("value", mode="before")
+    @classmethod
+    def convert_to_safe_int(cls, v: Any) -> int:
+        """Convert various input types to safe non-negative integers."""
+        # ... [rest of the SafeIntValidator implementation from validation_utils.py]
+
+
+def safe_int(value: Any, default: int = 0) -> int:
+    """Safely convert any value to a non-negative integer."""
+    try:
+        validator = SafeIntValidator(value=value)
+    except ValidationError as e:
+        logger.warning("Failed to convert %s to safe integer: %s", value, e)
+        return max(0, default)
+    except Exception:
+        logger.exception("Unexpected error converting %s to safe integer", value)
+        return max(0, default)
+
+    return validator.value
+
+
+def safe_job_count(value: Any, company_name: str = "unknown") -> int:
+    """Safely convert job count values with context-aware logging."""
+    try:
+        result = safe_int(value)
+    except Exception as e:
+        logger.warning(
+            "Failed to convert job count for %s: %s (%s)", company_name, value, e
+        )
+        return 0
+
+    if value != result and value is not None:
+        logger.info("Converted job count for %s: %s -> %s", company_name, value, result)
+    return result
+
+
+# Exposed type aliases
+JobCount = int
+SafeInteger = int

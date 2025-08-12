@@ -126,7 +126,7 @@ class TestPageExecution:
 
             # Test that required imports work
             import src.services.company_service
-            import src.ui.utils.session_helpers  # noqa: F401
+            import src.ui.utils.database_helpers  # noqa: F401
 
         except ImportError as e:
             pytest.fail(f"Companies page import failed: {e}")

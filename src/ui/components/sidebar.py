@@ -20,7 +20,7 @@ from src.constants import (
 # Removed direct database import - using service layer instead
 from src.services.company_service import CompanyService
 from src.ui.state.session_state import clear_filters
-from src.ui.utils.formatters import format_salary
+from src.ui.utils.ui_helpers import format_salary
 
 logger = logging.getLogger(__name__)
 

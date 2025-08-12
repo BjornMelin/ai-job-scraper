@@ -18,7 +18,7 @@ from src.scraper import scrape_all
 from src.services.company_service import CompanyService
 from src.services.job_service import JobService
 from src.ui.components.sidebar import render_sidebar
-from src.ui.utils.streamlit_context import is_streamlit_context
+from src.ui.utils.ui_helpers import is_streamlit_context
 
 logger = logging.getLogger(__name__)
 

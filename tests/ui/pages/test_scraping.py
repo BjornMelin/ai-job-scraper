@@ -8,7 +8,7 @@ background task management.
 from datetime import datetime, timezone
 from unittest.mock import patch
 
-from src.ui.utils.background_tasks import CompanyProgress
+from src.ui.utils.background_helpers import CompanyProgress
 
 
 class TestScrapingPageControls:

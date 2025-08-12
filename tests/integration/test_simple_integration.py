@@ -8,7 +8,7 @@ This module tests the background scraping workflow in a test environment where:
 
 from unittest.mock import patch
 
-from src.ui.utils.background_tasks import (
+from src.ui.utils.background_helpers import (
     is_scraping_active,
     start_background_scraping,
 )
@@ -58,7 +58,7 @@ class TestSimpleIntegration:
         assert is_scraping_active() is False
 
         # Verify task progress was initialized and remains accessible
-        from src.ui.utils.background_tasks import get_scraping_progress
+        from src.ui.utils.background_helpers import get_scraping_progress
 
         progress = get_scraping_progress()
         assert task_id in progress
@@ -83,7 +83,7 @@ class TestSimpleIntegration:
             "src.ui.utils.background_tasks.JobService.get_active_companies",
             return_value=companies,
         ) as mock_get_companies:
-            from src.ui.utils.background_tasks import JobService
+            from src.ui.utils.background_helpers import JobService
 
             result = JobService.get_active_companies()
             assert result == companies
@@ -98,7 +98,7 @@ class TestSimpleIntegration:
         Validates that all utility functions properly read from and interact
         with the mocked session state in expected ways.
         """
-        from src.ui.utils.background_tasks import (
+        from src.ui.utils.background_helpers import (
             get_company_progress,
             get_scraping_progress,
             get_scraping_results,
@@ -132,7 +132,7 @@ class TestSimpleIntegration:
         This test specifically validates the test environment detection and
         synchronous execution path, ensuring no threading occurs during testing.
         """
-        from src.ui.utils.background_tasks import _is_test_environment
+        from src.ui.utils.background_helpers import _is_test_environment
 
         # Verify we're detected as being in a test environment
         assert _is_test_environment() is True

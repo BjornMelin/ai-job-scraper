@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 import pytest
 
-from src.ui.utils.formatters import (
+from src.ui.utils.ui_helpers import (
     calculate_eta,
     calculate_progress_percentage,
     calculate_scraping_speed,
@@ -43,7 +43,7 @@ class TestCalculateScrapingSpeed:
         start_time = datetime(2024, 1, 1, 10, 0, tzinfo=timezone.utc)
         jobs_found = 20
 
-        with patch("src.ui.utils.formatters.datetime") as mock_datetime:
+        with patch("src.ui.utils.ui_helpers.datetime") as mock_datetime:
             # Mock current time to be 4 minutes after start
             mock_datetime.now.return_value = datetime(
                 2024, 1, 1, 10, 4, tzinfo=timezone.utc
@@ -113,7 +113,7 @@ class TestCalculateScrapingSpeed:
         # Arrange - Create a mock datetime that raises an exception
         start_time = datetime(2024, 1, 1, 10, 0, tzinfo=timezone.utc)
 
-        with patch("src.ui.utils.formatters.datetime") as mock_datetime:
+        with patch("src.ui.utils.ui_helpers.datetime") as mock_datetime:
             mock_datetime.now.side_effect = Exception("Unexpected error")
 
             # Act

@@ -19,7 +19,7 @@ import time
 from unittest.mock import Mock, patch
 
 from src.ui.pages.scraping import render_scraping_page
-from src.ui.utils.background_tasks import (
+from src.ui.utils.background_helpers import (
     CompanyProgress,
     get_company_progress,
     get_scraping_results,

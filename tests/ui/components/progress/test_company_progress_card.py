@@ -11,7 +11,7 @@ from src.ui.components.progress.company_progress_card import (
     CompanyProgressCard,
     render_company_progress_card,
 )
-from src.ui.utils.background_tasks import CompanyProgress
+from src.ui.utils.background_helpers import CompanyProgress
 
 
 class TestCompanyProgressCardRendering:

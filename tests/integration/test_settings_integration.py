@@ -12,7 +12,7 @@ import time
 from unittest import mock
 
 from src.ui.pages.settings import load_settings, save_settings
-from src.ui.utils.background_tasks import (
+from src.ui.utils.background_helpers import (
     get_company_progress,
     get_scraping_results,
     is_scraping_active,
