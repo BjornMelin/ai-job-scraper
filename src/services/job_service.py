@@ -68,7 +68,19 @@ class JobService:
         Raises:
             ValidationError: If SQLModel data doesn't match DTO schema.
         """
-        return Job.model_validate(job_sql)
+        # Extract company name from the relationship
+        company_name = "Unknown"
+        if hasattr(job_sql, "company_relation") and job_sql.company_relation:
+            company_name = job_sql.company_relation.name
+
+        # Create a dictionary with the job data and the resolved company name
+        job_data = job_sql.model_dump()
+        job_data["company"] = company_name
+
+        # Remove the relationship field that's not part of the DTO
+        job_data.pop("company_relation", None)
+
+        return Job.model_validate(job_data)
 
     @classmethod
     def _to_dtos(cls, jobs_sql: list[JobSQL]) -> list[Job]:
