@@ -60,7 +60,11 @@ def _handle_job_details_modal(jobs: list[Job]) -> None:
 
 
 def _execute_scraping_safely() -> dict[str, int]:
-    """Execute scraping with simple asyncio management.
+    """Execute scraping with comprehensive error handling and logging.
+
+    This function provides a robust wrapper around the scraping functionality,
+    ensuring proper asyncio lifecycle management and detailed error reporting.
+    It uses modern Python async patterns for reliable execution.
 
     Returns:
         dict[str, int]: Synchronization statistics from SmartSyncEngine containing:
@@ -71,14 +75,26 @@ def _execute_scraping_safely() -> dict[str, int]:
             - 'skipped': Number of jobs skipped (no changes detected)
 
     Raises:
-        Exception: If scraping execution fails.
+        Exception: If scraping execution fails with detailed error context.
     """
     try:
+        logger.debug("SCRAPING_EXECUTION: Starting asyncio.run(scrape_all())")
+
         # Use simple asyncio.run() - handles event loop lifecycle automatically
-        return asyncio.run(scrape_all())
+        # This is the recommended pattern for running async code from sync context
+        sync_stats = asyncio.run(scrape_all())
+
+        logger.debug(
+            "SCRAPING_EXECUTION_SUCCESS: asyncio.run completed, stats type: %s",
+            type(sync_stats).__name__,
+        )
+
     except Exception:
-        logger.exception("Scraping execution failed")
+        logger.exception("SCRAPING_EXECUTION_FAILURE: Scraping execution failed")
+        # Re-raise with context preserved for upstream handling
         raise
+    else:
+        return sync_stats
 
 
 def render_jobs_page() -> None:
@@ -169,38 +185,108 @@ def _render_action_bar() -> None:
 
 
 def _handle_refresh_jobs() -> None:
-    """Handle the job refresh operation."""
+    """Handle the job refresh operation with comprehensive logging.
+
+    This function orchestrates the job refresh workflow with detailed logging
+    for monitoring, debugging, and user feedback. It follows modern Python
+    logging best practices with structured log messages.
+    """
+    refresh_start_time = datetime.now(timezone.utc)
+    logger.info(
+        "REFRESH_JOBS_START: Starting job refresh workflow at %s",
+        refresh_start_time.isoformat(),
+    )
+
     with st.spinner("🔍 Searching for new jobs..."):
         try:
+            # Log active companies count before scraping
+            try:
+                active_count = CompanyService.get_active_companies_count()
+                logger.info(
+                    "REFRESH_JOBS_SOURCES: Found %d active companies for scraping",
+                    active_count,
+                )
+            except Exception:
+                logger.warning(
+                    "REFRESH_JOBS_SOURCES_ERROR: Failed to get active companies count"
+                )
+
             # Execute scraping and get sync stats
+            logger.info("REFRESH_JOBS_SCRAPING: Starting scraping execution")
+            scraping_start = datetime.now(timezone.utc)
+
             sync_stats = _execute_scraping_safely()
+
+            scraping_duration = (
+                datetime.now(timezone.utc) - scraping_start
+            ).total_seconds()
+            logger.info(
+                "REFRESH_JOBS_SCRAPING_COMPLETE: Scraping completed in %.2f seconds",
+                scraping_duration,
+            )
+
+            # Update session state with timezone-aware datetime
             st.session_state.last_scrape = datetime.now(timezone.utc)
 
             # Defensive validation: ensure we got a dict with sync stats
             if not isinstance(sync_stats, dict):
                 logger.error(
-                    "Expected sync_stats dict, got %s: %s",
+                    "REFRESH_JOBS_ERROR: Expected sync_stats dict, got %s: %s",
                     type(sync_stats).__name__,
                     sync_stats,
                 )
                 st.error("❌ Scrape completed but returned unexpected data format")
                 return
 
-            # Display sync results from SmartSyncEngine
-            total_processed = sync_stats.get("inserted", 0) + sync_stats.get(
-                "updated", 0
+            # Log detailed sync statistics
+            inserted = sync_stats.get("inserted", 0)
+            updated = sync_stats.get("updated", 0)
+            archived = sync_stats.get("archived", 0)
+            deleted = sync_stats.get("deleted", 0)
+            skipped = sync_stats.get("skipped", 0)
+
+            total_processed = inserted + updated
+            total_duration = (
+                datetime.now(timezone.utc) - refresh_start_time
+            ).total_seconds()
+
+            logger.info(
+                "REFRESH_JOBS_SYNC_STATS: inserted=%d, updated=%d, archived=%d, "
+                "deleted=%d, skipped=%d, total_processed=%d, duration=%.2fs",
+                inserted,
+                updated,
+                archived,
+                deleted,
+                skipped,
+                total_processed,
+                total_duration,
             )
+
+            # Display sync results from SmartSyncEngine
             st.success(
-                f"✅ Success! Processed {total_processed} jobs. "
-                f"Inserted: {sync_stats.get('inserted', 0)}, "
-                f"Updated: {sync_stats.get('updated', 0)}, "
-                f"Archived: {sync_stats.get('archived', 0)}"
+                f"✅ Success! Processed {total_processed} jobs in "
+                f"{total_duration:.1f}s. Inserted: {inserted}, "
+                f"Updated: {updated}, Archived: {archived}"
+            )
+
+            logger.info(
+                "REFRESH_JOBS_COMPLETE: Job refresh workflow completed "
+                "successfully in %.2fs",
+                total_duration,
             )
             st.rerun()
 
         except Exception:
-            st.error("❌ Scrape failed")
-            logger.exception("UI scrape failed")
+            total_duration = (
+                datetime.now(timezone.utc) - refresh_start_time
+            ).total_seconds()
+            logger.exception(
+                "REFRESH_JOBS_FAILURE: Job refresh workflow failed after %.2fs",
+                total_duration,
+            )
+            st.error(
+                f"❌ Scrape failed after {total_duration:.1f}s. Check logs for details."
+            )
 
 
 def _render_last_refresh_status() -> None:

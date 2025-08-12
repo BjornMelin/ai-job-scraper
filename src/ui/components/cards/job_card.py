@@ -108,8 +108,12 @@ def render_job_card(job: Job) -> None:
                 pass  # onClick is handled by the on_click parameter
 
 
-def _format_posted_date(posted_date: Any) -> str:
-    """Format the posted date for display.
+def _format_posted_date(posted_date: Any) -> str:  # noqa: PLR0911
+    """Format the posted date for display with robust timezone handling.
+
+    This function handles both timezone-naive and timezone-aware datetime objects,
+    normalizing them to UTC for consistent calculation. It follows modern Python
+    datetime best practices using the zoneinfo module.
 
     Args:
         posted_date: The posted date value (can be string, datetime, or None).
@@ -118,21 +122,45 @@ def _format_posted_date(posted_date: Any) -> str:
         Formatted time string (e.g., "Today", "2 days ago").
     """
     if pd.notna(posted_date):
+        # Handle string input - parse and assume UTC if no timezone info
         if isinstance(posted_date, str):
             try:
                 posted_date = datetime.strptime(posted_date, "%Y-%m-%d").replace(
                     tzinfo=timezone.utc
                 )
             except ValueError:
+                logger.warning("Failed to parse posted_date string: %s", posted_date)
                 return ""
 
-        days_ago = (datetime.now(timezone.utc) - posted_date).days
+        # Handle datetime objects - ensure timezone awareness
+        elif isinstance(posted_date, datetime):
+            if posted_date.tzinfo is None:
+                # Naive datetime - assume UTC (common for jobspy data)
+                posted_date = posted_date.replace(tzinfo=timezone.utc)
+                logger.debug("Converted naive datetime to UTC: %s", posted_date)
+            # Already timezone-aware - use as-is
 
-        if days_ago == 0:
-            return "Today"
-        if days_ago == 1:
-            return "Yesterday"
-        return f"{days_ago} days ago"
+        else:
+            logger.warning("Unexpected posted_date type: %s", type(posted_date))
+            return ""
+
+        # Calculate difference using timezone-aware datetimes
+        try:
+            now_utc = datetime.now(timezone.utc)
+            time_diff = now_utc - posted_date
+            days_ago = time_diff.days
+
+            if days_ago == 0:
+                return "Today"
+            if days_ago == 1:
+                return "Yesterday"
+            if days_ago > 0:
+                return f"{days_ago} days ago"
+            # Future date
+            return f"In {abs(days_ago)} days"
+        except Exception:
+            logger.exception("Error calculating time difference for posted_date")
+            return ""
 
     return ""
 
