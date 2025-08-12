@@ -76,6 +76,12 @@ _PHRASES_TO_REMOVE: list[str] = [
 # Logger for salary parsing operations
 logger = logging.getLogger(__name__)
 
+# Time-based conversion constants - configurable for different work patterns
+DEFAULT_WEEKLY_HOURS = 40
+DEFAULT_WORKING_WEEKS_PER_YEAR = 52
+DEFAULT_MONTHS_PER_YEAR = 12
+DEFAULT_LOCALE = "en_US"
+
 
 class LibrarySalaryParser:
     """Library-first salary parser using price-parser and babel.
@@ -194,12 +200,53 @@ class LibrarySalaryParser:
 
     @staticmethod
     def _extract_multiple_prices(text: str) -> list[Price]:
-        """Extract multiple price objects from text for range detection."""
+        """Extract multiple price objects from text for range detection.
+
+        Uses context-aware filtering to avoid interpreting unrelated numbers
+        as salary values (e.g., bonuses, years, other figures).
+        """
         prices = []
 
+        # First check if text contains salary-specific range indicators
+        has_range_indicators = bool(
+            re.search(r"range|to|between|from|up to", text, re.IGNORECASE)
+            or re.search(r"[-\u2013\u2014]", text)  # Various dash types
+            or re.search(
+                r"\d+[.,]?\d*\s*[kK]?\s*[-\u2013\u2014]\s*\d+[.,]?\d*\s*[kK]?", text
+            )  # Numeric range patterns
+        )
+
+        if not has_range_indicators:
+            # Without clear range indicators, be conservative
+            return prices
+
         # Split text on common range separators and try parsing each part
-        parts = re.split(r"\s*[-\u2013\u2014]\s*|\s+to\s+", text, flags=re.IGNORECASE)
+        parts = re.split(
+            r"\s*[-\u2013\u2014]\s*|\s+to\s+|\s+between\s+", text, flags=re.IGNORECASE
+        )
+
+        # Filter parts that likely contain salary values
+        valid_parts = []
         for raw_part in parts:
+            part = raw_part.strip()
+            # Skip parts that are too short or don't contain numbers
+            if len(part) < 2 or not re.search(r"\d", part):
+                continue
+            # Skip parts that contain non-salary keywords that would confuse parsing
+            # Only exclude very specific non-salary terms that appear with numbers
+            if re.search(
+                r"\b(bonus|equity|stock|rsu)\b.*\d|\d.*\b(bonus|equity|stock|rsu)\b",
+                part,
+                re.IGNORECASE,
+            ):
+                continue
+            valid_parts.append(part)
+
+        # Only proceed if we have 2-3 reasonable parts (range boundaries)
+        if not (2 <= len(valid_parts) <= 3):
+            return prices
+
+        for raw_part in valid_parts:
             part = raw_part.strip()
 
             # Handle k-suffix parts specially
@@ -218,7 +265,11 @@ class LibrarySalaryParser:
             # Try normal price parsing
             try:
                 price = Price.fromstring(part)
-                if price.amount:
+                # For ranges, be more flexible with thresholds
+                # Values like 85.75 could be 85750 (implied thousands)
+                if price.amount and (
+                    price.amount >= 1000 or (price.amount >= 10 and price.amount < 1000)
+                ):
                     prices.append(price)
             except Exception as e:
                 logger.debug("Failed to parse price from part '%s': %s", part, e)
@@ -290,15 +341,23 @@ class LibrarySalaryParser:
         return (final_value, final_value)
 
     @staticmethod
-    def _parse_with_babel_fallback(text: str, context: SalaryContext) -> SalaryTuple:
-        """Fallback parsing using babel's number parsing."""
+    def _parse_with_babel_fallback(
+        text: str, context: SalaryContext, locale: str = DEFAULT_LOCALE
+    ) -> SalaryTuple:
+        """Fallback parsing using babel's number parsing.
+
+        Args:
+            text: Text to parse
+            context: Salary context for conversion
+            locale: Locale for number parsing (default: en_US)
+        """
         try:
             # Clean text for babel parsing
             cleaned = LibrarySalaryParser._clean_text_for_babel(text)
 
             # Try parsing as decimal first
             try:
-                amount = parse_decimal(cleaned, locale="en_US")
+                amount = parse_decimal(cleaned, locale=locale)
                 value = int(amount)
 
                 # Apply k-suffix if present
@@ -313,7 +372,7 @@ class LibrarySalaryParser:
 
             except NumberFormatError:
                 # Try as integer
-                amount = parse_number(cleaned, locale="en_US")
+                amount = parse_number(cleaned, locale=locale)
                 value = int(amount)
 
                 value = LibrarySalaryParser._apply_k_suffix_multiplication(text, value)
@@ -331,7 +390,11 @@ class LibrarySalaryParser:
 
     @staticmethod
     def _clean_text_for_babel(text: str) -> str:
-        """Clean text for babel number parsing."""
+        """Clean text for babel number parsing.
+
+        Updated to extract all relevant numeric sequences for range handling
+        instead of only the first match.
+        """
         # Remove currency symbols (babel doesn't need them)
         cleaned = _CURRENCY_PATTERN.sub("", text)
 
@@ -345,36 +408,65 @@ class LibrarySalaryParser:
         cleaned = _HOURLY_PATTERN.sub("", cleaned)
         cleaned = _MONTHLY_PATTERN.sub("", cleaned)
 
-        # Clean up spacing and extract first numeric-looking part
+        # Clean up spacing
         cleaned = re.sub(r"\s+", " ", cleaned).strip()
 
-        # Extract first number-like sequence for babel
-        match = re.search(r"[\d,./]+", cleaned)
-        if match:
-            return match.group().strip()
+        # Check if this looks like a range by finding multiple numbers
+        number_matches = re.findall(r"[\d,./]+", cleaned)
+        if len(number_matches) > 1:
+            # For ranges, return the cleaned text with range separators
+            # This allows babel to work on individual parts later
+            return cleaned
+        if number_matches:
+            # For single values, return just the first number
+            return number_matches[0].strip()
 
         return cleaned
 
     @staticmethod
-    def _safe_decimal_to_int(value_str: str) -> int | None:
-        """Safely convert decimal string to int using babel."""
+    def _safe_decimal_to_int(
+        value_str: str, locale: str = DEFAULT_LOCALE
+    ) -> int | None:
+        """Safely convert decimal string to int using babel.
+
+        Args:
+            value_str: String representation of decimal number
+            locale: Locale for parsing (default: en_US)
+        """
         try:
-            decimal_val = parse_decimal(value_str, locale="en_US")
+            decimal_val = parse_decimal(value_str, locale=locale)
             return int(decimal_val)
         except (NumberFormatError, ValueError, TypeError):
             return None
 
     @staticmethod
     def _convert_time_based_salary(
-        values: Sequence[int], is_hourly: bool, is_monthly: bool
+        values: Sequence[int],
+        is_hourly: bool,
+        is_monthly: bool,
+        weekly_hours: int = DEFAULT_WEEKLY_HOURS,
+        working_weeks_per_year: int = DEFAULT_WORKING_WEEKS_PER_YEAR,
     ) -> list[int]:
-        """Convert time-based salary rates to annual values."""
+        """Convert time-based salary rates to annual values.
+
+        Args:
+            values: Sequence of salary values.
+            is_hourly: If True, values are hourly rates.
+            is_monthly: If True, values are monthly rates.
+            weekly_hours: Number of working hours per week (default: 40).
+            working_weeks_per_year: Number of working weeks per year (default: 52).
+
+        Note:
+            The default conversion assumes 40 hours/week and 52 working weeks/year
+            for hourly rates. These can be customized via the weekly_hours and
+            working_weeks_per_year parameters.
+        """
         if is_hourly:
-            # Convert hourly to annual: hourly * 40 hours/week * 52 weeks/year
-            return [int(val * 40 * 52) for val in values]
+            # Convert hourly to annual: hourly * weekly_hours * working_weeks_per_year
+            return [int(val * weekly_hours * working_weeks_per_year) for val in values]
         if is_monthly:
             # Convert monthly to annual: monthly * 12 months/year
-            return [int(val * 12) for val in values]
+            return [int(val * DEFAULT_MONTHS_PER_YEAR) for val in values]
         return list(values)
 
 

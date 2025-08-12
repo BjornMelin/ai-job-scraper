@@ -156,8 +156,8 @@ class TestLibrarySalaryParserDirectly:
         # Test fallback to babel when price-parser fails
         context = SalaryContext()
         result = LibrarySalaryParser._parse_single_salary("random text 100", context)
-        # Should either parse 100 or return (None, None)
-        assert result[0] is None or result[0] == 100
+        # Should parse the number 100 from the text
+        assert result == (100, 100)
 
     @pytest.mark.parametrize(
         ("text", "expected_range"),
