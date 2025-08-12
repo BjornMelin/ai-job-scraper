@@ -47,6 +47,7 @@ class State(TypedDict):
     partial_jobs: list[dict]
     raw_full_jobs: list[dict]
     normalized_jobs: list[JobSQL]
+    max_jobs_per_company: int
 
 
 def load_active_companies() -> list[CompanySQL]:
@@ -150,7 +151,10 @@ def extract_job_lists(state: State) -> dict[str, list[dict]]:
         partial_jobs.extend(company_jobs)
 
     random_delay()
-    return {"partial_jobs": partial_jobs}
+    return {
+        "partial_jobs": partial_jobs,
+        "max_jobs_per_company": state["max_jobs_per_company"],
+    }
 
 
 def extract_details(state: State) -> dict[str, list[dict]]:
