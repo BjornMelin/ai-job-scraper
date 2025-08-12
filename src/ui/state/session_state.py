@@ -27,8 +27,7 @@ def init_session_state() -> None:
             "salary_min": SALARY_DEFAULT_MIN,
             "salary_max": SALARY_DEFAULT_MAX,
         },
-        "view_mode": "Card",  # Default to more visual card view
-        "card_page": 0,
+        "view_mode": "Card",  # Default to attractive card view for better UX
         "sort_by": "Posted",
         "sort_asc": False,
         "last_scrape": None,
@@ -49,18 +48,6 @@ def clear_filters() -> None:
         "salary_min": SALARY_DEFAULT_MIN,
         "salary_max": SALARY_DEFAULT_MAX,
     }
-
-
-def get_tab_page(tab_key: str) -> int:
-    """Get page number for a specific tab."""
-    page_key = f"card_page_{tab_key}"
-    return st.session_state.get(page_key, 0)
-
-
-def set_tab_page(tab_key: str, page: int) -> None:
-    """Set page number for a specific tab."""
-    page_key = f"card_page_{tab_key}"
-    st.session_state[page_key] = page
 
 
 def get_search_term(tab_key: str) -> str:

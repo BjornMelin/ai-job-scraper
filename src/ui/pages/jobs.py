@@ -162,7 +162,7 @@ def _render_page_header() -> None:
 
 
 def _render_action_bar() -> None:
-    """Render the action bar with refresh button and status info using flex containers."""
+    """Render the action bar with refresh button and status info using containers."""
     # Use horizontal flex container for better responsive layout
     with st.container():
         # Use better proportions for action bar elements
@@ -303,7 +303,8 @@ def _handle_refresh_jobs() -> None:
             ):
                 st.write("❌ Check logs for detailed error information")
                 st.write(
-                    "Try again in a few moments or contact support if the issue persists"
+                    "Try again in a few moments or contact support if the issue "
+                    "persists"
                 )
 
 
@@ -334,18 +335,11 @@ def _render_active_sources_metric() -> None:
         st.metric("Active Sources", 0)
 
 
-def _get_filtered_jobs_paginated(
-    page: int = 1, page_size: int = 50, enable_pagination: bool = True
-) -> tuple[list[Job], dict[str, Any]]:
-    """Get jobs filtered by current filter settings with pagination support.
-
-    Args:
-        page: Page number (1-indexed)
-        page_size: Number of items per page
-        enable_pagination: Whether to use pagination or get all jobs
+def _get_filtered_jobs() -> list[Job]:
+    """Get jobs filtered by current filter settings.
 
     Returns:
-        Tuple of (jobs_list, pagination_info)
+        List of filtered Job DTO objects.
     """
     try:
         # Convert session state filters to JobService format
@@ -359,39 +353,11 @@ def _get_filtered_jobs_paginated(
             "include_archived": False,
         }
 
-        if enable_pagination:
-            return JobService.get_filtered_jobs_paginated(filters, page, page_size)
-        jobs = JobService.get_filtered_jobs(filters)
-        pagination_info = {
-            "total_count": len(jobs),
-            "page": 1,
-            "page_size": len(jobs),
-            "total_pages": 1,
-            "has_next": False,
-            "has_previous": False,
-        }
-        return jobs, pagination_info
+        return JobService.get_filtered_jobs(filters)
 
     except Exception:
         logger.exception("Job query failed")
-        return [], {
-            "total_count": 0,
-            "page": page,
-            "page_size": page_size,
-            "total_pages": 0,
-            "has_next": False,
-            "has_previous": False,
-        }
-
-
-def _get_filtered_jobs() -> list[Job]:
-    """Get jobs filtered by current filter settings (legacy method).
-
-    Returns:
-        List of filtered Job DTO objects.
-    """
-    jobs, _ = _get_filtered_jobs_paginated(enable_pagination=False)
-    return jobs
+        return []
 
 
 def _construct_job_filters(favorites_only: bool = False, **kwargs) -> dict:
@@ -435,66 +401,6 @@ def _get_favorites_jobs() -> list[Job]:
         return []
 
 
-def _get_favorites_jobs_paginated(
-    page: int = 1, page_size: int = 50
-) -> tuple[list[Job], dict[str, Any]]:
-    """Get favorite jobs with pagination support.
-
-    Args:
-        page: Page number (1-indexed)
-        page_size: Number of items per page
-
-    Returns:
-        Tuple of (jobs_list, pagination_info)
-    """
-    try:
-        # Use shared filter construction utility
-        filters = _construct_job_filters(favorites_only=True)
-
-        return JobService.get_filtered_jobs_paginated(filters, page, page_size)
-
-    except Exception:
-        logger.exception("Favorites job paginated query failed")
-        return [], {
-            "total_count": 0,
-            "page": page,
-            "page_size": page_size,
-            "total_pages": 0,
-            "has_next": False,
-            "has_previous": False,
-        }
-
-
-def _get_applied_jobs_paginated(
-    page: int = 1, page_size: int = 50
-) -> tuple[list[Job], dict[str, Any]]:
-    """Get applied jobs with pagination support.
-
-    Args:
-        page: Page number (1-indexed)
-        page_size: Number of items per page
-
-    Returns:
-        Tuple of (jobs_list, pagination_info)
-    """
-    try:
-        # Use shared filter construction utility with applied status filter
-        filters = _construct_job_filters(application_status=["Applied"])
-
-        return JobService.get_filtered_jobs_paginated(filters, page, page_size)
-
-    except Exception:
-        logger.exception("Applied job paginated query failed")
-        return [], {
-            "total_count": 0,
-            "page": page,
-            "page_size": page_size,
-            "total_pages": 0,
-            "has_next": False,
-            "has_previous": False,
-        }
-
-
 def _get_applied_jobs() -> list[Job]:
     """Get applied jobs filtered by current filter settings using database query.
 
@@ -513,56 +419,20 @@ def _get_applied_jobs() -> list[Job]:
 
 
 def _render_job_tabs(jobs: list[Job]) -> None:
-    """Render the job tabs with pagination support.
+    """Render the job tabs using native st.dataframe with built-in features.
 
     Args:
-        jobs: List of all jobs (legacy parameter, now used for fallback count only).
+        jobs: List of all jobs for calculating tab counts.
     """
-    # Import pagination components
-    from src.ui.components.pagination import (
-        get_pagination_state,
-        initialize_pagination_state,
-        render_pagination_controls,
-        render_pagination_info,
-        set_pagination_state,
-    )
+    # Get jobs for each tab category
+    all_jobs = jobs
+    favorites_jobs = _get_favorites_jobs()
+    applied_jobs = _get_applied_jobs()
 
-    # Initialize pagination state for each tab
-    initialize_pagination_state("all", default_page_size=50)
-    initialize_pagination_state("favorites", default_page_size=50)
-    initialize_pagination_state("applied", default_page_size=50)
-
-    # Get paginated data for each tab
-    all_page, all_page_size = get_pagination_state("all")
-    favorites_page, favorites_page_size = get_pagination_state("favorites")
-    applied_page, applied_page_size = get_pagination_state("applied")
-
-    # Get paginated jobs for each tab
-    try:
-        all_jobs, all_pagination = _get_filtered_jobs_paginated(all_page, all_page_size)
-        favorites_jobs, favorites_pagination = _get_favorites_jobs_paginated(
-            favorites_page, favorites_page_size
-        )
-        applied_jobs, applied_pagination = _get_applied_jobs_paginated(
-            applied_page, applied_page_size
-        )
-    except Exception:
-        logger.exception("Failed to get paginated job data")
-        # Fallback to non-paginated
-        all_jobs, all_pagination = _get_filtered_jobs_paginated(enable_pagination=False)
-        favorites_jobs, favorites_pagination = (
-            [],
-            {"total_count": 0, "page": 1, "total_pages": 1},
-        )
-        applied_jobs, applied_pagination = (
-            [],
-            {"total_count": 0, "page": 1, "total_pages": 1},
-        )
-
-    # Create tabs with counts from pagination info
-    total_all = all_pagination.get("total_count", len(jobs))
-    total_favorites = favorites_pagination.get("total_count", 0)
-    total_applied = applied_pagination.get("total_count", 0)
+    # Create tabs with counts
+    total_all = len(all_jobs)
+    total_favorites = len(favorites_jobs)
+    total_applied = len(applied_jobs)
 
     tab1, tab2, tab3 = st.tabs(
         [
@@ -572,32 +442,15 @@ def _render_job_tabs(jobs: list[Job]) -> None:
         ]
     )
 
-    # Render each tab with pagination
+    # Render each tab with native dataframe
     with tab1:
         if total_all == 0:
             st.info(
-                "🔍 No jobs found. Try adjusting your filters or refreshing the job list."
+                "🔍 No jobs found. Try adjusting your filters or refreshing the "
+                "job list."
             )
         else:
-            # Pagination controls at top
-            new_page = render_pagination_controls(all_pagination, key_prefix="all_top")
-            if new_page != all_page:
-                set_pagination_state("all", new_page)
-                st.rerun()
-
-            # Pagination info
-            render_pagination_info(all_pagination)
-
-            # Job display
             _render_job_display(all_jobs, "all")
-
-            # Pagination controls at bottom
-            new_page = render_pagination_controls(
-                all_pagination, key_prefix="all_bottom"
-            )
-            if new_page != all_page:
-                set_pagination_state("all", new_page)
-                st.rerun()
 
     with tab2:
         if total_favorites == 0:
@@ -606,27 +459,7 @@ def _render_job_tabs(jobs: list[Job]) -> None:
                 "to see them here!"
             )
         else:
-            # Pagination controls at top
-            new_page = render_pagination_controls(
-                favorites_pagination, key_prefix="favorites_top"
-            )
-            if new_page != favorites_page:
-                set_pagination_state("favorites", new_page)
-                st.rerun()
-
-            # Pagination info
-            render_pagination_info(favorites_pagination)
-
-            # Job display
             _render_job_display(favorites_jobs, "favorites")
-
-            # Pagination controls at bottom
-            new_page = render_pagination_controls(
-                favorites_pagination, key_prefix="favorites_bottom"
-            )
-            if new_page != favorites_page:
-                set_pagination_state("favorites", new_page)
-                st.rerun()
 
     with tab3:
         if total_applied == 0:
@@ -635,31 +468,11 @@ def _render_job_tabs(jobs: list[Job]) -> None:
                 "to track them here!"
             )
         else:
-            # Pagination controls at top
-            new_page = render_pagination_controls(
-                applied_pagination, key_prefix="applied_top"
-            )
-            if new_page != applied_page:
-                set_pagination_state("applied", new_page)
-                st.rerun()
-
-            # Pagination info
-            render_pagination_info(applied_pagination)
-
-            # Job display
             _render_job_display(applied_jobs, "applied")
-
-            # Pagination controls at bottom
-            new_page = render_pagination_controls(
-                applied_pagination, key_prefix="applied_bottom"
-            )
-            if new_page != applied_page:
-                set_pagination_state("applied", new_page)
-                st.rerun()
 
 
 def _render_job_display(jobs: list[Job], tab_key: str) -> None:
-    """Render job display for a specific tab.
+    """Render job display with view mode selection (Card or List).
 
     Args:
         jobs: List of jobs to display.
@@ -668,38 +481,108 @@ def _render_job_display(jobs: list[Job], tab_key: str) -> None:
     if not jobs:
         return
 
-    # Apply per-tab search to jobs list
-    filtered_jobs = _apply_tab_search_to_jobs(jobs, tab_key)
-
-    # Use helper for view mode selection and rendering
+    # Use helper for view mode selection and rendering (preserves existing UX)
     from src.ui.helpers.view_mode import apply_view_mode, select_view_mode
 
     view_mode, grid_columns = select_view_mode(tab_key)
-    apply_view_mode(filtered_jobs, view_mode, grid_columns)
+
+    if view_mode == "List":
+        # Use native dataframe for list view with built-in search/sort/filter
+        _render_native_dataframe(jobs, tab_key)
+    else:
+        # Use existing card view for visual appeal (no pagination)
+        apply_view_mode(jobs, view_mode, grid_columns)
+
+
+def _render_native_dataframe(jobs: list[Job], tab_key: str) -> None:
+    """Render job display using native st.dataframe with built-in features.
+
+    Args:
+        jobs: List of jobs to display.
+        tab_key: Unique key for the tab.
+    """
+    # Convert jobs to DataFrame
+    jobs_df = _jobs_to_dataframe(jobs)
+
+    # Use native st.dataframe with all built-in features
+    edited_df = st.data_editor(
+        jobs_df,
+        column_config={
+            "Link": st.column_config.LinkColumn(
+                "Link", display_text="Apply", help="Click to open job application page"
+            ),
+            "Favorite": st.column_config.CheckboxColumn(
+                "⭐ Favorite", help="Mark as favorite job"
+            ),
+            "Status": st.column_config.SelectboxColumn(
+                "🔄 Status",
+                options=["New", "Interested", "Applied", "Rejected"],
+                help="Update application status",
+            ),
+            "Notes": st.column_config.TextColumn(
+                "📝 Notes", help="Add personal notes about this job"
+            ),
+            "Company": st.column_config.TextColumn("🏢 Company", width="medium"),
+            "Title": st.column_config.TextColumn("💼 Title", width="large"),
+            "Location": st.column_config.TextColumn("📍 Location", width="medium"),
+            "Posted": st.column_config.DatetimeColumn("📅 Posted", format="YYYY-MM-DD"),
+            "Last Seen": st.column_config.DatetimeColumn(
+                "👀 Last Seen", format="YYYY-MM-DD HH:mm"
+            ),
+        },
+        hide_index=True,
+        use_container_width=True,
+        key=f"jobs_dataframe_{tab_key}",
+        on_change=lambda: _save_dataframe_changes(tab_key),
+    )
+
+    # Export functionality
+    col1, col2 = st.columns([1, 1])
+    with col1:
+        if st.button(
+            "💾 Save Changes", key=f"save_{tab_key}", use_container_width=True
+        ):
+            _save_dataframe_changes(tab_key)
+            st.success("Changes saved!")
+
+    with col2:
+        csv = edited_df.to_csv(index=False).encode("utf-8")
+        st.download_button(
+            "📥 Export CSV",
+            csv,
+            f"jobs_{tab_key}.csv",
+            "text/csv",
+            key=f"export_{tab_key}",
+            use_container_width=True,
+        )
 
 
 def _jobs_to_dataframe(jobs: list[Job]) -> pd.DataFrame:
-    """Convert job objects to pandas DataFrame.
+    """Convert job objects to pandas DataFrame optimized for st.dataframe display.
 
     Args:
         jobs: List of job objects.
 
     Returns:
-        DataFrame with job data.
+        DataFrame with job data formatted for native Streamlit display.
     """
+    if not jobs:
+        return pd.DataFrame()
+
     return pd.DataFrame(
         [
             {
                 "id": j.id,
                 "Company": j.company,
                 "Title": j.title,
-                "Location": j.location,
+                "Location": j.location or "Remote",
                 "Posted": j.posted_date,
                 "Last Seen": j.last_seen,
                 "Favorite": j.favorite,
-                "Status": j.status,
-                "Notes": j.notes,
+                "Status": j.application_status or "New",
+                "Notes": j.notes or "",
                 "Link": j.link,
+                # Keep description for job details modal but hide from main view
                 "Description": j.description,
             }
             for j in jobs
@@ -707,118 +590,41 @@ def _jobs_to_dataframe(jobs: list[Job]) -> pd.DataFrame:
     )
 
 
-def _apply_tab_search_to_jobs(jobs: list[Job], tab_key: str) -> list[Job]:
-    """Apply per-tab search filtering to Job DTO objects.
+def _save_dataframe_changes(tab_key: str) -> None:
+    """Save changes from dataframe editing using service layer.
 
     Args:
-        jobs: List of Job DTO objects to filter.
-        tab_key: Tab key for search state.
-
-    Returns:
-        Filtered list of Job DTO objects.
-    """
-    # Per-tab search with visual feedback
-    search_col1, search_col2 = st.columns([3, 1])
-
-    with search_col1:
-        search_key = f"search_{tab_key}"
-        search_term = st.text_input(
-            "🔍 Search in this tab",
-            key=search_key,
-            placeholder="Search by job title, description, or company...",
-            help="Search is case-insensitive and searches across title, "
-            "description, and company",
-        )
-
-    # Apply search filter if search term exists
-    if search_term:
-        search_term_lower = search_term.lower()
-        filtered_jobs = [
-            job
-            for job in jobs
-            if (
-                search_term_lower in job.title.lower()
-                or search_term_lower in job.description.lower()
-                or search_term_lower in job.company.lower()
-            )
-        ]
-
-        with search_col2:
-            st.metric(
-                "Results",
-                len(filtered_jobs),
-                delta=f"-{len(jobs) - len(filtered_jobs)}"
-                if len(filtered_jobs) < len(jobs)
-                else None,
-            )
-
-        return filtered_jobs
-
-    return jobs
-
-
-def _render_list_view(df: pd.DataFrame, tab_key: str) -> None:
-    """Render the list view for jobs.
-
-    Args:
-        df: DataFrame with job data.
-        tab_key: Tab key for unique widget keys.
-    """
-    edited_df = st.data_editor(
-        df.drop(columns=["Description"]),
-        column_config={
-            "Link": st.column_config.LinkColumn("Link", display_text="Apply"),
-            "Favorite": st.column_config.CheckboxColumn("Favorite ⭐"),
-            "Status": st.column_config.SelectboxColumn(
-                "Status 🔄", options=["New", "Interested", "Applied", "Rejected"]
-            ),
-            "Notes": st.column_config.TextColumn("Notes 📝"),
-        },
-        hide_index=False,
-        use_container_width=True,
-    )
-
-    # Save changes button
-    if st.button("Save Changes", key=f"save_{tab_key}"):
-        _save_list_view_changes(edited_df)
-
-    # Export CSV button
-    csv = edited_df.to_csv(index=False).encode("utf-8")
-    st.download_button(
-        "Export CSV 📥",
-        csv,
-        "jobs.csv",
-        "text/csv",
-        key=f"export_{tab_key}",
-    )
-
-
-def _save_list_view_changes(edited_df: pd.DataFrame) -> None:
-    """Save changes from list view editing using service layer.
-
-    Args:
-        edited_df: DataFrame with edited job data.
+        tab_key: Tab identifier for getting the right dataframe state.
     """
     try:
-        # Convert DataFrame to list of updates for bulk update
-        job_updates = []
-        for _, row in edited_df.iterrows():
-            job_updates.append(
-                {
-                    "id": row["id"],
-                    "favorite": row["Favorite"],
-                    "application_status": row["Status"],
-                    "notes": row["Notes"],
-                }
+        # Get the edited dataframe from session state
+        dataframe_key = f"jobs_dataframe_{tab_key}"
+        if dataframe_key in st.session_state:
+            edited_df = st.session_state[dataframe_key]
+
+            # Convert DataFrame to list of updates for bulk update
+            job_updates = []
+            for _, row in edited_df.iterrows():
+                job_updates.append(
+                    {
+                        "id": row["id"],
+                        "favorite": row["Favorite"],
+                        "application_status": row["Status"],
+                        "notes": row["Notes"],
+                    }
+                )
+
+            # Use service layer for bulk update
+            JobService.bulk_update_jobs(job_updates)
+            logger.info(
+                "Successfully saved %d job updates from %s tab",
+                len(job_updates),
+                tab_key,
             )
 
-        # Use service layer for bulk update
-        JobService.bulk_update_jobs(job_updates)
-        st.success("Saved!")
-
     except Exception:
-        st.error("Save failed.")
-        logger.exception("Save failed")
+        logger.exception("Failed to save dataframe changes for %s tab", tab_key)
+        st.error("Failed to save changes. Please try again.")
 
 
 def _render_statistics_dashboard(jobs: list[Job]) -> None:
