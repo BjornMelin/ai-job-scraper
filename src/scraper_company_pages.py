@@ -105,6 +105,11 @@ def extract_job_lists(state: State) -> dict[str, list[dict]]:
     if not sources:
         return {"partial_jobs": []}
 
+    logger.info("-" * 50)
+    logger.info("📋 Starting job list extraction from %d companies", len(companies))
+    for i, company in enumerate(companies, 1):
+        logger.info("  %d. %s", i, company.name)
+
     # Get job limit from state
     max_jobs_per_company = state["max_jobs_per_company"]
 
@@ -127,10 +132,12 @@ def extract_job_lists(state: State) -> dict[str, list[dict]]:
     result = multi_graph.run()
 
     partial_jobs = []
+    company_job_counts = {}
+
     for source_url, extracted in result.items():
         # Validate extracted data is in expected format
         if not isinstance(extracted, dict) or "jobs" not in extracted:
-            logger.warning("Failed to extract jobs from %s", source_url)
+            logger.warning("❌ Failed to extract jobs from %s", source_url)
             continue
 
         company = company_map[source_url]
@@ -148,7 +155,19 @@ def extract_job_lists(state: State) -> dict[str, list[dict]]:
 
         # Apply limit using slicing
         company_jobs = limited_jobs[:max_jobs_per_company]
+        company_job_counts[company.name] = len(company_jobs)
         partial_jobs.extend(company_jobs)
+
+        logger.info("  ✅ %s: Extracted %d jobs", company.name, len(company_jobs))
+
+    # Log summary of extraction results
+    logger.info("-" * 50)
+    logger.info("📊 Job list extraction summary:")
+    logger.info("  • Companies processed: %d", len(company_job_counts))
+    logger.info("  • Total job listings found: %d", len(partial_jobs))
+    if company_job_counts:
+        avg_jobs = sum(company_job_counts.values()) / len(company_job_counts)
+        logger.info("  • Average jobs per company: %.1f", avg_jobs)
 
     random_delay()
     return {
@@ -172,6 +191,9 @@ def extract_details(state: State) -> dict[str, list[dict]]:
     urls = [j["url"] for j in partial_jobs]
     if not urls:
         return {"raw_full_jobs": []}
+
+    logger.info("-" * 50)
+    logger.info("🔍 Starting detailed extraction for %d job pages", len(urls))
 
     prompt = (
         "Extract the following information from the job detail page. "
@@ -198,16 +220,24 @@ def extract_details(state: State) -> dict[str, list[dict]]:
     # Map partial jobs by URL for merging
     partial_map = {j["url"]: j for j in partial_jobs}
     raw_full_jobs = []
+    success_count = 0
+
     for url, details in result.items():
         # Skip if details not in expected dict format
         if not isinstance(details, dict):
-            logger.warning("Failed to extract details from %s", url)
+            logger.warning("❌ Failed to extract details from %s", url)
             continue
 
         partial = partial_map.get(url)
         if partial:
             full_job = {**partial, **details}
             raw_full_jobs.append(full_job)
+            success_count += 1
+
+    logger.info("📊 Detail extraction summary:")
+    logger.info("  • Job pages processed: %d", len(result))
+    logger.info("  • Successfully extracted: %d", success_count)
+    logger.info("  • Failed extractions: %d", len(result) - success_count)
 
     random_delay()
     return {"raw_full_jobs": raw_full_jobs}
@@ -228,6 +258,10 @@ def normalize_jobs(state: State) -> dict[str, list[JobSQL]]:
     normalized = []
     # Common date formats to attempt parsing
     date_formats = ["%Y-%m-%d", "%m/%d/%Y", "%B %d, %Y", "%d %B %Y"]
+
+    if raw_jobs:
+        logger.info("-" * 50)
+        logger.info("🔄 Normalizing %d raw job records", len(raw_jobs))
 
     for raw in raw_jobs:
         posted_str = raw.get("posted_date")
@@ -286,6 +320,15 @@ def normalize_jobs(state: State) -> dict[str, list[JobSQL]]:
         except Exception:
             logger.exception("Failed to normalize job %s", raw.get("url"))
 
+    if raw_jobs:
+        success_rate = (len(normalized) / len(raw_jobs)) * 100
+        logger.info("📊 Normalization summary:")
+        logger.info("  • Raw jobs processed: %d", len(raw_jobs))
+        logger.info(
+            "  • Successfully normalized: %d (%.1f%%)", len(normalized), success_rate
+        )
+        logger.info("  • Failed normalizations: %d", len(raw_jobs) - len(normalized))
+
     return {"normalized_jobs": normalized}
 
 
@@ -322,6 +365,12 @@ def scrape_company_pages(
         logger.info("No active companies to scrape.")
         return []
 
+    logger.info("=" * 50)
+    logger.info("🏢 STARTING COMPANY PAGES SCRAPING")
+    logger.info("=" * 50)
+    logger.info("Active companies found: %d", len(companies))
+    logger.info("Max jobs per company: %d", max_jobs_per_company)
+
     workflow = StateGraph(State)
     workflow.add_node("extract_lists", extract_job_lists)
     workflow.add_node("extract_details", extract_details)
@@ -348,13 +397,15 @@ def scrape_company_pages(
     }
 
     try:
-        logger.info(
-            "Starting scraping for %d companies (limit: %d jobs each)",
-            len(companies),
-            max_jobs_per_company,
-        )
         final_state = graph.invoke(initial_state)
-        return final_state.get("normalized_jobs", [])
+        normalized_jobs = final_state.get("normalized_jobs", [])
     except Exception:
-        logger.exception("Workflow failed")
+        logger.exception("❌ Company pages scraping workflow failed")
         return []
+    else:
+        logger.info("=" * 50)
+        logger.info("✅ COMPANY PAGES SCRAPING COMPLETED")
+        logger.info("Total jobs scraped from company pages: %d", len(normalized_jobs))
+        logger.info("=" * 50)
+
+        return normalized_jobs

@@ -83,7 +83,10 @@ def scrape_all(max_jobs_per_company: int | None = None) -> SyncStats:
         Exception: If any part of the scraping or normalization fails, errors are
             logged but the function continues where possible.
     """
-    logger.info("Starting comprehensive job scraping workflow")
+    logger.info("=" * 60)
+    logger.info("🚀 STARTING COMPREHENSIVE JOB SCRAPING WORKFLOW")
+    logger.info("=" * 60)
+    start_time = datetime.now(timezone.utc)
 
     # Validate max_jobs_per_company parameter
     if max_jobs_per_company is not None:
@@ -138,9 +141,54 @@ def scrape_all(max_jobs_per_company: int | None = None) -> SyncStats:
             total_scraped,
         )
 
-    # Step 5: Combine and filter relevant jobs
+    # Step 5: Combine jobs from both sources
     all_jobs = company_jobs + board_jobs
-    filtered_jobs = [job for job in all_jobs if AI_REGEX.search(job.title)]
+    logger.info("Combined %d jobs from company pages and job boards", len(all_jobs))
+
+    # Step 5a: Filter jobs to only include those from active companies
+    try:
+        from .services.job_service import JobService
+
+        active_company_names = set(JobService.get_active_companies())
+        logger.info(
+            "Filtering jobs to only include %d active companies",
+            len(active_company_names),
+        )
+
+        # Filter jobs by company name (get company name from company_id relationship)
+        company_filtered_jobs = []
+        with SessionLocal() as session:
+            for job in all_jobs:
+                # Get company name from company_id
+                if hasattr(job, "company_id") and job.company_id:
+                    company = session.exec(
+                        sqlmodel.select(CompanySQL).where(
+                            CompanySQL.id == job.company_id
+                        )
+                    ).first()
+                    if company and company.name in active_company_names:
+                        company_filtered_jobs.append(job)
+                    elif company:
+                        logger.debug(
+                            "Excluding job from inactive company: %s", company.name
+                        )
+                else:
+                    logger.warning("Job missing company_id, skipping: %s", job.title)
+
+        logger.info(
+            "Filtered to %d jobs from active companies (removed %d from inactive)",
+            len(company_filtered_jobs),
+            len(all_jobs) - len(company_filtered_jobs),
+        )
+
+    except Exception:
+        logger.exception(
+            "Failed to filter by active companies, proceeding with all jobs"
+        )
+        company_filtered_jobs = all_jobs
+
+    # Step 5b: Filter for AI/ML relevant jobs
+    filtered_jobs = [job for job in company_filtered_jobs if AI_REGEX.search(job.title)]
     logger.info("Filtered to %d AI/ML relevant jobs", len(filtered_jobs))
 
     # Step 6: Deduplicate by link, keeping the last occurrence
@@ -161,7 +209,26 @@ def scrape_all(max_jobs_per_company: int | None = None) -> SyncStats:
     sync_engine = SmartSyncEngine()
     sync_stats = sync_engine.sync_jobs(dedup_jobs)
 
-    logger.info("Scraping workflow completed successfully")
+    # Calculate and log total execution time
+    end_time = datetime.now(timezone.utc)
+    duration = (end_time - start_time).total_seconds()
+
+    logger.info("=" * 60)
+    logger.info("✅ SCRAPING WORKFLOW COMPLETED SUCCESSFULLY")
+    logger.info("📊 Final Statistics:")
+    logger.info("  • Total jobs scraped: %d", len(all_jobs))
+    logger.info("  • Jobs from active companies: %d", len(company_filtered_jobs))
+    logger.info("  • AI/ML relevant jobs: %d", len(filtered_jobs))
+    logger.info("  • Unique jobs after deduplication: %d", len(dedup_jobs))
+    logger.info("  • Database sync results:")
+    logger.info("    - Inserted: %d new jobs", sync_stats.get("inserted", 0))
+    logger.info("    - Updated: %d existing jobs", sync_stats.get("updated", 0))
+    logger.info("    - Archived: %d stale jobs", sync_stats.get("archived", 0))
+    logger.info("    - Deleted: %d jobs", sync_stats.get("deleted", 0))
+    logger.info("    - Skipped: %d unchanged jobs", sync_stats.get("skipped", 0))
+    logger.info("⏱️  Total execution time: %.2f seconds", duration)
+    logger.info("=" * 60)
+
     return sync_stats
 
 
