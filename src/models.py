@@ -12,16 +12,52 @@ import hashlib
 import logging
 import re
 
+# Fix for SQLAlchemy table redefinition issue during Streamlit reruns
+# This addresses the "Table already defined for this MetaData instance" error
+# that occurs when clicking the Stop button during scraping operations
+import warnings
+
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from decimal import Decimal
 
+import sqlalchemy
+
 from babel.numbers import NumberFormatError, parse_decimal, parse_number
 from price_parser import Price
 from pydantic import computed_field, field_validator, model_validator
+from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.types import JSON
 from sqlmodel import Column, Field, Relationship, SQLModel
+
+# Store original Table.__new__ to restore proper behavior
+_original_table_new = sqlalchemy.Table.__new__
+
+
+def _streamlit_safe_table_new(cls, *args, **kwargs):
+    """Wrapper for Table.__new__ that handles redefinition gracefully in Streamlit."""
+    try:
+        return _original_table_new(cls, *args, **kwargs)
+    except InvalidRequestError as e:
+        if "already defined for this MetaData instance" in str(e):
+            # Table already exists, suppress the error and return existing table
+            table_name = args[0] if args else kwargs.get("name", "unknown")
+            metadata = args[1] if len(args) > 1 else kwargs.get("metadata")
+            if metadata and table_name in metadata.tables:
+                warnings.warn(
+                    f"Table '{table_name}' already defined, using existing table. "
+                    "This is normal during Streamlit reruns.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+                return metadata.tables[table_name]
+        # Re-raise other InvalidRequestError exceptions
+        raise
+
+
+# Apply the monkey patch to handle table redefinition during Streamlit reruns
+sqlalchemy.Table.__new__ = staticmethod(_streamlit_safe_table_new)
 
 # Type aliases for better readability
 type SalaryTuple = tuple[int | None, int | None]

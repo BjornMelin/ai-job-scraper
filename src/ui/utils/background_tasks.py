@@ -342,7 +342,10 @@ def get_task_manager() -> StreamlitTaskManager:
 
 
 def start_background_scraping(stay_active_in_tests: bool = False) -> str:
-    """Start background scraping and return task ID.
+    """Start background scraping using Streamlit native approach.
+
+    This function uses a simple session state flag to trigger scraping
+    instead of complex threading, avoiding database session conflicts.
 
     Args:
         stay_active_in_tests: If True, keeps scraping_active=True in test environments
@@ -351,29 +354,28 @@ def start_background_scraping(stay_active_in_tests: bool = False) -> str:
     task_id = str(uuid.uuid4())
     logger.info("start_background_scraping called with task_id: %s", task_id)
 
-    # Initialize session state
-    if "scraping_active" not in st.session_state:
-        st.session_state.scraping_active = False
+    # Initialize session state immediately
     if "task_progress" not in st.session_state:
         st.session_state.task_progress = {}
 
-    # Store in session state
+    # Store task info in session state
     st.session_state.task_progress[task_id] = ProgressInfo(
         progress=0.0,
         message="Starting scraping...",
         timestamp=datetime.now(timezone.utc),
     )
-    st.session_state.scraping_active = True
     st.session_state.task_id = task_id
 
     # Store test behavior preference
     if _is_test_environment():
         st.session_state._test_stay_active = stay_active_in_tests
 
-    # Start the actual scraping (delegate to existing function)
-    logger.info("Calling start_scraping() function")
-    start_scraping()
+    # Set scraping trigger flag - this will be processed by @st.fragment
+    st.session_state.scraping_trigger = True
+    st.session_state.scraping_active = True
+    st.session_state.scraping_status = "Initializing scraping..."
 
+    logger.info("Scraping trigger set - will be processed by fragment")
     return task_id
 
 
@@ -407,3 +409,107 @@ def get_company_progress() -> dict[str, CompanyProgress]:
         Dictionary mapping company names to their CompanyProgress objects.
     """
     return st.session_state.get("company_progress", {})
+
+
+@st.fragment(run_every=1)  # Check every second for scraping trigger
+def process_scraping_trigger() -> None:
+    """Process scraping trigger using Streamlit native fragment approach.
+
+    This function runs every second and checks if scraping needs to be triggered.
+    It replaces the complex threading approach with a simple, reliable method.
+    """
+    # Only process if trigger is set
+    if not st.session_state.get("scraping_trigger", False):
+        return
+
+    # Reset trigger immediately to prevent multiple executions
+    st.session_state.scraping_trigger = False
+
+    logger.info("Processing scraping trigger - starting actual scraping")
+
+    try:
+        # Get active companies
+        active_companies = JobService.get_active_companies()
+        if not active_companies:
+            st.session_state.scraping_status = "No active companies found"
+            st.session_state.scraping_active = False
+            return
+
+        # Initialize company progress
+        if (
+            "company_progress" not in st.session_state
+            or st.session_state.company_progress is None
+        ):
+            st.session_state.company_progress = {}
+
+        for company_name in active_companies:
+            st.session_state.company_progress[company_name] = CompanyProgress(
+                name=company_name,
+                status="Pending",
+                jobs_found=0,
+                start_time=None,
+                end_time=None,
+            )
+
+        # Update status
+        st.session_state.scraping_status = "Running scraper..."
+
+        # Get job limit
+        from src.scraper_company_pages import DEFAULT_MAX_JOBS_PER_COMPANY
+
+        max_jobs_per_company = st.session_state.get(
+            "max_jobs_per_company", DEFAULT_MAX_JOBS_PER_COMPANY
+        )
+
+        # Execute scraping directly (no threading)
+        logger.info("Executing scrape_all with max_jobs=%d", max_jobs_per_company)
+        result = scrape_all(max_jobs_per_company)
+        logger.info("scrape_all completed with result: %s", result)
+
+        # Update company progress with results
+        for company_name in active_companies:
+            if company_name in st.session_state.company_progress:
+                company_progress = st.session_state.company_progress[company_name]
+                company_progress.status = "Completed"
+                company_progress.end_time = datetime.now(timezone.utc)
+                company_progress.start_time = (
+                    company_progress.start_time or datetime.now(timezone.utc)
+                )
+
+                # Set job count from results
+                raw_job_count = result.get(company_name, 0)
+                company_progress.jobs_found = safe_job_count(
+                    raw_job_count, company_name
+                )
+
+        # Update final status
+        total_jobs = sum(result.values()) if result else 0
+        st.session_state.scraping_status = (
+            f"✅ Scraping Complete! Found {total_jobs} jobs across "
+            f"{len(active_companies)} companies"
+        )
+        st.session_state.scraping_results = result
+
+        # Mark as inactive unless in test mode
+        if not (
+            _is_test_environment() and st.session_state.get("_test_stay_active", False)
+        ):
+            st.session_state.scraping_active = False
+
+    except Exception as e:
+        logger.exception("Scraping failed in fragment processor")
+        st.session_state.scraping_status = f"❌ Scraping failed: {e}"
+
+        # Mark companies as error
+        if "company_progress" in st.session_state and st.session_state.company_progress:
+            for company_progress in st.session_state.company_progress.values():
+                if company_progress.status in ["Pending", "Scraping"]:
+                    company_progress.status = "Error"
+                    company_progress.error = str(e)
+                    company_progress.end_time = datetime.now(timezone.utc)
+
+        # Mark as inactive unless in test mode
+        if not (
+            _is_test_environment() and st.session_state.get("_test_stay_active", False)
+        ):
+            st.session_state.scraping_active = False

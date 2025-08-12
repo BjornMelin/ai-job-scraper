@@ -223,13 +223,20 @@ def _normalize_board_jobs(board_jobs_raw: Sequence[dict]) -> list[JobSQL]:
                     )
                     continue
 
+                # Clean and validate string fields to handle NaN values
+                def clean_string_field(value: any) -> str:
+                    """Clean string fields to handle NaN, None, and invalid values."""
+                    if value is None or str(value).lower() in ["nan", "none", "null"]:
+                        return ""
+                    return str(value).strip()
+
                 # Use factory method to ensure proper validation and hash generation
                 job = JobSQL.create_validated(
-                    title=raw.get("title", ""),
+                    title=clean_string_field(raw.get("title", "")),
                     company_id=company_id,
-                    description=raw.get("description", ""),
-                    location=raw.get("location", ""),
-                    link=raw.get("job_url", ""),
+                    description=clean_string_field(raw.get("description", "")),
+                    location=clean_string_field(raw.get("location", "")),
+                    link=clean_string_field(raw.get("job_url", "")),
                     posted_date=raw.get("date_posted"),
                     salary=salary,
                     application_status="New",

@@ -38,6 +38,11 @@ def render_scraping_page() -> None:
     if "last_refresh" not in st.session_state:
         st.session_state.last_refresh = 0.0
 
+    # Process scraping trigger (runs every second via @st.fragment)
+    from src.ui.utils.background_tasks import process_scraping_trigger
+
+    process_scraping_trigger()
+
     # Page header
     st.markdown("# 🔍 Job Scraping Dashboard")
     st.markdown(
