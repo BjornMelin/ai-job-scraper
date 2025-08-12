@@ -334,6 +334,68 @@ class CompanyService:
             raise
 
     @staticmethod
+    def delete_company(company_id: int) -> bool:
+        """Delete a company and all associated jobs.
+
+        Removes company record and cascades deletion to all related job records.
+        Provides comprehensive logging of deletion operation.
+
+        Args:
+            company_id: Database ID of the company to delete.
+
+        Returns:
+            True if company was successfully deleted, False if not found.
+
+        Raises:
+            Exception: If database operation fails.
+        """
+        try:
+            with db_session() as session:
+                # First check if company exists
+                company = session.exec(
+                    select(CompanySQL).filter_by(id=company_id)
+                ).first()
+
+                if not company:
+                    logger.warning(
+                        "Company with ID %s not found for deletion", company_id
+                    )
+                    return False
+
+                company_name = company.name
+
+                # Delete associated jobs first (explicit cascade)
+                job_count = session.exec(
+                    select(func.count(JobSQL.id)).where(JobSQL.company_id == company_id)
+                ).first()
+
+                if job_count:
+                    session.exec(
+                        sqlmodel.delete(JobSQL).where(JobSQL.company_id == company_id)
+                    )
+                    logger.info(
+                        "Deleting %d jobs associated with company '%s'",
+                        job_count,
+                        company_name,
+                    )
+
+                # Delete the company
+                session.delete(company)
+                session.commit()
+
+                logger.info(
+                    "Successfully deleted company '%s' (ID: %s) and %d associated jobs",
+                    company_name,
+                    company_id,
+                    job_count or 0,
+                )
+                return True
+
+        except Exception:
+            logger.exception("Failed to delete company with ID %s", company_id)
+            raise
+
+    @staticmethod
     def get_company_by_id(company_id: int) -> Company | None:
         """Get a single company by its ID.
 

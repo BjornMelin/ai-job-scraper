@@ -61,6 +61,33 @@ def _add_company_callback() -> None:
         logger.exception("Failed to add company")
 
 
+def _delete_company_callback(company_id: int) -> None:
+    """Callback function to handle company deletion.
+
+    This callback deletes a company and all associated jobs after confirmation.
+
+    Args:
+        company_id: Database ID of the company to delete.
+    """
+    try:
+        # Get the toggle state from session state
+        confirm_key = f"delete_confirm_{company_id}"
+        if st.session_state.get(confirm_key):
+            # User confirmed deletion
+            if CompanyService.delete_company(company_id):
+                st.session_state.delete_success = "Company deleted successfully"
+                # Clear the confirmation state
+                st.session_state.pop(confirm_key, None)
+                # Force page rerun to refresh the list
+                st.rerun()
+            else:
+                st.session_state.delete_error = "Company not found"
+
+    except Exception as e:
+        st.session_state.delete_error = f"Failed to delete company: {e}"
+        logger.exception("Failed to delete company %s", company_id)
+
+
 def _toggle_company_callback(company_id: int) -> None:
     """Callback function to toggle a company's active status.
 
@@ -102,8 +129,8 @@ def _init_and_display_feedback() -> None:
 
     # Display feedback messages using helper
     display_feedback_messages(
-        success_keys=["add_company_success", "toggle_success"],
-        error_keys=["add_company_error", "toggle_error"],
+        success_keys=["add_company_success", "toggle_success", "delete_success"],
+        error_keys=["add_company_error", "toggle_error", "delete_error"],
     )
 
 
@@ -158,10 +185,12 @@ def show_companies_page() -> None:
             return
 
         # Display companies in a clean grid layout
-        from src.ui.helpers.company_display import render_company_card
+        from src.ui.helpers.company_display import render_company_card_with_delete
 
         for company in companies:
-            render_company_card(company, _toggle_company_callback)
+            render_company_card_with_delete(
+                company, _toggle_company_callback, _delete_company_callback
+            )
 
         # Show summary statistics
         st.markdown("---")
