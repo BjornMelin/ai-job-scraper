@@ -42,9 +42,7 @@ logger = logging.getLogger(__name__)
 CACHE_WARMUP_TIMEOUT = 30  # seconds
 
 
-def warm_startup_cache(
-    background: bool = True, timeout: int = CACHE_WARMUP_TIMEOUT
-) -> dict[str, Any]:
+def warm_startup_cache(config: dict | None = None) -> dict[str, Any]:
     """Warm cache with commonly accessed data on application startup.
 
     This function pre-loads frequently accessed queries into the cache
@@ -52,12 +50,15 @@ def warm_startup_cache(
     then background queries if time permits.
 
     Args:
-        background: Whether to run warming in background thread
-        timeout: Maximum time to spend warming cache
+        config: Configuration dictionary with 'background' and 'timeout' keys
 
     Returns:
         Dictionary with warming statistics and performance info
     """
+    if config is None:
+        config = {"background": True, "timeout": CACHE_WARMUP_TIMEOUT}
+    background = config.get("background", True)
+    timeout = config.get("timeout", CACHE_WARMUP_TIMEOUT)
     if hasattr(st.session_state, "cache_warmed") and st.session_state.cache_warmed:
         logger.debug("Cache already warmed in this session, skipping")
         return {"status": "skipped", "reason": "already_warmed"}
