@@ -23,7 +23,6 @@ __all__ = [
     "CompanyProgress",
     "ProgressInfo",
     "TaskInfo",
-    "_is_test_environment",
     "add_task",
     "get_company_progress",
     "get_scraping_progress",
