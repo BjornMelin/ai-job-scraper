@@ -12,9 +12,6 @@ from collections.abc import Sequence
 from datetime import datetime, timezone
 
 # Rich imports for beautiful CLI output
-import pendulum
-
-# Rich imports for beautiful CLI output
 import sqlmodel
 import typer
 
@@ -102,7 +99,7 @@ def scrape_all(max_jobs_per_company: int | None = None) -> SyncStats:
             style="blue",
         )
     )
-    start_time = pendulum.now("UTC")
+    start_time = datetime.now(timezone.utc)
 
     # Validate max_jobs_per_company parameter
     if max_jobs_per_company is not None:
@@ -232,8 +229,8 @@ def scrape_all(max_jobs_per_company: int | None = None) -> SyncStats:
     sync_engine = SmartSyncEngine()
     sync_stats = sync_engine.sync_jobs(dedup_jobs)
 
-    # Calculate and log total execution time using Pendulum
-    end_time = pendulum.now("UTC")
+    # Calculate and log total execution time
+    end_time = datetime.now(timezone.utc)
     duration = (end_time - start_time).total_seconds()
 
     # Create a beautiful Rich table for final statistics

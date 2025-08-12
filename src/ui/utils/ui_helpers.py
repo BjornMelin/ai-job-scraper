@@ -320,16 +320,16 @@ def calculate_days_since_posted(posted_date: datetime | None) -> int | None:
     Returns:
         Days since posted or None if no date
     """
-    import pendulum
-
     if not posted_date:
         return None
 
     try:
-        # Convert posted_date to Pendulum instance and calculate difference
-        posted_pendulum = pendulum.instance(posted_date)
-        now_utc = pendulum.now("UTC")
-        return (now_utc - posted_pendulum).days
+        # Calculate difference using standard datetime
+        now_utc = datetime.now(timezone.utc)
+        # Ensure posted_date is timezone-aware
+        if not posted_date.tzinfo:
+            posted_date = posted_date.replace(tzinfo=timezone.utc)
+        return (now_utc - posted_date).days
     except Exception:
         logger.exception("Error calculating days since posted")
         return None

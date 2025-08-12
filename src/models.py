@@ -18,11 +18,8 @@ import re
 # that occurs when clicking the Stop button during scraping operations
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
-
-# Modern datetime handling library for better timezone support
-import pendulum
 
 from babel.numbers import NumberFormatError, parse_decimal, parse_number
 from price_parser import Price
@@ -560,23 +557,17 @@ class CompanySQL(SQLModel, table=True, extend_existing=True):
     @field_validator("last_scraped", mode="before")
     @classmethod
     def ensure_timezone_aware(cls, v) -> datetime | None:
-        """Ensure datetime is timezone-aware (UTC) using Pendulum."""
+        """Ensure datetime is timezone-aware (UTC) - simplified validator."""
         if v is None:
             return None
         if isinstance(v, str):
             try:
-                # Use Pendulum to parse string and convert to Python datetime in UTC
-                parsed_dt = pendulum.parse(v)
-                if parsed_dt:
-                    return parsed_dt.in_timezone("UTC").to_datetime()
-            except (ValueError, TypeError):
+                parsed = datetime.fromisoformat(v.replace("Z", "+00:00"))
+                return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+            except ValueError:
                 return None
         if isinstance(v, datetime):
-            if v.tzinfo:
-                # Convert to UTC using Pendulum
-                return pendulum.instance(v).in_timezone("UTC").to_datetime()
-            # Assume naive datetime is UTC
-            return pendulum.instance(v, tz="UTC").to_datetime()
+            return v if v.tzinfo else v.replace(tzinfo=timezone.utc)
         return None
 
 
@@ -675,30 +666,36 @@ class JobSQL(SQLModel, table=True, extend_existing=True):
 
     @staticmethod
     def _parse_string_to_utc_datetime(v: str) -> datetime | None:
-        """Parse string to UTC datetime using Pendulum."""
+        """Parse string to UTC datetime using standard library."""
         try:
-            parsed_dt = pendulum.parse(v)
-            if parsed_dt:
-                return parsed_dt.in_timezone("UTC").to_datetime()
-        except (ValueError, TypeError):
+            # Try ISO format first
+            parsed = datetime.fromisoformat(v.replace("Z", "+00:00"))
+            return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+        except ValueError:
             # Try parsing date-only strings
             try:
-                date_only = pendulum.parse(v, exact=True).date()
-                return pendulum.datetime(
-                    date_only.year, date_only.month, date_only.day, tz="UTC"
-                ).to_datetime()
-            except (ValueError, TypeError):
+
+                # Try common date formats
+                for fmt in ["%Y-%m-%d", "%m/%d/%Y", "%d/%m/%Y"]:
+                    try:
+                        date_obj = datetime.strptime(v, fmt).date()
+                        return datetime.combine(
+                            date_obj, datetime.min.time(), tzinfo=timezone.utc
+                        )
+                    except ValueError:
+                        continue
+            except Exception:
                 pass
         return None
 
     @staticmethod
     def _convert_datetime_to_utc(v: datetime) -> datetime:
-        """Convert datetime to UTC using Pendulum."""
+        """Convert datetime to UTC using standard library."""
         if v.tzinfo:
-            # Convert to UTC using Pendulum
-            return pendulum.instance(v).in_timezone("UTC").to_datetime()
+            # Convert to UTC
+            return v.astimezone(timezone.utc)
         # Assume naive datetime is UTC
-        return pendulum.instance(v, tz="UTC").to_datetime()
+        return v.replace(tzinfo=timezone.utc)
 
     @field_validator("salary", mode="before")
     @classmethod
