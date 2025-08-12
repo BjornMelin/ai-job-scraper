@@ -13,7 +13,7 @@ All schemas include validation, JSON encoding configuration, and proper
 type hints for safe data transfer across application layers.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import ClassVar
 
 from pydantic import BaseModel, field_validator
@@ -77,6 +77,22 @@ class Company(BaseModel):
         if not v or not v.strip():
             raise ValueError("Company name cannot be empty")
         return v.strip()
+
+    @field_validator("last_scraped", mode="before")
+    @classmethod
+    def ensure_timezone_aware(cls, v) -> datetime | None:
+        """Ensure datetime is timezone-aware (UTC) - simplified validator."""
+        if v is None:
+            return None
+        if isinstance(v, str):
+            try:
+                parsed = datetime.fromisoformat(v.replace("Z", "+00:00"))
+                return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+            except ValueError:
+                return None
+        if isinstance(v, datetime):
+            return v if v.tzinfo else v.replace(tzinfo=timezone.utc)
+        return None
 
     class Config:
         """Pydantic configuration for Company DTO.
@@ -181,6 +197,26 @@ class Job(BaseModel):
         if not v or not v.strip():
             raise ValueError("Job title cannot be empty")
         return v.strip()
+
+    @field_validator("posted_date", "application_date", "last_seen", mode="before")
+    @classmethod
+    def ensure_datetime_timezone_aware(cls, v) -> datetime | None:
+        """Ensure datetime fields are timezone-aware (UTC) - simplified validator."""
+        if v is None:
+            return None
+        if isinstance(v, str):
+            try:
+                parsed = datetime.fromisoformat(v.replace("Z", "+00:00"))
+                return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+            except ValueError:
+                try:
+                    parsed = datetime.strptime(v, "%Y-%m-%d")  # noqa: DTZ007
+                    return parsed.replace(tzinfo=timezone.utc)
+                except ValueError:
+                    return None
+        if isinstance(v, datetime):
+            return v if v.tzinfo else v.replace(tzinfo=timezone.utc)
+        return None
 
     class Config:
         """Pydantic configuration for Job DTO.

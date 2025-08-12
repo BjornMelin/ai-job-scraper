@@ -5,10 +5,12 @@ adding new companies and toggling their active status for scraping.
 """
 
 import logging
+import uuid
 
 import streamlit as st
 
 from src.services.company_service import CompanyService
+from src.ui.helpers.company_display import render_company_card_with_selection
 from src.ui.utils.session_helpers import (
     display_feedback_messages,
     init_session_state_keys,
@@ -61,6 +63,33 @@ def _add_company_callback() -> None:
         logger.exception("Failed to add company")
 
 
+def _delete_company_callback(company_id: int) -> None:
+    """Callback function to handle company deletion.
+
+    This callback deletes a company and all associated jobs after confirmation.
+
+    Args:
+        company_id: Database ID of the company to delete.
+    """
+    try:
+        # Get the toggle state from session state
+        confirm_key = f"delete_confirm_{company_id}"
+        if st.session_state.get(confirm_key):
+            # User confirmed deletion
+            if CompanyService.delete_company(company_id):
+                st.session_state.delete_success = "Company deleted successfully"
+                # Clear the confirmation state
+                st.session_state.pop(confirm_key, None)
+                # Force page rerun to refresh the list
+                st.rerun()
+            else:
+                st.session_state.delete_error = "Company not found"
+
+    except Exception as e:
+        st.session_state.delete_error = f"Failed to delete company: {e}"
+        logger.exception("Failed to delete company %s", company_id)
+
+
 def _toggle_company_callback(company_id: int) -> None:
     """Callback function to toggle a company's active status.
 
@@ -87,6 +116,168 @@ def _toggle_company_callback(company_id: int) -> None:
         logger.exception("Failed to toggle company status for ID %s", company_id)
 
 
+def _company_selection_callback(company_id: int) -> None:
+    """Callback function to handle company selection changes.
+
+    Args:
+        company_id: Database ID of the company being selected/deselected.
+    """
+    if "selected_companies" not in st.session_state:
+        st.session_state.selected_companies = set()
+
+    checkbox_value = st.session_state.get(f"select_company_{company_id}", False)
+
+    if checkbox_value:
+        st.session_state.selected_companies.add(company_id)
+    else:
+        st.session_state.selected_companies.discard(company_id)
+
+
+def _select_all_callback() -> None:
+    """Callback function to select all companies."""
+    try:
+        companies = CompanyService.get_all_companies()
+        st.session_state.selected_companies = {
+            company.id for company in companies if company.id
+        }
+        # Update individual checkboxes
+        for company in companies:
+            if company.id:
+                st.session_state[f"select_company_{company.id}"] = True
+        st.rerun()
+    except Exception as e:
+        st.session_state.bulk_operation_error = f"Failed to select all companies: {e}"
+        logger.exception("Failed to select all companies")
+
+
+def _select_none_callback() -> None:
+    """Callback function to clear all company selections."""
+    try:
+        if "selected_companies" in st.session_state:
+            # Clear individual checkboxes
+            for company_id in st.session_state.selected_companies:
+                st.session_state[f"select_company_{company_id}"] = False
+            st.session_state.selected_companies.clear()
+        st.rerun()
+    except Exception as e:
+        st.session_state.bulk_operation_error = f"Failed to clear selections: {e}"
+        logger.exception("Failed to clear selections")
+
+
+def _bulk_delete_callback() -> None:
+    """Callback function to handle bulk deletion of selected companies.
+
+    Uses idempotency tokens to prevent duplicate operations from rapid clicks.
+    """
+    try:
+        selected_ids = list(st.session_state.get("selected_companies", set()))
+        if not selected_ids:
+            st.session_state.bulk_operation_error = "No companies selected for deletion"
+            return
+
+        # Check if user confirmed deletion with idempotency token
+        if st.session_state.get("bulk_delete_confirmed", False):
+            # Generate or get existing operation token for this confirmation
+            operation_token = st.session_state.get("bulk_delete_token")
+            if not operation_token:
+                st.session_state.bulk_operation_error = "Invalid operation token"
+                return
+
+            # Check if this operation was already executed
+            executed_tokens = st.session_state.get("executed_delete_tokens", set())
+            if operation_token in executed_tokens:
+                logger.warning(
+                    "Duplicate bulk delete attempt blocked by idempotency token: %s",
+                    operation_token,
+                )
+                return
+
+            # Execute the deletion
+            deleted_count = CompanyService.bulk_delete_companies(selected_ids)
+
+            # Mark this token as executed to prevent duplicates
+            executed_tokens.add(operation_token)
+            st.session_state.executed_delete_tokens = executed_tokens
+
+            # Clear state
+            st.session_state.bulk_operation_success = (
+                f"Successfully deleted {deleted_count} companies"
+            )
+            st.session_state.selected_companies.clear()
+            st.session_state.bulk_delete_confirmed = False
+            st.session_state.show_bulk_delete_confirm = False
+            st.session_state.bulk_delete_token = None
+
+            logger.info(
+                "User bulk deleted %d companies with token %s",
+                deleted_count,
+                operation_token,
+            )
+            st.rerun()
+        else:
+            # Generate new operation token for this confirmation
+            operation_token = str(uuid.uuid4())
+            st.session_state.bulk_delete_token = operation_token
+
+            # Show confirmation dialog
+            st.session_state.show_bulk_delete_confirm = True
+            logger.info("Generated bulk delete token: %s", operation_token)
+            st.rerun()
+
+    except Exception as e:
+        st.session_state.bulk_operation_error = f"Failed to delete companies: {e}"
+        st.session_state.bulk_operation_success = None
+        logger.exception("Failed to bulk delete companies")
+
+
+def _bulk_activate_callback() -> None:
+    """Callback function to handle bulk activation of selected companies."""
+    try:
+        selected_ids = list(st.session_state.get("selected_companies", set()))
+        if not selected_ids:
+            st.session_state.bulk_operation_error = (
+                "No companies selected for activation"
+            )
+            return
+
+        updated_count = CompanyService.bulk_update_status(selected_ids, active=True)
+        st.session_state.bulk_operation_success = (
+            f"Successfully activated {updated_count} companies"
+        )
+        st.session_state.selected_companies.clear()
+        logger.info("User bulk activated %d companies", updated_count)
+        st.rerun()
+
+    except Exception as e:
+        st.session_state.bulk_operation_error = f"Failed to activate companies: {e}"
+        st.session_state.bulk_operation_success = None
+        logger.exception("Failed to bulk activate companies")
+
+
+def _bulk_deactivate_callback() -> None:
+    """Callback function to handle bulk deactivation of selected companies."""
+    try:
+        selected_ids = list(st.session_state.get("selected_companies", set()))
+        if not selected_ids:
+            st.session_state.bulk_operation_error = (
+                "No companies selected for deactivation"
+            )
+            return
+
+        updated_count = CompanyService.bulk_update_status(selected_ids, active=False)
+        st.session_state.bulk_operation_success = (
+            f"Successfully deactivated {updated_count} companies"
+        )
+        st.session_state.selected_companies.clear()
+        logger.info("User bulk deactivated %d companies", updated_count)
+        st.rerun()
+
+    except Exception as e:
+        st.session_state.bulk_operation_error = f"Failed to deactivate companies: {e}"
+        st.session_state.bulk_operation_success = None
+        logger.exception("Failed to bulk deactivate companies")
+
+
 def _init_and_display_feedback() -> None:
     """Initialize session state and display feedback messages."""
     # Initialize all feedback keys using helper
@@ -96,14 +287,34 @@ def _init_and_display_feedback() -> None:
             "add_company_success",
             "toggle_error",
             "toggle_success",
+            "bulk_operation_error",
+            "bulk_operation_success",
+            "selected_companies",
         ],
         None,
     )
 
+    # Initialize selected_companies as empty set if not present or None
+    if (
+        "selected_companies" not in st.session_state
+        or st.session_state.selected_companies is None
+    ):
+        st.session_state.selected_companies = set()
+
     # Display feedback messages using helper
     display_feedback_messages(
-        success_keys=["add_company_success", "toggle_success"],
-        error_keys=["add_company_error", "toggle_error"],
+        success_keys=[
+            "add_company_success",
+            "toggle_success",
+            "delete_success",
+            "bulk_operation_success",
+        ],
+        error_keys=[
+            "add_company_error",
+            "toggle_error",
+            "delete_error",
+            "bulk_operation_error",
+        ],
     )
 
 
@@ -157,11 +368,92 @@ def show_companies_page() -> None:
             st.info("📝 No companies found. Add your first company above!")
             return
 
-        # Display companies in a clean grid layout
-        from src.ui.helpers.company_display import render_company_card
+        # Bulk selection and operations section
+        st.markdown("#### Bulk Operations")
 
+        # Selection controls
+        col1, col2, col3 = st.columns([1, 1, 2])
+        with col1:
+            st.button(
+                "Select All",
+                key="select_all_btn",
+                on_click=_select_all_callback,
+                help="Select all companies for bulk operations",
+            )
+        with col2:
+            st.button(
+                "Select None",
+                key="select_none_btn",
+                on_click=_select_none_callback,
+                help="Clear all company selections",
+            )
+        with col3:
+            selected_companies = (
+                st.session_state.get("selected_companies", set()) or set()
+            )
+            selected_count = len(selected_companies)
+            total_count = len(companies)
+            st.markdown(f"**{selected_count} of {total_count} companies selected**")
+
+        # Bulk operation buttons (only show when companies are selected)
+        if selected_count > 0:
+            col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
+
+            with col1:
+                st.button(
+                    "✅ Activate Selected",
+                    key="bulk_activate_btn",
+                    on_click=_bulk_activate_callback,
+                    help=f"Activate {selected_count} selected companies",
+                    type="secondary",
+                )
+
+            with col2:
+                st.button(
+                    "❌ Deactivate Selected",
+                    key="bulk_deactivate_btn",
+                    on_click=_bulk_deactivate_callback,
+                    help=f"Deactivate {selected_count} selected companies",
+                    type="secondary",
+                )
+
+            with col3:
+                st.button(
+                    "🗑️ Delete Selected",
+                    key="bulk_delete_btn",
+                    on_click=_bulk_delete_callback,
+                    help=f"Delete {selected_count} selected companies and jobs",
+                    type="secondary",
+                )
+
+        # Show bulk delete confirmation dialog
+        if st.session_state.get("show_bulk_delete_confirm", False):
+            selected_count = len(st.session_state.get("selected_companies", set()))
+            st.warning(
+                f"⚠️ Are you sure you want to delete {selected_count} companies? "
+                "This will also delete all associated jobs and cannot be undone."
+            )
+
+            col1, col2 = st.columns([1, 1])
+            with col1:
+                if st.button("✅ Confirm Delete", key="confirm_bulk_delete"):
+                    st.session_state.bulk_delete_confirmed = True
+                    _bulk_delete_callback()
+            with col2:
+                if st.button("❌ Cancel", key="cancel_bulk_delete"):
+                    st.session_state.show_bulk_delete_confirm = False
+                    st.rerun()
+
+        st.markdown("---")
+
+        # Display companies with selection checkboxes
         for company in companies:
-            render_company_card(company, _toggle_company_callback)
+            render_company_card_with_selection(
+                company,
+                _toggle_company_callback,
+                _delete_company_callback,
+                _company_selection_callback,
+            )
 
         # Show summary statistics
         st.markdown("---")
@@ -180,8 +472,8 @@ def show_companies_page() -> None:
             inactive_count = total_companies - active_count
             st.metric("Inactive Companies", inactive_count)
 
-    except Exception:
-        st.error("❌ Failed to load companies. Please refresh the page.")
+    except Exception as e:
+        st.error(f"❌ Failed to load companies: {e!s}")
         logger.exception("Failed to load companies")
 
 

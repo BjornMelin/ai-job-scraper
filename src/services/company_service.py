@@ -334,6 +334,68 @@ class CompanyService:
             raise
 
     @staticmethod
+    def delete_company(company_id: int) -> bool:
+        """Delete a company and all associated jobs.
+
+        Removes company record and cascades deletion to all related job records.
+        Provides comprehensive logging of deletion operation.
+
+        Args:
+            company_id: Database ID of the company to delete.
+
+        Returns:
+            True if company was successfully deleted, False if not found.
+
+        Raises:
+            Exception: If database operation fails.
+        """
+        try:
+            with db_session() as session:
+                # First check if company exists
+                company = session.exec(
+                    select(CompanySQL).filter_by(id=company_id)
+                ).first()
+
+                if not company:
+                    logger.warning(
+                        "Company with ID %s not found for deletion", company_id
+                    )
+                    return False
+
+                company_name = company.name
+
+                # Delete associated jobs first (explicit cascade)
+                job_count = session.exec(
+                    select(func.count(JobSQL.id)).where(JobSQL.company_id == company_id)
+                ).first()
+
+                if job_count:
+                    session.exec(
+                        sqlmodel.delete(JobSQL).where(JobSQL.company_id == company_id)
+                    )
+                    logger.info(
+                        "Deleting %d jobs associated with company '%s'",
+                        job_count,
+                        company_name,
+                    )
+
+                # Delete the company
+                session.delete(company)
+                session.commit()
+
+                logger.info(
+                    "Successfully deleted company '%s' (ID: %s) and %d associated jobs",
+                    company_name,
+                    company_id,
+                    job_count or 0,
+                )
+                return True
+
+        except Exception:
+            logger.exception("Failed to delete company with ID %s", company_id)
+            raise
+
+    @staticmethod
     def get_company_by_id(company_id: int) -> Company | None:
         """Get a single company by its ID.
 
@@ -689,3 +751,130 @@ class CompanyService:
         )
 
         return company_map
+
+    @staticmethod
+    def bulk_delete_companies(company_ids: list[int]) -> int:
+        """Delete multiple companies and their associated jobs in a single operation.
+
+        Uses efficient bulk operations to delete companies and cascade to jobs,
+        avoiding N+1 query problems for large datasets.
+
+        Args:
+            company_ids: List of company database IDs to delete.
+
+        Returns:
+            Number of companies successfully deleted.
+
+        Raises:
+            Exception: If bulk delete operation fails.
+        """
+        if not company_ids:
+            return 0
+
+        try:
+            with db_session() as session:
+                # First get company names for logging before deletion
+                companies_to_delete = session.exec(
+                    select(CompanySQL.name, CompanySQL.id).where(
+                        CompanySQL.id.in_(company_ids)
+                    )
+                ).all()
+
+                if not companies_to_delete:
+                    logger.warning("No companies found for bulk deletion")
+                    return 0
+
+                company_names = [comp.name for comp in companies_to_delete]
+                found_ids = [comp.id for comp in companies_to_delete]
+
+                # Count associated jobs for logging
+                job_count = (
+                    session.exec(
+                        select(func.count(JobSQL.id)).where(
+                            JobSQL.company_id.in_(found_ids)
+                        )
+                    ).first()
+                    or 0
+                )
+
+                # Delete associated jobs first (foreign key constraint)
+                if job_count > 0:
+                    session.exec(
+                        sqlmodel.delete(JobSQL).where(JobSQL.company_id.in_(found_ids))
+                    )
+                    logger.info(
+                        "Bulk deleted %d jobs associated with companies", job_count
+                    )
+
+                # Delete companies using bulk operation
+                deleted_count = session.exec(
+                    sqlmodel.delete(CompanySQL).where(CompanySQL.id.in_(found_ids))
+                ).rowcount
+
+                logger.info(
+                    "Bulk deleted %d companies: %s (and %d associated jobs)",
+                    deleted_count,
+                    ", ".join(company_names),
+                    job_count,
+                )
+                return deleted_count
+
+        except Exception:
+            logger.exception("Failed to bulk delete companies")
+            raise
+
+    @staticmethod
+    def bulk_update_status(company_ids: list[int], active: bool) -> int:
+        """Update the active status of multiple companies in a single operation.
+
+        Uses efficient bulk update to modify company active status,
+        avoiding N+1 query problems for large datasets.
+
+        Args:
+            company_ids: List of company database IDs to update.
+            active: New active status to set.
+
+        Returns:
+            Number of companies successfully updated.
+
+        Raises:
+            Exception: If bulk update operation fails.
+        """
+        if not company_ids:
+            return 0
+
+        try:
+            with db_session() as session:
+                # Get company names for logging
+                companies_to_update = session.exec(
+                    select(CompanySQL.name, CompanySQL.id).where(
+                        CompanySQL.id.in_(company_ids)
+                    )
+                ).all()
+
+                if not companies_to_update:
+                    logger.warning("No companies found for bulk status update")
+                    return 0
+
+                company_names = [comp.name for comp in companies_to_update]
+                found_ids = [comp.id for comp in companies_to_update]
+
+                # Update companies using bulk operation
+                updated_count = session.exec(
+                    sqlmodel.update(CompanySQL)
+                    .where(CompanySQL.id.in_(found_ids))
+                    .values(active=active)
+                ).rowcount
+
+                status_text = "activated" if active else "deactivated"
+                logger.info(
+                    "Bulk %s %d companies: %s",
+                    status_text,
+                    updated_count,
+                    ", ".join(company_names),
+                )
+                return updated_count
+
+        except Exception:
+            logger.exception("Failed to bulk update company status")
+            raise

@@ -58,7 +58,7 @@ USE_GROQ=false
 Before the first run, you need to create the database and add a curated list of top AI companies.
 
 ```bash
-uv run python -m src.seed seed
+uv run python -m src.seed
 ```
 
 You should see a message confirming that companies have been seeded.
@@ -68,7 +68,7 @@ You should see a message confirming that companies have been seeded.
 You're all set! Start the Streamlit web application with this command:
 
 ```bash
-streamlit run src/main.py
+uv run streamlit run src/main.py
 ```
 
 Your web browser should automatically open to `http://localhost:8501`.

@@ -38,6 +38,11 @@ def render_scraping_page() -> None:
     if "last_refresh" not in st.session_state:
         st.session_state.last_refresh = 0.0
 
+    # Process scraping trigger (runs every second via @st.fragment)
+    from src.ui.utils.background_tasks import process_scraping_trigger
+
+    process_scraping_trigger()
+
     # Page header
     st.markdown("# 🔍 Job Scraping Dashboard")
     st.markdown(
@@ -95,15 +100,17 @@ def _render_control_buttons() -> None:
             else "No active companies configured",
         ):
             try:
-                task_id = start_background_scraping()
+                start_background_scraping()
                 st.success(
-                    f"✅ Scraping started! Monitoring {len(active_companies)} "
-                    f"companies. Task ID: {task_id[:8]}..."
+                    f"🚀 Scraping initiated! Monitoring {len(active_companies)} "
+                    f"companies. Progress will appear below."
                 )
+                st.balloons()  # Celebratory feedback
                 st.rerun()
-            except Exception:
+            except Exception as e:
                 logger.exception("Failed to start scraping")
-                st.error("❌ Failed to start scraping")
+                st.error(f"❌ Failed to start scraping: {e!s}")
+                st.exception(e)  # Show detailed error for debugging
 
     with col2:
         # STOP button
@@ -158,6 +165,15 @@ def _render_control_buttons() -> None:
                 logger.exception("Error resetting progress")
                 st.error("❌ Error resetting progress")
 
+    # Show current status
+    current_status = st.session_state.get(
+        "scraping_status", "Ready to start scraping..."
+    )
+    if is_scraping:
+        st.info(f"🔄 {current_status}")
+    else:
+        st.success(f"✅ {current_status}")
+
     # Show company status
     st.markdown(f"**Active Companies:** {len(active_companies)} configured")
     if active_companies:
@@ -167,8 +183,12 @@ def _render_control_buttons() -> None:
         st.caption(companies_text)
 
 
+@st.fragment(run_every=2)  # Auto-refresh every 2 seconds
 def _render_progress_dashboard() -> None:
-    """Render the real-time progress dashboard with overall metrics."""
+    """Render the real-time progress dashboard with auto-updating fragments."""
+    if not is_scraping_active():
+        return  # Don't render if not scraping
+
     st.markdown("---")
 
     # Header with real-time indicator
@@ -176,13 +196,11 @@ def _render_progress_dashboard() -> None:
     with col_header:
         st.markdown("### 📊 Real-time Progress Dashboard")
     with col_indicator:
-        if is_scraping_active():
-            st.markdown("🔄 **Auto-updating**")
-        else:
-            st.markdown("⏸️ **Paused**")
+        st.markdown("🔄 **Auto-updating**")
 
-    # Get progress data
+    # Get progress data with debugging
     company_progress = get_company_progress()
+    logger.info("Fragment update: %d companies in progress", len(company_progress))
 
     # Calculate overall metrics
     total_jobs_found = sum(company.jobs_found for company in company_progress.values())

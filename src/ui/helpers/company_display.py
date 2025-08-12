@@ -57,3 +57,108 @@ def render_company_card(company: Company, toggle_callback) -> None:
 
         with col3:
             render_company_toggle(company, toggle_callback)
+
+
+def render_company_card_with_delete(
+    company: Company, toggle_callback, delete_callback
+) -> None:
+    """Render a company card with info, stats, toggle, and delete button."""
+    with st.container(border=True):
+        col1, col2, col3, col4 = st.columns([3, 2, 1, 1])
+
+        with col1:
+            render_company_info(company)
+
+        with col2:
+            render_company_statistics(company)
+
+        with col3:
+            render_company_toggle(company, toggle_callback)
+
+        with col4:
+            # Create a unique key for the confirmation checkbox
+            confirm_key = f"delete_confirm_{company.id}"
+
+            # Show confirmation checkbox if delete button was clicked
+            if st.session_state.get(f"show_delete_confirm_{company.id}", False):
+                st.checkbox(
+                    "Confirm?",
+                    key=confirm_key,
+                    help="Check to confirm deletion",
+                    on_change=delete_callback,
+                    args=(company.id,),
+                )
+                # Add cancel button
+                if st.button("Cancel", key=f"cancel_delete_{company.id}"):
+                    st.session_state[f"show_delete_confirm_{company.id}"] = False
+                    st.session_state.pop(confirm_key, None)
+                    st.rerun()
+            # Show delete button
+            elif st.button(
+                "🗑️ Delete",
+                key=f"delete_btn_{company.id}",
+                help=f"Delete {company.name} and all associated jobs",
+                type="secondary",
+            ):
+                st.session_state[f"show_delete_confirm_{company.id}"] = True
+                st.rerun()
+
+
+def render_company_card_with_selection(
+    company: Company, toggle_callback, delete_callback, selection_callback
+) -> None:
+    """Render a company card with selection, info, stats, toggle, and delete."""
+    with st.container(border=True):
+        col1, col2, col3, col4, col5 = st.columns([0.5, 2.5, 2, 1, 1])
+
+        with col1:
+            # Selection checkbox
+            selected = st.session_state.get("selected_companies", set())
+            is_selected = company.id in selected if company.id else False
+
+            st.checkbox(
+                "",
+                value=is_selected,
+                key=f"select_company_{company.id}",
+                help=f"Select {company.name} for bulk operations",
+                on_change=selection_callback,
+                args=(company.id,),
+                label_visibility="collapsed",
+            )
+
+        with col2:
+            render_company_info(company)
+
+        with col3:
+            render_company_statistics(company)
+
+        with col4:
+            render_company_toggle(company, toggle_callback)
+
+        with col5:
+            # Create a unique key for the confirmation checkbox
+            confirm_key = f"delete_confirm_{company.id}"
+
+            # Show confirmation checkbox if delete button was clicked
+            if st.session_state.get(f"show_delete_confirm_{company.id}", False):
+                st.checkbox(
+                    "Confirm?",
+                    key=confirm_key,
+                    help="Check to confirm deletion",
+                    on_change=delete_callback,
+                    args=(company.id,),
+                )
+                # Add cancel button
+                if st.button("Cancel", key=f"cancel_delete_{company.id}"):
+                    st.session_state[f"show_delete_confirm_{company.id}"] = False
+                    st.session_state.pop(confirm_key, None)
+                    st.rerun()
+            # Show delete button
+            elif st.button(
+                "🗑️",
+                key=f"delete_btn_{company.id}",
+                help=f"Delete {company.name} and all associated jobs",
+                type="secondary",
+            ):
+                st.session_state[f"show_delete_confirm_{company.id}"] = True
+                st.rerun()

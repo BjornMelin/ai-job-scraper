@@ -12,16 +12,28 @@ import hashlib
 import logging
 import re
 
+
+# Fix for SQLAlchemy table redefinition issue during Streamlit reruns
+# This addresses the "Table already defined for this MetaData instance" error
+# that occurs when clicking the Stop button during scraping operations
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 
 from babel.numbers import NumberFormatError, parse_decimal, parse_number
 from price_parser import Price
-from pydantic import computed_field, field_validator, model_validator
+from pydantic import (
+    computed_field,
+    field_validator,
+    model_validator,
+)
 from sqlalchemy.types import JSON
 from sqlmodel import Column, Field, Relationship, SQLModel
+
+# SQLAlchemy 2.0 library-first approach: Use extend_existing=True for all tables
+# This replaces the dangerous monkey patch with SQLAlchemy's built-in mechanism
+# that properly handles table redefinition during Streamlit reruns
 
 # Type aliases for better readability
 type SalaryTuple = tuple[int | None, int | None]
@@ -495,13 +507,29 @@ class CompanySQL(SQLModel, table=True, extend_existing=True):
     url: str
     active: bool = Field(default=True, index=True)  # Index for active status filtering
     last_scraped: datetime | None = Field(
-        default=None, index=True
+        default=None, index=True, description="Timezone-aware datetime (UTC)"
     )  # Index for scraping recency
     scrape_count: int = Field(default=0)
     success_rate: float = Field(default=1.0)
 
     # Relationships
     jobs: list["JobSQL"] = Relationship(back_populates="company_relation")
+
+    @field_validator("last_scraped", mode="before")
+    @classmethod
+    def ensure_timezone_aware(cls, v) -> datetime | None:
+        """Ensure datetime is timezone-aware (UTC) - simplified validator."""
+        if v is None:
+            return None
+        if isinstance(v, str):
+            try:
+                parsed = datetime.fromisoformat(v.replace("Z", "+00:00"))
+                return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+            except ValueError:
+                return None
+        if isinstance(v, datetime):
+            return v if v.tzinfo else v.replace(tzinfo=timezone.utc)
+        return None
 
 
 class JobSQL(SQLModel, table=True, extend_existing=True):
@@ -543,7 +571,7 @@ class JobSQL(SQLModel, table=True, extend_existing=True):
     application_date: datetime | None = None
     archived: bool = Field(default=False, index=True)
     last_seen: datetime | None = Field(
-        default=None, index=True
+        default=None, index=True, description="Timezone-aware datetime (UTC)"
     )  # Index for stale job queries
 
     # Relationships
@@ -595,6 +623,26 @@ class JobSQL(SQLModel, table=True, extend_existing=True):
             data["content_hash"] = generated_hash
 
         return data
+
+    @field_validator("posted_date", "application_date", "last_seen", mode="before")
+    @classmethod
+    def ensure_datetime_timezone_aware(cls, v) -> datetime | None:
+        """Ensure datetime fields are timezone-aware (UTC) - simplified validator."""
+        if v is None:
+            return None
+        if isinstance(v, str):
+            try:
+                parsed = datetime.fromisoformat(v.replace("Z", "+00:00"))
+                return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+            except ValueError:
+                try:
+                    parsed = datetime.strptime(v, "%Y-%m-%d")  # noqa: DTZ007
+                    return parsed.replace(tzinfo=timezone.utc)
+                except ValueError:
+                    return None
+        if isinstance(v, datetime):
+            return v if v.tzinfo else v.replace(tzinfo=timezone.utc)
+        return None
 
     @field_validator("salary", mode="before")
     @classmethod
