@@ -37,6 +37,13 @@ class SalaryContext:
     is_monthly: bool = False
 
 
+@dataclass(frozen=True)
+class SimplePrice:
+    """Simple Price-like object for consistent price representation."""
+
+    amount: Decimal
+
+
 # Compiled regex patterns for salary parsing
 _UP_TO_PATTERN: re.Pattern[str] = re.compile(
     r"\b(?:up\s+to|maximum\s+of|max\s+of|not\s+more\s+than)\b", re.IGNORECASE
@@ -74,7 +81,7 @@ _PHRASES_TO_REMOVE: list[str] = [
 ]
 
 # Logger for salary parsing operations
-logger = logging.getLogger(__name__)
+salary_logger = logging.getLogger(__name__)
 
 # Time-based conversion constants - configurable for different work patterns
 DEFAULT_WEEKLY_HOURS = 40
@@ -108,7 +115,7 @@ class LibrarySalaryParser:
             return (None, None)
 
         original_text = text.strip()
-        logger.debug("Parsing salary text: %s", original_text)
+        salary_logger.debug("Parsing salary text: %s", original_text)
 
         # Detect contextual patterns first
         context = LibrarySalaryParser._detect_context(original_text)
@@ -123,7 +130,7 @@ class LibrarySalaryParser:
         if result != (None, None):
             return result
 
-        logger.debug("Could not parse salary: %s", original_text)
+        salary_logger.debug("Could not parse salary: %s", original_text)
         return (None, None)
 
     @staticmethod
@@ -192,8 +199,8 @@ class LibrarySalaryParser:
                 )
                 final_value = converted_values[0]
                 return LibrarySalaryParser._apply_context_logic(final_value, context)
-        except Exception as e:
-            logger.debug("Price parser failed for '%s': %s", text, e)
+        except (ValueError, TypeError, AttributeError) as e:
+            salary_logger.debug("Price parser failed for '%s': %s", text, e)
 
         # Fallback to babel-based number extraction
         return LibrarySalaryParser._parse_with_babel_fallback(text, context)
@@ -255,8 +262,8 @@ class LibrarySalaryParser:
                 try:
                     base_value = float(k_match.group(1))
                     amount = base_value * 1000
-                    # Create a mock Price object
-                    price = type("Price", (), {"amount": Decimal(str(amount))})()
+                    # Create a consistent Price-like object
+                    price = SimplePrice(amount=Decimal(str(amount)))
                     prices.append(price)
                     continue
                 except (ValueError, TypeError):
@@ -271,8 +278,8 @@ class LibrarySalaryParser:
                     price.amount >= 1000 or (price.amount >= 10 and price.amount < 1000)
                 ):
                     prices.append(price)
-            except Exception as e:
-                logger.debug("Failed to parse price from part '%s': %s", part, e)
+            except (ValueError, TypeError, AttributeError) as e:
+                salary_logger.debug("Failed to parse price from part '%s': %s", part, e)
                 continue
 
         return prices
@@ -384,7 +391,7 @@ class LibrarySalaryParser:
                 return LibrarySalaryParser._apply_context_logic(final_value, context)
 
         except (NumberFormatError, ValueError) as e:
-            logger.debug("Babel parsing failed for '%s': %s", text, e)
+            salary_logger.debug("Babel parsing failed for '%s': %s", text, e)
 
         return (None, None)
 
