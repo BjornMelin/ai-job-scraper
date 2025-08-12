@@ -236,9 +236,36 @@ def _bulk_delete_callback() -> None:
         st.session_state.bulk_operation_error = "No companies selected for deletion"
         return
 
-    # Set flag to show dialog
-    st.session_state.show_bulk_delete_dialog = True
+    # Set flag to show confirmation dialog
+    st.session_state.show_bulk_delete_confirm = True
     st.rerun()
+
+
+def _execute_bulk_delete() -> None:
+    """Execute bulk deletion with simple error handling."""
+    try:
+        selected_ids = list(st.session_state.get("selected_companies", set()))
+        if not selected_ids:
+            st.session_state.bulk_operation_error = "No companies selected for deletion"
+            return
+
+        # Execute the deletion
+        deleted_count = CompanyService.bulk_delete_companies(selected_ids)
+
+        # Clear state and show success
+        st.session_state.bulk_operation_success = (
+            f"Successfully deleted {deleted_count} companies"
+        )
+        st.session_state.selected_companies.clear()
+        st.session_state.show_bulk_delete_confirm = False
+
+        logger.info("User bulk deleted %d companies", deleted_count)
+        st.rerun()
+
+    except Exception as e:
+        st.session_state.bulk_operation_error = f"Failed to delete companies: {e}"
+        st.session_state.show_bulk_delete_confirm = False
+        logger.exception("Failed to bulk delete companies")
 
 
 def _bulk_activate_callback() -> None:
@@ -343,23 +370,9 @@ def show_companies_page() -> None:
     # Initialize session state and display feedback
     _init_and_display_feedback()
 
-    # Add new company section with popover help
-    col_header, col_help = st.columns([6, 1])
-    with col_header:
-        st.markdown("### + Add New Company")
-        st.markdown("Add a new company to start tracking job opportunities")
-    with col_help:
-        with st.popover("ℹ️", help="Add company help"):
-            st.markdown(
-                "**Adding Companies**\n\n"
-                "• Company names must be unique\n"
-                "• Use the main careers page URL\n"
-                "• URL must start with http:// or https://\n"
-                "• Added companies are active by default\n\n"
-                "**Tips:**\n"
-                "• Look for '/careers' or '/jobs' pages\n"
-                "• Some companies use job boards (e.g., Lever, Greenhouse)"
-            )
+    # Add new company section using form with clear visual hierarchy
+    st.markdown("### + Add New Company")
+    st.markdown("Add a new company to start tracking job opportunities")
 
     with st.form("add_company_form", border=True):
         col1, col2 = st.columns(2)
@@ -367,6 +380,7 @@ def show_companies_page() -> None:
             st.text_input(
                 "Company Name",
                 placeholder="e.g., TechCorp",
+                help="Enter the company name (must be unique)",
                 key="company_name",
             )
 
@@ -374,6 +388,7 @@ def show_companies_page() -> None:
             st.text_input(
                 "Careers URL",
                 placeholder="e.g., https://techcorp.com/careers",
+                help="Enter the company's careers page URL",
                 key="company_url",
             )
 
@@ -394,83 +409,77 @@ def show_companies_page() -> None:
         # Bulk selection and operations section
         st.markdown("#### Bulk Operations")
 
-        # Selection controls using horizontal flex container
-        with st.container():
-            # Use horizontal flex container for better alignment
-            container_cols = st.columns([1, 1, 3], gap="medium")
+        # Selection controls
+        col1, col2, col3 = st.columns([1, 1, 2])
+        with col1:
+            st.button(
+                "Select All",
+                key="select_all_btn",
+                on_click=_select_all_callback,
+                help="Select all companies for bulk operations",
+            )
+        with col2:
+            st.button(
+                "Select None",
+                key="select_none_btn",
+                on_click=_select_none_callback,
+                help="Clear all company selections",
+            )
+        with col3:
+            selected_companies = (
+                st.session_state.get("selected_companies", set()) or set()
+            )
+            selected_count = len(selected_companies)
+            total_count = len(companies)
+            st.markdown(f"**{selected_count} of {total_count} companies selected**")
 
-            with container_cols[0]:
-                st.button(
-                    "Select All",
-                    key="select_all_btn",
-                    on_click=_select_all_callback,
-                    help="Select all companies for bulk operations",
-                    use_container_width=True,
-                )
-
-            with container_cols[1]:
-                st.button(
-                    "Select None",
-                    key="select_none_btn",
-                    on_click=_select_none_callback,
-                    help="Clear all company selections",
-                    use_container_width=True,
-                )
-
-            with container_cols[2]:
-                selected_companies = (
-                    st.session_state.get("selected_companies", set()) or set()
-                )
-                selected_count = len(selected_companies)
-                total_count = len(companies)
-                # Use centered alignment for better visual hierarchy
-                st.markdown(
-                    f"<div style='text-align: center; padding: 8px;'>"
-                    f"<strong>{selected_count} of {total_count} companies selected</strong>"
-                    f"</div>",
-                    unsafe_allow_html=True,
-                )
-
-        # Bulk operation buttons using flex container for better layout
+        # Bulk operation buttons (only show when companies are selected)
         if selected_count > 0:
-            with st.container():
-                # Use equal-width columns with better gap control
-                action_cols = st.columns(3, gap="large")
+            col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
 
-                with action_cols[0]:
-                    st.button(
-                        "✅ Activate Selected",
-                        key="bulk_activate_btn",
-                        on_click=_bulk_activate_callback,
-                        help=f"Activate {selected_count} selected companies",
-                        type="secondary",
-                        use_container_width=True,
-                    )
+            with col1:
+                st.button(
+                    "✅ Activate Selected",
+                    key="bulk_activate_btn",
+                    on_click=_bulk_activate_callback,
+                    help=f"Activate {selected_count} selected companies",
+                    type="secondary",
+                )
 
-                with action_cols[1]:
-                    st.button(
-                        "❌ Deactivate Selected",
-                        key="bulk_deactivate_btn",
-                        on_click=_bulk_deactivate_callback,
-                        help=f"Deactivate {selected_count} selected companies",
-                        type="secondary",
-                        use_container_width=True,
-                    )
+            with col2:
+                st.button(
+                    "❌ Deactivate Selected",
+                    key="bulk_deactivate_btn",
+                    on_click=_bulk_deactivate_callback,
+                    help=f"Deactivate {selected_count} selected companies",
+                    type="secondary",
+                )
 
-                with action_cols[2]:
-                    st.button(
-                        "🗑️ Delete Selected",
-                        key="bulk_delete_btn",
-                        on_click=_bulk_delete_callback,
-                        help=f"Delete {selected_count} selected companies and jobs",
-                        type="secondary",
-                        use_container_width=True,
-                    )
+            with col3:
+                st.button(
+                    "🗑️ Delete Selected",
+                    key="bulk_delete_btn",
+                    on_click=_bulk_delete_callback,
+                    help=f"Delete {selected_count} selected companies and jobs",
+                    type="secondary",
+                )
 
-        # Show bulk delete confirmation dialog if triggered
-        if st.session_state.get("show_bulk_delete_dialog", False):
-            st.session_state.show_bulk_delete_dialog = False  # Reset flag
-            _show_bulk_delete_dialog()
+        # Show bulk delete confirmation dialog
+        if st.session_state.get("show_bulk_delete_confirm", False):
+            selected_count = len(st.session_state.get("selected_companies", set()))
+            st.warning(
+                f"⚠️ Are you sure you want to delete {selected_count} companies? "
+                "This will also delete all associated jobs and cannot be undone."
+            )
+
+            col1, col2 = st.columns([1, 1])
+            with col1:
+                if st.button("✅ Confirm Delete", key="confirm_bulk_delete"):
+                    _execute_bulk_delete()
+            with col2:
+                if st.button("❌ Cancel", key="cancel_bulk_delete"):
+                    st.session_state.show_bulk_delete_confirm = False
+                    st.rerun()
 
         st.markdown("---")
 

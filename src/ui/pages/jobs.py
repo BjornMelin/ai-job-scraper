@@ -481,80 +481,14 @@ def _render_job_display(jobs: list[Job], tab_key: str) -> None:
     if not jobs:
         return
 
-    # Use helper for view mode selection and rendering (preserves existing UX)
+    # Apply per-tab search to jobs list
+    filtered_jobs = _apply_tab_search_to_jobs(jobs, tab_key)
+
+    # Use helper for view mode selection and rendering
     from src.ui.helpers.view_mode import apply_view_mode, select_view_mode
 
     view_mode, grid_columns = select_view_mode(tab_key)
-
-    if view_mode == "List":
-        # Use native dataframe for list view with built-in search/sort/filter
-        _render_native_dataframe(jobs, tab_key)
-    else:
-        # Use existing card view for visual appeal (no pagination)
-        apply_view_mode(jobs, view_mode, grid_columns)
-
-
-def _render_native_dataframe(jobs: list[Job], tab_key: str) -> None:
-    """Render job display using native st.dataframe with built-in features.
-
-    Args:
-        jobs: List of jobs to display.
-        tab_key: Unique key for the tab.
-    """
-    # Convert jobs to DataFrame
-    jobs_df = _jobs_to_dataframe(jobs)
-
-    # Use native st.dataframe with all built-in features
-    edited_df = st.data_editor(
-        jobs_df,
-        column_config={
-            "Link": st.column_config.LinkColumn(
-                "Link", display_text="Apply", help="Click to open job application page"
-            ),
-            "Favorite": st.column_config.CheckboxColumn(
-                "⭐ Favorite", help="Mark as favorite job"
-            ),
-            "Status": st.column_config.SelectboxColumn(
-                "🔄 Status",
-                options=["New", "Interested", "Applied", "Rejected"],
-                help="Update application status",
-            ),
-            "Notes": st.column_config.TextColumn(
-                "📝 Notes", help="Add personal notes about this job"
-            ),
-            "Company": st.column_config.TextColumn("🏢 Company", width="medium"),
-            "Title": st.column_config.TextColumn("💼 Title", width="large"),
-            "Location": st.column_config.TextColumn("📍 Location", width="medium"),
-            "Posted": st.column_config.DatetimeColumn("📅 Posted", format="YYYY-MM-DD"),
-            "Last Seen": st.column_config.DatetimeColumn(
-                "👀 Last Seen", format="YYYY-MM-DD HH:mm"
-            ),
-        },
-        hide_index=True,
-        use_container_width=True,
-        key=f"jobs_dataframe_{tab_key}",
-        on_change=lambda: _save_dataframe_changes(tab_key),
-    )
-
-    # Export functionality
-    col1, col2 = st.columns([1, 1])
-    with col1:
-        if st.button(
-            "💾 Save Changes", key=f"save_{tab_key}", use_container_width=True
-        ):
-            _save_dataframe_changes(tab_key)
-            st.success("Changes saved!")
-
-    with col2:
-        csv = edited_df.to_csv(index=False).encode("utf-8")
-        st.download_button(
-            "📥 Export CSV",
-            csv,
-            f"jobs_{tab_key}.csv",
-            "text/csv",
-            key=f"export_{tab_key}",
-            use_container_width=True,
-        )
+    apply_view_mode(filtered_jobs, view_mode, grid_columns)
 
 
 def _jobs_to_dataframe(jobs: list[Job]) -> pd.DataFrame:
@@ -590,41 +524,54 @@ def _jobs_to_dataframe(jobs: list[Job]) -> pd.DataFrame:
     )
 
 
-def _save_dataframe_changes(tab_key: str) -> None:
-    """Save changes from dataframe editing using service layer.
+def _apply_tab_search_to_jobs(jobs: list[Job], tab_key: str) -> list[Job]:
+    """Apply per-tab search filtering to Job DTO objects.
 
     Args:
-        tab_key: Tab identifier for getting the right dataframe state.
+        jobs: List of Job DTO objects to filter.
+        tab_key: Tab key for search state.
+
+    Returns:
+        Filtered list of Job DTO objects.
     """
-    try:
-        # Get the edited dataframe from session state
-        dataframe_key = f"jobs_dataframe_{tab_key}"
-        if dataframe_key in st.session_state:
-            edited_df = st.session_state[dataframe_key]
+    # Per-tab search with visual feedback
+    search_col1, search_col2 = st.columns([3, 1])
 
-            # Convert DataFrame to list of updates for bulk update
-            job_updates = []
-            for _, row in edited_df.iterrows():
-                job_updates.append(
-                    {
-                        "id": row["id"],
-                        "favorite": row["Favorite"],
-                        "application_status": row["Status"],
-                        "notes": row["Notes"],
-                    }
-                )
+    with search_col1:
+        search_key = f"search_{tab_key}"
+        search_term = st.text_input(
+            "🔍 Search in this tab",
+            key=search_key,
+            placeholder="Search by job title, description, or company...",
+            help="Search is case-insensitive and searches across title, "
+            "description, and company",
+        )
 
-            # Use service layer for bulk update
-            JobService.bulk_update_jobs(job_updates)
-            logger.info(
-                "Successfully saved %d job updates from %s tab",
-                len(job_updates),
-                tab_key,
+    # Apply search filter if search term exists
+    if search_term:
+        search_term_lower = search_term.lower()
+        filtered_jobs = [
+            job
+            for job in jobs
+            if (
+                search_term_lower in job.title.lower()
+                or search_term_lower in job.description.lower()
+                or search_term_lower in job.company.lower()
+            )
+        ]
+
+        with search_col2:
+            st.metric(
+                "Results",
+                len(filtered_jobs),
+                delta=f"-{len(jobs) - len(filtered_jobs)}"
+                if len(filtered_jobs) < len(jobs)
+                else None,
             )
 
-    except Exception:
-        logger.exception("Failed to save dataframe changes for %s tab", tab_key)
-        st.error("Failed to save changes. Please try again.")
+        return filtered_jobs
+
+    return jobs
 
 
 def _render_statistics_dashboard(jobs: list[Job]) -> None:
@@ -670,7 +617,7 @@ def _render_metric_cards(
     favorites: int,
     rejected: int,
 ) -> None:
-    """Render the metric cards section.
+    """Render the metric cards section using enhanced st.metric components.
 
     Args:
         total_jobs: Total number of jobs.
@@ -683,77 +630,57 @@ def _render_metric_cards(
     col1, col2, col3, col4, col5, col6 = st.columns(6)
 
     with col1:
-        st.markdown(
-            f"""
-            <div class="metric-card">
-                <div class="metric-value">{total_jobs}</div>
-                <div class="metric-label">Total Jobs</div>
-            </div>
-        """,
-            unsafe_allow_html=True,
-        )
+        st.metric("Total Jobs", total_jobs)
 
     with col2:
-        st.markdown(
-            f"""
-            <div class="metric-card">
-                <div class="metric-value" style="color: var(--primary-color);">
-                    {new_jobs}
-                </div>
-                <div class="metric-label">New</div>
-            </div>
-        """,
-            unsafe_allow_html=True,
+        # Calculate percentage of new jobs
+        new_percentage = (new_jobs / total_jobs * 100) if total_jobs > 0 else 0
+        st.metric(
+            "New Jobs",
+            new_jobs,
+            delta=f"{new_percentage:.1f}%" if new_percentage > 0 else None,
         )
 
     with col3:
-        st.markdown(
-            f"""
-            <div class="metric-card">
-                <div class="metric-value" style="color: var(--warning-color);">
-                    {interested}
-                </div>
-                <div class="metric-label">Interested</div>
-            </div>
-        """,
-            unsafe_allow_html=True,
+        # Calculate percentage of interested jobs
+        interested_percentage = (interested / total_jobs * 100) if total_jobs > 0 else 0
+        st.metric(
+            "Interested",
+            interested,
+            delta=f"{interested_percentage:.1f}%"
+            if interested_percentage > 0
+            else None,
+            delta_color="normal",
         )
 
     with col4:
-        st.markdown(
-            f"""
-            <div class="metric-card">
-                <div class="metric-value" style="color: var(--success-color);">
-                    {applied}
-                </div>
-                <div class="metric-label">Applied</div>
-            </div>
-        """,
-            unsafe_allow_html=True,
+        # Calculate percentage of applied jobs
+        applied_percentage = (applied / total_jobs * 100) if total_jobs > 0 else 0
+        st.metric(
+            "Applied",
+            applied,
+            delta=f"{applied_percentage:.1f}%" if applied_percentage > 0 else None,
+            delta_color="normal",
         )
 
     with col5:
-        st.markdown(
-            f"""
-            <div class="metric-card">
-                <div class="metric-value" style="color: #f59e0b;">{favorites}</div>
-                <div class="metric-label">Favorites</div>
-            </div>
-        """,
-            unsafe_allow_html=True,
+        # Calculate percentage of favorites
+        favorites_percentage = (favorites / total_jobs * 100) if total_jobs > 0 else 0
+        st.metric(
+            "Favorites",
+            favorites,
+            delta=f"{favorites_percentage:.1f}%" if favorites_percentage > 0 else None,
+            delta_color="normal",
         )
 
     with col6:
-        st.markdown(
-            f"""
-            <div class="metric-card">
-                <div class="metric-value" style="color: var(--danger-color);">
-                    {rejected}
-                </div>
-                <div class="metric-label">Rejected</div>
-            </div>
-        """,
-            unsafe_allow_html=True,
+        # Calculate percentage of rejected jobs
+        rejected_percentage = (rejected / total_jobs * 100) if total_jobs > 0 else 0
+        st.metric(
+            "Rejected",
+            rejected,
+            delta=f"{rejected_percentage:.1f}%" if rejected_percentage > 0 else None,
+            delta_color="inverse",
         )
 
 
@@ -801,16 +728,16 @@ def _render_progress_visualization(
             st.progress(pct / 100)
 
     with col2:
-        # Application rate metric
+        # Application rate metric using st.metric
         application_rate = (applied / total_jobs) * 100 if total_jobs > 0 else 0
-        st.markdown(
-            f"""
-            <div class="metric-card">
-                <div class="metric-value">{application_rate:.1f}%</div>
-                <div class="metric-label">Application Rate</div>
-            </div>
-        """,
-            unsafe_allow_html=True,
+        # Calculate delta compared to a benchmark (e.g., 20% target application rate)
+        target_rate = 20.0
+        rate_delta = application_rate - target_rate
+        st.metric(
+            "Application Rate",
+            f"{application_rate:.1f}%",
+            delta=f"{rate_delta:+.1f}%" if abs(rate_delta) >= 0.1 else None,
+            delta_color="normal" if rate_delta >= 0 else "inverse",
         )
 
 
