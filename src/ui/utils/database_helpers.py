@@ -65,24 +65,78 @@ def clean_session_state() -> int:
 
 @st.cache_data(ttl=60)
 def get_database_health() -> dict[str, Any]:
-    """Get database health status."""
-    return {"status": "healthy", "details": {}}
+    """Get database health status with actual connectivity check."""
+    try:
+        # Simple connectivity test - try to get a session and execute a basic query
+        session_factory = get_cached_session_factory()
+        session = session_factory()
+        try:
+            # Execute a lightweight query to verify connection
+            from sqlmodel import text
+
+            result = session.execute(text("SELECT 1"))
+            result.scalar()
+            session.close()
+            return {
+                "status": "healthy",
+                "details": {"connected": True, "message": "Database accessible"},
+            }
+        except Exception as e:
+            session.close()
+            logger.warning("Database health check failed: %s", str(e))
+            return {
+                "status": "unhealthy",
+                "details": {"connected": False, "error": str(e)},
+            }
+    except Exception as e:
+        logger.error("Failed to create database session: %s", str(e))
+        return {
+            "status": "error",
+            "details": {"connected": False, "error": f"Session creation failed: {e}"},
+        }
 
 
 def render_database_health_widget() -> None:
     """Render database health monitoring widget in Streamlit sidebar."""
-    # ... (same implementation as in database_utils.py)
+    health = get_database_health()
+    status = health.get("status", "unknown")
+
+    if status == "healthy":
+        st.success("🟢 Database Connected")
+    elif status == "unhealthy":
+        st.warning("🟡 Database Issue")
+        if error := health.get("details", {}).get("error"):
+            st.caption(f"Error: {error[:50]}...")
+    else:
+        st.error("🔴 Database Error")
+        if error := health.get("details", {}).get("error"):
+            st.caption(f"Error: {error[:50]}...")
 
 
 @contextmanager
 def background_task_session() -> Generator[Session, None, None]:
     """Session context manager optimized for background tasks."""
-    # ... (same implementation as in database_utils.py)
+    session = get_session()
+    try:
+        yield session
+        session.commit()
+    except Exception:
+        session.rollback()
+        logger.exception("Background task database error")
+        raise
+    finally:
+        session.close()
 
 
 def suppress_sqlalchemy_warnings() -> None:
     """Suppress common SQLAlchemy warnings in Streamlit context."""
-    # ... (same implementation as in database_utils.py)
+    import warnings
+
+    from sqlalchemy.exc import SAWarning
+
+    # Suppress common warnings that clutter Streamlit logs
+    warnings.filterwarnings("ignore", category=SAWarning, message=".*relationship.*")
+    warnings.filterwarnings("ignore", category=SAWarning, message=".*Attribute.*")
 
 
 # Session state helper functions from session_helpers.py

@@ -132,10 +132,10 @@ def get_scraping_results() -> dict[str, Any]:
     return st.session_state.get("scraping_results", {})
 
 
-def get_task_manager() -> StreamlitTaskManager:
+def get_task_manager() -> BackgroundTaskManager:
     """Get or create the task manager instance."""
     if "task_manager" not in st.session_state:
-        st.session_state.task_manager = StreamlitTaskManager()
+        st.session_state.task_manager = BackgroundTaskManager()
     return st.session_state.task_manager
 
 

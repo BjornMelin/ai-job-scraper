@@ -7,7 +7,6 @@ background task management, data formatting, validation, and other helper functi
 from .background_helpers import (
     BackgroundTaskManager,
     ProgressInfo,
-    StreamlitTaskManager,
     TaskInfo,
     get_scraping_progress,
     get_task_manager,
@@ -19,7 +18,6 @@ from .background_helpers import (
 __all__ = [
     "BackgroundTaskManager",
     "ProgressInfo",
-    "StreamlitTaskManager",
     "TaskInfo",
     "get_scraping_progress",
     "get_task_manager",

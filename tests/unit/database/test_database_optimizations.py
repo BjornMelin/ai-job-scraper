@@ -49,7 +49,9 @@ def test_database_health_monitoring():
     # Test health assessment
     health = get_database_health()
     assert isinstance(health, dict)
-    assert "health" in health
+    assert "status" in health
+    assert health["status"] in ["healthy", "unhealthy", "error"]
+    assert "details" in health
     logger.info("Database health: %s", health)
 
     print("✅ Database health monitoring tests passed")
