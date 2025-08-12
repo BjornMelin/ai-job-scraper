@@ -106,7 +106,6 @@ class StreamlitTaskManager(BackgroundTaskManager):
     """Streamlit-specific task manager."""
 
 
-
 # Throttled rerun utility from refresh.py
 def throttled_rerun(
     session_key: str = "last_refresh",
