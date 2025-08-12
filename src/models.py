@@ -27,7 +27,6 @@ import pendulum
 from babel.numbers import NumberFormatError, parse_decimal, parse_number
 from price_parser import Price
 from pydantic import (
-    computed_field,
     field_validator,
     model_validator,
 )
@@ -190,6 +189,7 @@ class LibrarySalaryParser:
         k_match = re.search(r"(\d+(?:\.\d+)?)\s*[kK]\b", text)
         if k_match:
             try:
+                # Use float conversion to preserve decimal precision for k-suffix
                 base_value = float(k_match.group(1))
                 value = int(base_value * 1000)
 
@@ -271,10 +271,11 @@ class LibrarySalaryParser:
         for raw_part in valid_parts:
             part = raw_part.strip()
 
-            # Handle k-suffix parts specially
+            # Handle k-suffix parts specially with decimal precision preservation
             k_match = re.search(r"(\d+(?:\.\d+)?)\s*[kK]\b", part)
             if k_match:
                 try:
+                    # Use float conversion to preserve decimal precision for k-suffix
                     base_value = float(k_match.group(1))
                     amount = base_value * 1000
                     # Create a consistent Price-like object
@@ -308,8 +309,11 @@ class LibrarySalaryParser:
         )
         if to_pattern:
             try:
-                val1 = int(float(to_pattern.group(1)) * 1000)
-                val2 = int(float(to_pattern.group(2)) * 1000)
+                # Use float conversion to preserve decimal precision
+                float_val1 = float(to_pattern.group(1))
+                float_val2 = float(to_pattern.group(2))
+                val1 = int(float_val1 * 1000)
+                val2 = int(float_val2 * 1000)
                 return (min(val1, val2), max(val1, val2))
             except (ValueError, TypeError):
                 pass
@@ -327,18 +331,34 @@ class LibrarySalaryParser:
 
                 if pattern == _RANGE_K_PATTERN:  # 100-120k
                     num1, num2, _k_suffix = groups
-                    val1 = LibrarySalaryParser._safe_decimal_to_int(num1) * 1000
-                    val2 = LibrarySalaryParser._safe_decimal_to_int(num2) * 1000
+                    # Use float conversion to preserve decimal precision for k-suffix
+                    float_val1 = LibrarySalaryParser._safe_decimal_to_float(num1)
+                    float_val2 = LibrarySalaryParser._safe_decimal_to_float(num2)
+                    if float_val1 is not None and float_val2 is not None:
+                        val1 = int(float_val1 * 1000)
+                        val2 = int(float_val2 * 1000)
+                    else:
+                        continue
                 elif pattern == _BOTH_K_PATTERN:  # 100k-150k
                     num1, _k1, num2, _k2 = groups
-                    val1 = LibrarySalaryParser._safe_decimal_to_int(num1) * 1000
-                    val2 = LibrarySalaryParser._safe_decimal_to_int(num2) * 1000
+                    # Use float conversion to preserve decimal precision for k-suffix
+                    float_val1 = LibrarySalaryParser._safe_decimal_to_float(num1)
+                    float_val2 = LibrarySalaryParser._safe_decimal_to_float(num2)
+                    if float_val1 is not None and float_val2 is not None:
+                        val1 = int(float_val1 * 1000)
+                        val2 = int(float_val2 * 1000)
+                    else:
+                        continue
                 elif pattern == _ONE_SIDED_K_PATTERN:  # 100k-120
                     num1, _k_suffix, num2 = groups
-                    val1 = LibrarySalaryParser._safe_decimal_to_int(num1) * 1000
-                    val2 = (
-                        LibrarySalaryParser._safe_decimal_to_int(num2) * 1000
-                    )  # Apply k to both
+                    # Use float conversion to preserve decimal precision for k-suffix
+                    float_val1 = LibrarySalaryParser._safe_decimal_to_float(num1)
+                    float_val2 = LibrarySalaryParser._safe_decimal_to_float(num2)
+                    if float_val1 is not None and float_val2 is not None:
+                        val1 = int(float_val1 * 1000)
+                        val2 = int(float_val2 * 1000)  # Apply k to both
+                    else:
+                        continue
 
                 if val1 and val2:
                     return (min(val1, val2), max(val1, val2))
@@ -462,6 +482,25 @@ class LibrarySalaryParser:
             return None
 
     @staticmethod
+    def _safe_decimal_to_float(
+        value_str: str, locale: str = DEFAULT_LOCALE
+    ) -> float | None:
+        """Safely convert decimal string to float using babel for k-suffix parsing.
+
+        This preserves decimal precision for k-suffix multiplication where
+        '125.5k' should become 125500, not 125000.
+
+        Args:
+            value_str: String representation of decimal number
+            locale: Locale for parsing (default: en_US)
+        """
+        try:
+            decimal_val = parse_decimal(value_str, locale=locale)
+            return float(decimal_val)
+        except (NumberFormatError, ValueError, TypeError):
+            return None
+
+    @staticmethod
     def _convert_time_based_salary(
         values: Sequence[int],
         is_hourly: bool,
@@ -517,33 +556,6 @@ class CompanySQL(SQLModel, table=True, extend_existing=True):
 
     # Relationships
     jobs: list["JobSQL"] = Relationship(back_populates="company_relation")
-
-    # Computed properties for company statistics (Python-side only for reliability)
-    @computed_field  # type: ignore[misc]
-    @property
-    def total_jobs_count(self) -> int:
-        """Get total job count for this company."""
-        return len(self.jobs) if self.jobs else 0
-
-    @computed_field  # type: ignore[misc]
-    @property
-    def active_jobs_count(self) -> int:
-        """Get active (non-archived) job count for this company."""
-        return len([j for j in self.jobs if not j.archived]) if self.jobs else 0
-
-    @computed_field  # type: ignore[misc]
-    @property
-    def last_job_posted(self) -> datetime | None:
-        """Get the most recent job posting date."""
-        if not self.jobs:
-            return None
-        return max((j.posted_date for j in self.jobs if j.posted_date), default=None)
-
-    @computed_field  # type: ignore[misc]
-    @property
-    def success_rate_percentage(self) -> float:
-        """Get success rate as a percentage (0-100)."""
-        return round(self.success_rate * 100, 1)
 
     @field_validator("last_scraped", mode="before")
     @classmethod
@@ -618,74 +630,6 @@ class JobSQL(SQLModel, table=True, extend_existing=True):
 
     # Relationships
     company_relation: "CompanySQL" = Relationship(back_populates="jobs")
-
-    # Computed properties for enhanced job information
-    @computed_field  # type: ignore[misc]
-    @property
-    def salary_min(self) -> int | None:
-        """Get minimum salary value."""
-        return self.salary[0] if self.salary else None
-
-    @computed_field  # type: ignore[misc]
-    @property
-    def salary_max(self) -> int | None:
-        """Get maximum salary value."""
-        return self.salary[1] if self.salary else None
-
-    @computed_field  # type: ignore[misc]
-    @property
-    def salary_range_display(self) -> str:
-        """Get formatted salary range for display."""
-        if not self.salary or self.salary == (None, None):
-            return "Not specified"
-        min_sal, max_sal = self.salary
-        if min_sal and max_sal:
-            if min_sal == max_sal:
-                return f"${min_sal:,}"
-            return f"${min_sal:,} - ${max_sal:,}"
-        if min_sal:
-            return f"From ${min_sal:,}"
-        if max_sal:
-            return f"Up to ${max_sal:,}"
-        return "Not specified"
-
-    @computed_field  # type: ignore[misc]
-    @property
-    def days_since_posted(self) -> int | None:
-        """Get days since job was posted using Pendulum for better timezone handling."""
-        if not self.posted_date:
-            return None
-        # Convert posted_date to Pendulum instance and calculate difference
-        posted_pendulum = pendulum.instance(self.posted_date)
-        now_utc = pendulum.now("UTC")
-        return (now_utc - posted_pendulum).days
-
-    @computed_field  # type: ignore[misc]
-    @property
-    def is_recently_posted(self) -> bool:
-        """Check if job was posted within the last 7 days."""
-        days = self.days_since_posted
-        return days is not None and days <= 7
-
-    @computed_field  # type: ignore[misc]
-    @property
-    def company(self) -> str:
-        """Get company name from relationship or return unknown.
-
-        Returns:
-            str: Company name or 'Unknown' if not found.
-        """
-        return self.company_relation.name if self.company_relation else "Unknown"
-
-    @computed_field  # type: ignore[misc]
-    @property
-    def status(self) -> str:
-        """Backward compatibility alias for application_status.
-
-        Returns:
-            str: Current application status.
-        """
-        return self.application_status
 
     @model_validator(mode="before")
     @classmethod
