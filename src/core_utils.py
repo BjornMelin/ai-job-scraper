@@ -173,7 +173,8 @@ def ensure_timezone_aware(v) -> datetime | None:
         v: Input value that can be None, str, or datetime object.
 
     Returns:
-        datetime | None: Timezone-aware datetime in UTC, or None if input is None or invalid.
+        datetime | None: Timezone-aware datetime in UTC, or None if input is None or
+            invalid.
     """
     if v is None:
         return None

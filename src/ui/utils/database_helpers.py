@@ -140,11 +140,11 @@ def get_database_health() -> dict[str, "Any"]:
                 "status": "unhealthy",
                 "details": {"connected": False, "error": str(e)},
             }
-
-        return {
-            "status": "healthy",
-            "details": {"connected": True, "message": "Database accessible"},
-        }
+        else:
+            return {
+                "status": "healthy",
+                "details": {"connected": True, "message": "Database accessible"},
+            }
     except Exception as e:
         logger.exception("Failed to create database session")
         return {
