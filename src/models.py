@@ -34,6 +34,7 @@ from sqlmodel import Column, Field, Relationship, SQLModel
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+
 # SQLAlchemy 2.0 library-first approach: Use extend_existing=True for all tables
 # This replaces the dangerous monkey patch with SQLAlchemy's built-in mechanism
 # that properly handles table redefinition during Streamlit reruns
@@ -559,7 +560,10 @@ class CompanySQL(SQLModel, table=True, extend_existing=True):
     success_rate: float = Field(default=1.0)
 
     # Relationships
-    jobs: "list[JobSQL]" = Relationship(back_populates="company_relation")
+    # NOTE: Using object type to avoid SQLAlchemy 2.0 "generic class as argument" error
+    # This maintains SQLModel compatibility while avoiding generic type annotations
+    # See: https://github.com/fastapi/sqlmodel/discussions/547
+    jobs: object = Relationship(back_populates="company_relation")
 
     @field_validator("last_scraped", mode="before")
     @classmethod
@@ -627,7 +631,10 @@ class JobSQL(SQLModel, table=True, extend_existing=True):
     )  # Index for stale job queries
 
     # Relationships
-    company_relation: "CompanySQL | None" = Relationship(back_populates="jobs")
+    # NOTE: Using object type to avoid SQLAlchemy 2.0 "generic class as argument" error
+    # This maintains SQLModel compatibility while avoiding generic type annotations
+    # See: https://github.com/fastapi/sqlmodel/discussions/547
+    company_relation: object = Relationship(back_populates="jobs")
 
     @property
     def company(self) -> str:
