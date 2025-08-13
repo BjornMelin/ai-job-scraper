@@ -231,6 +231,7 @@ class SmartSyncEngine:
                 existing.archived = False
                 logger.info("Unarchiving job that returned: %s", existing.title)
                 return "updated"
+            logger.debug("Job content unchanged, skipping: %s", existing.title)
             return "skipped"
 
         # Content changed, update scraped fields while preserving user data
@@ -340,18 +341,9 @@ class SmartSyncEngine:
         Returns:
             str: MD5 hash of job content.
         """
-        # Use company name from relationship if available, fallback to company_id
-        try:
-            company_identifier = (
-                job.company_relation.name
-                if job.company_relation
-                else str(job.company_id)
-                if job.company_id
-                else "unknown"
-            )
-        except AttributeError:
-            # Fallback if company_relation is not loaded
-            company_identifier = str(job.company_id) if job.company_id else "unknown"
+        # Always use company_id for consistent hashing regardless of
+        # relationship loading
+        company_identifier = str(job.company_id) if job.company_id else "unknown"
 
         # Include all relevant scraped fields for comprehensive change detection
         content_parts = [
@@ -361,17 +353,23 @@ class SmartSyncEngine:
             company_identifier,
         ]
 
-        # Handle salary field (tuple format)
+        # Handle salary field (tuple or list format)
         if hasattr(job, "salary") and job.salary:
-            if isinstance(job.salary, tuple):
+            if isinstance(job.salary, tuple | list) and len(job.salary) >= 2:
                 salary_str = f"{job.salary[0] or ''}-{job.salary[1] or ''}"
             else:
                 salary_str = str(job.salary)
             content_parts.append(salary_str)
 
-        # Handle posted_date if available
+        # Handle posted_date if available (normalize timezone for consistent hashing)
         if job.posted_date:
-            content_parts.append(job.posted_date.isoformat())
+            # Convert to naive datetime to ensure consistent hash regardless of timezone
+            naive_date = (
+                job.posted_date.replace(tzinfo=None)
+                if job.posted_date.tzinfo
+                else job.posted_date
+            )
+            content_parts.append(naive_date.isoformat())
 
         content = "".join(content_parts)
         # MD5 is safe for non-cryptographic content fingerprinting/change detection

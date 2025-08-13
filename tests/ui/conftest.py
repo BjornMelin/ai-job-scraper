@@ -55,14 +55,22 @@ def mock_streamlit():
         started_patches.append(p)
 
     try:
-        # Configure columns to return mock column objects
+        # Configure columns to return mock column objects that work as context managers
         def mock_columns_func(*args, **_kwargs):
             """Mock columns function that returns appropriate number of columns."""
             if args:
                 num_cols = args[0] if isinstance(args[0], int) else len(args[0])
             else:
                 num_cols = 2  # Default
-            return [MagicMock() for _ in range(num_cols)]
+
+            columns = []
+            for _i in range(num_cols):
+                col = MagicMock()
+                # Configure as context manager
+                col.__enter__ = Mock(return_value=col)
+                col.__exit__ = Mock(return_value=None)
+                columns.append(col)
+            return columns
 
         mocks["columns"].side_effect = mock_columns_func
 
@@ -450,7 +458,7 @@ def mock_job_service():
         }
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def prevent_real_system_execution():
     """Global autouse fixture to prevent real system execution during tests.
 

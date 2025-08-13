@@ -143,13 +143,11 @@ class TestSettingsIntegration:
             mock_session_state["max_jobs_per_company"] = case["limit"]
 
             with mock.patch(
-                "src.ui.utils.background_tasks.JobService.get_active_companies"
+                "src.services.job_service.JobService.get_active_companies"
             ) as mock_companies:
                 mock_companies.return_value = ["Test Company"]
 
-                with mock.patch(
-                    "src.ui.utils.background_tasks.scrape_all"
-                ) as mock_scrape_all:
+                with mock.patch("src.scraper.scrape_all") as mock_scrape_all:
                     mock_scrape_all.return_value = {"Test Company": case["limit"]}
 
                     # Start scraping
@@ -227,13 +225,11 @@ class TestSettingsIntegration:
 
             # Test with background task
             with mock.patch(
-                "src.ui.utils.background_tasks.JobService.get_active_companies"
+                "src.services.job_service.JobService.get_active_companies"
             ) as mock_companies:
                 mock_companies.return_value = ["Edge Case Corp"]
 
-                with mock.patch(
-                    "src.ui.utils.background_tasks.scrape_all"
-                ) as mock_scrape_all:
+                with mock.patch("src.scraper.scrape_all") as mock_scrape_all:
                     mock_scrape_all.return_value = {}
 
                     start_background_scraping()
@@ -417,13 +413,11 @@ class TestSettingsWithRealScenarios:
             save_settings({"max_jobs_per_company": session["limit"]})
 
             with mock.patch(
-                "src.ui.utils.background_tasks.JobService.get_active_companies"
+                "src.services.job_service.JobService.get_active_companies"
             ) as mock_companies:
                 mock_companies.return_value = session["companies"]
 
-                with mock.patch(
-                    "src.ui.utils.background_tasks.scrape_all"
-                ) as mock_scrape_all:
+                with mock.patch("src.scraper.scrape_all") as mock_scrape_all:
                     mock_scrape_all.return_value = dict.fromkeys(
                         session["companies"], session["limit"]
                     )
@@ -518,13 +512,11 @@ class TestSettingsWithRealScenarios:
 
             if i % 2 == 0:  # Test scraping on even iterations
                 with mock.patch(
-                    "src.ui.utils.background_tasks.JobService.get_active_companies"
+                    "src.services.job_service.JobService.get_active_companies"
                 ) as mock_companies:
                     mock_companies.return_value = [f"Stress{i} Corp"]
 
-                    with mock.patch(
-                        "src.ui.utils.background_tasks.scrape_all"
-                    ) as mock_scrape_all:
+                    with mock.patch("src.scraper.scrape_all") as mock_scrape_all:
                         mock_scrape_all.return_value = {f"Stress{i} Corp": limit}
 
                         start_background_scraping()

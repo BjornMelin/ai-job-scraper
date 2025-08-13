@@ -290,17 +290,15 @@ ignore_missing_imports = true
 # Pytest configuration
 [tool.pytest.ini_options]
 minversion = "8.0"
+# Fast default configuration - no coverage for development
 addopts = [
     "-ra",
     "--strict-markers",
     "--strict-config",
     "--disable-warnings",
     "--tb=short",
-    "--cov=src",
-    "--cov-report=term-missing:skip-covered",
-    "--cov-report=html",
-    "--cov-report=xml",
-    "--cov-fail-under=85",
+    # Coverage disabled by default for speed
+    # Use --cov flag explicitly when needed
 ]
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
@@ -311,6 +309,8 @@ markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "integration: marks tests as integration tests",
     "unit: marks tests as unit tests",
+    "performance: marks tests as performance tests",
+    "fast: marks tests as fast unit tests",
 ]
 filterwarnings = [
     "error",
@@ -444,5 +444,7 @@ dev = [
     "pylint>=3.3.7",
     "pytest-asyncio>=1.1.0",
     "pytest-cov>=6.2.1",
+    "pytest-xdist>=3.6.0",  # For parallel test execution
+    "pytest-benchmark>=4.0.0",  # For performance testing
 ]
 

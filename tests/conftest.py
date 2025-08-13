@@ -20,11 +20,19 @@ def engine_fixture():
     """Create a temporary in-memory SQLite engine for the test session.
 
     Uses StaticPool to ensure schema and data persist across session connections.
+    Optimized for session-level reuse to reduce setup overhead.
     """
     engine = create_engine(
         "sqlite:///:memory:",
         poolclass=StaticPool,
-        connect_args={"check_same_thread": False},
+        connect_args={
+            "check_same_thread": False,
+            # Performance optimizations for testing
+            "isolation_level": None,  # Autocommit mode for faster tests
+        },
+        # Reduce connection overhead
+        pool_pre_ping=True,
+        pool_recycle=3600,
     )
     SQLModel.metadata.create_all(engine)
     return engine
@@ -32,9 +40,20 @@ def engine_fixture():
 
 @pytest.fixture(name="session")
 def session_fixture(engine):
-    """Create a new database session for each test."""
-    with Session(engine) as session:
+    """Create a new database session for each test.
+
+    Uses transaction rollback for isolation without recreation overhead.
+    """
+    connection = engine.connect()
+    transaction = connection.begin()
+    session = Session(bind=connection)
+
+    try:
         yield session
+    finally:
+        session.close()
+        transaction.rollback()
+        connection.close()
 
 
 @pytest.fixture

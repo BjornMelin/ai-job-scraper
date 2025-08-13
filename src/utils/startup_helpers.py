@@ -19,14 +19,21 @@ try:
 except ImportError:
     # Create dummy streamlit for non-Streamlit environments
     class _DummyStreamlit:
+        """Dummy Streamlit class for non-Streamlit environments."""
+
         @staticmethod
         def cache_data(**_kwargs):
+            """Dummy cache decorator that passes through the function unchanged."""
+
             def decorator(func):
+                """Inner decorator function."""
                 return func
 
             return decorator
 
         class SessionState:
+            """Dummy session state for non-Streamlit environments."""
+
             cache_warmed = False
 
         session_state = SessionState()

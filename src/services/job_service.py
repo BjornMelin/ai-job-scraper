@@ -18,9 +18,14 @@ try:
 except ImportError:
     # Create dummy decorator for non-Streamlit environments
     class _DummyStreamlit:
+        """Dummy Streamlit class for non-Streamlit environments."""
+
         @staticmethod
         def cache_data(**_kwargs):
+            """Dummy cache decorator that passes through the function unchanged."""
+
             def decorator(func):
+                """Inner decorator function."""
                 return func
 
             return decorator
@@ -114,8 +119,8 @@ class JobService:
         Returns:
             Filtered query object
         """
-        if not filters:
-            return query  # Early return for empty filters
+        # Note: Don't early return for empty filters as we still need to apply
+        # default filters like archived
 
         # Apply text search filter
         if text_search := filters.get("text_search", "").strip():

@@ -294,6 +294,11 @@ class TestSyncJobs:
 
         # Create jobs with same content as existing
         existing_job = sample_jobs[0]  # Senior Python Developer
+
+        # Update existing job's content hash to what sync engine would generate
+        existing_job.content_hash = engine._generate_content_hash(existing_job)
+        test_session.commit()
+
         unchanged_job = JobSQL(
             company_id=existing_job.company_id,
             title=existing_job.title,
@@ -304,12 +309,21 @@ class TestSyncJobs:
             posted_date=existing_job.posted_date,
         )
 
+        # Ensure salary is properly copied as the same format (list, not tuple)
+        if existing_job.salary:
+            unchanged_job.salary = existing_job.salary
+        # Generate content hash using the sync engine to ensure consistency
+        unchanged_job.content_hash = engine._generate_content_hash(unchanged_job)
+
         # Calculate expected stale jobs BEFORE sync (all except the one being synced)
         stale_jobs = [
             j for j in sample_jobs if not j.archived and j.link != existing_job.link
         ]
         expected_archived = len([j for j in stale_jobs if engine._has_user_data(j)])
         expected_deleted = len([j for j in stale_jobs if not engine._has_user_data(j)])
+
+        # Capture original last_seen before sync
+        original_last_seen = existing_job.last_seen
 
         result = engine.sync_jobs([unchanged_job])
 
@@ -323,13 +337,17 @@ class TestSyncJobs:
         updated_job = test_session.exec(
             select(JobSQL).where(JobSQL.id == existing_job.id)
         ).first()
-        assert updated_job.last_seen > existing_job.last_seen
+        assert updated_job.last_seen > original_last_seen
 
     def test_sync_jobs_existing_with_changes(self, test_session, sample_jobs):
         """Test syncing existing jobs with content changes."""
         engine = SmartSyncEngine(session=test_session)
 
         existing_job = sample_jobs[0]  # Senior Python Developer
+
+        # Store original last_seen for comparison
+        original_last_seen = existing_job.last_seen
+
         updated_job = JobSQL(
             company_id=existing_job.company_id,
             title="Senior Python Developer (Updated)",  # Changed title
@@ -360,7 +378,7 @@ class TestSyncJobs:
             select(JobSQL).where(JobSQL.id == existing_job.id)
         ).first()
         assert refreshed_job.title == "Senior Python Developer (Updated)"
-        assert refreshed_job.last_seen > existing_job.last_seen
+        assert refreshed_job.last_seen > original_last_seen
 
     def test_sync_jobs_mixed_scenarios(
         self, test_session, sample_jobs, sample_companies
@@ -372,6 +390,10 @@ class TestSyncJobs:
         existing_job_2 = sample_jobs[1]  # Will be skipped (no changes)
         # sample_jobs[2] will be deleted (no user data)
         # sample_jobs[3] will be archived (has user data)
+
+        # Update existing jobs' content hashes to what sync engine would generate
+        existing_job_2.content_hash = engine._generate_content_hash(existing_job_2)
+        test_session.commit()
 
         sync_jobs = [
             # Update existing job
@@ -391,7 +413,7 @@ class TestSyncJobs:
                 description=existing_job_2.description,
                 link=existing_job_2.link,
                 location=existing_job_2.location,
-                salary=existing_job_2.salary,
+                salary=existing_job_2.salary,  # Will be corrected below
                 posted_date=existing_job_2.posted_date,
             ),
             # Insert new job
@@ -404,6 +426,10 @@ class TestSyncJobs:
                 salary=(115000, 155000),
             ),
         ]
+
+        # Ensure the unchanged job has the same salary format for hash consistency
+        if existing_job_2.salary:
+            sync_jobs[1].salary = existing_job_2.salary
 
         # Calculate expected stale jobs BEFORE sync (jobs not in current sync)
         current_links = {job.link for job in sync_jobs}
@@ -955,7 +981,7 @@ class TestContentHashGeneration:
     def test_generate_content_hash_with_company_relationship(
         self, test_session, sample_jobs
     ):
-        """Test content hash uses company name from relationship when available."""
+        """Test content hash consistency with company_id regardless of loading."""
         engine = SmartSyncEngine(session=test_session)
 
         job = sample_jobs[0]  # Has company relationship loaded
@@ -963,22 +989,29 @@ class TestContentHashGeneration:
         hash_result = engine._generate_content_hash(job)
         assert isinstance(hash_result, str)
 
-        # Manually verify the hash includes company name
+        # Manually verify the hash includes company_id (not company name)
         content_parts = [
             job.title or "",
             job.description or "",
             job.location or "",
-            job.company_relation.name,  # Should use company name
+            str(job.company_id),  # Should use company_id for consistency
         ]
-        if job.salary and isinstance(job.salary, tuple):
-            salary_str = f"{job.salary[0] or ''}-{job.salary[1] or ''}"
+        if hasattr(job, "salary") and job.salary:
+            if isinstance(job.salary, tuple | list) and len(job.salary) >= 2:
+                salary_str = f"{job.salary[0] or ''}-{job.salary[1] or ''}"
+            else:
+                salary_str = str(job.salary)
             content_parts.append(salary_str)
         if job.posted_date:
-            content_parts.append(job.posted_date.isoformat())
+            # Normalize timezone for consistent hashing
+            naive_date = (
+                job.posted_date.replace(tzinfo=None)
+                if job.posted_date.tzinfo
+                else job.posted_date
+            )
+            content_parts.append(naive_date.isoformat())
 
-        expected_hash = hashlib.sha256(
-            "".join(content_parts).encode("utf-8")
-        ).hexdigest()
+        expected_hash = hashlib.md5("".join(content_parts).encode("utf-8")).hexdigest()  # noqa: S324
         assert hash_result == expected_hash
 
 

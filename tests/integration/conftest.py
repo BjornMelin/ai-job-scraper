@@ -106,9 +106,13 @@ def mock_streamlit():
             p.stop()
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def mock_session_state():
-    """Mock Streamlit session state for integration tests."""
+    """Mock Streamlit session state for integration tests.
+
+    Removed autouse to reduce overhead for tests that don't need it.
+    Use this fixture explicitly when needed.
+    """
     session_state = MockSessionState()
     # Mark as test environment
     session_state._test_mode = True
@@ -145,7 +149,7 @@ def mock_job_service():
         yield mock_service_bg
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def prevent_real_system_execution():
     """Prevent real system execution during integration tests.
 

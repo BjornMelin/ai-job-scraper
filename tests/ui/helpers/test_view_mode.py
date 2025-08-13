@@ -26,12 +26,12 @@ class TestSelectViewMode:
         ]
 
         # Mock selectbox to return Grid mode and default columns
-        mock_streamlit["selectbox"].side_effect = ["Grid", 3]
+        mock_streamlit["selectbox"].side_effect = ["Card", 3]
 
         view_mode, grid_columns = select_view_mode("test_tab")
 
         # Verify return values
-        assert view_mode == "Grid"
+        assert view_mode == "Card"
         assert grid_columns == 3
 
         # Verify selectbox calls
@@ -80,7 +80,7 @@ class TestSelectViewMode:
         ]
 
         # Mock selectbox to return Grid mode
-        mock_streamlit["selectbox"].side_effect = ["Grid", 2, "Grid", 4]
+        mock_streamlit["selectbox"].side_effect = ["Card", 2, "Card", 4]
 
         # Test different tab keys
         view_mode1, _ = select_view_mode("jobs_tab")
@@ -111,17 +111,17 @@ class TestSelectViewMode:
         ]
 
         # Mock selectbox to return Grid mode and specified columns
-        mock_streamlit["selectbox"].side_effect = ["Grid", grid_columns]
+        mock_streamlit["selectbox"].side_effect = ["Card", grid_columns]
 
         view_mode, returned_columns = select_view_mode("test_tab")
 
-        assert view_mode == "Grid"
+        assert view_mode == "Card"
         assert returned_columns == grid_columns
 
         # Verify columns selectbox options
         columns_call = mock_streamlit["selectbox"].call_args_list[1]
         assert columns_call[0][0] == "Columns"  # First positional arg
-        assert columns_call[1]["help"] == "Number of columns in grid view"
+        assert columns_call[1]["help"] == "Number of columns in card view"
 
     def test_select_view_mode_column_layout(self, mock_streamlit):
         """Test select_view_mode creates correct column layout."""
@@ -131,7 +131,7 @@ class TestSelectViewMode:
         mock_streamlit["columns"].side_effect = [first_cols, second_cols]
 
         # Mock selectbox to return Grid mode
-        mock_streamlit["selectbox"].side_effect = ["Grid", 3]
+        mock_streamlit["selectbox"].side_effect = ["Card", 3]
 
         select_view_mode("layout_test")
 
@@ -152,7 +152,7 @@ class TestSelectViewMode:
             [MagicMock(), MagicMock()],
             [MagicMock(), MagicMock()],
         ]
-        mock_streamlit["selectbox"].side_effect = ["Grid", 3]
+        mock_streamlit["selectbox"].side_effect = ["Card", 3]
 
         select_view_mode("help_test")
 
@@ -162,7 +162,7 @@ class TestSelectViewMode:
 
         # Check grid columns selectbox help
         grid_columns_call = mock_streamlit["selectbox"].call_args_list[1]
-        assert grid_columns_call[1]["help"] == "Number of columns in grid view"
+        assert grid_columns_call[1]["help"] == "Number of columns in card view"
 
     def test_select_view_mode_with_empty_tab_key(self, mock_streamlit):
         """Test select_view_mode with empty tab key."""
@@ -187,12 +187,12 @@ class TestSelectViewMode:
             [MagicMock(), MagicMock()],
             [MagicMock(), MagicMock()],
         ]
-        mock_streamlit["selectbox"].side_effect = ["Grid", 2]
+        mock_streamlit["selectbox"].side_effect = ["Card", 2]
 
         tab_key = "special-tab_key!@#"
         view_mode, grid_columns = select_view_mode(tab_key)
 
-        assert view_mode == "Grid"
+        assert view_mode == "Card"
         assert grid_columns == 2
 
         # Verify keys are properly formed despite special characters
@@ -208,8 +208,8 @@ class TestApplyViewMode:
         """Test apply_view_mode renders jobs in grid mode with specified columns."""
         jobs = sample_jobs_dto[:3]  # Use first 3 jobs
 
-        with patch("src.ui.helpers.view_mode.render_jobs_grid") as mock_grid:
-            apply_view_mode(jobs, "Grid", grid_columns=3)
+        with patch("src.ui.components.cards.job_card.render_jobs_grid") as mock_grid:
+            apply_view_mode(jobs, "Card", grid_columns=3)
 
             # Verify grid renderer is called with correct parameters
             mock_grid.assert_called_once_with(jobs, num_columns=3)
@@ -218,8 +218,8 @@ class TestApplyViewMode:
         """Test apply_view_mode renders jobs in list mode."""
         jobs = sample_jobs_dto[:2]  # Use first 2 jobs
 
-        with patch("src.ui.helpers.view_mode.render_jobs_list") as mock_list:
-            apply_view_mode(jobs, "List", grid_columns=None)
+        with patch("src.ui.components.cards.job_card.render_jobs_list") as mock_list:
+            apply_view_mode(jobs, "List")
 
             # Verify list renderer is called with jobs
             mock_list.assert_called_once_with(jobs)
@@ -228,47 +228,51 @@ class TestApplyViewMode:
         """Test apply_view_mode falls back to list mode for invalid grid config."""
         jobs = sample_jobs_dto
 
-        with patch("src.ui.helpers.view_mode.render_jobs_list") as mock_list:
+        with patch("src.ui.components.cards.job_card.render_jobs_list") as mock_list:
             # Test with None columns (should fallback to list)
-            apply_view_mode(jobs, "Grid", grid_columns=None)
+            apply_view_mode(jobs, "Card", grid_columns=None)
             mock_list.assert_called_once_with(jobs)
 
             mock_list.reset_mock()
 
             # Test with 0 columns (should fallback to list)
-            apply_view_mode(jobs, "Grid", grid_columns=0)
+            apply_view_mode(jobs, "Card", grid_columns=0)
             mock_list.assert_called_once_with(jobs)
 
     def test_apply_view_mode_with_empty_jobs_list(self):
         """Test apply_view_mode handles empty jobs list."""
         empty_jobs = []
 
-        with patch("src.ui.helpers.view_mode.render_jobs_grid") as mock_grid:
-            apply_view_mode(empty_jobs, "Grid", grid_columns=2)
+        with patch("src.ui.components.cards.job_card.render_jobs_grid") as mock_grid:
+            apply_view_mode(empty_jobs, "Card", grid_columns=2)
             mock_grid.assert_called_once_with([], num_columns=2)
 
-        with patch("src.ui.helpers.view_mode.render_jobs_list") as mock_list:
+        with patch("src.ui.components.cards.job_card.render_jobs_list") as mock_list:
             apply_view_mode(empty_jobs, "List")
             mock_list.assert_called_once_with([])
 
     @pytest.mark.parametrize(
-        "view_mode", ["LIST", "list", "List", "GRID", "grid", "Grid"]
+        "view_mode", ["LIST", "list", "List", "CARD", "card", "Card"]
     )
     def test_apply_view_mode_case_sensitivity(self, sample_jobs_dto, view_mode):
         """Test apply_view_mode handles different case variations."""
         jobs = sample_jobs_dto[:1]
 
-        if view_mode.lower() == "grid":
-            with patch("src.ui.helpers.view_mode.render_jobs_grid") as mock_grid:
+        if view_mode.lower() == "card":
+            with patch(
+                "src.ui.components.cards.job_card.render_jobs_grid"
+            ) as mock_grid:
                 apply_view_mode(jobs, view_mode, grid_columns=2)
-                if view_mode == "Grid":  # Only exact match should trigger grid
+                if view_mode == "Card":  # Only exact match should trigger grid
                     mock_grid.assert_called_once_with(jobs, num_columns=2)
                 else:  # Other cases should fallback to list
                     mock_grid.assert_not_called()
         else:
-            with patch("src.ui.helpers.view_mode.render_jobs_list") as mock_list:
+            with patch(
+                "src.ui.components.cards.job_card.render_jobs_list"
+            ) as mock_list:
                 apply_view_mode(jobs, view_mode)
-                # All non-"Grid" modes should use list
+                # All non-"Card" modes should use list
                 mock_list.assert_called_once_with(jobs)
 
     def test_apply_view_mode_with_single_job(self):
@@ -279,18 +283,20 @@ class TestApplyViewMode:
             company="Single Co",
             title="Single Job",
             description="Single description",
+            link="https://single.com/job",
             location="Remote",
+            content_hash="test_hash",
             application_status="New",
         )
         jobs = [job]
 
         # Test grid mode
-        with patch("src.ui.helpers.view_mode.render_jobs_grid") as mock_grid:
-            apply_view_mode(jobs, "Grid", grid_columns=1)
+        with patch("src.ui.components.cards.job_card.render_jobs_grid") as mock_grid:
+            apply_view_mode(jobs, "Card", grid_columns=1)
             mock_grid.assert_called_once_with(jobs, num_columns=1)
 
         # Test list mode
-        with patch("src.ui.helpers.view_mode.render_jobs_list") as mock_list:
+        with patch("src.ui.components.cards.job_card.render_jobs_list") as mock_list:
             apply_view_mode(jobs, "List")
             mock_list.assert_called_once_with(jobs)
 
@@ -299,8 +305,8 @@ class TestApplyViewMode:
         # Create extended jobs list
         extended_jobs = sample_jobs_dto * 10  # 40 jobs total
 
-        with patch("src.ui.helpers.view_mode.render_jobs_grid") as mock_grid:
-            apply_view_mode(extended_jobs, "Grid", grid_columns=4)
+        with patch("src.ui.components.cards.job_card.render_jobs_grid") as mock_grid:
+            apply_view_mode(extended_jobs, "Card", grid_columns=4)
             mock_grid.assert_called_once_with(extended_jobs, num_columns=4)
 
     def test_apply_view_mode_with_different_grid_columns(self, sample_jobs_dto):
@@ -308,15 +314,17 @@ class TestApplyViewMode:
         jobs = sample_jobs_dto
 
         for columns in [1, 2, 3, 4, 5, 10]:
-            with patch("src.ui.helpers.view_mode.render_jobs_grid") as mock_grid:
-                apply_view_mode(jobs, "Grid", grid_columns=columns)
+            with patch(
+                "src.ui.components.cards.job_card.render_jobs_grid"
+            ) as mock_grid:
+                apply_view_mode(jobs, "Card", grid_columns=columns)
                 mock_grid.assert_called_once_with(jobs, num_columns=columns)
 
     def test_apply_view_mode_unknown_view_mode(self, sample_jobs_dto):
         """Test apply_view_mode with unknown view mode defaults to list."""
         jobs = sample_jobs_dto
 
-        with patch("src.ui.helpers.view_mode.render_jobs_list") as mock_list:
+        with patch("src.ui.components.cards.job_card.render_jobs_list") as mock_list:
             # Test various unknown modes
             for unknown_mode in ["Unknown", "Table", "Card", "", None]:
                 mock_list.reset_mock()
@@ -329,10 +337,10 @@ class TestApplyViewMode:
 
         # Test that the import paths are correct by checking the patch targets
         with (
-            patch("src.ui.helpers.view_mode.render_jobs_grid") as mock_grid,
-            patch("src.ui.helpers.view_mode.render_jobs_list") as mock_list,
+            patch("src.ui.components.cards.job_card.render_jobs_grid") as mock_grid,
+            patch("src.ui.components.cards.job_card.render_jobs_list") as mock_list,
         ):
-            apply_view_mode(jobs, "Grid", grid_columns=2)
+            apply_view_mode(jobs, "Card", grid_columns=2)
             apply_view_mode(jobs, "List")
 
             # Verify both functions were imported and called
@@ -360,7 +368,7 @@ class TestViewModeEdgeCases:
 
     def test_apply_view_mode_with_none_jobs(self):
         """Test apply_view_mode handles None jobs gracefully."""
-        with patch("src.ui.helpers.view_mode.render_jobs_list") as mock_list:
+        with patch("src.ui.components.cards.job_card.render_jobs_list") as mock_list:
             # Should not crash with None jobs
             apply_view_mode(None, "List")
             mock_list.assert_called_once_with(None)
@@ -369,9 +377,9 @@ class TestViewModeEdgeCases:
         """Test apply_view_mode handles negative grid columns."""
         jobs = sample_jobs_dto
 
-        with patch("src.ui.helpers.view_mode.render_jobs_list") as mock_list:
+        with patch("src.ui.components.cards.job_card.render_jobs_list") as mock_list:
             # Negative columns should fallback to list
-            apply_view_mode(jobs, "Grid", grid_columns=-1)
+            apply_view_mode(jobs, "Card", grid_columns=-1)
             mock_list.assert_called_once_with(jobs)
 
     def test_view_mode_functions_with_mock_jobs(self):
@@ -379,8 +387,8 @@ class TestViewModeEdgeCases:
         # Test with mock objects that behave like jobs
         mock_jobs = [Mock(), Mock(), Mock()]
 
-        with patch("src.ui.helpers.view_mode.render_jobs_grid") as mock_grid:
-            apply_view_mode(mock_jobs, "Grid", grid_columns=2)
+        with patch("src.ui.components.cards.job_card.render_jobs_grid") as mock_grid:
+            apply_view_mode(mock_jobs, "Card", grid_columns=2)
             mock_grid.assert_called_once_with(mock_jobs, num_columns=2)
 
     def test_select_view_mode_columns_layout_edge_cases(self, mock_streamlit):
@@ -390,20 +398,20 @@ class TestViewModeEdgeCases:
             [MagicMock()],  # Only one column instead of two
             [MagicMock(), MagicMock()],  # Normal second call
         ]
-        mock_streamlit["selectbox"].side_effect = ["Grid", 3]
+        mock_streamlit["selectbox"].side_effect = ["Card", 3]
 
         # Should handle gracefully
         view_mode, grid_columns = select_view_mode("edge_test")
-        assert view_mode == "Grid"
+        assert view_mode == "Card"
         assert grid_columns == 3
 
     def test_apply_view_mode_extreme_column_values(self, sample_jobs_dto):
         """Test apply_view_mode with extreme column values."""
         jobs = sample_jobs_dto
 
-        with patch("src.ui.helpers.view_mode.render_jobs_grid") as mock_grid:
+        with patch("src.ui.components.cards.job_card.render_jobs_grid") as mock_grid:
             # Test very large column count
-            apply_view_mode(jobs, "Grid", grid_columns=1000)
+            apply_view_mode(jobs, "Card", grid_columns=1000)
             mock_grid.assert_called_once_with(jobs, num_columns=1000)
 
 
@@ -417,17 +425,17 @@ class TestViewModeIntegration:
             [MagicMock(), MagicMock()],  # Main layout
             [MagicMock(), MagicMock()],  # Grid columns layout
         ]
-        mock_streamlit["selectbox"].side_effect = ["Grid", 3]
+        mock_streamlit["selectbox"].side_effect = ["Card", 3]
 
         # Select view mode
         view_mode, grid_columns = select_view_mode("workflow_test")
 
         # Apply view mode with selected settings
-        with patch("src.ui.helpers.view_mode.render_jobs_grid") as mock_grid:
+        with patch("src.ui.components.cards.job_card.render_jobs_grid") as mock_grid:
             apply_view_mode(sample_jobs_dto, view_mode, grid_columns)
 
             # Verify complete workflow
-            assert view_mode == "Grid"
+            assert view_mode == "Card"
             assert grid_columns == 3
             mock_grid.assert_called_once_with(sample_jobs_dto, num_columns=3)
 
@@ -437,14 +445,14 @@ class TestViewModeIntegration:
 
         # Simulate multiple view mode selections with different tabs
         tab_configs = [
-            ("jobs_tab", "Grid", 2),
+            ("jobs_tab", "Card", 2),
             ("favorites_tab", "List", None),
-            ("archived_tab", "Grid", 4),
+            ("archived_tab", "Card", 4),
         ]
 
         for tab_key, expected_mode, expected_columns in tab_configs:
             # Mock the selection for this tab
-            if expected_mode == "Grid":
+            if expected_mode == "Card":
                 mock_streamlit["columns"].side_effect = [
                     [MagicMock(), MagicMock()],
                     [MagicMock(), MagicMock()],
@@ -465,14 +473,18 @@ class TestViewModeIntegration:
             assert grid_columns == expected_columns
 
             # Apply the view mode
-            if expected_mode == "Grid":
-                with patch("src.ui.helpers.view_mode.render_jobs_grid") as mock_grid:
+            if expected_mode == "Card":
+                with patch(
+                    "src.ui.components.cards.job_card.render_jobs_grid"
+                ) as mock_grid:
                     apply_view_mode(jobs, view_mode, grid_columns)
                     mock_grid.assert_called_once_with(
                         jobs, num_columns=expected_columns
                     )
             else:
-                with patch("src.ui.helpers.view_mode.render_jobs_list") as mock_list:
+                with patch(
+                    "src.ui.components.cards.job_card.render_jobs_list"
+                ) as mock_list:
                     apply_view_mode(jobs, view_mode)
                     mock_list.assert_called_once_with(jobs)
 
@@ -485,15 +497,15 @@ class TestViewModeIntegration:
         initial_jobs = sample_jobs_dto[:2]
         updated_jobs = sample_jobs_dto  # Full list
 
-        with patch("src.ui.helpers.view_mode.render_jobs_grid") as mock_grid:
+        with patch("src.ui.components.cards.job_card.render_jobs_grid") as mock_grid:
             # Initial render with fewer jobs
-            apply_view_mode(initial_jobs, "Grid", grid_columns=2)
+            apply_view_mode(initial_jobs, "Card", grid_columns=2)
             mock_grid.assert_called_with(initial_jobs, num_columns=2)
 
             mock_grid.reset_mock()
 
             # Updated render with more jobs (same view mode)
-            apply_view_mode(updated_jobs, "Grid", grid_columns=2)
+            apply_view_mode(updated_jobs, "Card", grid_columns=2)
             mock_grid.assert_called_with(updated_jobs, num_columns=2)
 
     def test_view_mode_error_recovery(self, mock_streamlit):

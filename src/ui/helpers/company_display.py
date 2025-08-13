@@ -50,13 +50,22 @@ def render_company_card(company: Company, toggle_callback) -> None:
         col1, col2, col3 = st.columns([3, 2, 1])
 
         with col1:
-            render_company_info(company)
+            try:
+                render_company_info(company)
+            except Exception:
+                st.error("Error displaying company info")
 
         with col2:
-            render_company_statistics(company)
+            try:
+                render_company_statistics(company)
+            except Exception:
+                st.error("Error displaying company stats")
 
         with col3:
-            render_company_toggle(company, toggle_callback)
+            try:
+                render_company_toggle(company, toggle_callback)
+            except Exception:
+                st.error("Error displaying company toggle")
 
 
 def render_company_card_with_delete(
@@ -117,7 +126,7 @@ def render_company_card_with_selection(
             is_selected = company.id in selected if company.id else False
 
             st.checkbox(
-                "",
+                f"Select {company.name}",
                 value=is_selected,
                 key=f"select_company_{company.id}",
                 help=f"Select {company.name} for bulk operations",

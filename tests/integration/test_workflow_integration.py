@@ -70,7 +70,7 @@ class TestWorkflowIntegration:
 
         # Act: Complete workflow setup
         with patch(
-            "src.ui.utils.background_tasks.JobService.get_active_companies",
+            "src.services.job_service.JobService.get_active_companies",
             return_value=companies,
         ):
             task_id = start_background_scraping()
@@ -112,7 +112,7 @@ class TestWorkflowIntegration:
 
         # Act: Start scraping with failing service
         with patch(
-            "src.ui.utils.background_tasks.JobService.get_active_companies",
+            "src.services.job_service.JobService.get_active_companies",
             side_effect=service_error,
         ):
             start_background_scraping()
@@ -134,7 +134,7 @@ class TestWorkflowIntegration:
         # System should be able to retry
         retry_companies = ["TechCorp"]
         with patch(
-            "src.ui.utils.background_tasks.JobService.get_active_companies",
+            "src.services.job_service.JobService.get_active_companies",
             return_value=retry_companies,
         ):
             retry_task_id = start_background_scraping(stay_active_in_tests=False)
@@ -191,7 +191,7 @@ class TestWorkflowIntegration:
 
         # Act: Initialize all components
         with patch(
-            "src.ui.utils.background_tasks.JobService.get_active_companies",
+            "src.services.job_service.JobService.get_active_companies",
             return_value=companies,
         ):
             task_id = start_background_scraping()
@@ -251,7 +251,7 @@ class TestWorkflowIntegration:
 
         # Act: Start workflow to initialize data flow
         with patch(
-            "src.ui.utils.background_tasks.JobService.get_active_companies",
+            "src.services.job_service.JobService.get_active_companies",
             return_value=companies,
         ):
             task_id = start_background_scraping()
@@ -444,7 +444,7 @@ class TestConcurrentScenarios:
 
         # Perform multiple overlapping operations
         with patch(
-            "src.ui.utils.background_tasks.JobService.get_active_companies",
+            "src.services.job_service.JobService.get_active_companies",
             return_value=companies,
         ):
             # Start first task

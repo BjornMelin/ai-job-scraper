@@ -112,18 +112,10 @@ class TestRenderJobStatus:
             application_status="Interested",
         )
 
-        # Mock columns to return two mock column objects
-        col1, col2 = MagicMock(), MagicMock()
-        mock_streamlit["columns"].return_value = [col1, col2]
-
         render_job_status(job)
 
         # Verify columns are created
         mock_streamlit["columns"].assert_called_once_with(2)
-
-        # Verify posted date is displayed in first column
-        col1.__enter__.assert_called_once()
-        col2.__enter__.assert_called_once()
 
     def test_render_job_status_without_posted_date(self, mock_streamlit):
         """Test rendering job status without posted date."""

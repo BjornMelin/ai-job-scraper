@@ -723,6 +723,10 @@ class JobSQL(SQLModel, table=True, extend_existing=True):
         if isinstance(value, tuple) and len(value) == 2:
             return value
 
+        # Handle list inputs (convert to tuple)
+        if isinstance(value, list) and len(value) == 2:
+            return tuple(value)
+
         # Handle None or empty string inputs
         if value is None or not isinstance(value, str) or value.strip() == "":
             return (None, None)

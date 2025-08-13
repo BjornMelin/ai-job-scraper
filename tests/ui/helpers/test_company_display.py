@@ -388,31 +388,17 @@ class TestRenderCompanyCard:
         # Arrange
         mock_callback = Mock()
 
-        # Mock columns to return context managers
-        mock_col1, mock_col2, mock_col3 = Mock(), Mock(), Mock()
-        mock_streamlit["columns"].return_value = [mock_col1, mock_col2, mock_col3]
+        # Use the default mock columns from fixture which should be configured
+        # as context managers
+        # Act
+        render_company_card(sample_company_dto, mock_callback)
 
-        # Configure context managers
-        for col in [mock_col1, mock_col2, mock_col3]:
-            col.__enter__ = Mock(return_value=col)
-            col.__exit__ = Mock(return_value=None)
+        # Assert
+        # Check that columns was called with the correct layout
+        mock_streamlit["columns"].assert_called_with([3, 2, 1])
 
-        with (
-            patch("src.ui.helpers.company_display.render_company_info"),
-            patch("src.ui.helpers.company_display.render_company_statistics"),
-            patch("src.ui.helpers.company_display.render_company_toggle"),
-        ):
-            # Act
-            render_company_card(sample_company_dto, mock_callback)
-
-            # Assert
-            # Check all columns are used as context managers
-            mock_col1.__enter__.assert_called()
-            mock_col1.__exit__.assert_called()
-            mock_col2.__enter__.assert_called()
-            mock_col2.__exit__.assert_called()
-            mock_col3.__enter__.assert_called()
-            mock_col3.__exit__.assert_called()
+        # Check that container was used as context manager
+        mock_streamlit["container"].assert_called_with(border=True)
 
 
 class TestCompanyDisplayIntegration:

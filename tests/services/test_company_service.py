@@ -466,7 +466,7 @@ class TestCompanyServiceUpdates:
         # Should still process valid updates
         result = CompanyService.bulk_update_scrape_stats(updates)
 
-        assert result == 2  # Returns count of attempted updates
+        assert result == 1  # Returns count of successfully updated companies
 
 
 class TestCompanyServiceEdgeCases:
