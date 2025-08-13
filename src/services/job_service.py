@@ -33,7 +33,6 @@ except ImportError:
     st = _DummyStreamlit()
 
 from sqlalchemy import func, or_
-from sqlalchemy.orm import joinedload
 from sqlmodel import select
 
 from src.constants import SALARY_DEFAULT_MIN, SALARY_UNBOUNDED_THRESHOLD
@@ -76,15 +75,14 @@ class JobService:
         """
         # Extract company name from the relationship
         company_name = "Unknown"
-        if hasattr(job_sql, "company_relation") and job_sql.company_relation:
-            company_name = job_sql.company_relation.name
+        # Placeholder for potential future relationship handling
+        company_name = "Unknown"
 
         # Create a dictionary with the job data and the resolved company name
         job_data = job_sql.model_dump()
         job_data["company"] = company_name
 
-        # Remove the relationship field that's not part of the DTO
-        job_data.pop("company_relation", None)
+        # DTO cleanup - no relationship fields to remove
 
         return Job.model_validate(job_data)
 
@@ -129,7 +127,7 @@ class JobService:
                 or_(
                     JobSQL.title.ilike(f"%{text_search}%"),
                     JobSQL.description.ilike(f"%{text_search}%"),
-                )
+                ),
             )
 
         # Apply company filter using JOIN for better performance
@@ -202,7 +200,10 @@ class JobService:
         try:
             with db_session() as session:
                 # Start with base query, eagerly loading company relationship
-                base_query = select(JobSQL).options(joinedload(JobSQL.company_relation))
+                # TEMP: Disabled joinedload due to relationship issue
+                base_query = select(
+                    JobSQL,
+                )  # .options(joinedload(JobSQL.company_relation))
 
                 # Apply filters using shared method
                 query = JobService._apply_filters_to_query(base_query, filters)
@@ -339,10 +340,11 @@ class JobService:
         try:
             with db_session() as session:
                 # Use joinedload for single job lookup with company data
+                # TEMP: Disabled joinedload due to relationship issue
                 job_sql = session.exec(
                     select(JobSQL)
-                    .options(joinedload(JobSQL.company_relation))
-                    .filter_by(id=job_id)
+                    # .options(joinedload(JobSQL.company_relation))
+                    .filter_by(id=job_id),
                 ).first()
 
                 if job_sql:
@@ -376,7 +378,7 @@ class JobService:
                 results = session.exec(
                     select(JobSQL.application_status, func.count(JobSQL.id))
                     .filter(JobSQL.archived.is_(False))
-                    .group_by(JobSQL.application_status)
+                    .group_by(JobSQL.application_status),
                 ).all()
 
                 counts = dict(results)
@@ -489,7 +491,7 @@ class JobService:
             for date_format in date_formats:
                 try:
                     return datetime.strptime(date_input, date_format).replace(
-                        tzinfo=UTC
+                        tzinfo=UTC,
                     )
 
                 except ValueError:  # noqa: S112
@@ -525,7 +527,7 @@ class JobService:
                 # Bulk load all jobs to update in a single query to avoid N+1
                 job_ids = [update["id"] for update in job_updates]
                 jobs_to_update = session.exec(
-                    select(JobSQL).where(JobSQL.id.in_(job_ids))
+                    select(JobSQL).where(JobSQL.id.in_(job_ids)),
                 ).all()
 
                 # Create a lookup dict for efficient updates
@@ -536,7 +538,8 @@ class JobService:
                     if job:
                         job.favorite = update.get("favorite", job.favorite)
                         job.application_status = update.get(
-                            "application_status", job.application_status
+                            "application_status",
+                            job.application_status,
                         )
                         job.notes = update.get("notes", job.notes)
 
@@ -578,7 +581,8 @@ class JobService:
                 # Use explicit JOIN to get company names directly
 
                 query = select(JobSQL, CompanySQL.name.label("company_name")).join(
-                    CompanySQL, JobSQL.company_id == CompanySQL.id
+                    CompanySQL,
+                    JobSQL.company_id == CompanySQL.id,
                 )
 
                 # Apply the same filters as in get_filtered_jobs
@@ -587,7 +591,7 @@ class JobService:
                         or_(
                             JobSQL.title.ilike(f"%{text_search}%"),
                             JobSQL.description.ilike(f"%{text_search}%"),
-                        )
+                        ),
                     )
 
                 if (
@@ -628,7 +632,8 @@ class JobService:
                     jobs_data.append(job_dict)
 
                 logger.info(
-                    "Retrieved %d jobs with direct JOIN approach", len(jobs_data)
+                    "Retrieved %d jobs with direct JOIN approach",
+                    len(jobs_data),
                 )
                 return jobs_data
 

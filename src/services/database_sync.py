@@ -100,7 +100,7 @@ class SmartSyncEngine:
             current_links = {job.link for job in jobs if job.link}
             if current_links:
                 existing_jobs_query = session.exec(
-                    select(JobSQL).where(JobSQL.link.in_(current_links))
+                    select(JobSQL).where(JobSQL.link.in_(current_links)),
                 )
                 existing_jobs_map = {job.link: job for job in existing_jobs_query}
                 logger.debug("Bulk loaded %d existing jobs", len(existing_jobs_map))
@@ -123,7 +123,9 @@ class SmartSyncEngine:
                     continue
 
                 operation = self._sync_single_job_optimized(
-                    session, job, existing_jobs_map
+                    session,
+                    job,
+                    existing_jobs_map,
                 )
                 stats[operation] += 1
                 processed_links.add(job.link)
@@ -169,13 +171,16 @@ class SmartSyncEngine:
             str: Operation performed ('inserted', 'updated', or 'skipped').
         """
         if existing := session.exec(
-            select(JobSQL).where(JobSQL.link == job.link)
+            select(JobSQL).where(JobSQL.link == job.link),
         ).first():
             return self._update_existing_job(existing, job)
         return self._insert_new_job(session, job)
 
     def _sync_single_job_optimized(
-        self, session: Session, job: JobSQL, existing_jobs_map: dict[str, JobSQL]
+        self,
+        session: Session,
+        job: JobSQL,
+        existing_jobs_map: dict[str, JobSQL],
     ) -> str:
         """Synchronize a single job with the database using pre-loaded existing jobs.
 
@@ -251,7 +256,10 @@ class SmartSyncEngine:
         return "updated"
 
     def _update_scraped_fields(
-        self, existing: JobSQL, new_job: JobSQL, new_content_hash: str
+        self,
+        existing: JobSQL,
+        new_job: JobSQL,
+        new_content_hash: str,
     ) -> None:
         """Update only scraped fields, preserving user-editable fields.
 
@@ -285,7 +293,9 @@ class SmartSyncEngine:
         # - existing.application_date
 
     def _handle_stale_jobs(
-        self, session: Session, current_links: set[str]
+        self,
+        session: Session,
+        current_links: set[str],
     ) -> dict[str, int]:
         """Handle jobs that are no longer present in current scrape.
 
@@ -309,7 +319,7 @@ class SmartSyncEngine:
                 select(JobSQL).where(
                     ~JobSQL.archived,
                     ~JobSQL.link.in_(current_links),
-                )
+                ),
             ).all()
         else:
             # Edge case: when current_links is empty, all non-archived jobs are stale
@@ -407,18 +417,18 @@ class SmartSyncEngine:
             # Get basic counts using efficient count queries
             total_jobs = session.exec(select(func.count(JobSQL.id))).scalar()
             active_jobs = session.exec(
-                select(func.count(JobSQL.id)).where(~JobSQL.archived)
+                select(func.count(JobSQL.id)).where(~JobSQL.archived),
             ).scalar()
             archived_jobs = session.exec(
-                select(func.count(JobSQL.id)).where(JobSQL.archived)
+                select(func.count(JobSQL.id)).where(JobSQL.archived),
             ).scalar()
             favorited_jobs = session.exec(
-                select(func.count(JobSQL.id)).where(JobSQL.favorite)
+                select(func.count(JobSQL.id)).where(JobSQL.favorite),
             ).scalar()
 
             # Count applied jobs (status != "New")
             applied_jobs = session.exec(
-                select(func.count(JobSQL.id)).where(JobSQL.application_status != "New")
+                select(func.count(JobSQL.id)).where(JobSQL.application_status != "New"),
             ).scalar()
 
             return {
@@ -460,7 +470,7 @@ class SmartSyncEngine:
                     JobSQL.last_seen < cutoff_date,
                     (JobSQL.application_date.is_(None))
                     | (JobSQL.application_date < cutoff_date),
-                )
+                ),
             ).all()
 
             count = 0

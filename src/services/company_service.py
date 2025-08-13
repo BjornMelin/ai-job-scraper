@@ -68,7 +68,10 @@ type ScrapeUpdateBatch = list[dict[str, Any]]
 
 
 def calculate_weighted_success_rate(
-    current_rate: float, scrape_count: int, success: bool, weight: float = 0.8
+    current_rate: float,
+    scrape_count: int,
+    success: bool,
+    weight: float = 0.8,
 ) -> float:
     """Calculate weighted-average success rate for scraping statistics.
 
@@ -172,7 +175,7 @@ class CompanyService:
                 companies_sql = session.exec(
                     select(CompanySQL)
                     .options(selectinload(CompanySQL.jobs))
-                    .order_by(CompanySQL.name)
+                    .order_by(CompanySQL.name),
                 ).all()
 
                 # Convert SQLModel objects to Pydantic DTOs
@@ -257,7 +260,7 @@ class CompanyService:
         try:
             with db_session() as session:
                 company = session.exec(
-                    select(CompanySQL).filter_by(id=company_id)
+                    select(CompanySQL).filter_by(id=company_id),
                 ).first()
                 if not company:
                     error_msg = f"Company with ID {company_id} not found"
@@ -279,7 +282,8 @@ class CompanyService:
             raise
         except Exception:
             logger.exception(
-                "Failed to toggle company active status for ID %s", company_id
+                "Failed to toggle company active status for ID %s",
+                company_id,
             )
             raise
 
@@ -301,7 +305,7 @@ class CompanyService:
                     select(CompanySQL)
                     .options(selectinload(CompanySQL.jobs))
                     .filter(CompanySQL.active.is_(True))
-                    .order_by(CompanySQL.name)
+                    .order_by(CompanySQL.name),
                 ).all()
 
                 # Convert SQLModel objects to Pydantic DTOs
@@ -316,7 +320,9 @@ class CompanyService:
 
     @staticmethod
     def update_company_scrape_stats(
-        company_id: int, success: bool, last_scraped: datetime | None = None
+        company_id: int,
+        success: bool,
+        last_scraped: datetime | None = None,
     ) -> bool:
         """Update company scraping statistics.
 
@@ -337,7 +343,7 @@ class CompanyService:
 
             with db_session() as session:
                 company = session.exec(
-                    select(CompanySQL).filter_by(id=company_id)
+                    select(CompanySQL).filter_by(id=company_id),
                 ).first()
                 if not company:
                     error_msg = f"Company with ID {company_id} not found"
@@ -348,7 +354,9 @@ class CompanyService:
 
                 # Update success rate using weighted average helper
                 company.success_rate = calculate_weighted_success_rate(
-                    company.success_rate, company.scrape_count, success
+                    company.success_rate,
+                    company.scrape_count,
+                    success,
                 )
 
                 company.last_scraped = last_scraped
@@ -366,7 +374,8 @@ class CompanyService:
             raise
         except Exception:
             logger.exception(
-                "Failed to update scrape stats for company ID %s", company_id
+                "Failed to update scrape stats for company ID %s",
+                company_id,
             )
             raise
 
@@ -390,12 +399,13 @@ class CompanyService:
             with db_session() as session:
                 # First check if company exists
                 company = session.exec(
-                    select(CompanySQL).filter_by(id=company_id)
+                    select(CompanySQL).filter_by(id=company_id),
                 ).first()
 
                 if not company:
                     logger.warning(
-                        "Company with ID %s not found for deletion", company_id
+                        "Company with ID %s not found for deletion",
+                        company_id,
                     )
                     return False
 
@@ -403,12 +413,14 @@ class CompanyService:
 
                 # Delete associated jobs first (explicit cascade)
                 job_count = session.exec(
-                    select(func.count(JobSQL.id)).where(JobSQL.company_id == company_id)
+                    select(func.count(JobSQL.id)).where(
+                        JobSQL.company_id == company_id
+                    ),
                 ).first()
 
                 if job_count:
                     session.exec(
-                        sqlmodel.delete(JobSQL).where(JobSQL.company_id == company_id)
+                        sqlmodel.delete(JobSQL).where(JobSQL.company_id == company_id),
                     )
                     logger.info(
                         "Deleting %d jobs associated with company '%s'",
@@ -448,7 +460,7 @@ class CompanyService:
         try:
             with db_session() as session:
                 if company_sql := session.exec(
-                    select(CompanySQL).filter_by(id=company_id)
+                    select(CompanySQL).filter_by(id=company_id),
                 ).first():
                     company = CompanyService._to_dto(company_sql)
                     logger.info("Retrieved company %s: %s", company_id, company.name)
@@ -479,11 +491,13 @@ class CompanyService:
 
             with db_session() as session:
                 if company_sql := session.exec(
-                    select(CompanySQL).filter_by(name=name.strip())
+                    select(CompanySQL).filter_by(name=name.strip()),
                 ).first():
                     company = CompanyService._to_dto(company_sql)
                     logger.info(
-                        "Retrieved company by name '%s': ID %s", name, company.id
+                        "Retrieved company by name '%s': ID %s",
+                        name,
+                        company.id,
                     )
                     return company
                 logger.info("Company with name '%s' not found", name)
@@ -516,7 +530,7 @@ class CompanyService:
                 companies_sql = session.exec(
                     select(CompanySQL)
                     .options(selectinload(CompanySQL.jobs))
-                    .order_by(CompanySQL.name)
+                    .order_by(CompanySQL.name),
                 ).all()
 
                 companies_with_stats = [
@@ -563,7 +577,7 @@ class CompanyService:
                 # Step 1: Bulk load all companies to update in a single query
                 company_ids = [update["company_id"] for update in updates]
                 companies = session.exec(
-                    select(CompanySQL).where(CompanySQL.id.in_(company_ids))
+                    select(CompanySQL).where(CompanySQL.id.in_(company_ids)),
                 ).all()
 
                 # Step 2: Create lookup dict for efficient updates
@@ -581,7 +595,9 @@ class CompanyService:
 
                         # Calculate new success rate using weighted average helper
                         company.success_rate = calculate_weighted_success_rate(
-                            company.success_rate, company.scrape_count, success
+                            company.success_rate,
+                            company.scrape_count,
+                            success,
                         )
 
                         company.last_scraped = last_scraped
@@ -607,7 +623,7 @@ class CompanyService:
         try:
             with db_session() as session:
                 companies_sql = session.exec(
-                    select(CompanySQL).order_by(CompanySQL.name)
+                    select(CompanySQL).order_by(CompanySQL.name),
                 ).all()
 
                 companies_data = [
@@ -621,7 +637,8 @@ class CompanyService:
                 ]
 
                 logger.info(
-                    "Retrieved %d companies for management", len(companies_data)
+                    "Retrieved %d companies for management",
+                    len(companies_data),
                 )
                 return companies_data
 
@@ -646,7 +663,7 @@ class CompanyService:
         try:
             with db_session() as session:
                 company = session.exec(
-                    select(CompanySQL).filter_by(id=company_id)
+                    select(CompanySQL).filter_by(id=company_id),
                 ).first()
                 if not company:
                     error_msg = f"Company with ID {company_id} not found"
@@ -667,7 +684,8 @@ class CompanyService:
             raise
         except Exception:
             logger.exception(
-                "Failed to update company active status for ID %s", company_id
+                "Failed to update company active status for ID %s",
+                company_id,
             )
             raise
 
@@ -687,7 +705,9 @@ class CompanyService:
         try:
             with db_session() as session:
                 count_result = session.exec(
-                    select(func.count(CompanySQL.id)).where(CompanySQL.active.is_(True))
+                    select(func.count(CompanySQL.id)).where(
+                        CompanySQL.active.is_(True)
+                    ),
                 ).one()
 
                 # Extract scalar value from potential tuple result
@@ -704,7 +724,8 @@ class CompanyService:
 
     @staticmethod
     def bulk_get_or_create_companies(
-        session: sqlmodel.Session, company_names: set[str]
+        session: sqlmodel.Session,
+        company_names: set[str],
     ) -> CompanyMapping:
         """Efficiently get or create multiple companies in bulk.
 
@@ -726,8 +747,9 @@ class CompanyService:
         # Step 1: Bulk load existing companies in single query with job relationships
         existing_companies = session.exec(
             sqlmodel.select(CompanySQL)
-            .options(selectinload(CompanySQL.jobs))
-            .where(CompanySQL.name.in_(company_names))
+            # TEMP: Disabled selectinload due to relationship issue
+            # .options(selectinload(CompanySQL.jobs))
+            .where(CompanySQL.name.in_(company_names)),
         ).all()
         company_map = {comp.name: comp.id for comp in existing_companies}
 
@@ -754,8 +776,8 @@ class CompanyService:
                 # Re-query for all companies that were supposed to be missing
                 retry_companies = session.exec(
                     sqlmodel.select(CompanySQL).where(
-                        CompanySQL.name.in_(missing_names)
-                    )
+                        CompanySQL.name.in_(missing_names),
+                    ),
                 ).all()
 
                 # Update the mapping with companies that were created by other processes
@@ -779,7 +801,7 @@ class CompanyService:
                 else:
                     logger.info(
                         "No new companies to create "
-                        "(all were created by other processes)"
+                        "(all were created by other processes)",
                     )
 
         logger.debug(
@@ -815,8 +837,8 @@ class CompanyService:
                 # First get company names for logging before deletion
                 companies_to_delete = session.exec(
                     select(CompanySQL.name, CompanySQL.id).where(
-                        CompanySQL.id.in_(company_ids)
-                    )
+                        CompanySQL.id.in_(company_ids),
+                    ),
                 ).all()
 
                 if not companies_to_delete:
@@ -830,8 +852,8 @@ class CompanyService:
                 job_count = (
                     session.exec(
                         select(func.count(JobSQL.id)).where(
-                            JobSQL.company_id.in_(found_ids)
-                        )
+                            JobSQL.company_id.in_(found_ids),
+                        ),
                     ).first()
                     or 0
                 )
@@ -839,15 +861,16 @@ class CompanyService:
                 # Delete associated jobs first (foreign key constraint)
                 if job_count > 0:
                     session.exec(
-                        sqlmodel.delete(JobSQL).where(JobSQL.company_id.in_(found_ids))
+                        sqlmodel.delete(JobSQL).where(JobSQL.company_id.in_(found_ids)),
                     )
                     logger.info(
-                        "Bulk deleted %d jobs associated with companies", job_count
+                        "Bulk deleted %d jobs associated with companies",
+                        job_count,
                     )
 
                 # Delete companies using bulk operation
                 deleted_count = session.exec(
-                    sqlmodel.delete(CompanySQL).where(CompanySQL.id.in_(found_ids))
+                    sqlmodel.delete(CompanySQL).where(CompanySQL.id.in_(found_ids)),
                 ).rowcount
 
                 logger.info(
@@ -887,8 +910,8 @@ class CompanyService:
                 # Get company names for logging
                 companies_to_update = session.exec(
                     select(CompanySQL.name, CompanySQL.id).where(
-                        CompanySQL.id.in_(company_ids)
-                    )
+                        CompanySQL.id.in_(company_ids),
+                    ),
                 ).all()
 
                 if not companies_to_update:
@@ -902,7 +925,7 @@ class CompanyService:
                 updated_count = session.exec(
                     sqlmodel.update(CompanySQL)
                     .where(CompanySQL.id.in_(found_ids))
-                    .values(active=active)
+                    .values(active=active),
                 ).rowcount
 
                 status_text = "activated" if active else "deactivated"
