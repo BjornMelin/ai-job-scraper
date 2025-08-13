@@ -28,7 +28,7 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # Import all models to ensure they are registered with SQLModel.metadata
-from src import models  # noqa: F401
+# ruff: noqa: E402
 
 # Set target_metadata to SQLModel.metadata for autogenerate support
 target_metadata = SQLModel.metadata
