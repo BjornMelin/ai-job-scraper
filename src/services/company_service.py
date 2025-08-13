@@ -22,7 +22,6 @@ from datetime import UTC, datetime
 import sqlalchemy.exc
 import sqlmodel
 
-from sqlalchemy.orm import selectinload
 from sqlmodel import func, select
 
 # Import streamlit for caching decorators
@@ -166,11 +165,10 @@ class CompanyService:
         """
         try:
             with db_session() as session:
-                # Use selectinload to eagerly load job relationships
+                # Query companies without relationship loading since relationships
+                # are disabled
                 companies_sql = session.exec(
-                    select(CompanySQL)
-                    .options(selectinload(CompanySQL.jobs))
-                    .order_by(CompanySQL.name),
+                    select(CompanySQL).order_by(CompanySQL.name),
                 ).all()
 
                 # Convert SQLModel objects to Pydantic DTOs
@@ -295,10 +293,10 @@ class CompanyService:
         """
         try:
             with db_session() as session:
-                # Use selectinload to eagerly load job relationships
+                # Query active companies without relationship loading since
+                # relationships are disabled
                 companies_sql = session.exec(
                     select(CompanySQL)
-                    .options(selectinload(CompanySQL.jobs))
                     .filter(CompanySQL.active.is_(True))
                     .order_by(CompanySQL.name),
                 ).all()
