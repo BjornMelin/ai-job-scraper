@@ -9,7 +9,7 @@ Tests cover filtering, state mutations, edge cases, and error conditions.
 
 import logging
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
 import pytest
@@ -17,6 +17,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, select
+
 from src.models import CompanySQL, JobSQL
 from src.schemas import Company
 from src.services.company_service import CompanyService, calculate_weighted_success_rate
@@ -47,7 +48,7 @@ def test_session(test_engine):
 @pytest.fixture
 def sample_companies(test_session):
     """Create sample companies for testing."""
-    base_date = datetime.now(timezone.utc)
+    base_date = datetime.now(UTC)
 
     companies = [
         CompanySQL(
@@ -98,7 +99,7 @@ def sample_companies(test_session):
 @pytest.fixture
 def sample_jobs(test_session, sample_companies):
     """Create sample jobs linked to companies for testing job counts."""
-    base_date = datetime.now(timezone.utc)
+    base_date = datetime.now(UTC)
 
     jobs = [
         # TechCorp jobs (2 active, 1 archived)
@@ -248,7 +249,9 @@ class TestCompanyServiceRetrieval:
         assert company.url == "https://techcorp.com/careers"
 
     def test_get_company_by_name_case_sensitive(
-        self, mock_db_session, sample_companies
+        self,
+        mock_db_session,
+        sample_companies,
     ):
         """Test company name lookup is case sensitive."""
         company = CompanyService.get_company_by_name("techcorp")
@@ -262,7 +265,10 @@ class TestCompanyServiceRetrieval:
         assert CompanyService.get_company_by_name(None) is None
 
     def test_get_companies_with_job_counts(
-        self, mock_db_session, sample_companies, sample_jobs
+        self,
+        mock_db_session,
+        sample_companies,
+        sample_jobs,
     ):
         """Test retrieving companies with job statistics."""
         companies_with_stats = CompanyService.get_companies_with_job_counts()
@@ -309,7 +315,7 @@ class TestCompanyServiceCreation:
 
         # Verify actually saved in database
         saved_company = test_session.exec(
-            select(CompanySQL).filter_by(name="NewTech Corp")
+            select(CompanySQL).filter_by(name="NewTech Corp"),
         ).first()
         assert saved_company is not None
         assert saved_company.name == "NewTech Corp"
@@ -340,7 +346,8 @@ class TestCompanyServiceCreation:
     def test_add_company_strips_whitespace(self, mock_db_session, test_session):
         """Test that company name and URL are stripped of whitespace."""
         company = CompanyService.add_company(
-            "  SpaceTech  ", "  https://space.com/careers  "
+            "  SpaceTech  ",
+            "  https://space.com/careers  ",
         )
 
         assert company.name == "SpaceTech"
@@ -370,7 +377,9 @@ class TestCompanyServiceUpdates:
             CompanyService.toggle_company_active(99999)
 
     def test_update_company_scrape_stats_success(
-        self, mock_db_session, sample_companies
+        self,
+        mock_db_session,
+        sample_companies,
     ):
         """Test successful scraping statistics update."""
         company_id = sample_companies[0].id  # TechCorp
@@ -384,7 +393,7 @@ class TestCompanyServiceUpdates:
 
         # Verify the update in database
         updated_company = mock_db_session.return_value.__enter__.return_value.exec(
-            select(CompanySQL).filter_by(id=company_id)
+            select(CompanySQL).filter_by(id=company_id),
         ).first()
 
         assert updated_company.scrape_count == original_count + 1
@@ -394,26 +403,32 @@ class TestCompanyServiceUpdates:
         assert updated_company.success_rate != original_rate
 
     def test_update_company_scrape_stats_with_custom_date(
-        self, mock_db_session, sample_companies
+        self,
+        mock_db_session,
+        sample_companies,
     ):
         """Test scrape stats update with custom timestamp."""
         company_id = sample_companies[0].id
-        custom_date = datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
+        custom_date = datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC)
 
         result = CompanyService.update_company_scrape_stats(
-            company_id, success=True, last_scraped=custom_date
+            company_id,
+            success=True,
+            last_scraped=custom_date,
         )
 
         assert result is True
 
         # Verify custom date was used
         updated_company = mock_db_session.return_value.__enter__.return_value.exec(
-            select(CompanySQL).filter_by(id=company_id)
+            select(CompanySQL).filter_by(id=company_id),
         ).first()
         assert updated_company.last_scraped == custom_date
 
     def test_update_company_scrape_stats_not_found(
-        self, mock_db_session, sample_companies
+        self,
+        mock_db_session,
+        sample_companies,
     ):
         """Test updating scrape stats for non-existent company."""
         with pytest.raises(ValueError, match="Company with ID 99999 not found"):
@@ -421,7 +436,7 @@ class TestCompanyServiceUpdates:
 
     def test_bulk_update_scrape_stats_success(self, mock_db_session, sample_companies):
         """Test bulk updating scrape statistics."""
-        base_date = datetime.now(timezone.utc)
+        base_date = datetime.now(UTC)
 
         updates = [
             {
@@ -441,7 +456,9 @@ class TestCompanyServiceUpdates:
         assert result == 2  # Two companies updated
 
     def test_bulk_update_scrape_stats_empty_list(
-        self, mock_db_session, sample_companies
+        self,
+        mock_db_session,
+        sample_companies,
     ):
         """Test bulk update with empty updates list."""
         result = CompanyService.bulk_update_scrape_stats([])
@@ -449,7 +466,9 @@ class TestCompanyServiceUpdates:
         assert result == 0
 
     def test_bulk_update_scrape_stats_partial_success(
-        self, mock_db_session, sample_companies
+        self,
+        mock_db_session,
+        sample_companies,
     ):
         """Test bulk update with some invalid company IDs."""
         updates = [
@@ -466,7 +485,7 @@ class TestCompanyServiceUpdates:
         # Should still process valid updates
         result = CompanyService.bulk_update_scrape_stats(updates)
 
-        assert result == 2  # Returns count of attempted updates
+        assert result == 1  # Returns count of successfully updated companies
 
 
 class TestCompanyServiceEdgeCases:
@@ -496,7 +515,7 @@ class TestCompanyServiceEdgeCases:
 
     def test_company_dto_conversion_all_fields(self, mock_db_session, test_session):
         """Test that all CompanySQL fields are properly converted to Company DTO."""
-        base_date = datetime.now(timezone.utc)
+        base_date = datetime.now(UTC)
 
         # Create company with all fields populated
         company_sql = CompanySQL(
@@ -521,7 +540,7 @@ class TestCompanyServiceEdgeCases:
         assert company_dto.active is False
         # Compare timestamps without timezone info since SQLite doesn't preserve tz
         assert company_dto.last_scraped.replace(tzinfo=None) == base_date.replace(
-            tzinfo=None
+            tzinfo=None,
         )
         assert company_dto.scrape_count == 42
         assert company_dto.success_rate == 0.75
@@ -618,7 +637,8 @@ class TestCompanyServiceIntegration:
         """Test complete company lifecycle: create -> activate/deactivate -> scrape."""
         # 1. Create new company
         company = CompanyService.add_company(
-            "LifecycleCorp", "https://lifecycle.com/jobs"
+            "LifecycleCorp",
+            "https://lifecycle.com/jobs",
         )
         assert company.name == "LifecycleCorp"
         assert company.active is True
@@ -671,7 +691,7 @@ class TestCompanyServiceIntegration:
 
     def test_bulk_operations_workflow(self, mock_db_session, sample_companies):
         """Test bulk operations and statistics workflow."""
-        base_date = datetime.now(timezone.utc)
+        base_date = datetime.now(UTC)
 
         # Capture original scrape counts before updates
         original_counts = {
@@ -723,13 +743,16 @@ class TestCompanyServiceBulkGetOrCreate:
         assert company_map == {}
 
     def test_bulk_get_or_create_existing_companies(
-        self, test_session, sample_companies
+        self,
+        test_session,
+        sample_companies,
     ):
         """Test bulk get/create with all existing companies."""
         company_names = {"TechCorp", "InnovateLabs"}
 
         company_map = CompanyService.bulk_get_or_create_companies(
-            test_session, company_names
+            test_session,
+            company_names,
         )
 
         # Should return mapping for existing companies
@@ -749,7 +772,8 @@ class TestCompanyServiceBulkGetOrCreate:
         company_names = {"NewCorp1", "NewCorp2", "NewCorp3"}
 
         company_map = CompanyService.bulk_get_or_create_companies(
-            test_session, company_names
+            test_session,
+            company_names,
         )
 
         # Should create all new companies
@@ -766,13 +790,16 @@ class TestCompanyServiceBulkGetOrCreate:
             assert company.active is True  # Default active status
 
     def test_bulk_get_or_create_mixed_existing_and_new(
-        self, test_session, sample_companies
+        self,
+        test_session,
+        sample_companies,
     ):
         """Test bulk get/create with mix of existing and new companies."""
         company_names = {"TechCorp", "NewMixedCorp1", "InnovateLabs", "NewMixedCorp2"}
 
         company_map = CompanyService.bulk_get_or_create_companies(
-            test_session, company_names
+            test_session,
+            company_names,
         )
 
         # Should return all companies
@@ -788,7 +815,7 @@ class TestCompanyServiceBulkGetOrCreate:
         # Verify new companies were created
         for new_name in ["NewMixedCorp1", "NewMixedCorp2"]:
             company = test_session.exec(
-                select(CompanySQL).filter_by(name=new_name)
+                select(CompanySQL).filter_by(name=new_name),
             ).first()
             assert company is not None
             assert company.name == new_name
@@ -805,7 +832,8 @@ class TestCompanyServiceBulkGetOrCreate:
 
         # Now call bulk_get_or_create which should handle the mix
         company_map = CompanyService.bulk_get_or_create_companies(
-            test_session, company_names
+            test_session,
+            company_names,
         )
 
         # Should still return all companies
@@ -822,7 +850,9 @@ class TestCompanyServiceBulkGetOrCreate:
             assert company is not None
 
     def test_bulk_get_or_create_performance_single_query_existing(
-        self, test_session, sample_companies
+        self,
+        test_session,
+        sample_companies,
     ):
         """Test that bulk_get_or_create uses single query for existing companies."""
         from unittest.mock import MagicMock
@@ -840,7 +870,8 @@ class TestCompanyServiceBulkGetOrCreate:
         test_session.exec = MagicMock(side_effect=mock_exec)
 
         company_map = CompanyService.bulk_get_or_create_companies(
-            test_session, company_names
+            test_session,
+            company_names,
         )
 
         # Should make minimal queries: 1 for bulk select of existing companies
@@ -860,7 +891,8 @@ class TestCompanyServiceBulkGetOrCreate:
         company_names = {f"LargeBatchCorp{i:03d}" for i in range(100)}
 
         company_map = CompanyService.bulk_get_or_create_companies(
-            test_session, company_names
+            test_session,
+            company_names,
         )
 
         # Should handle large batch efficiently
@@ -881,7 +913,8 @@ class TestCompanyServiceBulkGetOrCreate:
         # This set will actually only have 2 elements due to deduplication
 
         company_map = CompanyService.bulk_get_or_create_companies(
-            test_session, company_names
+            test_session,
+            company_names,
         )
 
         # Should handle duplicates properly (sets deduplicate automatically)
@@ -899,7 +932,8 @@ class TestCompanyServiceBulkGetOrCreate:
         }
 
         company_map = CompanyService.bulk_get_or_create_companies(
-            test_session, company_names
+            test_session,
+            company_names,
         )
 
         # Should handle Unicode names properly
@@ -923,7 +957,7 @@ class TestCompanyServiceBulkGetOrCreate:
 
         # Mock flush to raise an unexpected error (not integrity error)
         def mock_flush_with_error(self):  # noqa: ARG001
-            raise MockDatabaseError("Unexpected database error")
+            raise MockDatabaseError("Simulated flush error during test")
 
         with (
             patch.object(test_session, "flush", side_effect=mock_flush_with_error),
@@ -947,7 +981,8 @@ class TestCompanyServiceBulkGetOrCreate:
         }
 
         company_map = CompanyService.bulk_get_or_create_companies(
-            test_session, company_names
+            test_session,
+            company_names,
         )
 
         # Should handle special characters properly

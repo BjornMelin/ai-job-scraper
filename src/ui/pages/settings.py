@@ -13,7 +13,8 @@ import streamlit as st
 
 from groq import Groq
 from openai import OpenAI
-from src.ui.utils.streamlit_context import is_streamlit_context
+
+from src.ui.utils.ui_helpers import is_streamlit_context
 
 logger = logging.getLogger(__name__)
 
@@ -97,7 +98,7 @@ def test_api_connection(provider: str, api_key: str) -> tuple[bool, str]:
     return success, message
 
 
-def load_settings() -> dict[str, Any]:
+def load_settings() -> dict[str, "Any"]:
     """Load current settings from environment and session state.
 
     Returns:
@@ -111,7 +112,7 @@ def load_settings() -> dict[str, Any]:
     }
 
 
-def save_settings(settings: dict[str, Any]) -> None:
+def save_settings(settings: dict[str, "Any"]) -> None:
     """Save settings to session state and environment variables.
 
     Args:
@@ -240,7 +241,7 @@ def show_settings_page() -> None:
         # Show current limit info
         if max_jobs <= 30:
             st.info(
-                f"📊 Conservative limit: Will scrape up to {max_jobs} jobs per company"
+                f"📊 Conservative limit: Will scrape up to {max_jobs} jobs per company",
             )
         elif max_jobs <= 100:
             st.info(f"📊 Moderate limit: Will scrape up to {max_jobs} jobs per company")
@@ -265,7 +266,7 @@ def show_settings_page() -> None:
                         "groq_api_key": groq_key,
                         "llm_provider": provider,
                         "max_jobs_per_company": max_jobs,
-                    }
+                    },
                 )
 
                 # Save settings
@@ -278,7 +279,7 @@ def show_settings_page() -> None:
                 if openai_key or groq_key:
                     st.info(
                         "💡 **Note:** API keys should be set as environment variables "
-                        "(OPENAI_API_KEY, GROQ_API_KEY) for security in production."
+                        "(OPENAI_API_KEY, GROQ_API_KEY) for security in production.",
                     )
 
             except Exception:

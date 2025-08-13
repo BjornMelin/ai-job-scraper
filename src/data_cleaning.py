@@ -38,7 +38,8 @@ def clean_string_field(value: Any) -> str:
 
 
 def clean_numeric_field(
-    value: Any, default: int | float | None = None
+    value: Any,
+    default: int | float | None = None,
 ) -> int | float | None:
     """Clean numeric fields to handle NaN and invalid values.
 

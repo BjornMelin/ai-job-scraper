@@ -7,8 +7,8 @@ database if they do not already exist, based on their URL.
 import sqlmodel
 import typer
 
-from .config import Settings
-from .models import CompanySQL
+from src.config import Settings
+from src.models import CompanySQL
 
 settings = Settings()
 engine = sqlmodel.create_engine(settings.db_url)
@@ -33,7 +33,9 @@ def seed() -> None:
     companies = [
         # Top AI Research Labs & Foundations
         CompanySQL(
-            name="Anthropic", url="https://www.anthropic.com/careers", active=True
+            name="Anthropic",
+            url="https://www.anthropic.com/careers",
+            active=True,
         ),
         CompanySQL(name="OpenAI", url="https://openai.com/careers", active=True),
         CompanySQL(
@@ -51,7 +53,9 @@ def seed() -> None:
         ),
         CompanySQL(name="Google", url="https://careers.google.com/jobs/", active=True),
         CompanySQL(
-            name="Apple", url="https://jobs.apple.com/en-us/search", active=True
+            name="Apple",
+            url="https://jobs.apple.com/en-us/search",
+            active=True,
         ),
         CompanySQL(name="Amazon", url="https://www.amazon.jobs/en/search", active=True),
         CompanySQL(
@@ -68,7 +72,9 @@ def seed() -> None:
         ),
         CompanySQL(name="AMD", url="https://jobs.amd.com/jobs/", active=True),
         CompanySQL(
-            name="Intel", url="https://jobs.intel.com/en/search-jobs", active=True
+            name="Intel",
+            url="https://jobs.intel.com/en/search-jobs",
+            active=True,
         ),
         # AI Startups & Scale-ups
         CompanySQL(name="Scale AI", url="https://scale.com/careers", active=True),
@@ -78,13 +84,19 @@ def seed() -> None:
             active=True,
         ),
         CompanySQL(
-            name="Snowflake", url="https://careers.snowflake.com/us/en", active=True
+            name="Snowflake",
+            url="https://careers.snowflake.com/us/en",
+            active=True,
         ),
         CompanySQL(
-            name="Palantir", url="https://www.palantir.com/careers/", active=True
+            name="Palantir",
+            url="https://www.palantir.com/careers/",
+            active=True,
         ),
         CompanySQL(
-            name="Weights & Biases", url="https://www.wandb.com/careers", active=True
+            name="Weights & Biases",
+            url="https://www.wandb.com/careers",
+            active=True,
         ),
         CompanySQL(
             name="Hugging Face",
@@ -94,27 +106,39 @@ def seed() -> None:
         CompanySQL(name="Cohere", url="https://cohere.com/careers", active=True),
         CompanySQL(name="Adept", url="https://www.adept.ai/careers", active=True),
         CompanySQL(
-            name="Inflection AI", url="https://inflection.ai/careers", active=True
+            name="Inflection AI",
+            url="https://inflection.ai/careers",
+            active=True,
         ),
         CompanySQL(
-            name="Character.AI", url="https://character.ai/careers", active=True
+            name="Character.AI",
+            url="https://character.ai/careers",
+            active=True,
         ),
         CompanySQL(
-            name="Perplexity", url="https://www.perplexity.ai/careers", active=True
+            name="Perplexity",
+            url="https://www.perplexity.ai/careers",
+            active=True,
         ),
         # Cloud Providers & MLOps
         CompanySQL(
-            name="Anyscale", url="https://www.anyscale.com/careers", active=True
+            name="Anyscale",
+            url="https://www.anyscale.com/careers",
+            active=True,
         ),
         CompanySQL(name="Modal", url="https://modal.com/careers", active=True),
         CompanySQL(name="Replicate", url="https://replicate.com/careers", active=True),
         CompanySQL(
-            name="Together AI", url="https://www.together.ai/careers", active=True
+            name="Together AI",
+            url="https://www.together.ai/careers",
+            active=True,
         ),
         CompanySQL(name="RunPod", url="https://www.runpod.io/careers", active=True),
         # Autonomous Vehicles
         CompanySQL(
-            name="Tesla", url="https://www.tesla.com/careers/search/", active=True
+            name="Tesla",
+            url="https://www.tesla.com/careers/search/",
+            active=True,
         ),
         CompanySQL(name="Waymo", url="https://waymo.com/careers/", active=True),
         CompanySQL(name="Argo AI", url="https://www.argo.ai/careers/", active=True),
@@ -131,7 +155,9 @@ def seed() -> None:
         ),
         CompanySQL(name="Figure", url="https://www.figure.ai/careers", active=True),
         CompanySQL(
-            name="1X Technologies", url="https://www.1x.tech/careers", active=True
+            name="1X Technologies",
+            url="https://www.1x.tech/careers",
+            active=True,
         ),
         # Computer Vision & Edge AI
         CompanySQL(name="Sentry", url="https://sentry.io/careers/", active=True),
@@ -144,26 +170,36 @@ def seed() -> None:
         # Enterprise AI
         CompanySQL(name="C3.ai", url="https://c3.ai/careers/", active=True),
         CompanySQL(
-            name="DataRobot", url="https://www.datarobot.com/careers/", active=True
+            name="DataRobot",
+            url="https://www.datarobot.com/careers/",
+            active=True,
         ),
         CompanySQL(name="H2O.ai", url="https://h2o.ai/careers/", active=True),
         CompanySQL(name="Alteryx", url="https://www.alteryx.com/careers", active=True),
         # AI Tools & Infrastructure
         CompanySQL(
-            name="Pinecone", url="https://www.pinecone.io/careers/", active=True
+            name="Pinecone",
+            url="https://www.pinecone.io/careers/",
+            active=True,
         ),
         CompanySQL(
-            name="LangChain", url="https://www.langchain.com/careers", active=True
+            name="LangChain",
+            url="https://www.langchain.com/careers",
+            active=True,
         ),
         CompanySQL(name="Weaviate", url="https://weaviate.io/careers", active=True),
         CompanySQL(name="Qdrant", url="https://qdrant.tech/careers/", active=True),
         # Healthcare AI
         # Gaming & Entertainment AI
         CompanySQL(
-            name="Midjourney", url="https://www.midjourney.com/careers", active=True
+            name="Midjourney",
+            url="https://www.midjourney.com/careers",
+            active=True,
         ),
         CompanySQL(
-            name="Stability AI", url="https://stability.ai/careers", active=True
+            name="Stability AI",
+            url="https://stability.ai/careers",
+            active=True,
         ),
         CompanySQL(name="Runway", url="https://runwayml.com/careers/", active=True),
         # Consulting & Services
@@ -174,7 +210,9 @@ def seed() -> None:
             active=True,
         ),
         CompanySQL(
-            name="FAIR (Meta AI)", url="https://ai.facebook.com/join-us/", active=True
+            name="FAIR (Meta AI)",
+            url="https://ai.facebook.com/join-us/",
+            active=True,
         ),
         # Additional High-Growth AI Companies
         CompanySQL(name="Notion", url="https://www.notion.so/careers", active=True),
@@ -193,7 +231,7 @@ def seed() -> None:
         for comp in companies:
             # Query the database to check if a company with this name already exists
             existing = session.exec(
-                sqlmodel.select(CompanySQL).where(CompanySQL.name == comp.name)
+                sqlmodel.select(CompanySQL).where(CompanySQL.name == comp.name),
             ).first()
             # If no existing entry, add the new company and increment the counter
             if not existing:

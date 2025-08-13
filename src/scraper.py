@@ -9,22 +9,35 @@ user-defined fields like favorites during updates.
 import logging
 
 from collections.abc import Sequence
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
+# Rich imports for beautiful CLI output
 import sqlmodel
 import typer
 
-from .constants import AI_REGEX, SEARCH_KEYWORDS, SEARCH_LOCATIONS
-from .database import SessionLocal
-from .models import CompanySQL, JobSQL
-from .scraper_company_pages import DEFAULT_MAX_JOBS_PER_COMPANY, scrape_company_pages
-from .scraper_job_boards import scrape_job_boards
-from .services.company_service import CompanyService
-from .services.database_sync import SmartSyncEngine
-from .utils import random_delay
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
+
+from src.constants import AI_REGEX, SEARCH_KEYWORDS, SEARCH_LOCATIONS
+from src.core_utils import random_delay
+from src.database import SessionLocal
+from src.models import CompanySQL, JobSQL
+from src.scraper_company_pages import DEFAULT_MAX_JOBS_PER_COMPANY, scrape_company_pages
+from src.scraper_job_boards import scrape_job_boards
+from src.services.company_service import CompanyService
+from src.services.database_sync import SmartSyncEngine
+
+
+class ScraperParameterError(ValueError):
+    """Custom exception for invalid scraper configuration parameters."""
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Rich console for beautiful terminal output
+console = Console()
 
 # Type aliases for better readability
 type CompanyMapping = dict[str, int]
@@ -47,7 +60,7 @@ def get_or_create_company(session: sqlmodel.Session, company_name: str) -> int:
         performance.
     """
     company = session.exec(
-        sqlmodel.select(CompanySQL).where(CompanySQL.name == company_name)
+        sqlmodel.select(CompanySQL).where(CompanySQL.name == company_name),
     ).first()
 
     if not company:
@@ -83,52 +96,65 @@ def scrape_all(max_jobs_per_company: int | None = None) -> SyncStats:
         Exception: If any part of the scraping or normalization fails, errors are
             logged but the function continues where possible.
     """
-    logger.info("=" * 60)
-    logger.info("🚀 STARTING COMPREHENSIVE JOB SCRAPING WORKFLOW")
-    logger.info("=" * 60)
-    start_time = datetime.now(timezone.utc)
+    # Rich panel for workflow start
+    console.print(
+        Panel.fit(
+            "🚀 STARTING COMPREHENSIVE JOB SCRAPING WORKFLOW",
+            title="[bold blue]AI Job Scraper[/bold blue]",
+            style="blue",
+        ),
+    )
+    start_time = datetime.now(UTC)
 
     # Validate max_jobs_per_company parameter
     if max_jobs_per_company is not None:
         if not isinstance(max_jobs_per_company, int):
-            raise ValueError("max_jobs_per_company must be an integer")
+            raise ScraperParameterError("max_jobs_per_company must be an integer")
         if max_jobs_per_company < 1:
-            raise ValueError("max_jobs_per_company must be at least 1")
+            raise ScraperParameterError("max_jobs_per_company must be at least 1")
 
     # Log the job limit being used
     limit = max_jobs_per_company or DEFAULT_MAX_JOBS_PER_COMPANY
-    logger.info("Using job limit: %d jobs per company", limit)
+    console.print(f"[yellow]Using job limit: {limit} jobs per company[/yellow]")
 
     # Step 1: Scrape company pages using the decoupled workflow
-    logger.info("Scraping company career pages...")
+    console.print("[bold cyan]Step 1:[/bold cyan] Scraping company career pages...")
     try:
         company_jobs = scrape_company_pages(max_jobs_per_company)
-        logger.info("Retrieved %d jobs from company pages", len(company_jobs))
+        console.print(
+            f"[green]✓ Retrieved {len(company_jobs)} jobs from company pages[/green]",
+        )
     except Exception:
         logger.exception("Company scraping failed")
+        console.print("[red]✗ Company scraping failed[/red]")
         company_jobs = []
 
     random_delay()
 
     # Step 2: Scrape job boards
-    logger.info("Scraping job boards...")
+    console.print("[bold cyan]Step 2:[/bold cyan] Scraping job boards...")
     try:
         board_jobs_raw = scrape_job_boards(SEARCH_KEYWORDS, SEARCH_LOCATIONS)
-        logger.info("Retrieved %d raw jobs from job boards", len(board_jobs_raw))
+        board_jobs_count = len(board_jobs_raw)
+        console.print(
+            f"[green]✓ Retrieved {board_jobs_count} raw jobs from job boards[/green]"
+        )
     except Exception:
         logger.exception("Job board scraping failed")
+        console.print("[red]✗ Job board scraping failed[/red]")
         board_jobs_raw = []
 
     # Step 3: Normalize board jobs to JobSQL objects
+    console.print("[bold cyan]Step 3:[/bold cyan] Normalizing job data...")
     board_jobs = _normalize_board_jobs(board_jobs_raw)
-    logger.info("Normalized %d jobs from job boards", len(board_jobs))
+    console.print(f"[green]✓ Normalized {len(board_jobs)} jobs from job boards[/green]")
 
     # Step 4: Safety guard against mass-archiving when both scrapers fail
     if not company_jobs and not board_jobs:
         logger.warning(
             "Both company pages and job boards scrapers returned empty results. "
             "This could indicate scraping failures. Skipping sync to prevent "
-            "mass-archiving of existing jobs."
+            "mass-archiving of existing jobs.",
         )
         return {"inserted": 0, "updated": 0, "archived": 0, "deleted": 0, "skipped": 0}
 
@@ -160,20 +186,26 @@ def scrape_all(max_jobs_per_company: int | None = None) -> SyncStats:
         with SessionLocal() as session:
             for job in all_jobs:
                 # Get company name from company_id
-                if hasattr(job, "company_id") and job.company_id:
-                    company = session.exec(
-                        sqlmodel.select(CompanySQL).where(
-                            CompanySQL.id == job.company_id
+                match job:
+                    case job if hasattr(job, "company_id") and (
+                        company := session.exec(
+                            sqlmodel.select(CompanySQL).where(
+                                CompanySQL.id == job.company_id,
+                            )
+                        ).first()
+                    ):
+                        match company.name:
+                            case name if name in active_company_names:
+                                company_filtered_jobs.append(job)
+                            case _:
+                                logger.debug(
+                                    "Excluding job from inactive company: %s",
+                                    company.name,
+                                )
+                    case _:
+                        logger.warning(
+                            "Job missing company_id, skipping: %s", job.title
                         )
-                    ).first()
-                    if company and company.name in active_company_names:
-                        company_filtered_jobs.append(job)
-                    elif company:
-                        logger.debug(
-                            "Excluding job from inactive company: %s", company.name
-                        )
-                else:
-                    logger.warning("Job missing company_id, skipping: %s", job.title)
 
         logger.info(
             "Filtered to %d jobs from active companies (removed %d from inactive)",
@@ -183,7 +215,7 @@ def scrape_all(max_jobs_per_company: int | None = None) -> SyncStats:
 
     except Exception:
         logger.exception(
-            "Failed to filter by active companies, proceeding with all jobs"
+            "Failed to filter by active companies, proceeding with all jobs",
         )
         company_filtered_jobs = all_jobs
 
@@ -200,7 +232,7 @@ def scrape_all(max_jobs_per_company: int | None = None) -> SyncStats:
     if not dedup_jobs:
         logger.warning(
             "No valid jobs remaining after filtering and deduplication. "
-            "Skipping sync to prevent archiving all existing jobs."
+            "Skipping sync to prevent archiving all existing jobs.",
         )
         return {"inserted": 0, "updated": 0, "archived": 0, "deleted": 0, "skipped": 0}
 
@@ -210,24 +242,68 @@ def scrape_all(max_jobs_per_company: int | None = None) -> SyncStats:
     sync_stats = sync_engine.sync_jobs(dedup_jobs)
 
     # Calculate and log total execution time
-    end_time = datetime.now(timezone.utc)
+    end_time = datetime.now(UTC)
     duration = (end_time - start_time).total_seconds()
 
-    logger.info("=" * 60)
-    logger.info("✅ SCRAPING WORKFLOW COMPLETED SUCCESSFULLY")
-    logger.info("📊 Final Statistics:")
-    logger.info("  • Total jobs scraped: %d", len(all_jobs))
-    logger.info("  • Jobs from active companies: %d", len(company_filtered_jobs))
-    logger.info("  • AI/ML relevant jobs: %d", len(filtered_jobs))
-    logger.info("  • Unique jobs after deduplication: %d", len(dedup_jobs))
-    logger.info("  • Database sync results:")
-    logger.info("    - Inserted: %d new jobs", sync_stats.get("inserted", 0))
-    logger.info("    - Updated: %d existing jobs", sync_stats.get("updated", 0))
-    logger.info("    - Archived: %d stale jobs", sync_stats.get("archived", 0))
-    logger.info("    - Deleted: %d jobs", sync_stats.get("deleted", 0))
-    logger.info("    - Skipped: %d unchanged jobs", sync_stats.get("skipped", 0))
-    logger.info("⏱️  Total execution time: %.2f seconds", duration)
-    logger.info("=" * 60)
+    # Create a beautiful Rich table for final statistics
+    console.print(
+        Panel.fit(
+            "✅ SCRAPING WORKFLOW COMPLETED SUCCESSFULLY",
+            title="[bold green]Success[/bold green]",
+            style="green",
+        ),
+    )
+
+    # Create statistics table
+    stats_table = Table(
+        title="📊 Final Statistics",
+        show_header=True,
+        header_style="bold blue",
+    )
+    stats_table.add_column("Category", style="cyan", no_wrap=True)
+    stats_table.add_column("Count", justify="right", style="magenta")
+
+    # Add job processing stats
+    stats_table.add_row("Total jobs scraped", str(len(all_jobs)))
+    stats_table.add_row("Jobs from active companies", str(len(company_filtered_jobs)))
+    stats_table.add_row("AI/ML relevant jobs", str(len(filtered_jobs)))
+    stats_table.add_row("Unique jobs after deduplication", str(len(dedup_jobs)))
+    stats_table.add_row("", "")  # Spacer row
+
+    # Add database sync results
+    stats_table.add_row(
+        "🆕 New jobs inserted",
+        str(sync_stats.get("inserted", 0)),
+        style="green",
+    )
+    stats_table.add_row(
+        "🔄 Existing jobs updated",
+        str(sync_stats.get("updated", 0)),
+        style="yellow",
+    )
+    stats_table.add_row(
+        "📋 Jobs archived",
+        str(sync_stats.get("archived", 0)),
+        style="blue",
+    )
+    stats_table.add_row(
+        "🗑️  Jobs deleted",
+        str(sync_stats.get("deleted", 0)),
+        style="red",
+    )
+    stats_table.add_row(
+        "⏭️  Jobs skipped (unchanged)",
+        str(sync_stats.get("skipped", 0)),
+        style="dim",
+    )
+    stats_table.add_row("", "")  # Spacer row
+    stats_table.add_row(
+        "⏱️  Total execution time",
+        f"{duration:.2f} seconds",
+        style="bold",
+    )
+
+    console.print(stats_table)
 
     return sync_stats
 
@@ -261,7 +337,8 @@ def _normalize_board_jobs(board_jobs_raw: Sequence[dict]) -> list[JobSQL]:
 
         # Step 2: Bulk get or create companies (eliminates N+1 queries)
         company_map = CompanyService.bulk_get_or_create_companies(
-            session, company_names
+            session,
+            company_names,
         )
         logger.info("Bulk processed %d unique companies", len(company_names))
 
@@ -269,14 +346,14 @@ def _normalize_board_jobs(board_jobs_raw: Sequence[dict]) -> list[JobSQL]:
         for raw in board_jobs_raw:
             try:
                 # Format salary from min/max amounts
-                salary = ""
-                min_amt = raw.get("min_amount")
-                max_amt = raw.get("max_amount")
-                if min_amt and max_amt:
+                # Use walrus operator for concise salary formatting
+                if (min_amt := raw.get("min_amount")) and (
+                    max_amt := raw.get("max_amount")
+                ):
                     salary = f"${min_amt}-${max_amt}"
                 elif min_amt:
                     salary = f"${min_amt}+"
-                elif max_amt:
+                elif max_amt := raw.get("max_amount"):
                     salary = f"${max_amt}"
 
                 # Get company ID from pre-loaded mapping (O(1) lookup)
@@ -303,7 +380,7 @@ def _normalize_board_jobs(board_jobs_raw: Sequence[dict]) -> list[JobSQL]:
                     posted_date=raw.get("date_posted"),
                     salary=salary,
                     application_status="New",
-                    last_seen=datetime.now(timezone.utc),
+                    last_seen=datetime.now(UTC),
                 )
                 board_jobs.append(job)
 
@@ -339,13 +416,25 @@ def scrape(
 ) -> None:
     """CLI command to run the full scraping workflow."""
     sync_stats = scrape_all(max_jobs_per_company)
-    print("\nScraping completed successfully!")
-    print("📊 Sync Statistics:")
-    print(f"  ✅ Inserted: {sync_stats['inserted']} new jobs")
-    print(f"  🔄 Updated: {sync_stats['updated']} existing jobs")
-    print(f"  📋 Archived: {sync_stats['archived']} stale jobs with user data")
-    print(f"  🗑️  Deleted: {sync_stats['deleted']} stale jobs without user data")
-    print(f"  ⏭️  Skipped: {sync_stats['skipped']} jobs (no changes)")
+
+    # Create a simple summary table for CLI output
+    console.print("\n[bold green]Scraping completed successfully![/bold green]")
+
+    summary_table = Table(
+        title="📊 Sync Statistics Summary",
+        show_header=True,
+        header_style="bold blue",
+    )
+    summary_table.add_column("Operation", style="cyan")
+    summary_table.add_column("Count", justify="right", style="magenta")
+
+    summary_table.add_row("✅ New jobs inserted", str(sync_stats["inserted"]))
+    summary_table.add_row("🔄 Jobs updated", str(sync_stats["updated"]))
+    summary_table.add_row("📋 Jobs archived", str(sync_stats["archived"]))
+    summary_table.add_row("🗑️  Jobs deleted", str(sync_stats["deleted"]))
+    summary_table.add_row("⏭️  Jobs skipped", str(sync_stats["skipped"]))
+
+    console.print(summary_table)
 
 
 if __name__ == "__main__":

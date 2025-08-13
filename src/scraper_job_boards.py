@@ -14,16 +14,21 @@ import pandas as pd
 
 from jobspy import Site, scrape_jobs
 
-from .config import Settings
-from .constants import AI_REGEX
-from .utils import random_delay, resolve_jobspy_proxies
+from src.config import Settings
+from src.constants import AI_REGEX
+from src.core_utils import random_delay, resolve_jobspy_proxies
 
 settings = Settings()
 logger = logging.getLogger(__name__)
 
 
+class JobboardScraperError(Exception):
+    """Custom exception for job board scraping errors."""
+
+
 def scrape_job_boards(
-    keywords: list[str], locations: list[str]
+    keywords: list[str],
+    locations: list[str],
 ) -> list[dict[str, Any]]:
     """Scrape job listings from structured job boards using JobSpy.
 
@@ -70,9 +75,13 @@ def scrape_job_boards(
 
             if job_count > 0:
                 all_dfs.append(jobs)
-        except Exception:
+        except ValueError as e:
             location_results[location] = 0
-            logger.exception("  ❌ Error scraping jobs for location '%s'", location)
+            logger.warning("  ❌ Job search error in location '%s': %s", location, e)
+        except Exception as e:
+            location_results[location] = 0
+            logger.exception("  ❌ Unexpected error scraping jobs for location '%s'")
+            raise JobboardScraperError(f"Error scraping jobs for {location}") from e
 
     if not all_dfs:
         logger.warning("No jobs found from any location")

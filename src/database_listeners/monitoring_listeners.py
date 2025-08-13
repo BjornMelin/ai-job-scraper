@@ -30,6 +30,7 @@ def performance_monitor(func):
 
     @functools.wraps(func)
     def wrapper(self, *args, **kwargs):
+        """Wrapper function that times and logs database operations."""
         start_time = time.time()
         func_name = f"{func.__module__}.{func.__qualname__}"
 

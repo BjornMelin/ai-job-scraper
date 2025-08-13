@@ -27,6 +27,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from sqlalchemy.orm.exc import DetachedInstanceError
 from sqlmodel import Session
+
 from src.models import CompanySQL, JobSQL
 from src.schemas import Company, Job
 
@@ -39,7 +40,8 @@ class TestSessionLifecycle:
         # Create data in one session
         with Session(engine) as session:
             company = CompanySQL(
-                name="Session Test Co", url="https://sessiontest.com/careers"
+                name="Session Test Co",
+                url="https://sessiontest.com/careers",
             )
             session.add(company)
             session.commit()
@@ -65,7 +67,7 @@ class TestSessionLifecycle:
                     **job.model_dump(),
                     # job.company is a computed field returning string, not relationship
                     "company": job.company,  # Returns company name as string
-                }
+                },
             )
 
         # Session is now closed - verify DTOs still work
@@ -93,7 +95,8 @@ class TestSessionLifecycle:
         # Create company in first session
         with Session(engine) as session1:
             company = CompanySQL(
-                name="Multi Session Co", url="https://multisession.com/careers"
+                name="Multi Session Co",
+                url="https://multisession.com/careers",
             )
             session1.add(company)
             session1.commit()
@@ -134,7 +137,8 @@ class TestSessionLifecycle:
         # Create objects and DTOs in session scope
         with Session(engine) as session:
             company = CompanySQL(
-                name="Detached Test Co", url="https://detached.com/careers"
+                name="Detached Test Co",
+                url="https://detached.com/careers",
             )
             session.add(company)
             session.commit()
@@ -154,7 +158,7 @@ class TestSessionLifecycle:
 
             # Create DTO while relationship is accessible
             job_dto = Job.model_validate(
-                {**sql_job.model_dump(), "company": sql_job.company}
+                {**sql_job.model_dump(), "company": sql_job.company},
             )
 
         # Session is now closed
@@ -177,7 +181,8 @@ class TestSessionLifecycle:
         # Create test data
         with Session(engine) as session:
             company = CompanySQL(
-                name="Lazy Load Co", url="https://lazyload.com/careers"
+                name="Lazy Load Co",
+                url="https://lazyload.com/careers",
             )
             session.add(company)
             session.commit()
@@ -228,7 +233,8 @@ class TestCrossLayerDataFlow:
             with Session(engine) as session:
                 # Create test data
                 company = CompanySQL(
-                    name="Service Co", url="https://service.com/careers"
+                    name="Service Co",
+                    url="https://service.com/careers",
                 )
                 session.add(company)
                 session.commit()
@@ -249,7 +255,7 @@ class TestCrossLayerDataFlow:
 
                 # Service layer returns DTOs, not SQLModel objects
                 return [
-                    Job.model_validate({**job.model_dump(), "company": job.company})
+                    Job.model_validate({**job.model_dump(), "company": job.company}),
                 ]
 
         # Simulate UI layer receiving data
@@ -365,7 +371,8 @@ class TestConcurrentAccess:
         # Create test data
         with Session(engine) as session:
             company = CompanySQL(
-                name="Concurrent Co", url="https://concurrent.com/careers"
+                name="Concurrent Co",
+                url="https://concurrent.com/careers",
             )
             session.add(company)
             session.commit()
@@ -407,7 +414,7 @@ class TestConcurrentAccess:
                         "company": company,
                         "salary": salary,
                         "json_length": len(json_data),
-                    }
+                    },
                 )
 
                 # Small delay to increase chance of concurrent access
@@ -464,7 +471,7 @@ class TestConcurrentAccess:
 
                 # Convert to DTO before session closes
                 job_dto = Job.model_validate(
-                    {**job.model_dump(), "company": job.company}
+                    {**job.model_dump(), "company": job.company},
                 )
                 job_dtos.append(job_dto)
 
@@ -491,7 +498,8 @@ class TestRealWorldScenarios:
         # Create large dataset
         with Session(engine) as session:
             company = CompanySQL(
-                name="Pagination Co", url="https://pagination.com/careers"
+                name="Pagination Co",
+                url="https://pagination.com/careers",
             )
             session.add(company)
             session.commit()
@@ -627,7 +635,8 @@ class TestRealWorldScenarios:
         # Create initial data
         with Session(engine) as session:
             company = CompanySQL(
-                name="Consistency Co", url="https://consistency.com/careers"
+                name="Consistency Co",
+                url="https://consistency.com/careers",
             )
             session.add(company)
             session.commit()
@@ -648,7 +657,7 @@ class TestRealWorldScenarios:
 
             # Create DTO with original data
             original_dto = Job.model_validate(
-                {**job.model_dump(), "company": job.company}
+                {**job.model_dump(), "company": job.company},
             )
 
             # Update the database record and store job_id for later use
@@ -666,7 +675,7 @@ class TestRealWorldScenarios:
         with Session(engine) as session:
             updated_job = session.get(JobSQL, job_id)
             updated_dto = Job.model_validate(
-                {**updated_job.model_dump(), "company": updated_job.company}
+                {**updated_job.model_dump(), "company": updated_job.company},
             )
 
         # New DTO should have updated values

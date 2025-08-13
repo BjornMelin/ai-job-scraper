@@ -10,15 +10,19 @@ import tempfile
 
 from collections.abc import Generator
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
 from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine, inspect, text
-from sqlalchemy.engine import Engine
 from sqlmodel import Session, SQLModel
+
 from src.models import CompanySQL, JobSQL
+
+if TYPE_CHECKING:
+    from sqlalchemy.engine import Engine
 
 
 @pytest.fixture
@@ -161,7 +165,7 @@ def alembic_config(temp_db_path: str, temp_alembic_dir: Path) -> Config:
 
 
 @pytest.fixture
-def test_engine(temp_db_path: str) -> Engine:
+def test_engine(temp_db_path: str) -> "Engine":
     """Create a test SQLAlchemy engine.
 
     Args:
@@ -215,7 +219,7 @@ class TestAlembicConfiguration:
 class TestMigrationExecution:
     """Test migration script execution and database operations."""
 
-    def test_fresh_database_creation(self, test_engine: Engine) -> None:
+    def test_fresh_database_creation(self, test_engine: "Engine") -> None:
         """Test creating a fresh database with all tables.
 
         Simulates initial database setup using SQLModel.metadata.create_all()
@@ -232,7 +236,9 @@ class TestMigrationExecution:
         assert "jobsql" in table_names
 
     def test_migration_upgrade_head(
-        self, alembic_config: Config, test_engine: Engine
+        self,
+        alembic_config: Config,
+        test_engine: "Engine",
     ) -> None:
         """Test running 'alembic upgrade head' on empty database.
 
@@ -259,7 +265,9 @@ class TestMigrationExecution:
             assert len(versions) == 1  # Should have one migration applied
 
     def test_table_schema_validation(
-        self, alembic_config: Config, test_engine: Engine
+        self,
+        alembic_config: Config,
+        test_engine: "Engine",
     ) -> None:
         """Test that migrated tables match SQLModel definitions.
 
@@ -268,7 +276,9 @@ class TestMigrationExecution:
         """
         # Generate and apply initial migration
         command.revision(
-            alembic_config, autogenerate=True, message="Schema validation test"
+            alembic_config,
+            autogenerate=True,
+            message="Schema validation test",
         )
         command.upgrade(alembic_config, "head")
 
@@ -320,7 +330,9 @@ class TestMigrationExecution:
         assert "company_id" in fk["constrained_columns"]
 
     def test_indexes_creation(
-        self, alembic_config: Config, test_engine: Engine
+        self,
+        alembic_config: Config,
+        test_engine: "Engine",
     ) -> None:
         """Test that database indexes are properly created by migrations.
 
@@ -329,7 +341,9 @@ class TestMigrationExecution:
         """
         # Generate and apply migration
         command.revision(
-            alembic_config, autogenerate=True, message="Index creation test"
+            alembic_config,
+            autogenerate=True,
+            message="Index creation test",
         )
         command.upgrade(alembic_config, "head")
 
@@ -366,7 +380,9 @@ class TestMigrationExecution:
             )
 
     def test_migration_idempotency(
-        self, alembic_config: Config, test_engine: Engine
+        self,
+        alembic_config: Config,
+        test_engine: "Engine",
     ) -> None:
         """Test that running migrations multiple times is safe and idempotent.
 
@@ -394,7 +410,9 @@ class TestMigrationExecution:
             assert len(versions) == 1
 
     def test_downgrade_functionality(
-        self, alembic_config: Config, test_engine: Engine
+        self,
+        alembic_config: Config,
+        test_engine: "Engine",
     ) -> None:
         """Test that migration downgrade functionality works correctly.
 
@@ -426,7 +444,9 @@ class TestMigrationWithData:
     """Test migrations with existing data to ensure data safety."""
 
     def test_migration_preserves_existing_data(
-        self, alembic_config: Config, test_engine: Engine
+        self,
+        alembic_config: Config,
+        test_engine: "Engine",
     ) -> None:
         """Test that migrations preserve existing data during schema updates.
 
@@ -469,14 +489,14 @@ class TestMigrationWithData:
             conn.execute(
                 text(
                     "CREATE TABLE IF NOT EXISTS alembic_version "
-                    "(version_num VARCHAR(32) NOT NULL PRIMARY KEY)"
-                )
+                    "(version_num VARCHAR(32) NOT NULL PRIMARY KEY)",
+                ),
             )
             conn.execute(
-                text("DELETE FROM alembic_version")
+                text("DELETE FROM alembic_version"),
             )  # Clear any existing versions
             conn.execute(
-                text("INSERT INTO alembic_version (version_num) VALUES ('head')")
+                text("INSERT INTO alembic_version (version_num) VALUES ('head')"),
             )
             conn.commit()
 
@@ -501,7 +521,9 @@ class TestMigrationWithData:
         """
         # First create a migration since none exist in test environment
         command.revision(
-            alembic_config, autogenerate=True, message="Test missing database"
+            alembic_config,
+            autogenerate=True,
+            message="Test missing database",
         )
 
         # The temp database doesn't exist yet, migration should create it
@@ -524,7 +546,9 @@ class TestMigrationScriptGeneration:
     """Test Alembic migration script generation capabilities."""
 
     def test_autogenerate_detects_model_changes(
-        self, temp_alembic_dir: Path, temp_db_path: str
+        self,
+        temp_alembic_dir: Path,
+        temp_db_path: str,
     ) -> None:
         """Test that autogenerate detects changes to SQLModel definitions.
 
@@ -555,7 +579,9 @@ class TestMigrationScriptGeneration:
         assert "create_table" in migration_content.lower()
 
     def test_autogenerate_detects_column_type_changes(
-        self, temp_alembic_dir: Path, temp_db_path: str
+        self,
+        temp_alembic_dir: Path,
+        temp_db_path: str,
     ) -> None:
         """Test that autogenerate detects column type changes.
 
@@ -573,8 +599,8 @@ class TestMigrationScriptGeneration:
             conn.execute(
                 text(
                     "CREATE TABLE test_table "
-                    "(id INTEGER PRIMARY KEY, test_col VARCHAR(50))"
-                )
+                    "(id INTEGER PRIMARY KEY, test_col VARCHAR(50))",
+                ),
             )
             conn.commit()
 
@@ -595,7 +621,9 @@ class TestMigrationScriptGeneration:
         try:
             # Generate migration for type change
             revision = command.revision(
-                config, autogenerate=True, message="Change column type"
+                config,
+                autogenerate=True,
+                message="Change column type",
             )
 
             assert revision is not None
@@ -619,7 +647,9 @@ class TestMigrationScriptGeneration:
             SQLModel.metadata.remove(test_table)
 
     def test_autogenerate_detects_constraint_changes(
-        self, temp_alembic_dir: Path, temp_db_path: str
+        self,
+        temp_alembic_dir: Path,
+        temp_db_path: str,
     ) -> None:
         """Test that autogenerate detects constraint modifications.
 
@@ -636,8 +666,8 @@ class TestMigrationScriptGeneration:
             conn.execute(
                 text(
                     "CREATE TABLE constraint_test "
-                    "(id INTEGER PRIMARY KEY, email VARCHAR(100))"
-                )
+                    "(id INTEGER PRIMARY KEY, email VARCHAR(100))",
+                ),
             )
             conn.commit()
 
@@ -658,7 +688,9 @@ class TestMigrationScriptGeneration:
         try:
             # Generate migration for constraint addition
             revision = command.revision(
-                config, autogenerate=True, message="Add unique constraint"
+                config,
+                autogenerate=True,
+                message="Add unique constraint",
             )
 
             assert revision is not None
@@ -684,7 +716,9 @@ class TestMigrationScriptGeneration:
             SQLModel.metadata.remove(constraint_table)
 
     def test_migration_script_validation(
-        self, temp_alembic_dir: Path, temp_db_path: str
+        self,
+        temp_alembic_dir: Path,
+        temp_db_path: str,
     ) -> None:
         """Test that generated migration scripts are syntactically valid.
 
@@ -711,7 +745,9 @@ class TestMigrationScriptGeneration:
                 pytest.fail(f"Migration validation failed: {e}")
 
     def test_empty_migration_generation(
-        self, temp_alembic_dir: Path, temp_db_path: str
+        self,
+        temp_alembic_dir: Path,
+        temp_db_path: str,
     ) -> None:
         """Test generating migrations when no changes are detected.
 

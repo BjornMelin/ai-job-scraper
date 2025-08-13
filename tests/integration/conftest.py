@@ -106,9 +106,13 @@ def mock_streamlit():
             p.stop()
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def mock_session_state():
-    """Mock Streamlit session state for integration tests."""
+    """Mock Streamlit session state for integration tests.
+
+    Removed autouse to reduce overhead for tests that don't need it.
+    Use this fixture explicitly when needed.
+    """
     session_state = MockSessionState()
     # Mark as test environment
     session_state._test_mode = True
@@ -123,7 +127,7 @@ def mock_session_state():
 def mock_job_service():
     """Mock JobService for integration tests."""
     with (
-        patch("src.ui.utils.background_tasks.JobService") as mock_service_bg,
+        patch("src.services.job_service.JobService") as mock_service_bg,
         patch("src.services.job_service.JobService") as mock_service_core,
         patch("src.ui.pages.scraping.JobService") as mock_service_scraping,
     ):
@@ -145,7 +149,7 @@ def mock_job_service():
         yield mock_service_bg
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def prevent_real_system_execution():
     """Prevent real system execution during integration tests.
 
@@ -164,7 +168,7 @@ def prevent_real_system_execution():
             },
         ) as mock_scrape_all,
         patch(
-            "src.ui.utils.background_tasks.scrape_all",
+            "src.scraper.scrape_all",
             return_value={
                 "inserted": 0,
                 "updated": 0,

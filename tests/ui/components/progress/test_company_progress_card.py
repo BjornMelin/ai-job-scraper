@@ -4,21 +4,23 @@ Tests the rendering, styling, and data display functionality of the
 CompanyProgressCard component used in the scraping dashboard.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from unittest.mock import patch
 
 from src.ui.components.progress.company_progress_card import (
     CompanyProgressCard,
     render_company_progress_card,
 )
-from src.ui.utils.background_tasks import CompanyProgress
+from src.ui.utils.background_helpers import CompanyProgress
 
 
 class TestCompanyProgressCardRendering:
     """Test the basic rendering functionality of the company progress card."""
 
     def test_card_renders_with_bordered_container(
-        self, mock_streamlit, mock_session_state
+        self,
+        mock_streamlit,
+        mock_session_state,
     ):
         """Test that the progress card creates a bordered container."""
         # Arrange
@@ -34,7 +36,9 @@ class TestCompanyProgressCardRendering:
         assert container_calls[0].kwargs["border"] is True
 
     def test_card_displays_company_name_and_status(
-        self, mock_streamlit, mock_session_state
+        self,
+        mock_streamlit,
+        mock_session_state,
     ):
         """Test card displays company name with appropriate emoji and status."""
         # Arrange
@@ -65,7 +69,9 @@ class TestCompanyProgressCardRendering:
         assert status_badge_call is not None
 
     def test_card_displays_different_status_configurations(
-        self, mock_streamlit, mock_session_state
+        self,
+        mock_streamlit,
+        mock_session_state,
     ):
         """Test card displays appropriate styling for different status values."""
         # Test cases for different statuses
@@ -105,12 +111,17 @@ class TestCompanyProgressCardRendering:
             assert status_badge_call is not None
 
     def test_card_shows_error_message_for_error_status(
-        self, mock_streamlit, mock_session_state
+        self,
+        mock_streamlit,
+        mock_session_state,
     ):
         """Test card shows error message when status is Error."""
         # Arrange
         progress = CompanyProgress(
-            name="TechCorp", status="Error", jobs_found=0, error="Connection timeout"
+            name="TechCorp",
+            status="Error",
+            jobs_found=0,
+            error="Connection timeout",
         )
         card = CompanyProgressCard()
 
@@ -123,7 +134,9 @@ class TestCompanyProgressCardRendering:
         assert "Error: Connection timeout" in error_calls[0].args[0]
 
     def test_card_handles_missing_error_field_gracefully(
-        self, mock_streamlit, mock_session_state
+        self,
+        mock_streamlit,
+        mock_session_state,
     ):
         """Test card handles Error status without error message gracefully."""
         # Arrange
@@ -142,7 +155,9 @@ class TestCompanyProgressCardProgressBar:
     """Test the progress bar rendering logic."""
 
     def test_completed_status_shows_100_percent_progress(
-        self, mock_streamlit, mock_session_state
+        self,
+        mock_streamlit,
+        mock_session_state,
     ):
         """Test completed status shows 100% progress."""
         # Arrange
@@ -159,21 +174,24 @@ class TestCompanyProgressCardProgressBar:
         assert progress_calls[0].kwargs["text"] == "Completed"
 
     def test_scraping_status_shows_time_based_progress(
-        self, mock_streamlit, mock_session_state
+        self,
+        mock_streamlit,
+        mock_session_state,
     ):
         """Test scraping status shows time-based progress estimation."""
         # Arrange
-        start_time = datetime(2024, 1, 1, 10, 0, tzinfo=timezone.utc)
+        start_time = datetime(2024, 1, 1, 10, 0, tzinfo=UTC)
         progress = CompanyProgress(
-            name="TechCorp", status="Scraping", jobs_found=15, start_time=start_time
+            name="TechCorp",
+            status="Scraping",
+            jobs_found=15,
+            start_time=start_time,
         )
         card = CompanyProgressCard()
 
-        with patch("src.ui.utils.background_tasks.datetime") as mock_datetime:
+        with patch("src.ui.utils.background_helpers.datetime") as mock_datetime:
             # Mock current time to be 1 minute after start (should show ~50% progress)
-            mock_datetime.now.return_value = datetime(
-                2024, 1, 1, 10, 1, tzinfo=timezone.utc
-            )
+            mock_datetime.now.return_value = datetime(2024, 1, 1, 10, 1, tzinfo=UTC)
             mock_datetime.timezone = timezone
 
             # Act
@@ -189,7 +207,9 @@ class TestCompanyProgressCardProgressBar:
             assert "Scraping..." in progress_calls[0].kwargs["text"]
 
     def test_scraping_without_start_time_shows_minimal_progress(
-        self, mock_streamlit, mock_session_state
+        self,
+        mock_streamlit,
+        mock_session_state,
     ):
         """Test scraping status without start time shows minimal progress."""
         # Arrange
@@ -221,7 +241,9 @@ class TestCompanyProgressCardProgressBar:
         assert progress_calls[0].kwargs["text"] == "Failed"
 
     def test_pending_status_shows_zero_progress(
-        self, mock_streamlit, mock_session_state
+        self,
+        mock_streamlit,
+        mock_session_state,
     ):
         """Test pending status shows zero progress with waiting message."""
         # Arrange
@@ -242,12 +264,14 @@ class TestCompanyProgressCardMetrics:
     """Test the metrics section rendering."""
 
     def test_metrics_display_jobs_found_and_speed(
-        self, mock_streamlit, mock_session_state
+        self,
+        mock_streamlit,
+        mock_session_state,
     ):
         """Test metrics section displays jobs found and scraping speed."""
         # Arrange
-        start_time = datetime(2024, 1, 1, 10, 0, tzinfo=timezone.utc)
-        end_time = datetime(2024, 1, 1, 10, 5, tzinfo=timezone.utc)  # 5 minutes
+        start_time = datetime(2024, 1, 1, 10, 0, tzinfo=UTC)
+        end_time = datetime(2024, 1, 1, 10, 5, tzinfo=UTC)  # 5 minutes
         progress = CompanyProgress(
             name="TechCorp",
             status="Completed",
@@ -258,7 +282,7 @@ class TestCompanyProgressCardMetrics:
         card = CompanyProgressCard()
 
         with patch(
-            "src.ui.components.progress.company_progress_card.calculate_scraping_speed"
+            "src.ui.components.progress.company_progress_card.calculate_scraping_speed",
         ) as mock_calc_speed:
             mock_calc_speed.return_value = 6.0  # 6 jobs per minute
 
@@ -284,7 +308,9 @@ class TestCompanyProgressCardMetrics:
             mock_calc_speed.assert_called_once_with(30, start_time, end_time)
 
     def test_metrics_handle_zero_speed_gracefully(
-        self, mock_streamlit, mock_session_state
+        self,
+        mock_streamlit,
+        mock_session_state,
     ):
         """Test metrics display handles zero or N/A speed values."""
         # Arrange
@@ -292,7 +318,7 @@ class TestCompanyProgressCardMetrics:
         card = CompanyProgressCard()
 
         with patch(
-            "src.ui.components.progress.company_progress_card.calculate_scraping_speed"
+            "src.ui.components.progress.company_progress_card.calculate_scraping_speed",
         ) as mock_calc_speed:
             mock_calc_speed.return_value = 0.0  # No speed calculated
 
@@ -313,12 +339,14 @@ class TestCompanyProgressCardTimingInfo:
     """Test the timing information display."""
 
     def test_timing_shows_start_and_completion_info(
-        self, mock_streamlit, mock_session_state
+        self,
+        mock_streamlit,
+        mock_session_state,
     ):
         """Test timing section shows start, end, and duration information."""
         # Arrange
-        start_time = datetime(2024, 1, 1, 10, 0, tzinfo=timezone.utc)
-        end_time = datetime(2024, 1, 1, 10, 3, tzinfo=timezone.utc)
+        start_time = datetime(2024, 1, 1, 10, 0, tzinfo=UTC)
+        end_time = datetime(2024, 1, 1, 10, 3, tzinfo=UTC)
         progress = CompanyProgress(
             name="TechCorp",
             status="Completed",
@@ -330,10 +358,10 @@ class TestCompanyProgressCardTimingInfo:
 
         with (
             patch(
-                "src.ui.components.progress.company_progress_card.format_timestamp"
+                "src.ui.components.progress.company_progress_card.format_timestamp",
             ) as mock_format_time,
             patch(
-                "src.ui.components.progress.company_progress_card.format_duration"
+                "src.ui.components.progress.company_progress_card.format_duration",
             ) as mock_format_duration,
         ):
             mock_format_time.side_effect = ["10:00:00", "10:03:00"]
@@ -352,29 +380,32 @@ class TestCompanyProgressCardTimingInfo:
             assert "Duration: 3m 0s" in timing_text
 
     def test_timing_shows_elapsed_time_for_active_scraping(
-        self, mock_streamlit, mock_session_state
+        self,
+        mock_streamlit,
+        mock_session_state,
     ):
         """Test timing shows elapsed time for active scraping."""
         # Arrange
-        start_time = datetime(2024, 1, 1, 10, 0, tzinfo=timezone.utc)
+        start_time = datetime(2024, 1, 1, 10, 0, tzinfo=UTC)
         progress = CompanyProgress(
-            name="TechCorp", status="Scraping", jobs_found=15, start_time=start_time
+            name="TechCorp",
+            status="Scraping",
+            jobs_found=15,
+            start_time=start_time,
         )
         card = CompanyProgressCard()
 
         with (
             patch(
-                "src.ui.components.progress.company_progress_card.format_timestamp"
+                "src.ui.components.progress.company_progress_card.format_timestamp",
             ) as mock_format_time,
             patch(
-                "src.ui.components.progress.company_progress_card.format_duration"
+                "src.ui.components.progress.company_progress_card.format_duration",
             ) as mock_format_duration,
-            patch("src.ui.utils.background_tasks.datetime") as mock_datetime,
+            patch("src.ui.utils.background_helpers.datetime") as mock_datetime,
         ):
             # Mock current time to be 2 minutes after start
-            mock_datetime.now.return_value = datetime(
-                2024, 1, 1, 10, 2, tzinfo=timezone.utc
-            )
+            mock_datetime.now.return_value = datetime(2024, 1, 1, 10, 2, tzinfo=UTC)
             mock_datetime.timezone = timezone
 
             mock_format_time.return_value = "10:00:00"
@@ -392,7 +423,9 @@ class TestCompanyProgressCardTimingInfo:
             assert "Elapsed: 2m 0s" in timing_text
 
     def test_timing_handles_missing_times_gracefully(
-        self, mock_streamlit, mock_session_state
+        self,
+        mock_streamlit,
+        mock_session_state,
     ):
         """Test timing section handles missing timestamp data gracefully."""
         # Arrange
@@ -415,7 +448,10 @@ class TestCompanyProgressCardErrorHandling:
     """Test error handling and edge cases."""
 
     def test_card_handles_rendering_exceptions_gracefully(
-        self, mock_streamlit, mock_session_state, mock_logging
+        self,
+        mock_streamlit,
+        mock_session_state,
+        mock_logging,
     ):
         """Test card handles internal rendering exceptions gracefully."""
         # Arrange
@@ -434,7 +470,9 @@ class TestCompanyProgressCardErrorHandling:
         assert "Error displaying progress for TechCorp" in error_calls[0].args[0]
 
     def test_card_handles_unknown_status_gracefully(
-        self, mock_streamlit, mock_session_state
+        self,
+        mock_streamlit,
+        mock_session_state,
     ):
         """Test card handles unknown status values gracefully."""
         # Arrange - Use unknown status
@@ -456,7 +494,9 @@ class TestCompanyProgressCardErrorHandling:
         assert company_name_call is not None
 
     def test_card_handles_negative_jobs_found_gracefully(
-        self, mock_streamlit, mock_session_state
+        self,
+        mock_streamlit,
+        mock_session_state,
     ):
         """Test card handles edge case of negative jobs found."""
         # Arrange
@@ -478,7 +518,9 @@ class TestConvenienceFunction:
     """Test the convenience function for rendering progress cards."""
 
     def test_render_company_progress_card_function(
-        self, mock_streamlit, mock_session_state
+        self,
+        mock_streamlit,
+        mock_session_state,
     ):
         """Test the convenience function creates and renders a card."""
         # Arrange
@@ -508,8 +550,8 @@ class TestCompanyProgressCardIntegration:
     def test_complete_card_rendering_workflow(self, mock_streamlit, mock_session_state):
         """Test complete card rendering with all components."""
         # Arrange - Create a realistic progress object
-        start_time = datetime(2024, 1, 1, 10, 0, tzinfo=timezone.utc)
-        end_time = datetime(2024, 1, 1, 10, 5, tzinfo=timezone.utc)
+        start_time = datetime(2024, 1, 1, 10, 0, tzinfo=UTC)
+        end_time = datetime(2024, 1, 1, 10, 5, tzinfo=UTC)
         progress = CompanyProgress(
             name="TechCorp",
             status="Completed",
@@ -520,13 +562,13 @@ class TestCompanyProgressCardIntegration:
 
         with (
             patch(
-                "src.ui.components.progress.company_progress_card.calculate_scraping_speed"
+                "src.ui.components.progress.company_progress_card.calculate_scraping_speed",
             ) as mock_speed,
             patch(
-                "src.ui.components.progress.company_progress_card.format_timestamp"
+                "src.ui.components.progress.company_progress_card.format_timestamp",
             ) as mock_timestamp,
             patch(
-                "src.ui.components.progress.company_progress_card.format_duration"
+                "src.ui.components.progress.company_progress_card.format_duration",
             ) as mock_duration,
         ):
             mock_speed.return_value = 9.0
@@ -574,7 +616,9 @@ class TestCompanyProgressCardIntegration:
             assert "Duration: 5m 0s" in timing_text
 
     def test_card_responsiveness_with_long_company_names(
-        self, mock_streamlit, mock_session_state
+        self,
+        mock_streamlit,
+        mock_session_state,
     ):
         """Test card handles very long company names gracefully."""
         # Arrange

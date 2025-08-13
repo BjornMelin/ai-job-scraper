@@ -20,17 +20,20 @@ Example usage:
 
 import logging
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 import streamlit as st
 
-from src.ui.utils.background_tasks import CompanyProgress
-from src.ui.utils.formatters import (
+from src.ui.utils.ui_helpers import (
     calculate_scraping_speed,
     format_duration,
     format_jobs_count,
     format_timestamp,
 )
+
+if TYPE_CHECKING:
+    from src.ui.utils.background_helpers import CompanyProgress
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +74,7 @@ class CompanyProgressCard:
             },
         }
 
-    def render(self, company_progress: CompanyProgress) -> None:
+    def render(self, company_progress: "CompanyProgress") -> None:
         """Render the company progress card.
 
         Args:
@@ -80,7 +83,8 @@ class CompanyProgressCard:
         try:
             # Get status configuration
             status_info = self.status_config.get(
-                company_progress.status, self.status_config["Pending"]
+                company_progress.status,
+                self.status_config["Pending"],
             )
 
             # Create bordered container for the card
@@ -99,7 +103,9 @@ class CompanyProgressCard:
             st.error(f"Error displaying progress for {company_progress.name}")
 
     def _render_card_header(
-        self, company_progress: CompanyProgress, status_info: dict
+        self,
+        company_progress: "CompanyProgress",
+        status_info: dict,
     ) -> None:
         """Render the card header with company name and status.
 
@@ -131,7 +137,7 @@ class CompanyProgressCard:
                 unsafe_allow_html=True,
             )
 
-    def _render_progress_bar(self, company_progress: CompanyProgress) -> None:
+    def _render_progress_bar(self, company_progress: "CompanyProgress") -> None:
         """Render the progress bar for the company.
 
         Args:
@@ -145,10 +151,11 @@ class CompanyProgressCard:
             # For active scraping, show animated progress
             # Since we don't have granular progress data, use time-based estimation
             if company_progress.start_time:
-                elapsed = datetime.now(timezone.utc) - company_progress.start_time
+                elapsed = datetime.now(UTC) - company_progress.start_time
                 # Estimate progress based on elapsed time (max 90% until completion)
                 estimated_progress = min(
-                    0.9, elapsed.total_seconds() / 120.0
+                    0.9,
+                    elapsed.total_seconds() / 120.0,
                 )  # 2 min estimate
                 progress = estimated_progress
                 progress_text = f"Scraping... ({int(progress * 100)}%)"
@@ -165,7 +172,7 @@ class CompanyProgressCard:
         # Render progress bar with text
         st.progress(progress, text=progress_text)
 
-    def _render_metrics(self, company_progress: CompanyProgress) -> None:
+    def _render_metrics(self, company_progress: "CompanyProgress") -> None:
         """Render metrics section with jobs found and scraping speed.
 
         Args:
@@ -196,7 +203,7 @@ class CompanyProgressCard:
 
             st.metric(label="Speed", value=speed_display, help="Jobs per minute")
 
-    def _render_timing_info(self, company_progress: CompanyProgress) -> None:
+    def _render_timing_info(self, company_progress: "CompanyProgress") -> None:
         """Render timing information section.
 
         Args:
@@ -214,10 +221,10 @@ class CompanyProgressCard:
                 duration = company_progress.end_time - company_progress.start_time
                 duration_str = format_duration(duration.total_seconds())
                 timing_parts.extend(
-                    (f"Completed: {end_str}", f"Duration: {duration_str}")
+                    (f"Completed: {end_str}", f"Duration: {duration_str}"),
                 )
             elif company_progress.status == "Scraping":
-                elapsed = datetime.now(timezone.utc) - company_progress.start_time
+                elapsed = datetime.now(UTC) - company_progress.start_time
                 elapsed_str = format_duration(elapsed.total_seconds())
                 timing_parts.append(f"Elapsed: {elapsed_str}")
 
@@ -226,7 +233,7 @@ class CompanyProgressCard:
             st.caption(timing_text)
 
 
-def render_company_progress_card(company_progress: CompanyProgress) -> None:
+def render_company_progress_card(company_progress: "CompanyProgress") -> None:
     """Convenience function to render a company progress card.
 
     Args:

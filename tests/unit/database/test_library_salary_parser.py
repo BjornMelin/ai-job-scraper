@@ -84,6 +84,18 @@ class TestLibrarySalaryParserDirectly:
         assert LibrarySalaryParser._safe_decimal_to_int("invalid") is None
         assert LibrarySalaryParser._safe_decimal_to_int("") is None
 
+    def test_safe_decimal_to_float(self) -> None:
+        """Test safe decimal to float conversion for k-suffix parsing."""
+        # Test decimal precision preservation
+        assert LibrarySalaryParser._safe_decimal_to_float("125.5") == 125.5
+        assert LibrarySalaryParser._safe_decimal_to_float("150.75") == 150.75
+        assert LibrarySalaryParser._safe_decimal_to_float("100") == 100.0
+        assert LibrarySalaryParser._safe_decimal_to_float("99.9") == 99.9
+
+        # Test error handling
+        assert LibrarySalaryParser._safe_decimal_to_float("invalid") is None
+        assert LibrarySalaryParser._safe_decimal_to_float("") is None
+
     def test_apply_k_suffix_multiplication(self) -> None:
         """Test k-suffix multiplication."""
         # With k suffix
@@ -102,7 +114,7 @@ class TestLibrarySalaryParserDirectly:
 
         # Remove common phrases
         cleaned = LibrarySalaryParser._clean_text_for_babel(
-            "$120k per year plus benefits"
+            "$120k per year plus benefits",
         )
         assert "per year" not in cleaned
         assert "plus benefits" not in cleaned
@@ -133,6 +145,32 @@ class TestLibrarySalaryParserDirectly:
         result = LibrarySalaryParser._parse_k_suffix_ranges("100-120")
         assert result is None
 
+    def test_decimal_precision_k_suffix_ranges(self) -> None:
+        """Test decimal precision preservation in k-suffix ranges - THE BUG FIX."""
+        # Test the specific bug case: "125.5k-150.5k" should return (125500, 150500)
+        result = LibrarySalaryParser._parse_k_suffix_ranges("125.5k-150.5k")
+        assert result == (125500, 150500), f"Expected (125500, 150500) but got {result}"
+
+        # Test shared k suffix with decimals: "125.5-150.5k"
+        result = LibrarySalaryParser._parse_k_suffix_ranges("125.5-150.5k")
+        assert result == (125500, 150500), f"Expected (125500, 150500) but got {result}"
+
+        # Test "to" pattern with decimals: "125.5k to 150.75k"
+        result = LibrarySalaryParser._parse_k_suffix_ranges("125.5k to 150.75k")
+        assert result == (125500, 150750), f"Expected (125500, 150750) but got {result}"
+
+        # Test one-sided k with decimals: "125.5k-150"
+        result = LibrarySalaryParser._parse_k_suffix_ranges("125.5k-150")
+        assert result == (125500, 150000), f"Expected (125500, 150000) but got {result}"
+
+        # Test single decimal cases
+        result = LibrarySalaryParser._parse_k_suffix_ranges("99.9k-100.1k")
+        assert result == (99900, 100100), f"Expected (99900, 100100) but got {result}"
+
+        # Test high precision decimals
+        result = LibrarySalaryParser._parse_k_suffix_ranges("85.25k-95.75k")
+        assert result == (85250, 95750), f"Expected (85250, 95750) but got {result}"
+
     def test_extract_multiple_prices(self) -> None:
         """Test multiple price extraction."""
         # Test range with currency
@@ -161,12 +199,17 @@ class TestLibrarySalaryParserDirectly:
 
     @pytest.mark.parametrize(
         ("text", "expected_range"),
-        [
+        (
             # Test library integration edge cases
             ("£100k-£150k", (100000, 150000)),  # Multiple currency symbols
-            ("€85.5k to €95.5k", (85500, 95500)),  # Decimal k values
+            ("€85.5k to €95.5k", (85500, 95500)),  # Decimal k values - BUG FIX
             ("¥1000k", (1000000, 1000000)),  # Non-standard currency
             ("₹500k-₹750k", (500000, 750000)),  # Range with Indian Rupees
+            # Test decimal precision preservation - THE BUG FIX CASES
+            ("125.5k", (125500, 125500)),  # Single decimal k value
+            ("150.75K", (150750, 150750)),  # Capital K with decimal
+            ("99.9k-100.1k", (99900, 100100)),  # Decimal range
+            ("85.25k to 95.75k", (85250, 95750)),  # "to" pattern with decimals
             # Test complex formatting
             ("Salary range: $100,000 - $150,000 per annum", (100000, 150000)),
             ("Compensation: £80k-£120k depending on experience", (80000, 120000)),
@@ -174,10 +217,12 @@ class TestLibrarySalaryParserDirectly:
             ("To be determined", (None, None)),
             ("Competitive package", (None, None)),
             ("Contact for details", (None, None)),
-        ],
+        ),
     )
     def test_library_integration_cases(
-        self, text: str, expected_range: tuple[int | None, int | None]
+        self,
+        text: str,
+        expected_range: tuple[int | None, int | None],
     ) -> None:
         """Test library integration with various real-world formats."""
         result = LibrarySalaryParser.parse_salary_text(text)
@@ -196,7 +241,8 @@ class TestLibrarySalaryParserDirectly:
 
         # Test babel fallback with invalid input
         result = LibrarySalaryParser._parse_with_babel_fallback(
-            "no numbers here", context
+            "no numbers here",
+            context,
         )
         assert result == (None, None)
 

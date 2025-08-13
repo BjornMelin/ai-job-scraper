@@ -11,11 +11,11 @@ import streamlit as st
 
 from src.services.company_service import CompanyService
 from src.ui.helpers.company_display import render_company_card_with_selection
-from src.ui.utils.session_helpers import (
+from src.ui.utils.database_helpers import (
     display_feedback_messages,
     init_session_state_keys,
 )
-from src.ui.utils.streamlit_context import is_streamlit_context
+from src.ui.utils.ui_helpers import is_streamlit_context
 
 logger = logging.getLogger(__name__)
 
@@ -107,7 +107,9 @@ def _toggle_company_callback(company_id: int) -> None:
 
         st.session_state.toggle_error = None
         logger.info(
-            "User toggled company ID %s active status to %s", company_id, new_status
+            "User toggled company ID %s active status to %s",
+            company_id,
+            new_status,
         )
 
     except Exception as e:
@@ -164,70 +166,81 @@ def _select_none_callback() -> None:
         logger.exception("Failed to clear selections")
 
 
-def _bulk_delete_callback() -> None:
-    """Callback function to handle bulk deletion of selected companies.
+@st.dialog("Confirm Bulk Delete", width="medium")
+def _show_bulk_delete_dialog() -> None:
+    """Show bulk delete confirmation dialog using native st.dialog."""
+    selected_count = len(st.session_state.get("selected_companies", set()))
 
-    Uses idempotency tokens to prevent duplicate operations from rapid clicks.
-    """
+    st.warning(
+        f"⚠️ Are you sure you want to delete {selected_count} companies? "
+        "This will also delete all associated jobs and cannot be undone.",
+    )
+
+    col1, col2 = st.columns([1, 1])
+    with col1:
+        if st.button("✅ Confirm Delete", key="confirm_bulk_delete", type="primary"):
+            _execute_bulk_delete()
+    with col2:
+        if st.button("❌ Cancel", key="cancel_bulk_delete"):
+            st.rerun()
+
+
+def _execute_bulk_delete() -> None:
+    """Execute bulk deletion with proper error handling."""
     try:
         selected_ids = list(st.session_state.get("selected_companies", set()))
         if not selected_ids:
             st.session_state.bulk_operation_error = "No companies selected for deletion"
             return
 
-        # Check if user confirmed deletion with idempotency token
-        if st.session_state.get("bulk_delete_confirmed", False):
-            # Generate or get existing operation token for this confirmation
-            operation_token = st.session_state.get("bulk_delete_token")
-            if not operation_token:
-                st.session_state.bulk_operation_error = "Invalid operation token"
-                return
+        # Generate idempotency token for this operation
+        operation_token = str(uuid.uuid4())
 
-            # Check if this operation was already executed
-            executed_tokens = st.session_state.get("executed_delete_tokens", set())
-            if operation_token in executed_tokens:
-                logger.warning(
-                    "Duplicate bulk delete attempt blocked by idempotency token: %s",
-                    operation_token,
-                )
-                return
-
-            # Execute the deletion
-            deleted_count = CompanyService.bulk_delete_companies(selected_ids)
-
-            # Mark this token as executed to prevent duplicates
-            executed_tokens.add(operation_token)
-            st.session_state.executed_delete_tokens = executed_tokens
-
-            # Clear state
-            st.session_state.bulk_operation_success = (
-                f"Successfully deleted {deleted_count} companies"
-            )
-            st.session_state.selected_companies.clear()
-            st.session_state.bulk_delete_confirmed = False
-            st.session_state.show_bulk_delete_confirm = False
-            st.session_state.bulk_delete_token = None
-
-            logger.info(
-                "User bulk deleted %d companies with token %s",
-                deleted_count,
+        # Check if this operation was already executed
+        executed_tokens = st.session_state.get("executed_delete_tokens", set())
+        if operation_token in executed_tokens:
+            logger.warning(
+                "Duplicate bulk delete attempt blocked by idempotency token: %s",
                 operation_token,
             )
-            st.rerun()
-        else:
-            # Generate new operation token for this confirmation
-            operation_token = str(uuid.uuid4())
-            st.session_state.bulk_delete_token = operation_token
+            return
 
-            # Show confirmation dialog
-            st.session_state.show_bulk_delete_confirm = True
-            logger.info("Generated bulk delete token: %s", operation_token)
-            st.rerun()
+        # Execute the deletion
+        deleted_count = CompanyService.bulk_delete_companies(selected_ids)
+
+        # Mark this token as executed to prevent duplicates
+        executed_tokens.add(operation_token)
+        st.session_state.executed_delete_tokens = executed_tokens
+
+        # Clear state and show success
+        st.session_state.bulk_operation_success = (
+            f"Successfully deleted {deleted_count} companies"
+        )
+        st.session_state.selected_companies.clear()
+
+        logger.info(
+            "User bulk deleted %d companies with token %s",
+            deleted_count,
+            operation_token,
+        )
+        st.rerun()
 
     except Exception as e:
         st.session_state.bulk_operation_error = f"Failed to delete companies: {e}"
         st.session_state.bulk_operation_success = None
         logger.exception("Failed to bulk delete companies")
+
+
+def _bulk_delete_callback() -> None:
+    """Callback function to show bulk delete confirmation dialog."""
+    selected_ids = list(st.session_state.get("selected_companies", set()))
+    if not selected_ids:
+        st.session_state.bulk_operation_error = "No companies selected for deletion"
+        return
+
+    # Set flag to show confirmation dialog
+    st.session_state.show_bulk_delete_confirm = True
+    st.rerun()
 
 
 def _bulk_activate_callback() -> None:
@@ -355,7 +368,9 @@ def show_companies_page() -> None:
             )
 
         st.form_submit_button(
-            "Add Company", type="primary", on_click=_add_company_callback
+            "Add Company",
+            type="primary",
+            on_click=_add_company_callback,
         )
 
     # Display all companies
@@ -431,14 +446,13 @@ def show_companies_page() -> None:
             selected_count = len(st.session_state.get("selected_companies", set()))
             st.warning(
                 f"⚠️ Are you sure you want to delete {selected_count} companies? "
-                "This will also delete all associated jobs and cannot be undone."
+                "This will also delete all associated jobs and cannot be undone.",
             )
 
             col1, col2 = st.columns([1, 1])
             with col1:
                 if st.button("✅ Confirm Delete", key="confirm_bulk_delete"):
-                    st.session_state.bulk_delete_confirmed = True
-                    _bulk_delete_callback()
+                    _execute_bulk_delete()
             with col2:
                 if st.button("❌ Cancel", key="cancel_bulk_delete"):
                     st.session_state.show_bulk_delete_confirm = False

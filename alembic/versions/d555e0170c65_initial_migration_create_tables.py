@@ -36,10 +36,14 @@ def upgrade() -> None:
     )
     with op.batch_alter_table("companysql", schema=None) as batch_op:
         batch_op.create_index(
-            batch_op.f("ix_companysql_active"), ["active"], unique=False
+            batch_op.f("ix_companysql_active"),
+            ["active"],
+            unique=False,
         )
         batch_op.create_index(
-            batch_op.f("ix_companysql_last_scraped"), ["last_scraped"], unique=False
+            batch_op.f("ix_companysql_last_scraped"),
+            ["last_scraped"],
+            unique=False,
         )
         batch_op.create_index(batch_op.f("ix_companysql_name"), ["name"], unique=True)
 
@@ -57,7 +61,9 @@ def upgrade() -> None:
         sa.Column("notes", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
         sa.Column("content_hash", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
         sa.Column(
-            "application_status", sqlmodel.sql.sqltypes.AutoString(), nullable=False
+            "application_status",
+            sqlmodel.sql.sqltypes.AutoString(),
+            nullable=False,
         ),
         sa.Column("application_date", sa.DateTime(), nullable=True),
         sa.Column("archived", sa.Boolean(), nullable=False),
@@ -76,13 +82,19 @@ def upgrade() -> None:
             unique=False,
         )
         batch_op.create_index(
-            batch_op.f("ix_jobsql_archived"), ["archived"], unique=False
+            batch_op.f("ix_jobsql_archived"),
+            ["archived"],
+            unique=False,
         )
         batch_op.create_index(
-            batch_op.f("ix_jobsql_content_hash"), ["content_hash"], unique=False
+            batch_op.f("ix_jobsql_content_hash"),
+            ["content_hash"],
+            unique=False,
         )
         batch_op.create_index(
-            batch_op.f("ix_jobsql_last_seen"), ["last_seen"], unique=False
+            batch_op.f("ix_jobsql_last_seen"),
+            ["last_seen"],
+            unique=False,
         )
 
     # ### end Alembic commands ###

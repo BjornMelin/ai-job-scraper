@@ -3,11 +3,17 @@
 This module provides the scraping dashboard with real-time progress monitoring,
 background task management, and user controls for starting and stopping scraping
 operations.
+
+Key improvements from library-first-optimization branch:
+- Replaced manual refresh buttons with auto-refreshing fragments
+- Simplified status displays using native st.success/st.info
+- Removed complex st.status usage in favor of cleaner UX
+- Added throttled auto-refresh for real-time updates
 """
 
 import logging
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import streamlit as st
 
@@ -15,15 +21,14 @@ from src.services.job_service import JobService
 from src.ui.components.progress.company_progress_card import (
     render_company_progress_card,
 )
-from src.ui.utils.background_tasks import (
+from src.ui.utils.background_helpers import (
     get_company_progress,
     is_scraping_active,
     start_background_scraping,
     stop_all_scraping,
+    throttled_rerun,
 )
-from src.ui.utils.formatters import calculate_eta
-from src.ui.utils.refresh import throttled_rerun
-from src.ui.utils.streamlit_context import is_streamlit_context
+from src.ui.utils.ui_helpers import calculate_eta, is_streamlit_context
 
 logger = logging.getLogger(__name__)
 
@@ -38,15 +43,10 @@ def render_scraping_page() -> None:
     if "last_refresh" not in st.session_state:
         st.session_state.last_refresh = 0.0
 
-    # Process scraping trigger (runs every second via @st.fragment)
-    from src.ui.utils.background_tasks import process_scraping_trigger
-
-    process_scraping_trigger()
-
     # Page header
     st.markdown("# 🔍 Job Scraping Dashboard")
     st.markdown(
-        "Monitor and control job scraping operations with real-time progress tracking"
+        "Monitor and control job scraping operations with real-time progress tracking",
     )
 
     # Control buttons section
@@ -77,7 +77,7 @@ def _render_control_buttons() -> None:
         active_companies = []
         st.error(
             "⚠️ Failed to load company configuration. "
-            "Please check the database connection."
+            "Please check the database connection.",
         )
 
     # Status indicator
@@ -103,7 +103,7 @@ def _render_control_buttons() -> None:
                 start_background_scraping()
                 st.success(
                     f"🚀 Scraping initiated! Monitoring {len(active_companies)} "
-                    f"companies. Progress will appear below."
+                    f"companies. Progress will appear below.",
                 )
                 st.balloons()  # Celebratory feedback
                 st.rerun()
@@ -125,7 +125,7 @@ def _render_control_buttons() -> None:
                 stopped_count = stop_all_scraping()
                 if stopped_count > 0:
                     st.warning(
-                        f"⚠️ Scraping stopped. {stopped_count} task(s) cancelled."
+                        f"⚠️ Scraping stopped. {stopped_count} task(s) cancelled.",
                     )
                     st.rerun()
                 else:
@@ -158,7 +158,7 @@ def _render_control_buttons() -> None:
 
                 st.success(
                     f"✨ Progress data reset successfully! "
-                    f"Cleared {cleared_count} data stores."
+                    f"Cleared {cleared_count} data stores.",
                 )
                 st.rerun()
             except Exception:
@@ -167,7 +167,8 @@ def _render_control_buttons() -> None:
 
     # Show current status
     current_status = st.session_state.get(
-        "scraping_status", "Ready to start scraping..."
+        "scraping_status",
+        "Ready to start scraping...",
     )
     if is_scraping:
         st.info(f"🔄 {current_status}")
@@ -223,7 +224,7 @@ def _render_progress_dashboard() -> None:
                 break
 
         if start_time:
-            time_elapsed = (datetime.now(timezone.utc) - start_time).total_seconds()
+            time_elapsed = (datetime.now(UTC) - start_time).total_seconds()
             eta = calculate_eta(total_companies, completed_companies, time_elapsed)
         else:
             eta = "Calculating..."
@@ -243,7 +244,7 @@ def _render_progress_dashboard() -> None:
                 f"{active_companies}/{total_companies}",
                 "Companies currently being scraped",
             ),
-        ]
+        ],
     )
 
     # Overall progress bar
@@ -322,7 +323,7 @@ def _render_activity_summary() -> None:
             ("Last Run Jobs", last_run_jobs_display, ""),
             ("Last Run Time", last_run_time, ""),
             ("Avg Duration", duration_text, ""),
-        ]
+        ],
     )
 
 

@@ -4,7 +4,7 @@ This module provides fixtures for testing Streamlit UI components with proper
 mocking of Streamlit functionality and service layer dependencies.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -55,14 +55,22 @@ def mock_streamlit():
         started_patches.append(p)
 
     try:
-        # Configure columns to return mock column objects
+        # Configure columns to return mock column objects that work as context managers
         def mock_columns_func(*args, **_kwargs):
             """Mock columns function that returns appropriate number of columns."""
             if args:
                 num_cols = args[0] if isinstance(args[0], int) else len(args[0])
             else:
                 num_cols = 2  # Default
-            return [MagicMock() for _ in range(num_cols)]
+
+            columns = []
+            for _i in range(num_cols):
+                col = MagicMock()
+                # Configure as context manager
+                col.__enter__ = Mock(return_value=col)
+                col.__exit__ = Mock(return_value=None)
+                columns.append(col)
+            return columns
 
         mocks["columns"].side_effect = mock_columns_func
 
@@ -76,7 +84,7 @@ def mock_streamlit():
         # Configure container to return mock container
         mock_container_obj = MagicMock()
         mocks["container"].return_value.__enter__ = Mock(
-            return_value=mock_container_obj
+            return_value=mock_container_obj,
         )
         mocks["container"].return_value.__exit__ = Mock(return_value=None)
 
@@ -114,7 +122,7 @@ def mock_streamlit():
 
                 # Add an 'open' method that also calls the original function
                 wrapper.open = Mock(
-                    side_effect=lambda *args, **kwargs: func(*args, **kwargs)
+                    side_effect=lambda *args, **kwargs: func(*args, **kwargs),
                 )
 
                 # Copy function attributes
@@ -133,7 +141,7 @@ def mock_streamlit():
                 "tab1": mock_tab1,
                 "tab2": mock_tab2,
                 "tab3": mock_tab3,
-            }
+            },
         )
 
         yield mocks
@@ -232,7 +240,7 @@ def sample_company_dto():
         name="Tech Corp",
         url="https://techcorp.com/careers",
         active=True,
-        last_scraped=datetime.now(timezone.utc),
+        last_scraped=datetime.now(UTC),
         scrape_count=5,
         success_rate=0.8,
     )
@@ -247,7 +255,7 @@ def sample_companies_dto():
             name="Tech Corp",
             url="https://techcorp.com/careers",
             active=True,
-            last_scraped=datetime.now(timezone.utc),
+            last_scraped=datetime.now(UTC),
             scrape_count=5,
             success_rate=0.8,
         ),
@@ -265,7 +273,7 @@ def sample_companies_dto():
             name="AI Solutions",
             url="https://aisolutions.com/careers",
             active=True,
-            last_scraped=datetime.now(timezone.utc),
+            last_scraped=datetime.now(UTC),
             scrape_count=12,
             success_rate=0.92,
         ),
@@ -286,7 +294,7 @@ def sample_job_dto():
         ),
         link="https://techcorp.com/careers/ai-engineer-123",
         location="San Francisco, CA",
-        posted_date=datetime.now(timezone.utc),
+        posted_date=datetime.now(UTC),
         salary=(120000, 180000),
         favorite=False,
         notes="Interesting role with good growth potential",
@@ -294,14 +302,14 @@ def sample_job_dto():
         application_status="New",
         application_date=None,
         archived=False,
-        last_seen=datetime.now(timezone.utc),
+        last_seen=datetime.now(UTC),
     )
 
 
 @pytest.fixture
 def sample_jobs_dto():
     """Create a list of sample job DTOs for testing."""
-    base_time = datetime.now(timezone.utc)
+    base_time = datetime.now(UTC)
 
     return [
         Job(
@@ -404,7 +412,10 @@ def mock_company_service():
         ]:
             mock_service.get_all_companies.return_value = []
             mock_service.add_company.return_value = Company(
-                id=1, name="Test Company", url="https://test.com", active=True
+                id=1,
+                name="Test Company",
+                url="https://test.com",
+                active=True,
             )
             mock_service.toggle_company_active.return_value = True
             mock_service.get_active_companies_count.return_value = 0
@@ -425,14 +436,12 @@ def mock_job_service():
     with (
         patch("src.ui.pages.jobs.JobService") as mock_service_jobs,
         patch("src.ui.components.cards.job_card.JobService") as mock_service_cards,
-        patch("src.ui.utils.background_tasks.JobService") as mock_service_bg,
         patch("src.services.job_service.JobService") as mock_service_core,
     ):
         # Configure all mock instances with the same behavior
         for mock_service in [
             mock_service_jobs,
             mock_service_cards,
-            mock_service_bg,
             mock_service_core,
         ]:
             mock_service.get_filtered_jobs.return_value = []
@@ -448,12 +457,11 @@ def mock_job_service():
         yield {
             "jobs_page": mock_service_jobs,
             "cards": mock_service_cards,
-            "background_tasks": mock_service_bg,
             "core": mock_service_core,
         }
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def prevent_real_system_execution():
     """Global autouse fixture to prevent real system execution during tests.
 
@@ -536,7 +544,7 @@ def prevent_real_system_execution():
 
                 # Add an 'open' method that also calls the original function
                 wrapper.open = Mock(
-                    side_effect=lambda *args, **kwargs: func(*args, **kwargs)
+                    side_effect=lambda *args, **kwargs: func(*args, **kwargs),
                 )
 
                 # Copy function attributes

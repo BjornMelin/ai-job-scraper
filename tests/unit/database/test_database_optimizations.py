@@ -18,7 +18,7 @@ from src.database import create_db_and_tables, get_connection_pool_status
 from src.models import CompanySQL
 from src.services.company_service import CompanyService
 from src.services.job_service import JobService
-from src.ui.utils.database_utils import (
+from src.ui.utils.database_helpers import (
     background_task_session,
     clean_session_state,
     get_database_health,
@@ -49,10 +49,12 @@ def test_database_health_monitoring():
     # Test health assessment
     health = get_database_health()
     assert isinstance(health, dict)
-    assert "health" in health
+    assert "status" in health
+    assert health["status"] in ["healthy", "unhealthy", "error"]
+    assert "details" in health
     logger.info("Database health: %s", health)
 
-    print("✅ Database health monitoring tests passed")
+    # Removed print statement for line length
 
 
 def test_streamlit_session_management():
@@ -67,7 +69,9 @@ def test_streamlit_session_management():
     with streamlit_db_session() as session:
         # Create a test company
         test_company = CompanySQL(
-            name=company_name, url=f"https://test-{unique_id}.com", active=True
+            name=company_name,
+            url=f"https://test-{unique_id}.com",
+            active=True,
         )
         session.add(test_company)
         # Session should auto-commit on exit
@@ -77,7 +81,7 @@ def test_streamlit_session_management():
     test_companies = [c for c in companies if c.name == company_name]
     assert test_companies
 
-    print("✅ Streamlit session management tests passed")
+    # Removed print statement for line length
 
 
 def test_background_task_session():
@@ -115,7 +119,7 @@ def test_background_task_session():
     ]
     assert len(bg_companies) >= 2
 
-    print("✅ Background task session tests passed")
+    # Removed print statement for line length
 
 
 def test_session_state_validation():
@@ -130,7 +134,7 @@ def test_session_state_validation():
     cleaned_count = clean_session_state()
     assert isinstance(cleaned_count, int)
 
-    print("✅ Session state validation tests passed")
+    # Removed print statement for line length
 
 
 def test_concurrent_database_access():
@@ -165,7 +169,7 @@ def test_concurrent_database_access():
     # All queries should succeed
     assert all(isinstance(result, int) for result in results)
 
-    print("✅ Concurrent database access tests passed")
+    # Removed print statement for line length
 
 
 def test_performance_monitoring():
@@ -193,7 +197,9 @@ def test_performance_monitoring():
 
     creation_time = time.time() - start_time
     logger.info(
-        "Created/attempted %d companies in %.3fs", len(created_companies), creation_time
+        "Created/attempted %d companies in %.3fs",
+        len(created_companies),
+        creation_time,
     )
 
     # Test bulk job queries
@@ -208,4 +214,4 @@ def test_performance_monitoring():
     assert creation_time < 5.0  # Should create 10 companies in under 5 seconds
     assert query_time < 2.0  # Should query jobs in under 2 seconds
 
-    print("✅ Performance monitoring tests passed")
+    # Removed print statement for line length

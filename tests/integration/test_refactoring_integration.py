@@ -14,7 +14,7 @@ These tests verify real-world usage scenarios after the refactoring.
 
 import logging
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
 import pytest
@@ -22,6 +22,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel
+
 from src.constants import APPLICATION_STATUSES
 from src.models import CompanySQL, JobSQL
 from src.services.company_service import CompanyService
@@ -68,7 +69,9 @@ class TestScrapeToUIWorkflow:
     """Test complete workflow from scraping to UI filtering."""
 
     def test_bulk_company_creation_to_ui_filtering_workflow(
-        self, test_session, mock_db_session
+        self,
+        test_session,
+        mock_db_session,
     ):
         """Test complete workflow: bulk company creation → job → UI filtering."""
         # Step 1: Simulate scraping workflow with bulk company creation
@@ -82,7 +85,8 @@ class TestScrapeToUIWorkflow:
 
         # Use the relocated bulk_get_or_create_companies method
         company_map = CompanyService.bulk_get_or_create_companies(
-            test_session, company_names
+            test_session,
+            company_names,
         )
 
         # Verify all companies were created/found
@@ -90,7 +94,7 @@ class TestScrapeToUIWorkflow:
         assert all(name in company_map for name in company_names)
 
         # Step 2: Create jobs for these companies using the company_map
-        base_date = datetime.now(timezone.utc)
+        base_date = datetime.now(UTC)
         jobs_data = [
             {
                 "company_id": company_map["TechStart Inc"],
@@ -198,7 +202,9 @@ class TestScrapeToUIWorkflow:
 
         # Test that the constants work with JobService filtering
         company = CompanySQL(
-            name="ConstantTest Corp", url="https://test.com", active=True
+            name="ConstantTest Corp",
+            url="https://test.com",
+            active=True,
         )
         test_session.add(company)
         test_session.commit()
@@ -235,19 +241,23 @@ class TestScrapeToUIWorkflow:
             pytest.fail("job_card.py cannot import APPLICATION_STATUSES")
 
     def test_company_service_and_job_service_integration(
-        self, test_session, mock_db_session
+        self,
+        test_session,
+        mock_db_session,
     ):
         """Test integration between CompanyService and JobService after refactoring."""
         # Step 1: Create companies using CompanyService
         company1 = CompanyService.add_company(
-            "Integration Corp", "https://integration.com"
+            "Integration Corp",
+            "https://integration.com",
         )
         company2 = CompanyService.add_company("Testing Ltd", "https://testing.ltd")
 
         # Step 2: Use bulk_get_or_create_companies with mix of existing and new
         company_names = {"Integration Corp", "Testing Ltd", "NewBulkCorp"}
         company_map = CompanyService.bulk_get_or_create_companies(
-            test_session, company_names
+            test_session,
+            company_names,
         )
 
         # Verify existing companies are found and new ones created
@@ -257,7 +267,7 @@ class TestScrapeToUIWorkflow:
         assert "NewBulkCorp" in company_map
 
         # Step 3: Create jobs for these companies
-        base_date = datetime.now(timezone.utc)
+        base_date = datetime.now(UTC)
         jobs = [
             JobSQL(
                 company_id=company_map["Integration Corp"],
@@ -348,7 +358,9 @@ class TestScrapeToUIWorkflow:
 
         # Create a job and test again
         company = CompanySQL(
-            name="Error Test Corp", url="https://error.com", active=True
+            name="Error Test Corp",
+            url="https://error.com",
+            active=True,
         )
         test_session.add(company)
         test_session.commit()
@@ -373,7 +385,10 @@ class TestScrapeToUIWorkflow:
         assert jobs[0].application_status == "Applied"
 
     def _calculate_expected_count(
-        self, total_items: int, modulo: int, target_remainder: int
+        self,
+        total_items: int,
+        modulo: int,
+        target_remainder: int,
     ) -> int:
         """Helper method to calculate expected count for modulo-based filtering.
 
@@ -393,7 +408,8 @@ class TestScrapeToUIWorkflow:
         large_company_set = {f"PerfTest Corp {i:03d}" for i in range(50)}
 
         company_map = CompanyService.bulk_get_or_create_companies(
-            test_session, large_company_set
+            test_session,
+            large_company_set,
         )
 
         # Should handle 50 companies efficiently
@@ -401,7 +417,7 @@ class TestScrapeToUIWorkflow:
         assert all(f"PerfTest Corp {i:03d}" in company_map for i in range(50))
 
         # Create jobs for performance testing
-        base_date = datetime.now(timezone.utc)
+        base_date = datetime.now(UTC)
         jobs = []
         statuses = ["New", "Interested", "Applied", "Rejected"]
 
@@ -427,7 +443,9 @@ class TestScrapeToUIWorkflow:
         filters = {"application_status": ["Applied"]}
         applied_jobs = JobService.get_filtered_jobs(filters)
         expected_applied = self._calculate_expected_count(
-            50, 4, 2
+            50,
+            4,
+            2,
         )  # Applied is index 2
         assert len(applied_jobs) == expected_applied
 

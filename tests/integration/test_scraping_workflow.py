@@ -19,7 +19,7 @@ import time
 from unittest.mock import Mock, patch
 
 from src.ui.pages.scraping import render_scraping_page
-from src.ui.utils.background_tasks import (
+from src.ui.utils.background_helpers import (
     CompanyProgress,
     get_company_progress,
     get_scraping_results,
@@ -50,7 +50,7 @@ class TestHappyPathWorkflow:
         # Act: Start scraping workflow
         # In test environment, scraping runs synchronously and completes immediately
         with patch(
-            "src.ui.utils.background_tasks.JobService.get_active_companies",
+            "src.services.job_service.JobService.get_active_companies",
             return_value=companies,
         ):
             task_id = start_background_scraping(stay_active_in_tests=False)
@@ -114,7 +114,7 @@ class TestHappyPathWorkflow:
         # Act: Start scraping workflow
         # In test environment, scraping runs synchronously
         with patch(
-            "src.ui.utils.background_tasks.JobService.get_active_companies",
+            "src.services.job_service.JobService.get_active_companies",
             return_value=companies,
         ):
             start_background_scraping()
@@ -296,7 +296,7 @@ class TestStopMidScrapeWorkflow:
             {
                 "scraping_active": True,
                 "scraping_thread": mock_thread,
-            }
+            },
         )
 
         # Act: Stop scraping
@@ -346,7 +346,8 @@ class TestResetAfterCompleteWorkflow:
         progress_keys = ["task_progress", "company_progress", "scraping_results"]
         for key in progress_keys:
             if key in mock_session_state._data and hasattr(
-                mock_session_state._data[key], "clear"
+                mock_session_state._data[key],
+                "clear",
             ):
                 mock_session_state._data[key].clear()
 
@@ -420,7 +421,8 @@ class TestResetAfterCompleteWorkflow:
         progress_keys = ["task_progress", "company_progress", "scraping_results"]
         for key in progress_keys:
             if key in mock_session_state._data and hasattr(
-                mock_session_state._data[key], "clear"
+                mock_session_state._data[key],
+                "clear",
             ):
                 mock_session_state._data[key].clear()
 
@@ -527,7 +529,7 @@ class TestErrorRecoveryWorkflow:
         """Test recovery when JobService.get_active_companies fails."""
         # Arrange
         mock_job_service.get_active_companies.side_effect = Exception(
-            "Database connection failed"
+            "Database connection failed",
         )
 
         # Act: Start scraping when service fails
@@ -813,7 +815,8 @@ class TestConcurrentWorkflowScenarios:
             # Reset between workflows
             for key in ["task_progress", "company_progress", "scraping_results"]:
                 if key in mock_session_state._data and hasattr(
-                    mock_session_state._data[key], "clear"
+                    mock_session_state._data[key],
+                    "clear",
                 ):
                     mock_session_state._data[key].clear()
 

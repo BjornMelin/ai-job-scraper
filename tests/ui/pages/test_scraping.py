@@ -5,17 +5,19 @@ scraping dashboard UI page, focusing on real user scenarios and
 background task management.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import patch
 
-from src.ui.utils.background_tasks import CompanyProgress
+from src.ui.utils.background_helpers import CompanyProgress
 
 
 class TestScrapingPageControls:
     """Test the scraping page control buttons and state management."""
 
     def test_start_button_triggers_background_scraping(
-        self, mock_streamlit, mock_session_state
+        self,
+        mock_streamlit,
+        mock_session_state,
     ):
         """Test start button triggers background scraping with active companies."""
         # Arrange
@@ -46,7 +48,9 @@ class TestScrapingPageControls:
                     assert "Begin scraping jobs" in start_button_call.kwargs["help"]
 
     def test_start_button_disabled_when_scraping_active(
-        self, mock_streamlit, mock_session_state
+        self,
+        mock_streamlit,
+        mock_session_state,
     ):
         """Test start button is disabled when scraping is already active."""
         # Arrange
@@ -70,7 +74,9 @@ class TestScrapingPageControls:
                     assert start_button_call.kwargs["disabled"] is True
 
     def test_start_button_disabled_when_no_active_companies(
-        self, mock_streamlit, mock_session_state
+        self,
+        mock_streamlit,
+        mock_session_state,
     ):
         """Test start button is disabled when no active companies are configured."""
         # Arrange - Patch JobService.get_active_companies at the module level
@@ -101,7 +107,9 @@ class TestScrapingPageControls:
                     )
 
     def test_stop_button_halts_active_scraping(
-        self, mock_streamlit, mock_session_state
+        self,
+        mock_streamlit,
+        mock_session_state,
     ):
         """Test stop button halts active scraping operation."""
         # Arrange
@@ -133,7 +141,9 @@ class TestScrapingPageControls:
                         )
 
     def test_stop_button_disabled_when_not_scraping(
-        self, mock_streamlit, mock_session_state
+        self,
+        mock_streamlit,
+        mock_session_state,
     ):
         """Test stop button is disabled when scraping is not active."""
         # Arrange
@@ -157,7 +167,9 @@ class TestScrapingPageControls:
                     assert stop_button_call.kwargs["disabled"] is True
 
     def test_reset_button_clears_progress_data(
-        self, mock_streamlit, mock_session_state
+        self,
+        mock_streamlit,
+        mock_session_state,
     ):
         """Test reset button clears progress data from session state."""
         # Arrange
@@ -166,7 +178,7 @@ class TestScrapingPageControls:
                 "task_progress": {"task1": "data"},
                 "company_progress": {"company1": "data"},
                 "scraping_results": {"result": "data"},
-            }
+            },
         )
 
         with patch("src.ui.pages.scraping.JobService") as mock_service:
@@ -190,7 +202,9 @@ class TestScrapingPageControls:
                     assert "Clear progress data" in reset_button_call.kwargs["help"]
 
     def test_reset_button_disabled_when_scraping_active(
-        self, mock_streamlit, mock_session_state
+        self,
+        mock_streamlit,
+        mock_session_state,
     ):
         """Test reset button is disabled when scraping is active."""
         # Arrange
@@ -214,7 +228,9 @@ class TestScrapingPageControls:
                     assert reset_button_call.kwargs["disabled"] is True
 
     def test_database_error_handling_shows_error_message(
-        self, mock_streamlit, mock_session_state
+        self,
+        mock_streamlit,
+        mock_session_state,
     ):
         """Test graceful handling of database errors when loading companies."""
         # Arrange
@@ -238,7 +254,9 @@ class TestScrapingPageControls:
                     )
 
     def test_company_status_display_shows_active_companies(
-        self, mock_streamlit, mock_session_state
+        self,
+        mock_streamlit,
+        mock_session_state,
     ):
         """Test company status display shows count and names of active companies."""
         # Arrange
@@ -288,7 +306,9 @@ class TestScrapingPageProgressDashboard:
     """Test the progress dashboard rendering and metrics calculation."""
 
     def test_progress_dashboard_only_shown_when_scraping_active(
-        self, mock_streamlit, mock_session_state
+        self,
+        mock_streamlit,
+        mock_session_state,
     ):
         """Test progress dashboard is only displayed when scraping is active."""
         # Arrange
@@ -303,7 +323,7 @@ class TestScrapingPageProgressDashboard:
             mock_is_active.return_value = False
 
             with patch(
-                "src.ui.pages.scraping._render_progress_dashboard"
+                "src.ui.pages.scraping._render_progress_dashboard",
             ) as mock_progress:
                 # Act
                 render_scraping_page()
@@ -315,7 +335,7 @@ class TestScrapingPageProgressDashboard:
             mock_is_active.return_value = True
 
             with patch(
-                "src.ui.pages.scraping._render_progress_dashboard"
+                "src.ui.pages.scraping._render_progress_dashboard",
             ) as mock_progress:
                 # Act
                 render_scraping_page()
@@ -324,7 +344,9 @@ class TestScrapingPageProgressDashboard:
                 mock_progress.assert_called_once()
 
     def test_progress_dashboard_displays_overall_metrics(
-        self, mock_streamlit, mock_session_state
+        self,
+        mock_streamlit,
+        mock_session_state,
     ):
         """Test progress dashboard displays correct overall metrics."""
         # Arrange
@@ -333,14 +355,14 @@ class TestScrapingPageProgressDashboard:
                 name="TechCorp",
                 status="Completed",
                 jobs_found=25,
-                start_time=datetime(2024, 1, 1, 10, 0, tzinfo=timezone.utc),
-                end_time=datetime(2024, 1, 1, 10, 5, tzinfo=timezone.utc),
+                start_time=datetime(2024, 1, 1, 10, 0, tzinfo=UTC),
+                end_time=datetime(2024, 1, 1, 10, 5, tzinfo=UTC),
             ),
             "DataCo": CompanyProgress(
                 name="DataCo",
                 status="Scraping",
                 jobs_found=15,
-                start_time=datetime(2024, 1, 1, 10, 2, tzinfo=timezone.utc),
+                start_time=datetime(2024, 1, 1, 10, 2, tzinfo=UTC),
             ),
             "AI Corp": CompanyProgress(name="AI Corp", status="Pending", jobs_found=0),
         }
@@ -376,18 +398,20 @@ class TestScrapingPageProgressDashboard:
                 )  # 1 scraping out of 3 total
 
     def test_progress_dashboard_calculates_eta(
-        self, mock_streamlit, mock_session_state
+        self,
+        mock_streamlit,
+        mock_session_state,
     ):
         """Test progress dashboard calculates and displays ETA correctly."""
         # Arrange
-        start_time = datetime(2024, 1, 1, 10, 0, tzinfo=timezone.utc)
+        start_time = datetime(2024, 1, 1, 10, 0, tzinfo=UTC)
         company_progress = {
             "TechCorp": CompanyProgress(
                 name="TechCorp",
                 status="Completed",
                 jobs_found=25,
                 start_time=start_time,
-            )
+            ),
         }
 
         with patch("src.ui.pages.scraping.get_company_progress") as mock_get_progress:
@@ -412,7 +436,9 @@ class TestScrapingPageProgressDashboard:
                     assert eta_call.kwargs["value"] == "2m 30s"
 
     def test_progress_dashboard_displays_progress_bar(
-        self, mock_streamlit, mock_session_state
+        self,
+        mock_streamlit,
+        mock_session_state,
     ):
         """Test progress dashboard displays overall progress bar."""
         # Arrange
@@ -444,7 +470,9 @@ class TestScrapingPageProgressDashboard:
                 )
 
     def test_progress_dashboard_renders_company_grid(
-        self, mock_streamlit, mock_session_state
+        self,
+        mock_streamlit,
+        mock_session_state,
     ):
         """Test progress dashboard renders company progress in grid layout."""
         # Arrange
@@ -461,7 +489,7 @@ class TestScrapingPageProgressDashboard:
 
             with (
                 patch(
-                    "src.ui.pages.scraping.render_company_progress_card"
+                    "src.ui.pages.scraping.render_company_progress_card",
                 ) as mock_render_card,
                 patch("src.ui.pages.scraping.render_scraping_page"),
             ):
@@ -487,7 +515,9 @@ class TestScrapingPageActivitySummary:
     """Test the recent activity summary section."""
 
     def test_activity_summary_displays_last_run_metrics(
-        self, mock_streamlit, mock_session_state
+        self,
+        mock_streamlit,
+        mock_session_state,
     ):
         """Test activity summary displays last run job count and timing."""
         # Arrange
@@ -497,9 +527,9 @@ class TestScrapingPageActivitySummary:
             "TechCorp": CompanyProgress(
                 name="TechCorp",
                 status="Completed",
-                start_time=datetime(2024, 1, 1, 10, 0, tzinfo=timezone.utc),
-                end_time=datetime(2024, 1, 1, 10, 5, tzinfo=timezone.utc),
-            )
+                start_time=datetime(2024, 1, 1, 10, 0, tzinfo=UTC),
+                end_time=datetime(2024, 1, 1, 10, 5, tzinfo=UTC),
+            ),
         }
 
         with patch("src.ui.pages.scraping.get_company_progress") as mock_get_progress:
@@ -533,14 +563,14 @@ class TestScrapingPageActivitySummary:
             "TechCorp": CompanyProgress(
                 name="TechCorp",
                 status="Completed",
-                start_time=datetime(2024, 1, 1, 10, 0, tzinfo=timezone.utc),
-                end_time=datetime(2024, 1, 1, 10, 2, tzinfo=timezone.utc),  # 2 minutes
+                start_time=datetime(2024, 1, 1, 10, 0, tzinfo=UTC),
+                end_time=datetime(2024, 1, 1, 10, 2, tzinfo=UTC),  # 2 minutes
             ),
             "DataCo": CompanyProgress(
                 name="DataCo",
                 status="Completed",
-                start_time=datetime(2024, 1, 1, 10, 0, tzinfo=timezone.utc),
-                end_time=datetime(2024, 1, 1, 10, 4, tzinfo=timezone.utc),  # 4 minutes
+                start_time=datetime(2024, 1, 1, 10, 0, tzinfo=UTC),
+                end_time=datetime(2024, 1, 1, 10, 4, tzinfo=UTC),  # 4 minutes
             ),
         }
 
@@ -563,7 +593,9 @@ class TestScrapingPageActivitySummary:
                 )  # (120 + 240) / 2 = 180 seconds
 
     def test_activity_summary_handles_no_data_gracefully(
-        self, mock_streamlit, mock_session_state
+        self,
+        mock_streamlit,
+        mock_session_state,
     ):
         """Test activity summary handles cases with no scraping data."""
         # Arrange - empty session state and no company progress
@@ -602,7 +634,9 @@ class TestScrapingPageIntegration:
     """Integration tests for complete scraping page workflows."""
 
     def test_complete_scraping_workflow_user_journey(
-        self, mock_streamlit, mock_session_state
+        self,
+        mock_streamlit,
+        mock_session_state,
     ):
         """Test complete user journey from start to finish."""
         # Arrange - Setup active companies and initial state
@@ -615,7 +649,7 @@ class TestScrapingPageIntegration:
                 mock_start.return_value = "task-123"
 
                 with patch(
-                    "src.ui.pages.scraping.is_scraping_active"
+                    "src.ui.pages.scraping.is_scraping_active",
                 ) as mock_is_active:
                     # Initially not active
                     mock_is_active.return_value = False
@@ -652,7 +686,7 @@ class TestScrapingPageIntegration:
                 mock_start.side_effect = Exception("Background task failed")
 
                 with patch(
-                    "src.ui.pages.scraping.is_scraping_active"
+                    "src.ui.pages.scraping.is_scraping_active",
                 ) as mock_is_active:
                     mock_is_active.return_value = False
 
@@ -684,12 +718,12 @@ class TestScrapingPageIntegration:
             mock_service.get_active_companies.return_value = many_companies
 
             with patch(
-                "src.ui.pages.scraping.get_company_progress"
+                "src.ui.pages.scraping.get_company_progress",
             ) as mock_get_progress:
                 mock_get_progress.return_value = company_progress
 
                 with patch(
-                    "src.ui.pages.scraping.is_scraping_active"
+                    "src.ui.pages.scraping.is_scraping_active",
                 ) as mock_is_active:
                     mock_is_active.return_value = True
 

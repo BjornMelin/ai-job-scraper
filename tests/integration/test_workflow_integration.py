@@ -8,7 +8,7 @@ on Streamlit session state threading issues.
 
 from unittest.mock import patch
 
-from src.ui.utils.background_tasks import (
+from src.ui.utils.background_helpers import (
     CompanyProgress,
     get_company_progress,
     get_scraping_results,
@@ -34,11 +34,11 @@ class TestWorkflowIntegration:
         # Act 1: Start scraping
         with (
             patch(
-                "src.ui.utils.background_tasks.JobService.get_active_companies",
+                "src.services.job_service.JobService.get_active_companies",
                 return_value=companies,
             ),
             patch(
-                "src.ui.utils.background_tasks.scrape_all",
+                "src.scraper.scrape_all",
                 return_value={"TechCorp": 10, "DataInc": 15},
             ),
         ):
@@ -70,7 +70,7 @@ class TestWorkflowIntegration:
 
         # Act: Complete workflow setup
         with patch(
-            "src.ui.utils.background_tasks.JobService.get_active_companies",
+            "src.services.job_service.JobService.get_active_companies",
             return_value=companies,
         ):
             task_id = start_background_scraping()
@@ -82,10 +82,12 @@ class TestWorkflowIntegration:
                 "scraping_active": False,
                 "company_progress": {
                     "TechCorp": CompanyProgress(
-                        name="TechCorp", status="Completed", jobs_found=15
-                    )
+                        name="TechCorp",
+                        status="Completed",
+                        jobs_found=15,
+                    ),
                 },
-            }
+            },
         )
 
         # Assert: Session state integration works
@@ -112,7 +114,7 @@ class TestWorkflowIntegration:
 
         # Act: Start scraping with failing service
         with patch(
-            "src.ui.utils.background_tasks.JobService.get_active_companies",
+            "src.services.job_service.JobService.get_active_companies",
             side_effect=service_error,
         ):
             start_background_scraping()
@@ -123,7 +125,7 @@ class TestWorkflowIntegration:
                 "scraping_active": False,
                 "scraping_status": "❌ Scraping failed: Database connection failed",
                 "company_progress": {},
-            }
+            },
         )
 
         # Assert: Error handling integration
@@ -134,7 +136,7 @@ class TestWorkflowIntegration:
         # System should be able to retry
         retry_companies = ["TechCorp"]
         with patch(
-            "src.ui.utils.background_tasks.JobService.get_active_companies",
+            "src.services.job_service.JobService.get_active_companies",
             return_value=retry_companies,
         ):
             retry_task_id = start_background_scraping(stay_active_in_tests=False)
@@ -152,7 +154,7 @@ class TestWorkflowIntegration:
         for _cycle in range(3):
             # Act: Start scraping
             with patch(
-                "src.ui.utils.background_tasks.JobService.get_active_companies",
+                "src.services.job_service.JobService.get_active_companies",
                 return_value=companies,
             ):
                 task_id = start_background_scraping(stay_active_in_tests=False)
@@ -173,7 +175,8 @@ class TestWorkflowIntegration:
             progress_keys = ["task_progress", "company_progress", "scraping_results"]
             for key in progress_keys:
                 if key in mock_session_state._data and hasattr(
-                    mock_session_state._data[key], "clear"
+                    mock_session_state._data[key],
+                    "clear",
                 ):
                     mock_session_state._data[key].clear()
 
@@ -191,7 +194,7 @@ class TestWorkflowIntegration:
 
         # Act: Initialize all components
         with patch(
-            "src.ui.utils.background_tasks.JobService.get_active_companies",
+            "src.services.job_service.JobService.get_active_companies",
             return_value=companies,
         ):
             task_id = start_background_scraping()
@@ -203,13 +206,17 @@ class TestWorkflowIntegration:
                 "scraping_results": scraping_results,
                 "company_progress": {
                     "TechCorp": CompanyProgress(
-                        name="TechCorp", status="Completed", jobs_found=12
+                        name="TechCorp",
+                        status="Completed",
+                        jobs_found=12,
                     ),
                     "DataInc": CompanyProgress(
-                        name="DataInc", status="Completed", jobs_found=8
+                        name="DataInc",
+                        status="Completed",
+                        jobs_found=8,
                     ),
                 },
-            }
+            },
         )
 
         # Assert: Component integration
@@ -251,7 +258,7 @@ class TestWorkflowIntegration:
 
         # Act: Start workflow to initialize data flow
         with patch(
-            "src.ui.utils.background_tasks.JobService.get_active_companies",
+            "src.services.job_service.JobService.get_active_companies",
             return_value=companies,
         ):
             task_id = start_background_scraping()
@@ -266,7 +273,7 @@ class TestWorkflowIntegration:
                         "progress": 1.0,
                         "message": "Scraping completed",
                         "timestamp": "2024-01-01T00:00:00Z",
-                    }
+                    },
                 },
                 "company_progress": {
                     company: CompanyProgress(
@@ -276,7 +283,7 @@ class TestWorkflowIntegration:
                     )
                     for company in companies
                 },
-            }
+            },
         )
 
         # Assert: Data flows correctly through all layers
@@ -315,13 +322,17 @@ class TestWorkflowIntegration:
                 "scraping_results": {"TechCorp": 10, "DataInc": 15},
                 "company_progress": {
                     "TechCorp": CompanyProgress(
-                        name="TechCorp", status="Completed", jobs_found=10
+                        name="TechCorp",
+                        status="Completed",
+                        jobs_found=10,
                     ),
                     "DataInc": CompanyProgress(
-                        name="DataInc", status="Completed", jobs_found=15
+                        name="DataInc",
+                        status="Completed",
+                        jobs_found=15,
                     ),
                 },
-            }
+            },
         )
 
         # Act: Import and test UI integration functions
@@ -369,7 +380,7 @@ class TestWorkflowIntegration:
         with (
             patch("src.config.Settings", return_value=test_settings),
             patch(
-                "src.ui.utils.background_tasks.JobService.get_active_companies",
+                "src.services.job_service.JobService.get_active_companies",
                 return_value=companies,
             ),
         ):
@@ -377,7 +388,7 @@ class TestWorkflowIntegration:
 
         # Simulate completion
         mock_session_state.update(
-            {"scraping_active": False, "scraping_results": scraping_results}
+            {"scraping_active": False, "scraping_results": scraping_results},
         )
 
         # Assert: Proxy integration works
@@ -392,7 +403,7 @@ class TestWorkflowIntegration:
         with (
             patch("src.config.Settings", return_value=test_settings),
             patch(
-                "src.ui.utils.background_tasks.JobService.get_active_companies",
+                "src.services.job_service.JobService.get_active_companies",
                 return_value=companies,
             ),
         ):
@@ -416,7 +427,7 @@ class TestConcurrentScenarios:
         for _i in range(5):
             # Start
             with patch(
-                "src.ui.utils.background_tasks.JobService.get_active_companies",
+                "src.services.job_service.JobService.get_active_companies",
                 return_value=companies,
             ):
                 task_id = start_background_scraping(stay_active_in_tests=False)
@@ -444,7 +455,7 @@ class TestConcurrentScenarios:
 
         # Perform multiple overlapping operations
         with patch(
-            "src.ui.utils.background_tasks.JobService.get_active_companies",
+            "src.services.job_service.JobService.get_active_companies",
             return_value=companies,
         ):
             # Start first task

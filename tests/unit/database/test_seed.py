@@ -15,13 +15,14 @@ import pytest
 import sqlmodel
 
 from sqlmodel import Session, select
+from typer.testing import CliRunner
+
 from src.models import CompanySQL
 from src.seed import app, seed
-from typer.testing import CliRunner
 
 
 @pytest.fixture
-def expected_companies() -> list[dict[str, Any]]:
+def expected_companies() -> list[dict[str, "Any"]]:
     """Fixture providing expected seeded companies.
 
     Returns:
@@ -56,7 +57,8 @@ def expected_companies() -> list[dict[str, Any]]:
 
 
 def test_seed_success(
-    session: Session, expected_companies: list[dict[str, Any]]
+    session: Session,
+    expected_companies: list[dict[str, "Any"]],
 ) -> None:
     """Test successful database seeding with all expected companies.
 
@@ -75,7 +77,8 @@ def test_seed_success(
 
 
 def test_seed_idempotent(
-    session: Session, expected_companies: list[dict[str, Any]]
+    session: Session,
+    expected_companies: list[dict[str, "Any"]],
 ) -> None:
     """Test that seeding is idempotent (can be run multiple times safely).
 
@@ -91,7 +94,8 @@ def test_seed_idempotent(
 
 
 def test_seed_partial_existing(
-    session: Session, expected_companies: list[dict[str, Any]]
+    session: Session,
+    expected_companies: list[dict[str, "Any"]],
 ) -> None:
     """Test seeding behavior when some companies already exist.
 
@@ -117,7 +121,7 @@ def test_seed_partial_existing(
         assert anthropic.active is False
 
 
-def test_seed_data_integrity(expected_companies: list[dict[str, Any]]) -> None:
+def test_seed_data_integrity(expected_companies: list[dict[str, "Any"]]) -> None:
     """Test integrity and validity of seeded company data.
 
     Validates that all expected companies have:
@@ -144,7 +148,8 @@ def test_seed_cli_execution(session: Session) -> None:
     runner = CliRunner()
     with patch("src.seed.engine", session.bind):
         result = runner.invoke(
-            app, []
+            app,
+            [],
         )  # No arguments needed, seed() is the default command
         assert result.exit_code == 0
         assert "Seeded" in result.output

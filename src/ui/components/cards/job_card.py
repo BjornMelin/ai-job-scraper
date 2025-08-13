@@ -8,21 +8,23 @@ display and user interactions for individual job items in the card view.
 import html
 import logging
 
-from datetime import datetime, timezone
-from typing import Any
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from src.schemas import Job
 
 import pandas as pd
 import streamlit as st
 
 from src.constants import APPLICATION_STATUSES
-from src.schemas import Job
 from src.services.job_service import JobService
 from src.ui.styles.styles import apply_job_grid_styles
 
 logger = logging.getLogger(__name__)
 
 
-def render_job_card(job: Job) -> None:
+def render_job_card(job: "Job") -> None:
     """Render an individual job card with interactive controls.
 
     This function creates a visually appealing job card with job details,
@@ -39,9 +41,9 @@ def render_job_card(job: Job) -> None:
 
         # Job title and company
         st.markdown(f"### {html.escape(job.title)}")
-        st.markdown(
-            f"**{html.escape(job.company)}** • {html.escape(job.location)} • {time_str}"
-        )
+        job_company = html.escape(job.company)
+        job_location = html.escape(job.location)
+        st.markdown(f"**{job_company}** • {job_location} • {time_str}")
 
         # Job description preview
         description_preview = (
@@ -108,7 +110,7 @@ def render_job_card(job: Job) -> None:
                 pass  # onClick is handled by the on_click parameter
 
 
-def _format_posted_date(posted_date: Any) -> str:  # noqa: PLR0911
+def _format_posted_date(posted_date: "Any") -> str:
     """Format the posted date for display with robust timezone handling.
 
     This function handles both timezone-naive and timezone-aware datetime objects,
@@ -126,7 +128,7 @@ def _format_posted_date(posted_date: Any) -> str:  # noqa: PLR0911
         if isinstance(posted_date, str):
             try:
                 posted_date = datetime.strptime(posted_date, "%Y-%m-%d").replace(
-                    tzinfo=timezone.utc
+                    tzinfo=UTC,
                 )
             except ValueError:
                 logger.warning("Failed to parse posted_date string: %s", posted_date)
@@ -136,7 +138,7 @@ def _format_posted_date(posted_date: Any) -> str:  # noqa: PLR0911
         elif isinstance(posted_date, datetime):
             if posted_date.tzinfo is None:
                 # Naive datetime - assume UTC (common for jobspy data)
-                posted_date = posted_date.replace(tzinfo=timezone.utc)
+                posted_date = posted_date.replace(tzinfo=UTC)
                 logger.debug("Converted naive datetime to UTC: %s", posted_date)
             # Already timezone-aware - use as-is
 
@@ -146,7 +148,7 @@ def _format_posted_date(posted_date: Any) -> str:  # noqa: PLR0911
 
         # Calculate difference using timezone-aware datetimes
         try:
-            now_utc = datetime.now(timezone.utc)
+            now_utc = datetime.now(UTC)
             time_diff = now_utc - posted_date
             days_ago = time_diff.days
 
@@ -203,7 +205,7 @@ def _handle_view_details(job_id: int) -> None:
     st.session_state.view_job_id = job_id
 
 
-def render_jobs_grid(jobs: list[Job], num_columns: int = 3) -> None:
+def render_jobs_grid(jobs: list["Job"], num_columns: int = 3) -> None:
     """Render jobs in a responsive grid layout.
 
     This function creates a responsive grid of job cards using st.columns
@@ -237,7 +239,7 @@ def render_jobs_grid(jobs: list[Job], num_columns: int = 3) -> None:
             st.markdown('<div class="job-card-grid"></div>', unsafe_allow_html=True)
 
 
-def render_jobs_list(jobs: list[Job]) -> None:
+def render_jobs_list(jobs: list["Job"]) -> None:
     """Render a list of job cards.
 
     This is the main function for rendering jobs according to T1.1 requirements.

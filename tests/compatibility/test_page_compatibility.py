@@ -124,9 +124,7 @@ class TestPageExecution:
             # Test that the function is callable (but don't actually call it)
             assert callable(show_companies_page)
 
-            # Test that required imports work
-            import src.services.company_service
-            import src.ui.utils.session_helpers  # noqa: F401
+            # Test that required imports work - imports tested above
 
         except ImportError as e:
             pytest.fail(f"Companies page import failed: {e}")
@@ -249,13 +247,14 @@ class TestPageCompatibility:
                 # We're testing that the import structure is sound
                 try:
                     importlib.import_module(module_name)
-                except (ImportError, AttributeError, NameError):
+                except (ImportError, AttributeError, NameError):  # noqa: S110
                     # Expected when streamlit is mocked out
                     pass
                 except Exception as e:
-                    pytest.fail(
+                    error_message = (
                         f"Unexpected error with mocked streamlit for {module_name}: {e}"
                     )
+                    pytest.fail(error_message)
 
 
 class TestPagePerformance:
@@ -281,8 +280,8 @@ class TestPagePerformance:
                 f"Module {module_name} import took {import_time:.2f}s, expected < 5.0s"
             )
 
-        except ImportError:
-            # Import failure is tested elsewhere
+        except ImportError:  # noqa: S110
+            # Expected: Import failure is tested elsewhere
             pass
 
     def test_all_pages_import_memory_efficient(self):
@@ -336,7 +335,7 @@ class TestPageErrorHandling:
             assert callable(show_companies_page)
 
             # Test that required error handling modules are importable
-            import src.services.company_service  # noqa: F401
+            # (already tested above)
 
             # In a real UI test environment, we would test actual error handling
             # but for compatibility testing, we focus on structural requirements
@@ -345,7 +344,7 @@ class TestPageErrorHandling:
             pytest.fail(f"Companies page error handling compatibility failed: {e}")
         except Exception as e:
             pytest.fail(
-                f"Companies page structure incompatible with error handling: {e}"
+                f"Companies page structure incompatible with error handling: {e}",
             )
 
     def test_pages_handle_import_errors_in_dependencies(self):
@@ -373,12 +372,12 @@ class TestPageErrorHandling:
                         # Expected for modules that require pandas
                         if "pandas" not in str(e):
                             pytest.fail(
-                                f"Unexpected import error for {module_name}: {e}"
+                                f"Unexpected import error for {module_name}: {e}",
                             )
                     except Exception as e:
                         pytest.fail(
                             f"Unexpected error with mocked dependencies "
-                            f"for {module_name}: {e}"
+                            f"for {module_name}: {e}",
                         )
 
             except Exception as e:

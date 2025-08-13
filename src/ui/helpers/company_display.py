@@ -3,18 +3,21 @@
 Helper functions for rendering company information and statistics.
 """
 
+from typing import TYPE_CHECKING
+
 import streamlit as st
 
-from src.schemas import Company
+if TYPE_CHECKING:
+    from src.schemas import Company
 
 
-def render_company_info(company: Company) -> None:
+def render_company_info(company: "Company") -> None:
     """Render company name and URL."""
     st.markdown(f"**{company.name}**")
     st.markdown(f"🔗 [{company.url}]({company.url})")
 
 
-def render_company_statistics(company: Company) -> None:
+def render_company_statistics(company: "Company") -> None:
     """Render company scraping statistics and last scraped date."""
     # Display last scraped date
     if company.last_scraped:
@@ -32,7 +35,7 @@ def render_company_statistics(company: Company) -> None:
         st.markdown("📊 No scraping history")
 
 
-def render_company_toggle(company: Company, toggle_callback) -> None:
+def render_company_toggle(company: "Company", toggle_callback) -> None:
     """Render company active toggle with callback."""
     st.toggle(
         "Active",
@@ -44,23 +47,34 @@ def render_company_toggle(company: Company, toggle_callback) -> None:
     )
 
 
-def render_company_card(company: Company, toggle_callback) -> None:
+def render_company_card(company: "Company", toggle_callback) -> None:
     """Render a complete company card with info, stats, and toggle."""
     with st.container(border=True):
         col1, col2, col3 = st.columns([3, 2, 1])
 
         with col1:
-            render_company_info(company)
+            try:
+                render_company_info(company)
+            except Exception:
+                st.error("Error displaying company info")
 
         with col2:
-            render_company_statistics(company)
+            try:
+                render_company_statistics(company)
+            except Exception:
+                st.error("Error displaying company stats")
 
         with col3:
-            render_company_toggle(company, toggle_callback)
+            try:
+                render_company_toggle(company, toggle_callback)
+            except Exception:
+                st.error("Error displaying company toggle")
 
 
 def render_company_card_with_delete(
-    company: Company, toggle_callback, delete_callback
+    company: "Company",
+    toggle_callback,
+    delete_callback,
 ) -> None:
     """Render a company card with info, stats, toggle, and delete button."""
     with st.container(border=True):
@@ -105,7 +119,10 @@ def render_company_card_with_delete(
 
 
 def render_company_card_with_selection(
-    company: Company, toggle_callback, delete_callback, selection_callback
+    company: "Company",
+    toggle_callback,
+    delete_callback,
+    selection_callback,
 ) -> None:
     """Render a company card with selection, info, stats, toggle, and delete."""
     with st.container(border=True):
@@ -117,7 +134,7 @@ def render_company_card_with_selection(
             is_selected = company.id in selected if company.id else False
 
             st.checkbox(
-                "",
+                f"Select {company.name}",
                 value=is_selected,
                 key=f"select_company_{company.id}",
                 help=f"Select {company.name} for bulk operations",

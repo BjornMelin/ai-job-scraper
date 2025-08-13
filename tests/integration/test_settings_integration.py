@@ -12,11 +12,11 @@ import time
 from unittest import mock
 
 from src.ui.pages.settings import load_settings, save_settings
-from src.ui.utils.background_tasks import (
+from src.ui.utils.background_helpers import (
     get_company_progress,
     get_scraping_results,
     is_scraping_active,
-    start_scraping,
+    start_background_scraping,
 )
 
 
@@ -42,13 +42,11 @@ class TestSettingsIntegration:
 
         # Step 2: Mock scraping with settings
         with mock.patch(
-            "src.ui.utils.background_tasks.JobService.get_active_companies"
+            "src.services.job_service.JobService.get_active_companies",
         ) as mock_companies:
             mock_companies.return_value = ["Tech Corp", "AI Startup"]
 
-            with mock.patch(
-                "src.ui.utils.background_tasks.scrape_all"
-            ) as mock_scrape_all:
+            with mock.patch("src.scraper.scrape_all") as mock_scrape_all:
                 mock_scrape_all.return_value = {
                     "Tech Corp": 25,
                     "AI Startup": 20,
@@ -60,7 +58,7 @@ class TestSettingsIntegration:
                 }
 
                 # Start scraping (this should use the settings)
-                start_scraping()
+                start_background_scraping()
 
                 # Wait for background thread to process
                 timeout = 5
@@ -110,20 +108,18 @@ class TestSettingsIntegration:
 
         # Mock active companies
         with mock.patch(
-            "src.ui.utils.background_tasks.JobService.get_active_companies"
+            "src.services.job_service.JobService.get_active_companies",
         ) as mock_companies:
             mock_companies.return_value = ["Company A", "Company B"]
 
-            with mock.patch(
-                "src.ui.utils.background_tasks.scrape_all"
-            ) as mock_scrape_all:
+            with mock.patch("src.scraper.scrape_all") as mock_scrape_all:
                 mock_scrape_all.return_value = {
                     "Company A": 30,
                     "Company B": 25,
                 }
 
                 # Start background task
-                start_scraping()
+                start_background_scraping()
 
                 # Wait for completion
                 timeout = 5
@@ -147,17 +143,15 @@ class TestSettingsIntegration:
             mock_session_state["max_jobs_per_company"] = case["limit"]
 
             with mock.patch(
-                "src.ui.utils.background_tasks.JobService.get_active_companies"
+                "src.services.job_service.JobService.get_active_companies",
             ) as mock_companies:
                 mock_companies.return_value = ["Test Company"]
 
-                with mock.patch(
-                    "src.ui.utils.background_tasks.scrape_all"
-                ) as mock_scrape_all:
+                with mock.patch("src.scraper.scrape_all") as mock_scrape_all:
                     mock_scrape_all.return_value = {"Test Company": case["limit"]}
 
                     # Start scraping
-                    start_scraping()
+                    start_background_scraping()
 
                     # Wait for completion
                     timeout = 3
@@ -174,20 +168,18 @@ class TestSettingsIntegration:
         mock_session_state["max_jobs_per_company"] = 20
 
         with mock.patch(
-            "src.ui.utils.background_tasks.JobService.get_active_companies"
+            "src.services.job_service.JobService.get_active_companies",
         ) as mock_companies:
             mock_companies.return_value = ["Progress Corp", "Track Inc"]
 
-            with mock.patch(
-                "src.ui.utils.background_tasks.scrape_all"
-            ) as mock_scrape_all:
+            with mock.patch("src.scraper.scrape_all") as mock_scrape_all:
                 mock_scrape_all.return_value = {
                     "Progress Corp": 18,
                     "Track Inc": 20,
                 }
 
                 # Start scraping
-                start_scraping()
+                start_background_scraping()
 
                 # Check progress during execution
                 progress = get_company_progress()
@@ -233,16 +225,14 @@ class TestSettingsIntegration:
 
             # Test with background task
             with mock.patch(
-                "src.ui.utils.background_tasks.JobService.get_active_companies"
+                "src.services.job_service.JobService.get_active_companies",
             ) as mock_companies:
                 mock_companies.return_value = ["Edge Case Corp"]
 
-                with mock.patch(
-                    "src.ui.utils.background_tasks.scrape_all"
-                ) as mock_scrape_all:
+                with mock.patch("src.scraper.scrape_all") as mock_scrape_all:
                     mock_scrape_all.return_value = {}
 
-                    start_scraping()
+                    start_background_scraping()
 
                     # Should not crash, even with edge case values
                     timeout = 3
@@ -268,17 +258,15 @@ class TestSettingsIntegration:
 
         # Simulate concurrent operations
         with mock.patch(
-            "src.ui.utils.background_tasks.JobService.get_active_companies"
+            "src.services.job_service.JobService.get_active_companies",
         ) as mock_companies:
             mock_companies.return_value = ["Concurrent Corp"]
 
-            with mock.patch(
-                "src.ui.utils.background_tasks.scrape_all"
-            ) as mock_scrape_all:
+            with mock.patch("src.scraper.scrape_all") as mock_scrape_all:
                 mock_scrape_all.return_value = {"Concurrent Corp": 50}
 
                 # Start background scraping
-                start_scraping()
+                start_background_scraping()
 
                 # # In test environment, scraping runs synchronously, so update settings
                 # # after
@@ -303,18 +291,16 @@ class TestSettingsIntegration:
         save_settings({"max_jobs_per_company": 40})
 
         with mock.patch(
-            "src.ui.utils.background_tasks.JobService.get_active_companies"
+            "src.services.job_service.JobService.get_active_companies",
         ) as mock_companies:
             mock_companies.return_value = ["Error Corp"]
 
             # Mock scraping to raise exception
-            with mock.patch(
-                "src.ui.utils.background_tasks.scrape_all"
-            ) as mock_scrape_all:
+            with mock.patch("src.scraper.scrape_all") as mock_scrape_all:
                 mock_scrape_all.side_effect = Exception("Scraping failed")
 
                 # Start scraping
-                start_scraping()
+                start_background_scraping()
 
                 # Wait for error handling
                 timeout = 5
@@ -336,23 +322,21 @@ class TestSettingsIntegration:
             {
                 "llm_provider": "OpenAI",
                 "max_jobs_per_company": 35,
-            }
+            },
         )
         mock_session_state["temp_key"] = "temp_value"
         mock_session_state["another_temp"] = 123
 
         # Run scraping operation
         with mock.patch(
-            "src.ui.utils.background_tasks.JobService.get_active_companies"
+            "src.services.job_service.JobService.get_active_companies",
         ) as mock_companies:
             mock_companies.return_value = ["Cleanup Corp"]
 
-            with mock.patch(
-                "src.ui.utils.background_tasks.scrape_all"
-            ) as mock_scrape_all:
+            with mock.patch("src.scraper.scrape_all") as mock_scrape_all:
                 mock_scrape_all.return_value = {"Cleanup Corp": 35}
 
-                start_scraping()
+                start_background_scraping()
 
                 # Wait for completion
                 timeout = 5
@@ -383,13 +367,11 @@ class TestSettingsWithRealScenarios:
         save_settings({"max_jobs_per_company": 30})
 
         with mock.patch(
-            "src.ui.utils.background_tasks.JobService.get_active_companies"
+            "src.services.job_service.JobService.get_active_companies",
         ) as mock_companies:
             mock_companies.return_value = ["User Corp"]
 
-            with mock.patch(
-                "src.ui.utils.background_tasks.scrape_all"
-            ) as mock_scrape_all:
+            with mock.patch("src.scraper.scrape_all") as mock_scrape_all:
                 # Simulate slow scraping
                 def slow_scrape(limit):
                     time.sleep(0.2)  # Small delay to simulate work
@@ -398,7 +380,7 @@ class TestSettingsWithRealScenarios:
                 mock_scrape_all.side_effect = slow_scrape
 
                 # Start scraping
-                start_scraping()
+                start_background_scraping()
 
                 # Immediately change settings (user action)
                 save_settings({"max_jobs_per_company": 60})
@@ -431,19 +413,18 @@ class TestSettingsWithRealScenarios:
             save_settings({"max_jobs_per_company": session["limit"]})
 
             with mock.patch(
-                "src.ui.utils.background_tasks.JobService.get_active_companies"
+                "src.services.job_service.JobService.get_active_companies",
             ) as mock_companies:
                 mock_companies.return_value = session["companies"]
 
-                with mock.patch(
-                    "src.ui.utils.background_tasks.scrape_all"
-                ) as mock_scrape_all:
+                with mock.patch("src.scraper.scrape_all") as mock_scrape_all:
                     mock_scrape_all.return_value = dict.fromkeys(
-                        session["companies"], session["limit"]
+                        session["companies"],
+                        session["limit"],
                     )
 
                     # Start scraping
-                    start_scraping()
+                    start_background_scraping()
 
                     # Wait for completion
                     timeout = 5
@@ -496,13 +477,13 @@ class TestSettingsWithRealScenarios:
         save_settings({"max_jobs_per_company": 25})
 
         with mock.patch(
-            "src.ui.utils.background_tasks.JobService.get_active_companies"
+            "src.services.job_service.JobService.get_active_companies",
         ) as mock_companies:
             # No active companies
             mock_companies.return_value = []
 
             # Start scraping
-            start_scraping()
+            start_background_scraping()
 
             # Wait for quick completion
             timeout = 3
@@ -532,16 +513,14 @@ class TestSettingsWithRealScenarios:
 
             if i % 2 == 0:  # Test scraping on even iterations
                 with mock.patch(
-                    "src.ui.utils.background_tasks.JobService.get_active_companies"
+                    "src.services.job_service.JobService.get_active_companies",
                 ) as mock_companies:
                     mock_companies.return_value = [f"Stress{i} Corp"]
 
-                    with mock.patch(
-                        "src.ui.utils.background_tasks.scrape_all"
-                    ) as mock_scrape_all:
+                    with mock.patch("src.scraper.scrape_all") as mock_scrape_all:
                         mock_scrape_all.return_value = {f"Stress{i} Corp": limit}
 
-                        start_scraping()
+                        start_background_scraping()
 
                         # Quick completion
                         timeout = 2

@@ -5,36 +5,56 @@ test suite, including database session management, sample data creation,
 and test settings configuration.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine
+
 from src.config import Settings
 from src.models import CompanySQL, JobSQL
 
 
-@pytest.fixture(scope="session", name="engine")
-def engine_fixture():
+@pytest.fixture(scope="session")
+def engine():
     """Create a temporary in-memory SQLite engine for the test session.
 
     Uses StaticPool to ensure schema and data persist across session connections.
+    Optimized for session-level reuse to reduce setup overhead.
     """
     engine = create_engine(
         "sqlite:///:memory:",
         poolclass=StaticPool,
-        connect_args={"check_same_thread": False},
+        connect_args={
+            "check_same_thread": False,
+            # Performance optimizations for testing
+            "isolation_level": None,  # Autocommit mode for faster tests
+        },
+        # Reduce connection overhead
+        pool_pre_ping=True,
+        pool_recycle=3600,
     )
     SQLModel.metadata.create_all(engine)
     return engine
 
 
-@pytest.fixture(name="session")
-def session_fixture(engine):
-    """Create a new database session for each test."""
-    with Session(engine) as session:
+@pytest.fixture
+def session(engine):
+    """Create a new database session for each test.
+
+    Uses transaction rollback for isolation without recreation overhead.
+    """
+    connection = engine.connect()
+    transaction = connection.begin()
+    session = Session(bind=connection)
+
+    try:
         yield session
+    finally:
+        session.close()
+        transaction.rollback()
+        connection.close()
 
 
 @pytest.fixture
@@ -56,7 +76,9 @@ def test_settings():
 def sample_company(session: Session):
     """Create and insert a sample company for testing."""
     company = CompanySQL(
-        name="Test Company", url="https://test.com/careers", active=True
+        name="Test Company",
+        url="https://test.com/careers",
+        active=True,
     )
     session.add(company)
     session.commit()
@@ -73,7 +95,7 @@ def sample_job(session: Session):
         description="We are looking for an experienced AI engineer to join our team.",
         link="https://test.com/careers/ai-engineer-123",
         location="San Francisco, CA",
-        posted_date=datetime.now(timezone.utc),
+        posted_date=datetime.now(UTC),
         salary=(100000, 150000),
         favorite=False,
         notes="",
@@ -93,6 +115,6 @@ def sample_job_dict():
         "description": "We are looking for an experienced AI engineer.",
         "link": "https://test.com/careers/ai-engineer-123",
         "location": "San Francisco, CA",
-        "posted_date": datetime.now(timezone.utc),
+        "posted_date": datetime.now(UTC),
         "salary": "$100k-150k",
     }

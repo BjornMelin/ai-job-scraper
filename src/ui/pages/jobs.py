@@ -8,23 +8,26 @@ with tab-based organization for different job categories.
 import asyncio
 import logging
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 import pandas as pd
 import streamlit as st
 
-from src.schemas import Job
 from src.scraper import scrape_all
 from src.services.company_service import CompanyService
 from src.services.job_service import JobService
 from src.ui.components.sidebar import render_sidebar
-from src.ui.utils.streamlit_context import is_streamlit_context
+from src.ui.utils.ui_helpers import is_streamlit_context
+
+if TYPE_CHECKING:
+    from src.schemas import Job
 
 logger = logging.getLogger(__name__)
 
 
 @st.dialog("Job Details", width="large")
-def show_job_details_modal(job: Job) -> None:
+def show_job_details_modal(job: "Job") -> None:
     """Show job details in a modal dialog.
 
     Args:
@@ -45,7 +48,7 @@ def show_job_details_modal(job: Job) -> None:
     render_action_buttons(job, notes_value)
 
 
-def _handle_job_details_modal(jobs: list[Job]) -> None:
+def _handle_job_details_modal(jobs: list["Job"]) -> None:
     """Handle showing the job details modal when a job is selected.
 
     Args:
@@ -117,7 +120,7 @@ def render_jobs_page() -> None:
 
     if not jobs:
         st.info(
-            "🔍 No jobs found. Try adjusting your filters or refreshing the job list."
+            "🔍 No jobs found. Try adjusting your filters or refreshing the job list.",
         )
         return
 
@@ -151,9 +154,7 @@ def _render_page_header() -> None:
             f"""
             <div style='text-align: right; padding-top: 20px;'>
                 <small style='color: var(--text-muted);'>
-                    Last updated: {
-                datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
-            }
+                    Last updated: {datetime.now(UTC).strftime("%Y-%m-%d %H:%M")}
                 </small>
             </div>
             """,
@@ -162,13 +163,13 @@ def _render_page_header() -> None:
 
 
 def _render_action_bar() -> None:
-    """Render the action bar with refresh button and status info."""
-    main_container = st.container()
+    """Render the action bar with refresh button and status info using containers."""
+    # Use horizontal flex container for better responsive layout
+    with st.container():
+        # Use better proportions for action bar elements
+        action_cols = st.columns([3, 2, 2], gap="medium")
 
-    with main_container:
-        action_col1, action_col2, action_col3 = st.columns([2, 2, 1])
-
-        with action_col1:
+        with action_cols[0]:
             if st.button(
                 "🔄 Refresh Jobs",
                 use_container_width=True,
@@ -177,10 +178,10 @@ def _render_action_bar() -> None:
             ):
                 _handle_refresh_jobs()
 
-        with action_col2:
+        with action_cols[1]:
             _render_last_refresh_status()
 
-        with action_col3:
+        with action_cols[2]:
             _render_active_sources_metric()
 
 
@@ -191,42 +192,45 @@ def _handle_refresh_jobs() -> None:
     for monitoring, debugging, and user feedback. It follows modern Python
     logging best practices with structured log messages.
     """
-    refresh_start_time = datetime.now(timezone.utc)
+    refresh_start_time = datetime.now(UTC)
     logger.info(
         "REFRESH_JOBS_START: Starting job refresh workflow at %s",
         refresh_start_time.isoformat(),
     )
 
-    with st.spinner("🔍 Searching for new jobs..."):
+    # Use st.status for better progress visualization
+    with st.status("🔍 Searching for new jobs...", expanded=True, state="running"):
         try:
             # Log active companies count before scraping
             try:
                 active_count = CompanyService.get_active_companies_count()
+                st.write(f"Found {active_count} active companies to scrape")
                 logger.info(
                     "REFRESH_JOBS_SOURCES: Found %d active companies for scraping",
                     active_count,
                 )
             except Exception:
+                st.write("Warning: Could not determine company count")
                 logger.warning(
-                    "REFRESH_JOBS_SOURCES_ERROR: Failed to get active companies count"
+                    "REFRESH_JOBS_SOURCES_ERROR: Failed to get active companies count",
                 )
 
             # Execute scraping and get sync stats
+            st.write("Starting job scraping...")
             logger.info("REFRESH_JOBS_SCRAPING: Starting scraping execution")
-            scraping_start = datetime.now(timezone.utc)
+            scraping_start = datetime.now(UTC)
 
             sync_stats = _execute_scraping_safely()
+            st.write("Scraping completed successfully!")
 
-            scraping_duration = (
-                datetime.now(timezone.utc) - scraping_start
-            ).total_seconds()
+            scraping_duration = (datetime.now(UTC) - scraping_start).total_seconds()
             logger.info(
                 "REFRESH_JOBS_SCRAPING_COMPLETE: Scraping completed in %.2f seconds",
                 scraping_duration,
             )
 
             # Update session state with timezone-aware datetime
-            st.session_state.last_scrape = datetime.now(timezone.utc)
+            st.session_state.last_scrape = datetime.now(UTC)
 
             # Defensive validation: ensure we got a dict with sync stats
             if not isinstance(sync_stats, dict):
@@ -246,9 +250,7 @@ def _handle_refresh_jobs() -> None:
             skipped = sync_stats.get("skipped", 0)
 
             total_processed = inserted + updated
-            total_duration = (
-                datetime.now(timezone.utc) - refresh_start_time
-            ).total_seconds()
+            total_duration = (datetime.now(UTC) - refresh_start_time).total_seconds()
 
             logger.info(
                 "REFRESH_JOBS_SYNC_STATS: inserted=%d, updated=%d, archived=%d, "
@@ -262,12 +264,18 @@ def _handle_refresh_jobs() -> None:
                 total_duration,
             )
 
-            # Display sync results from SmartSyncEngine
-            st.success(
-                f"✅ Success! Processed {total_processed} jobs in "
-                f"{total_duration:.1f}s. Inserted: {inserted}, "
-                f"Updated: {updated}, Archived: {archived}"
-            )
+            # Display results using st.status for better UX
+            with st.status(
+                f"Refresh completed in {total_duration:.1f}s",
+                expanded=True,
+                state="complete",
+            ):
+                st.write(f"✅ Processed **{total_processed}** jobs")
+                st.write(f"• Inserted: **{inserted}** new jobs")
+                st.write(f"• Updated: **{updated}** existing jobs")
+                st.write(f"• Archived: **{archived}** stale jobs")
+                if skipped > 0:
+                    st.write(f"• Skipped: **{skipped}** unchanged jobs")
 
             logger.info(
                 "REFRESH_JOBS_COMPLETE: Job refresh workflow completed "
@@ -277,27 +285,33 @@ def _handle_refresh_jobs() -> None:
             st.rerun()
 
         except Exception:
-            total_duration = (
-                datetime.now(timezone.utc) - refresh_start_time
-            ).total_seconds()
+            total_duration = (datetime.now(UTC) - refresh_start_time).total_seconds()
             logger.exception(
                 "REFRESH_JOBS_FAILURE: Job refresh workflow failed after %.2fs",
                 total_duration,
             )
-            st.error(
-                f"❌ Scrape failed after {total_duration:.1f}s. Check logs for details."
-            )
+            # Use st.status for error indication
+            with st.status(
+                f"Scraping failed after {total_duration:.1f}s",
+                expanded=True,
+                state="error",
+            ):
+                st.write("❌ Check logs for detailed error information")
+                st.write(
+                    "Try again in a few moments or contact support if the issue "
+                    "persists",
+                )
 
 
 def _render_last_refresh_status() -> None:
     """Render the last refresh status information."""
     if hasattr(st.session_state, "last_scrape") and st.session_state.last_scrape:
-        time_diff = datetime.now(timezone.utc) - st.session_state.last_scrape
+        time_diff = datetime.now(UTC) - st.session_state.last_scrape
 
         if time_diff.total_seconds() < 3600:
             minutes = int(time_diff.total_seconds() / 60)
             st.info(
-                f"Last refreshed: {minutes} minute{'s' if minutes != 1 else ''} ago"
+                f"Last refreshed: {minutes} minute{'s' if minutes != 1 else ''} ago",
             )
         else:
             hours = int(time_diff.total_seconds() / 3600)
@@ -316,7 +330,7 @@ def _render_active_sources_metric() -> None:
         st.metric("Active Sources", 0)
 
 
-def _get_filtered_jobs() -> list[Job]:
+def _get_filtered_jobs() -> list["Job"]:
     """Get jobs filtered by current filter settings.
 
     Returns:
@@ -365,7 +379,7 @@ def _construct_job_filters(favorites_only: bool = False, **kwargs) -> dict:
     return filters
 
 
-def _get_favorites_jobs() -> list[Job]:
+def _get_favorites_jobs() -> list["Job"]:
     """Get favorite jobs filtered by current filter settings using database query.
 
     Returns:
@@ -382,7 +396,7 @@ def _get_favorites_jobs() -> list[Job]:
         return []
 
 
-def _get_applied_jobs() -> list[Job]:
+def _get_applied_jobs() -> list["Job"]:
     """Get applied jobs filtered by current filter settings using database query.
 
     Returns:
@@ -399,50 +413,61 @@ def _get_applied_jobs() -> list[Job]:
         return []
 
 
-def _render_job_tabs(jobs: list[Job]) -> None:
-    """Render the job tabs with filtered content.
+def _render_job_tabs(jobs: list["Job"]) -> None:
+    """Render the job tabs using native st.dataframe with built-in features.
 
     Args:
-        jobs: List of all jobs used for calculating All Jobs count.
+        jobs: List of all jobs for calculating tab counts.
     """
-    # Get efficiently filtered job lists using database queries
-    favorites = _get_favorites_jobs()
-    applied = _get_applied_jobs()
+    # Get jobs for each tab category
+    all_jobs = jobs
+    favorites_jobs = _get_favorites_jobs()
+    applied_jobs = _get_applied_jobs()
 
     # Create tabs with counts
+    total_all = len(all_jobs)
+    total_favorites = len(favorites_jobs)
+    total_applied = len(applied_jobs)
+
     tab1, tab2, tab3 = st.tabs(
         [
-            f"All Jobs 📋 ({len(jobs)})",
-            f"Favorites ⭐ ({len(favorites)})",
-            f"Applied ✅ ({len(applied)})",
-        ]
+            f"All Jobs 📋 ({total_all:,})",
+            f"Favorites ⭐ ({total_favorites:,})",
+            f"Applied ✅ ({total_applied:,})",
+        ],
     )
 
-    # Render each tab
+    # Render each tab with native dataframe
     with tab1:
-        _render_job_display(jobs, "all")
+        if total_all == 0:
+            st.info(
+                "🔍 No jobs found. Try adjusting your filters or refreshing the "
+                "job list.",
+            )
+        else:
+            _render_job_display(all_jobs, "all")
 
     with tab2:
-        if not favorites:
+        if total_favorites == 0:
             st.info(
                 "💡 No favorite jobs yet. Star jobs you're interested in "
-                "to see them here!"
+                "to see them here!",
             )
         else:
-            _render_job_display(favorites, "favorites")
+            _render_job_display(favorites_jobs, "favorites")
 
     with tab3:
-        if not applied:
+        if total_applied == 0:
             st.info(
                 "🚀 No applications yet. Update job status to 'Applied' "
-                "to track them here!"
+                "to track them here!",
             )
         else:
-            _render_job_display(applied, "applied")
+            _render_job_display(applied_jobs, "applied")
 
 
-def _render_job_display(jobs: list[Job], tab_key: str) -> None:
-    """Render job display for a specific tab.
+def _render_job_display(jobs: list["Job"], tab_key: str) -> None:
+    """Render job display with view mode selection (Card or List).
 
     Args:
         jobs: List of jobs to display.
@@ -461,36 +486,40 @@ def _render_job_display(jobs: list[Job], tab_key: str) -> None:
     apply_view_mode(filtered_jobs, view_mode, grid_columns)
 
 
-def _jobs_to_dataframe(jobs: list[Job]) -> pd.DataFrame:
-    """Convert job objects to pandas DataFrame.
+def _jobs_to_dataframe(jobs: list["Job"]) -> pd.DataFrame:
+    """Convert job objects to pandas DataFrame optimized for st.dataframe display.
 
     Args:
         jobs: List of job objects.
 
     Returns:
-        DataFrame with job data.
+        DataFrame with job data formatted for native Streamlit display.
     """
+    if not jobs:
+        return pd.DataFrame()
+
     return pd.DataFrame(
         [
             {
                 "id": j.id,
                 "Company": j.company,
                 "Title": j.title,
-                "Location": j.location,
+                "Location": j.location or "Remote",
                 "Posted": j.posted_date,
                 "Last Seen": j.last_seen,
                 "Favorite": j.favorite,
-                "Status": j.status,
-                "Notes": j.notes,
+                "Status": j.application_status or "New",
+                "Notes": j.notes or "",
                 "Link": j.link,
+                # Keep description for job details modal but hide from main view
                 "Description": j.description,
             }
             for j in jobs
-        ]
+        ],
     )
 
 
-def _apply_tab_search_to_jobs(jobs: list[Job], tab_key: str) -> list[Job]:
+def _apply_tab_search_to_jobs(jobs: list["Job"], tab_key: str) -> list["Job"]:
     """Apply per-tab search filtering to Job DTO objects.
 
     Args:
@@ -540,71 +569,7 @@ def _apply_tab_search_to_jobs(jobs: list[Job], tab_key: str) -> list[Job]:
     return jobs
 
 
-def _render_list_view(df: pd.DataFrame, tab_key: str) -> None:
-    """Render the list view for jobs.
-
-    Args:
-        df: DataFrame with job data.
-        tab_key: Tab key for unique widget keys.
-    """
-    edited_df = st.data_editor(
-        df.drop(columns=["Description"]),
-        column_config={
-            "Link": st.column_config.LinkColumn("Link", display_text="Apply"),
-            "Favorite": st.column_config.CheckboxColumn("Favorite ⭐"),
-            "Status": st.column_config.SelectboxColumn(
-                "Status 🔄", options=["New", "Interested", "Applied", "Rejected"]
-            ),
-            "Notes": st.column_config.TextColumn("Notes 📝"),
-        },
-        hide_index=False,
-        use_container_width=True,
-    )
-
-    # Save changes button
-    if st.button("Save Changes", key=f"save_{tab_key}"):
-        _save_list_view_changes(edited_df)
-
-    # Export CSV button
-    csv = edited_df.to_csv(index=False).encode("utf-8")
-    st.download_button(
-        "Export CSV 📥",
-        csv,
-        "jobs.csv",
-        "text/csv",
-        key=f"export_{tab_key}",
-    )
-
-
-def _save_list_view_changes(edited_df: pd.DataFrame) -> None:
-    """Save changes from list view editing using service layer.
-
-    Args:
-        edited_df: DataFrame with edited job data.
-    """
-    try:
-        # Convert DataFrame to list of updates for bulk update
-        job_updates = []
-        for _, row in edited_df.iterrows():
-            job_updates.append(
-                {
-                    "id": row["id"],
-                    "favorite": row["Favorite"],
-                    "application_status": row["Status"],
-                    "notes": row["Notes"],
-                }
-            )
-
-        # Use service layer for bulk update
-        JobService.bulk_update_jobs(job_updates)
-        st.success("Saved!")
-
-    except Exception:
-        st.error("Save failed.")
-        logger.exception("Save failed")
-
-
-def _render_statistics_dashboard(jobs: list[Job]) -> None:
+def _render_statistics_dashboard(jobs: list["Job"]) -> None:
     """Render the statistics dashboard.
 
     Args:
@@ -634,7 +599,11 @@ def _render_statistics_dashboard(jobs: list[Job]) -> None:
     # Render progress visualization
     if total_jobs > 0:
         _render_progress_visualization(
-            total_jobs, new_jobs, interested, applied, rejected
+            total_jobs,
+            new_jobs,
+            interested,
+            applied,
+            rejected,
         )
 
 
@@ -647,7 +616,7 @@ def _render_metric_cards(
     favorites: int,
     rejected: int,
 ) -> None:
-    """Render the metric cards section.
+    """Render the metric cards section using enhanced st.metric components.
 
     Args:
         total_jobs: Total number of jobs.
@@ -660,77 +629,57 @@ def _render_metric_cards(
     col1, col2, col3, col4, col5, col6 = st.columns(6)
 
     with col1:
-        st.markdown(
-            f"""
-            <div class="metric-card">
-                <div class="metric-value">{total_jobs}</div>
-                <div class="metric-label">Total Jobs</div>
-            </div>
-        """,
-            unsafe_allow_html=True,
-        )
+        st.metric("Total Jobs", total_jobs)
 
     with col2:
-        st.markdown(
-            f"""
-            <div class="metric-card">
-                <div class="metric-value" style="color: var(--primary-color);">
-                    {new_jobs}
-                </div>
-                <div class="metric-label">New</div>
-            </div>
-        """,
-            unsafe_allow_html=True,
+        # Calculate percentage of new jobs
+        new_percentage = (new_jobs / total_jobs * 100) if total_jobs > 0 else 0
+        st.metric(
+            "New Jobs",
+            new_jobs,
+            delta=f"{new_percentage:.1f}%" if new_percentage > 0 else None,
         )
 
     with col3:
-        st.markdown(
-            f"""
-            <div class="metric-card">
-                <div class="metric-value" style="color: var(--warning-color);">
-                    {interested}
-                </div>
-                <div class="metric-label">Interested</div>
-            </div>
-        """,
-            unsafe_allow_html=True,
+        # Calculate percentage of interested jobs
+        interested_percentage = (interested / total_jobs * 100) if total_jobs > 0 else 0
+        st.metric(
+            "Interested",
+            interested,
+            delta=f"{interested_percentage:.1f}%"
+            if interested_percentage > 0
+            else None,
+            delta_color="normal",
         )
 
     with col4:
-        st.markdown(
-            f"""
-            <div class="metric-card">
-                <div class="metric-value" style="color: var(--success-color);">
-                    {applied}
-                </div>
-                <div class="metric-label">Applied</div>
-            </div>
-        """,
-            unsafe_allow_html=True,
+        # Calculate percentage of applied jobs
+        applied_percentage = (applied / total_jobs * 100) if total_jobs > 0 else 0
+        st.metric(
+            "Applied",
+            applied,
+            delta=f"{applied_percentage:.1f}%" if applied_percentage > 0 else None,
+            delta_color="normal",
         )
 
     with col5:
-        st.markdown(
-            f"""
-            <div class="metric-card">
-                <div class="metric-value" style="color: #f59e0b;">{favorites}</div>
-                <div class="metric-label">Favorites</div>
-            </div>
-        """,
-            unsafe_allow_html=True,
+        # Calculate percentage of favorites
+        favorites_percentage = (favorites / total_jobs * 100) if total_jobs > 0 else 0
+        st.metric(
+            "Favorites",
+            favorites,
+            delta=f"{favorites_percentage:.1f}%" if favorites_percentage > 0 else None,
+            delta_color="normal",
         )
 
     with col6:
-        st.markdown(
-            f"""
-            <div class="metric-card">
-                <div class="metric-value" style="color: var(--danger-color);">
-                    {rejected}
-                </div>
-                <div class="metric-label">Rejected</div>
-            </div>
-        """,
-            unsafe_allow_html=True,
+        # Calculate percentage of rejected jobs
+        rejected_percentage = (rejected / total_jobs * 100) if total_jobs > 0 else 0
+        st.metric(
+            "Rejected",
+            rejected,
+            delta=f"{rejected_percentage:.1f}%" if rejected_percentage > 0 else None,
+            delta_color="inverse",
         )
 
 
@@ -778,16 +727,16 @@ def _render_progress_visualization(
             st.progress(pct / 100)
 
     with col2:
-        # Application rate metric
+        # Application rate metric using st.metric
         application_rate = (applied / total_jobs) * 100 if total_jobs > 0 else 0
-        st.markdown(
-            f"""
-            <div class="metric-card">
-                <div class="metric-value">{application_rate:.1f}%</div>
-                <div class="metric-label">Application Rate</div>
-            </div>
-        """,
-            unsafe_allow_html=True,
+        # Calculate delta compared to a benchmark (e.g., 20% target application rate)
+        target_rate = 20.0
+        rate_delta = application_rate - target_rate
+        st.metric(
+            "Application Rate",
+            f"{application_rate:.1f}%",
+            delta=f"{rate_delta:+.1f}%" if abs(rate_delta) >= 0.1 else None,
+            delta_color="normal" if rate_delta >= 0 else "inverse",
         )
 
 

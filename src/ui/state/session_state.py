@@ -5,7 +5,7 @@ replacing the custom StateManager singleton with direct st.session_state usage
 for better performance and maintainability.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import streamlit as st
 
@@ -22,13 +22,12 @@ def init_session_state() -> None:
         "filters": {
             "company": [],
             "keyword": "",
-            "date_from": datetime.now(timezone.utc) - timedelta(days=30),
-            "date_to": datetime.now(timezone.utc),
+            "date_from": datetime.now(UTC) - timedelta(days=30),
+            "date_to": datetime.now(UTC),
             "salary_min": SALARY_DEFAULT_MIN,
             "salary_max": SALARY_DEFAULT_MAX,
         },
-        "view_mode": "Card",  # Default to more visual card view
-        "card_page": 0,
+        "view_mode": "Card",  # Default to attractive card view for better UX
         "sort_by": "Posted",
         "sort_asc": False,
         "last_scrape": None,
@@ -44,23 +43,11 @@ def clear_filters() -> None:
     st.session_state.filters = {
         "company": [],
         "keyword": "",
-        "date_from": datetime.now(timezone.utc) - timedelta(days=30),
-        "date_to": datetime.now(timezone.utc),
+        "date_from": datetime.now(UTC) - timedelta(days=30),
+        "date_to": datetime.now(UTC),
         "salary_min": SALARY_DEFAULT_MIN,
         "salary_max": SALARY_DEFAULT_MAX,
     }
-
-
-def get_tab_page(tab_key: str) -> int:
-    """Get page number for a specific tab."""
-    page_key = f"card_page_{tab_key}"
-    return st.session_state.get(page_key, 0)
-
-
-def set_tab_page(tab_key: str, page: int) -> None:
-    """Set page number for a specific tab."""
-    page_key = f"card_page_{tab_key}"
-    st.session_state[page_key] = page
 
 
 def get_search_term(tab_key: str) -> str:

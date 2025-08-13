@@ -63,7 +63,7 @@ RELEVANT_PHRASES = [
     "agentic",
 ]
 AI_REGEX = re.compile(
-    r"(?i)\b(" + "|".join(re.escape(p) for p in RELEVANT_PHRASES) + r")\b"
+    r"(?i)\b(" + "|".join(re.escape(p) for p in RELEVANT_PHRASES) + r")\b",
 )
 
 SEARCH_KEYWORDS = ["ai", "machine learning", "data science"]
@@ -80,3 +80,6 @@ SALARY_SLIDER_FORMAT = "$%dk"
 
 # Application status options
 APPLICATION_STATUSES = ["New", "Interested", "Applied", "Rejected"]
+
+# Background processing constants
+BACKGROUND_PREFETCH_INTERVAL = 300  # 5 minutes between cache prefetch cycles

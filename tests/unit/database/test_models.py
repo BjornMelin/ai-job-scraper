@@ -8,17 +8,18 @@ This module contains comprehensive tests for SQLModel database models including:
 - Unique constraint testing
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
 
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
+
 from src.models import CompanySQL, JobSQL
 
 
-def create_test_job_data(**overrides: Any) -> dict[str, Any]:
+def create_test_job_data(**overrides: "Any") -> dict[str, "Any"]:
     """Create test job data with optional field overrides.
 
     Args:
@@ -41,7 +42,7 @@ def create_test_job_data(**overrides: Any) -> dict[str, Any]:
     return default_data
 
 
-def create_and_save_job(session: Session, **overrides: Any) -> JobSQL:
+def create_and_save_job(session: Session, **overrides: "Any") -> JobSQL:
     """Create, validate, save and refresh a test job.
 
     Args:
@@ -101,7 +102,9 @@ def test_job_sql_creation(session: Session) -> None:
     """
     # First create a company with unique name for this test
     company = CompanySQL(
-        name="AI Test Co", url="https://ai-test.co/careers", active=True
+        name="AI Test Co",
+        url="https://ai-test.co/careers",
+        active=True,
     )
     session.add(company)
     session.commit()
@@ -114,7 +117,7 @@ def test_job_sql_creation(session: Session) -> None:
         description="AI role",
         link="https://ai-test.co/job",
         location="Remote",
-        posted_date=datetime.now(timezone.utc),
+        posted_date=datetime.now(UTC),
         salary="$100k-150k",
     )
 
@@ -157,7 +160,7 @@ def test_job_unique_link(session: Session) -> None:
 
 @pytest.mark.parametrize(
     ("salary_input", "expected"),
-    [
+    (
         # Basic range formats
         ("$100k-150k", (100000, 150000)),
         ("£80,000 - £120,000", (80000, 120000)),
@@ -257,10 +260,11 @@ def test_job_unique_link(session: Session) -> None:
             ),  # Detects monthly pattern, converts to annual
         ),
         ("$1,250,000-$1,500,000", (1250000, 1500000)),  # Range with multiple commas
-    ],
+    ),
 )
 def test_salary_parsing(
-    salary_input: Any, expected: tuple[int | None, int | None]
+    salary_input: "Any",
+    expected: tuple[int | None, int | None],
 ) -> None:
     """Test salary parsing validator with various input formats.
 

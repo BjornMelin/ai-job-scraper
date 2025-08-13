@@ -9,7 +9,7 @@ database. Checkpointing is optional for resumability.
 
 import logging
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TypedDict
 from urllib.parse import urljoin
 
@@ -18,16 +18,16 @@ from langgraph.graph import END, StateGraph
 from scrapegraphai.graphs import SmartScraperMultiGraph
 from sqlmodel import select
 
-from .config import Settings
-from .database import SessionLocal
-from .models import CompanySQL, JobSQL
-from .utils import (
+from src.config import Settings
+from src.core_utils import (
     get_extraction_model,
     get_llm_client,
     get_proxy,
     random_delay,
     random_user_agent,
 )
+from src.database import SessionLocal
+from src.models import CompanySQL, JobSQL
 
 settings = Settings()
 llm_client = get_llm_client()
@@ -80,7 +80,7 @@ def _add_proxy_config(config: dict, extraction_type: str) -> dict:
             config["loader_kwargs"] = {
                 "proxy": {
                     "server": proxy_url,
-                }
+                },
             }
             logger.info("Using proxy for %s extraction: %s", extraction_type, proxy_url)
     return config
@@ -270,11 +270,10 @@ def normalize_jobs(state: State) -> dict[str, list[JobSQL]]:
             # Try parsing with each format until success
             for fmt in date_formats:
                 try:
-                    posted = datetime.strptime(posted_str, fmt).replace(
-                        tzinfo=timezone.utc
-                    )
+                    posted = datetime.strptime(posted_str, fmt).replace(tzinfo=UTC)
                     break
-                except ValueError:
+                except ValueError:  # noqa: S110
+                    # Expected: Try next date format if this one fails
                     pass
             if not posted:
                 logger.warning("Could not parse date: %s", posted_str)
@@ -286,7 +285,7 @@ def normalize_jobs(state: State) -> dict[str, list[JobSQL]]:
             try:
                 company_name = raw["company"]
                 company = session.exec(
-                    select(CompanySQL).where(CompanySQL.name == company_name)
+                    select(CompanySQL).where(CompanySQL.name == company_name),
                 ).first()
 
                 if not company:
@@ -314,7 +313,7 @@ def normalize_jobs(state: State) -> dict[str, list[JobSQL]]:
                 posted_date=posted,
                 salary=raw.get("salary", ""),
                 application_status="New",
-                last_seen=datetime.now(timezone.utc),
+                last_seen=datetime.now(UTC),
             )
             normalized.append(job)
         except Exception:
@@ -325,7 +324,9 @@ def normalize_jobs(state: State) -> dict[str, list[JobSQL]]:
         logger.info("📊 Normalization summary:")
         logger.info("  • Raw jobs processed: %d", len(raw_jobs))
         logger.info(
-            "  • Successfully normalized: %d (%.1f%%)", len(normalized), success_rate
+            "  • Successfully normalized: %d (%.1f%%)",
+            len(normalized),
+            success_rate,
         )
         logger.info("  • Failed normalizations: %d", len(raw_jobs) - len(normalized))
 

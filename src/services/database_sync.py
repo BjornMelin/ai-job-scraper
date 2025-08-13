@@ -9,10 +9,11 @@ implements smart archiving rules.
 import hashlib
 import logging
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func
 from sqlmodel import Session, select
+
 from src.database import SessionLocal
 from src.models import JobSQL
 
@@ -99,7 +100,7 @@ class SmartSyncEngine:
             current_links = {job.link for job in jobs if job.link}
             if current_links:
                 existing_jobs_query = session.exec(
-                    select(JobSQL).where(JobSQL.link.in_(current_links))
+                    select(JobSQL).where(JobSQL.link.in_(current_links)),
                 )
                 existing_jobs_map = {job.link: job for job in existing_jobs_query}
                 logger.debug("Bulk loaded %d existing jobs", len(existing_jobs_map))
@@ -107,15 +108,27 @@ class SmartSyncEngine:
                 existing_jobs_map = {}
 
             # Step 2: Process incoming jobs (insert/update) using bulk-loaded data
+            # Track processed links within this batch to prevent duplicates
+            processed_links = set()
+
             for job in jobs:
                 if not job.link:
                     logger.warning("Skipping job without link: %s", job.title)
                     continue
 
+                # Check for duplicates within the current batch
+                if job.link in processed_links:
+                    logger.warning("Skipping duplicate link in batch: %s", job.link)
+                    stats["skipped"] += 1
+                    continue
+
                 operation = self._sync_single_job_optimized(
-                    session, job, existing_jobs_map
+                    session,
+                    job,
+                    existing_jobs_map,
                 )
                 stats[operation] += 1
+                processed_links.add(job.link)
 
             # Step 3: Handle stale jobs (archive/delete)
             stale_stats = self._handle_stale_jobs(session, current_links)
@@ -158,13 +171,16 @@ class SmartSyncEngine:
             str: Operation performed ('inserted', 'updated', or 'skipped').
         """
         if existing := session.exec(
-            select(JobSQL).where(JobSQL.link == job.link)
+            select(JobSQL).where(JobSQL.link == job.link),
         ).first():
             return self._update_existing_job(existing, job)
         return self._insert_new_job(session, job)
 
     def _sync_single_job_optimized(
-        self, session: Session, job: JobSQL, existing_jobs_map: dict[str, JobSQL]
+        self,
+        session: Session,
+        job: JobSQL,
+        existing_jobs_map: dict[str, JobSQL],
     ) -> str:
         """Synchronize a single job with the database using pre-loaded existing jobs.
 
@@ -196,7 +212,7 @@ class SmartSyncEngine:
             str: Always returns 'inserted'.
         """
         # Ensure required fields are set
-        job.last_seen = datetime.now(timezone.utc)
+        job.last_seen = datetime.now(UTC)
         if not job.application_status:
             job.application_status = "New"
         if not job.content_hash:
@@ -225,12 +241,13 @@ class SmartSyncEngine:
         # Check if content has actually changed
         if existing.content_hash == new_content_hash:
             # Content unchanged, just update last_seen and skip
-            existing.last_seen = datetime.now(timezone.utc)
+            existing.last_seen = datetime.now(UTC)
             # Unarchive if it was archived (job is back!)
             if existing.archived:
                 existing.archived = False
                 logger.info("Unarchiving job that returned: %s", existing.title)
                 return "updated"
+            logger.debug("Job content unchanged, skipping: %s", existing.title)
             return "skipped"
 
         # Content changed, update scraped fields while preserving user data
@@ -239,7 +256,10 @@ class SmartSyncEngine:
         return "updated"
 
     def _update_scraped_fields(
-        self, existing: JobSQL, new_job: JobSQL, new_content_hash: str
+        self,
+        existing: JobSQL,
+        new_job: JobSQL,
+        new_content_hash: str,
     ) -> None:
         """Update only scraped fields, preserving user-editable fields.
 
@@ -259,7 +279,7 @@ class SmartSyncEngine:
         existing.posted_date = new_job.posted_date
         existing.salary = new_job.salary
         existing.content_hash = new_content_hash
-        existing.last_seen = datetime.now(timezone.utc)
+        existing.last_seen = datetime.now(UTC)
 
         # Unarchive if it was archived (job is back!)
         if existing.archived:
@@ -273,7 +293,9 @@ class SmartSyncEngine:
         # - existing.application_date
 
     def _handle_stale_jobs(
-        self, session: Session, current_links: set[str]
+        self,
+        session: Session,
+        current_links: set[str],
     ) -> dict[str, int]:
         """Handle jobs that are no longer present in current scrape.
 
@@ -291,12 +313,17 @@ class SmartSyncEngine:
         stats = {"archived": 0, "deleted": 0}
 
         # Find all non-archived jobs not in current scrape
-        stale_jobs = session.exec(
-            select(JobSQL).where(
-                ~JobSQL.archived,
-                ~JobSQL.link.in_(current_links),
-            )
-        ).all()
+        if current_links:
+            # Normal case: exclude jobs with links in current_links
+            stale_jobs = session.exec(
+                select(JobSQL).where(
+                    ~JobSQL.archived,
+                    ~JobSQL.link.in_(current_links),
+                ),
+            ).all()
+        else:
+            # Edge case: when current_links is empty, all non-archived jobs are stale
+            stale_jobs = session.exec(select(JobSQL).where(~JobSQL.archived)).all()
 
         for job in stale_jobs:
             if self._has_user_data(job):
@@ -340,18 +367,9 @@ class SmartSyncEngine:
         Returns:
             str: MD5 hash of job content.
         """
-        # Use company name from relationship if available, fallback to company_id
-        try:
-            company_identifier = (
-                job.company_relation.name
-                if job.company_relation
-                else str(job.company_id)
-                if job.company_id
-                else "unknown"
-            )
-        except AttributeError:
-            # Fallback if company_relation is not loaded
-            company_identifier = str(job.company_id) if job.company_id else "unknown"
+        # Always use company_id for consistent hashing regardless of
+        # relationship loading
+        company_identifier = str(job.company_id) if job.company_id else "unknown"
 
         # Include all relevant scraped fields for comprehensive change detection
         content_parts = [
@@ -361,17 +379,23 @@ class SmartSyncEngine:
             company_identifier,
         ]
 
-        # Handle salary field (tuple format)
+        # Handle salary field (tuple or list format)
         if hasattr(job, "salary") and job.salary:
-            if isinstance(job.salary, tuple):
+            if isinstance(job.salary, tuple | list) and len(job.salary) >= 2:
                 salary_str = f"{job.salary[0] or ''}-{job.salary[1] or ''}"
             else:
                 salary_str = str(job.salary)
             content_parts.append(salary_str)
 
-        # Handle posted_date if available
+        # Handle posted_date if available (normalize timezone for consistent hashing)
         if job.posted_date:
-            content_parts.append(job.posted_date.isoformat())
+            # Convert to naive datetime to ensure consistent hash regardless of timezone
+            naive_date = (
+                job.posted_date.replace(tzinfo=None)
+                if job.posted_date.tzinfo
+                else job.posted_date
+            )
+            content_parts.append(naive_date.isoformat())
 
         content = "".join(content_parts)
         # MD5 is safe for non-cryptographic content fingerprinting/change detection
@@ -393,18 +417,18 @@ class SmartSyncEngine:
             # Get basic counts using efficient count queries
             total_jobs = session.exec(select(func.count(JobSQL.id))).scalar()
             active_jobs = session.exec(
-                select(func.count(JobSQL.id)).where(~JobSQL.archived)
+                select(func.count(JobSQL.id)).where(~JobSQL.archived),
             ).scalar()
             archived_jobs = session.exec(
-                select(func.count(JobSQL.id)).where(JobSQL.archived)
+                select(func.count(JobSQL.id)).where(JobSQL.archived),
             ).scalar()
             favorited_jobs = session.exec(
-                select(func.count(JobSQL.id)).where(JobSQL.favorite)
+                select(func.count(JobSQL.id)).where(JobSQL.favorite),
             ).scalar()
 
             # Count applied jobs (status != "New")
             applied_jobs = session.exec(
-                select(func.count(JobSQL.id)).where(JobSQL.application_status != "New")
+                select(func.count(JobSQL.id)).where(JobSQL.application_status != "New"),
             ).scalar()
 
             return {
@@ -436,7 +460,7 @@ class SmartSyncEngine:
         """
         session = self._get_session()
         try:
-            cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_threshold)
+            cutoff_date = datetime.now(UTC) - timedelta(days=days_threshold)
 
             # Find archived jobs that haven't been seen in a long time
             # and don't have recent application activity
@@ -446,7 +470,7 @@ class SmartSyncEngine:
                     JobSQL.last_seen < cutoff_date,
                     (JobSQL.application_date.is_(None))
                     | (JobSQL.application_date < cutoff_date),
-                )
+                ),
             ).all()
 
             count = 0

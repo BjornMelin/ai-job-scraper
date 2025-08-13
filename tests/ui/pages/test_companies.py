@@ -23,11 +23,14 @@ class TestAddCompanyCallback:
         """Test adding a company with valid name and URL succeeds."""
         # Arrange
         mock_session_state.update(
-            {"company_name": "TechCorp", "company_url": "https://techcorp.com/careers"}
+            {"company_name": "TechCorp", "company_url": "https://techcorp.com/careers"},
         )
 
         expected_company = Company(
-            id=1, name="TechCorp", url="https://techcorp.com/careers", active=True
+            id=1,
+            name="TechCorp",
+            url="https://techcorp.com/careers",
+            active=True,
         )
 
         with patch("src.ui.pages.companies.CompanyService") as mock_company_service:
@@ -38,7 +41,8 @@ class TestAddCompanyCallback:
 
             # Assert
             mock_company_service.add_company.assert_called_once_with(
-                name="TechCorp", url="https://techcorp.com/careers"
+                name="TechCorp",
+                url="https://techcorp.com/careers",
             )
             assert (
                 mock_session_state["add_company_success"]
@@ -49,7 +53,9 @@ class TestAddCompanyCallback:
             assert mock_session_state["add_company_error"] is None
 
     def test_add_company_with_empty_name_shows_validation_error(
-        self, mock_session_state, mock_company_service
+        self,
+        mock_session_state,
+        mock_company_service,
     ):
         """Test adding company with empty name shows validation error."""
         # Arrange
@@ -57,7 +63,7 @@ class TestAddCompanyCallback:
             {
                 "company_name": "   ",  # Whitespace only
                 "company_url": "https://techcorp.com/careers",
-            }
+            },
         )
 
         # Act
@@ -68,7 +74,9 @@ class TestAddCompanyCallback:
         assert mock_session_state["add_company_error"] == "Company name is required"
 
     def test_add_company_with_empty_url_shows_validation_error(
-        self, mock_session_state, mock_company_service
+        self,
+        mock_session_state,
+        mock_company_service,
     ):
         """Test adding company with empty URL shows validation error."""
         # Arrange
@@ -82,16 +90,18 @@ class TestAddCompanyCallback:
         assert mock_session_state["add_company_error"] == "Company URL is required"
 
     def test_add_duplicate_company_shows_validation_error(
-        self, mock_session_state, mock_company_service
+        self,
+        mock_session_state,
+        mock_company_service,
     ):
         """Test adding duplicate company shows validation error."""
         # Arrange
         mock_session_state.update(
-            {"company_name": "TechCorp", "company_url": "https://techcorp.com/careers"}
+            {"company_name": "TechCorp", "company_url": "https://techcorp.com/careers"},
         )
 
         mock_company_service["companies_page"].add_company.side_effect = ValueError(
-            "Company 'TechCorp' already exists"
+            "Company 'TechCorp' already exists",
         )
 
         # Act
@@ -108,12 +118,12 @@ class TestAddCompanyCallback:
         """Test service failure during add company shows generic error."""
         # Arrange
         mock_session_state.update(
-            {"company_name": "TechCorp", "company_url": "https://techcorp.com/careers"}
+            {"company_name": "TechCorp", "company_url": "https://techcorp.com/careers"},
         )
 
         with patch("src.ui.pages.companies.CompanyService") as mock_company_service:
             mock_company_service.add_company.side_effect = Exception(
-                "Database connection failed"
+                "Database connection failed",
             )
 
             # Act
@@ -143,7 +153,7 @@ class TestToggleCompanyCallback:
 
             # Assert
             mock_company_service.toggle_company_active.assert_called_once_with(
-                company_id
+                company_id,
             )
             assert mock_session_state["toggle_success"] == "Enabled scraping"
             assert mock_session_state["toggle_error"] is None
@@ -161,7 +171,7 @@ class TestToggleCompanyCallback:
 
             # Assert
             mock_company_service.toggle_company_active.assert_called_once_with(
-                company_id
+                company_id,
             )
             assert mock_session_state["toggle_success"] == "Disabled scraping"
             assert mock_session_state["toggle_error"] is None
@@ -173,7 +183,7 @@ class TestToggleCompanyCallback:
 
         with patch("src.ui.pages.companies.CompanyService") as mock_company_service:
             mock_company_service.toggle_company_active.side_effect = Exception(
-                "Company not found"
+                "Company not found",
             )
 
             # Act
@@ -236,7 +246,7 @@ class TestShowCompaniesPage:
 
             # Assert
             mock_streamlit["info"].assert_called_with(
-                "📝 No companies found. Add your first company above!"
+                "📝 No companies found. Add your first company above!",
             )
 
     def test_companies_page_displays_company_list(
@@ -346,7 +356,8 @@ class TestShowCompaniesPage:
         # Assert
         # Verify expander and form are created
         mock_streamlit["expander"].assert_called_with(
-            "+ Add New Company", expanded=False
+            "+ Add New Company",
+            expanded=False,
         )
         mock_streamlit["form"].assert_called_with("add_company_form")
 
@@ -371,7 +382,7 @@ class TestShowCompaniesPage:
                 "add_company_error": None,
                 "toggle_success": "Company toggled",
                 "toggle_error": None,
-            }
+            },
         )
         mock_company_service["companies_page"].get_all_companies.return_value = []
 
@@ -399,12 +410,12 @@ class TestShowCompaniesPage:
 
         # Assert
         mock_streamlit["error"].assert_called_with(
-            "❌ Failed to load companies. Please refresh the page."
+            "❌ Failed to load companies. Please refresh the page.",
         )
 
     @pytest.mark.parametrize(
         ("company_count", "expected_active"),
-        [
+        (
             ([], 0),
             ([Company(id=1, name="Test", url="https://test.com", active=True)], 1),
             (
@@ -421,7 +432,7 @@ class TestShowCompaniesPage:
                 ],
                 0,
             ),
-        ],
+        ),
     )
     def test_companies_page_calculates_correct_statistics(  # pylint: disable=R0917
         self,
@@ -465,15 +476,18 @@ class TestCompanyPageIntegration:
             {
                 "company_name": "New Company",
                 "company_url": "https://newcompany.com/careers",
-            }
+            },
         )
 
         new_company = Company(
-            id=1, name="New Company", url="https://newcompany.com/careers", active=True
+            id=1,
+            name="New Company",
+            url="https://newcompany.com/careers",
+            active=True,
         )
         mock_company_service["companies_page"].add_company.return_value = new_company
         mock_company_service["companies_page"].get_all_companies.return_value = [
-            new_company
+            new_company,
         ]
 
         # Act - Simulate callback execution followed by page render
@@ -483,7 +497,8 @@ class TestCompanyPageIntegration:
         # Assert - Verify complete workflow
         # 1. Service was called to add company
         mock_company_service["companies_page"].add_company.assert_called_once_with(
-            name="New Company", url="https://newcompany.com/careers"
+            name="New Company",
+            url="https://newcompany.com/careers",
         )
 
         # 2. Success message was stored and then cleared after display
@@ -497,7 +512,7 @@ class TestCompanyPageIntegration:
 
         # 4. Success message was displayed on page render
         mock_streamlit["success"].assert_called_with(
-            "✅ Successfully added company: New Company"
+            "✅ Successfully added company: New Company",
         )
 
     def test_complete_toggle_company_workflow(
@@ -509,10 +524,13 @@ class TestCompanyPageIntegration:
         """Test complete workflow of toggling company status."""
         # Arrange
         company = Company(
-            id=1, name="Test Company", url="https://test.com", active=False
+            id=1,
+            name="Test Company",
+            url="https://test.com",
+            active=False,
         )
         mock_company_service["companies_page"].get_all_companies.return_value = [
-            company
+            company,
         ]
         mock_company_service["companies_page"].toggle_company_active.return_value = True
 
@@ -537,7 +555,9 @@ class TestInitAndDisplayFeedback:
     """Test the initialization and feedback display functionality."""
 
     def test_init_and_display_feedback_initializes_session_keys(
-        self, mock_session_state, mock_streamlit
+        self,
+        mock_session_state,
+        mock_streamlit,
     ):
         """Test that all feedback session keys are initialized."""
         # Arrange - No session state keys set initially
@@ -571,7 +591,9 @@ class TestInitAndDisplayFeedback:
         )
 
     def test_init_and_display_feedback_displays_success_messages(
-        self, mock_session_state, mock_streamlit
+        self,
+        mock_session_state,
+        mock_streamlit,
     ):
         """Test that success feedback messages are displayed properly."""
         # Arrange
@@ -579,7 +601,7 @@ class TestInitAndDisplayFeedback:
             {
                 "add_company_success": "Company added!",
                 "toggle_success": "Status toggled!",
-            }
+            },
         )
 
         # Act
@@ -602,7 +624,9 @@ class TestInitAndDisplayFeedback:
         )
 
     def test_init_and_display_feedback_displays_error_messages(
-        self, mock_session_state, mock_streamlit
+        self,
+        mock_session_state,
+        mock_streamlit,
     ):
         """Test that error feedback messages are displayed properly."""
         # Arrange
@@ -610,7 +634,7 @@ class TestInitAndDisplayFeedback:
             {
                 "add_company_error": "Failed to add company",
                 "toggle_error": "Failed to toggle status",
-            }
+            },
         )
 
         # Act
@@ -648,7 +672,7 @@ class TestCompanyDisplayIntegration:
             mock_company_service.get_all_companies.return_value = sample_companies_dto
 
             with patch(
-                "src.ui.helpers.company_display.render_company_card"
+                "src.ui.helpers.company_display.render_company_card",
             ) as mock_render_card:
                 # Act
                 show_companies_page()
@@ -675,7 +699,7 @@ class TestCompanyDisplayIntegration:
             mock_company_service.get_all_companies.return_value = []
 
             with patch(
-                "src.ui.helpers.company_display.render_company_card"
+                "src.ui.helpers.company_display.render_company_card",
             ) as mock_render_card:
                 # Act
                 show_companies_page()
@@ -683,7 +707,7 @@ class TestCompanyDisplayIntegration:
                 # Assert
                 mock_render_card.assert_not_called()
                 mock_streamlit["info"].assert_called_with(
-                    "📝 No companies found. Add your first company above!"
+                    "📝 No companies found. Add your first company above!",
                 )
 
     def test_companies_page_handles_company_display_errors(
@@ -698,7 +722,7 @@ class TestCompanyDisplayIntegration:
             mock_company_service.get_all_companies.return_value = sample_companies_dto
 
             with patch(
-                "src.ui.helpers.company_display.render_company_card"
+                "src.ui.helpers.company_display.render_company_card",
             ) as mock_render_card:
                 mock_render_card.side_effect = Exception("Display error")
 
@@ -719,7 +743,7 @@ class TestCompanyPageBoundaryConditions:
             {
                 "company_name": "   \t\n  ",  # Various whitespace characters
                 "company_url": "https://valid.com",
-            }
+            },
         )
 
         # Act
@@ -736,7 +760,7 @@ class TestCompanyPageBoundaryConditions:
             {
                 "company_name": "Valid Company",
                 "company_url": "   \t\n  ",  # Various whitespace characters
-            }
+            },
         )
 
         # Act
@@ -753,12 +777,15 @@ class TestCompanyPageBoundaryConditions:
             {
                 "company_name": "Test Company",
                 "company_url": "https://test.com",
-            }
+            },
         )
 
         with patch("src.ui.pages.companies.CompanyService") as mock_service:
             mock_service.add_company.return_value = Company(
-                id=1, name="Test Company", url="https://test.com", active=True
+                id=1,
+                name="Test Company",
+                url="https://test.com",
+                active=True,
             )
             with patch("streamlit.rerun"):
                 # Act
@@ -781,7 +808,7 @@ class TestCompanyPageBoundaryConditions:
         with patch("src.ui.pages.companies.CompanyService") as mock_service:
             # Simulate concurrent modification scenario
             mock_service.toggle_company_active.side_effect = Exception(
-                "Company was modified by another user"
+                "Company was modified by another user",
             )
 
             # Act
@@ -795,16 +822,20 @@ class TestCompanyPageBoundaryConditions:
 
     @pytest.mark.parametrize(
         ("session_name", "session_url", "expected_error"),
-        [
+        (
             (None, "https://test.com", "Company name is required"),
             ("", "https://test.com", "Company name is required"),
             ("Test Co", None, "Company URL is required"),
             ("Test Co", "", "Company URL is required"),
             (None, None, "Company name is required"),  # Name checked first
-        ],
+        ),
     )
     def test_add_company_validation_edge_cases(
-        self, mock_session_state, session_name, session_url, expected_error
+        self,
+        mock_session_state,
+        session_name,
+        session_url,
+        expected_error,
     ):
         """Test various edge cases for add company validation."""
         # Arrange
@@ -812,7 +843,7 @@ class TestCompanyPageBoundaryConditions:
             {
                 "company_name": session_name,
                 "company_url": session_url,
-            }
+            },
         )
 
         # Act
@@ -847,7 +878,7 @@ class TestCompanyPagePerformance:
             mock_company_service.get_all_companies.return_value = large_company_list
 
             with patch(
-                "src.ui.helpers.company_display.render_company_card"
+                "src.ui.helpers.company_display.render_company_card",
             ) as mock_render_card:
                 # Act
                 show_companies_page()
@@ -919,7 +950,7 @@ class TestCompanyPageAccessibility:
 
             # Assert
             mock_streamlit["info"].assert_called_with(
-                "📝 No companies found. Add your first company above!"
+                "📝 No companies found. Add your first company above!",
             )
 
     def test_companies_page_provides_clear_feedback_messages(
@@ -936,7 +967,7 @@ class TestCompanyPageAccessibility:
                 "add_company_error": None,
                 "toggle_success": "Enabled scraping",
                 "toggle_error": None,
-            }
+            },
         )
         mock_company_service["companies_page"].get_all_companies.return_value = []
 
@@ -945,6 +976,6 @@ class TestCompanyPageAccessibility:
 
         # Assert - Success messages are displayed with checkmarks
         mock_streamlit["success"].assert_any_call(
-            "✅ Successfully added company: TestCorp"
+            "✅ Successfully added company: TestCorp",
         )
         mock_streamlit["success"].assert_any_call("✅ Enabled scraping")

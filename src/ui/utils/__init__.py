@@ -4,26 +4,32 @@ This package contains utility modules for Streamlit UI functionality including
 background task management, data formatting, validation, and other helper functions.
 """
 
-from .background_tasks import (
-    BackgroundTaskManager,
+from src.ui.utils.background_helpers import (
+    CompanyProgress,
     ProgressInfo,
-    StreamlitTaskManager,
     TaskInfo,
+    add_task,
+    get_company_progress,
     get_scraping_progress,
-    get_task_manager,
+    get_scraping_results,
+    get_task,
     is_scraping_active,
+    remove_task,
     start_background_scraping,
     stop_all_scraping,
 )
 
 __all__ = [
-    "BackgroundTaskManager",
+    "CompanyProgress",
     "ProgressInfo",
-    "StreamlitTaskManager",
     "TaskInfo",
+    "add_task",
+    "get_company_progress",
     "get_scraping_progress",
-    "get_task_manager",
+    "get_scraping_results",
+    "get_task",
     "is_scraping_active",
+    "remove_task",
     "start_background_scraping",
     "stop_all_scraping",
 ]

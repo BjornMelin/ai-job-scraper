@@ -288,6 +288,7 @@ $RECYCLE.BIN/
 repomix-output.md
 current-codebase.md
 adrs-and-docs.md
+ruff_full_report.json
 
 # Temporary files
 temp/

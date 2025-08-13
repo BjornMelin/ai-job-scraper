@@ -13,10 +13,18 @@ All schemas include validation, JSON encoding configuration, and proper
 type hints for safe data transfer across application layers.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import ClassVar
 
 from pydantic import BaseModel, field_validator
+
+
+class CompanyValidationError(ValueError):
+    """Custom exception for company data validation errors."""
+
+
+class JobValidationError(ValueError):
+    """Custom exception for job data validation errors."""
 
 
 class Company(BaseModel):
@@ -72,10 +80,10 @@ class Company(BaseModel):
             Validated name string.
 
         Raises:
-            ValueError: If name is empty or whitespace-only.
+            CompanyValidationError: If name is empty or whitespace-only.
         """
         if not v or not v.strip():
-            raise ValueError("Company name cannot be empty")
+            raise CompanyValidationError("Company name cannot be empty")
         return v.strip()
 
     @field_validator("last_scraped", mode="before")
@@ -87,11 +95,11 @@ class Company(BaseModel):
         if isinstance(v, str):
             try:
                 parsed = datetime.fromisoformat(v.replace("Z", "+00:00"))
-                return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+                return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
             except ValueError:
                 return None
         if isinstance(v, datetime):
-            return v if v.tzinfo else v.replace(tzinfo=timezone.utc)
+            return v if v.tzinfo else v.replace(tzinfo=UTC)
         return None
 
     class Config:
@@ -174,10 +182,10 @@ class Job(BaseModel):
             Validated link string.
 
         Raises:
-            ValueError: If link is empty or whitespace-only.
+            JobValidationError: If link is empty or whitespace-only.
         """
         if not v or not v.strip():
-            raise ValueError("Job link cannot be empty")
+            raise JobValidationError("Job link cannot be empty")
         return v.strip()
 
     @field_validator("title")
@@ -192,10 +200,10 @@ class Job(BaseModel):
             Validated title string.
 
         Raises:
-            ValueError: If title is empty or whitespace-only.
+            JobValidationError: If title is empty or whitespace-only.
         """
         if not v or not v.strip():
-            raise ValueError("Job title cannot be empty")
+            raise JobValidationError("Job title cannot be empty")
         return v.strip()
 
     @field_validator("posted_date", "application_date", "last_seen", mode="before")
@@ -207,15 +215,15 @@ class Job(BaseModel):
         if isinstance(v, str):
             try:
                 parsed = datetime.fromisoformat(v.replace("Z", "+00:00"))
-                return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+                return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
             except ValueError:
                 try:
                     parsed = datetime.strptime(v, "%Y-%m-%d")  # noqa: DTZ007
-                    return parsed.replace(tzinfo=timezone.utc)
+                    return parsed.replace(tzinfo=UTC)
                 except ValueError:
                     return None
         if isinstance(v, datetime):
-            return v if v.tzinfo else v.replace(tzinfo=timezone.utc)
+            return v if v.tzinfo else v.replace(tzinfo=UTC)
         return None
 
     class Config:

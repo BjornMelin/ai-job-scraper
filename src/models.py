@@ -8,28 +8,28 @@ The module also includes salary parsing functionality with comprehensive
 regex patterns for handling various salary formats from job boards.
 """
 
+# Fix for SQLAlchemy table redefinition issue during Streamlit reruns
+# This addresses the "Table already defined for this MetaData instance" error
+# that occurs when clicking the Stop button during scraping operations
+from __future__ import annotations
+
 import hashlib
 import logging
 import re
 
-
-# Fix for SQLAlchemy table redefinition issue during Streamlit reruns
-# This addresses the "Table already defined for this MetaData instance" error
-# that occurs when clicking the Stop button during scraping operations
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from babel.numbers import NumberFormatError, parse_decimal, parse_number
 from price_parser import Price
 from pydantic import (
-    computed_field,
     field_validator,
     model_validator,
 )
 from sqlalchemy.types import JSON
-from sqlmodel import Column, Field, Relationship, SQLModel
+from sqlmodel import Column, Field, SQLModel
 
 # SQLAlchemy 2.0 library-first approach: Use extend_existing=True for all tables
 # This replaces the dangerous monkey patch with SQLAlchemy's built-in mechanism
@@ -58,30 +58,34 @@ class SimplePrice:
 
 # Compiled regex patterns for salary parsing
 _UP_TO_PATTERN: re.Pattern[str] = re.compile(
-    r"\b(?:up\s+to|maximum\s+of|max\s+of|not\s+more\s+than)\b", re.IGNORECASE
+    r"\b(?:up\s+to|maximum\s+of|max\s+of|not\s+more\s+than)\b",
+    re.IGNORECASE,
 )
 _FROM_PATTERN: re.Pattern[str] = re.compile(
-    r"\b(?:from|starting\s+at|minimum\s+of|min\s+of|at\s+least)\b", re.IGNORECASE
+    r"\b(?:from|starting\s+at|minimum\s+of|min\s+of|at\s+least)\b",
+    re.IGNORECASE,
 )
 _CURRENCY_PATTERN: re.Pattern[str] = re.compile(r"[£$€¥¢₹]")
 # Pattern for shared k suffix at end: "100-120k"
 _RANGE_K_PATTERN: re.Pattern[str] = re.compile(
-    r"(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)\s*([kK])"
+    r"(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)\s*([kK])",
 )
 # Pattern for both numbers with k: "100k-150k"
 _BOTH_K_PATTERN: re.Pattern[str] = re.compile(
-    r"(\d+(?:\.\d+)?)([kK])\s*-\s*(\d+(?:\.\d+)?)([kK])"
+    r"(\d+(?:\.\d+)?)([kK])\s*-\s*(\d+(?:\.\d+)?)([kK])",
 )
 # Pattern for one-sided k: "100k-120" (k on first number only)
 _ONE_SIDED_K_PATTERN: re.Pattern[str] = re.compile(
-    r"(\d+(?:\.\d+)?)([kK])\s*-\s*(\d+(?:\.\d+)?)(?!\s*[kK])"
+    r"(\d+(?:\.\d+)?)([kK])\s*-\s*(\d+(?:\.\d+)?)(?!\s*[kK])",
 )
 _NUMBER_PATTERN: re.Pattern[str] = re.compile(r"(\d+(?:\.\d+)?)\s*([kK])?")
 _HOURLY_PATTERN: re.Pattern[str] = re.compile(
-    r"\b(?:per\s+hour|hourly|/hour|/hr)\b", re.IGNORECASE
+    r"\b(?:per\s+hour|hourly|/hour|/hr)\b",
+    re.IGNORECASE,
 )
 _MONTHLY_PATTERN: re.Pattern[str] = re.compile(
-    r"\b(?:per\s+month|monthly|/month|/mo)\b", re.IGNORECASE
+    r"\b(?:per\s+month|monthly|/month|/mo)\b",
+    re.IGNORECASE,
 )
 
 _PHRASES_TO_REMOVE: list[str] = [
@@ -163,7 +167,9 @@ class LibrarySalaryParser:
         if k_range:
             min_val, max_val = k_range
             converted_values = LibrarySalaryParser._convert_time_based_salary(
-                [min_val, max_val], context.is_hourly, context.is_monthly
+                [min_val, max_val],
+                context.is_hourly,
+                context.is_monthly,
             )
             return (converted_values[0], converted_values[1])
 
@@ -174,7 +180,9 @@ class LibrarySalaryParser:
             values = [int(price.amount) for price in prices if price.amount]
             if values:
                 converted_values = LibrarySalaryParser._convert_time_based_salary(
-                    values, context.is_hourly, context.is_monthly
+                    values,
+                    context.is_hourly,
+                    context.is_monthly,
                 )
                 return (min(converted_values), max(converted_values))
 
@@ -187,16 +195,20 @@ class LibrarySalaryParser:
         k_match = re.search(r"(\d+(?:\.\d+)?)\s*[kK]\b", text)
         if k_match:
             try:
+                # Use float conversion to preserve decimal precision for k-suffix
                 base_value = float(k_match.group(1))
                 value = int(base_value * 1000)
 
                 # Convert time-based to annual and apply context
                 converted_values = LibrarySalaryParser._convert_time_based_salary(
-                    [value], context.is_hourly, context.is_monthly
+                    [value],
+                    context.is_hourly,
+                    context.is_monthly,
                 )
                 final_value = converted_values[0]
                 return LibrarySalaryParser._apply_context_logic(final_value, context)
-            except (ValueError, TypeError):
+            except (ValueError, TypeError):  # noqa: S110
+                # Expected: Continue to next parsing method if number conversion fails
                 pass
 
         # Try price-parser for non-k-suffix cases
@@ -207,7 +219,9 @@ class LibrarySalaryParser:
 
                 # Convert time-based to annual and apply context
                 converted_values = LibrarySalaryParser._convert_time_based_salary(
-                    [value], context.is_hourly, context.is_monthly
+                    [value],
+                    context.is_hourly,
+                    context.is_monthly,
                 )
                 final_value = converted_values[0]
                 return LibrarySalaryParser._apply_context_logic(final_value, context)
@@ -231,8 +245,9 @@ class LibrarySalaryParser:
             re.search(r"range|to|between|from|up to", text, re.IGNORECASE)
             or re.search(r"[-\u2013\u2014]", text)  # Various dash types
             or re.search(
-                r"\d+[.,]?\d*\s*[kK]?\s*[-\u2013\u2014]\s*\d+[.,]?\d*\s*[kK]?", text
-            )  # Numeric range patterns
+                r"\d+[.,]?\d*\s*[kK]?\s*[-\u2013\u2014]\s*\d+[.,]?\d*\s*[kK]?",
+                text,
+            ),  # Numeric range patterns
         )
 
         if not has_range_indicators:
@@ -241,7 +256,9 @@ class LibrarySalaryParser:
 
         # Split text on common range separators and try parsing each part
         parts = re.split(
-            r"\s*[-\u2013\u2014]\s*|\s+to\s+|\s+between\s+", text, flags=re.IGNORECASE
+            r"\s*[-\u2013\u2014]\s*|\s+to\s+|\s+between\s+",
+            text,
+            flags=re.IGNORECASE,
         )
 
         # Filter parts that likely contain salary values
@@ -268,18 +285,23 @@ class LibrarySalaryParser:
         for raw_part in valid_parts:
             part = raw_part.strip()
 
-            # Handle k-suffix parts specially
+            # Handle k-suffix parts specially with decimal precision preservation
             k_match = re.search(r"(\d+(?:\.\d+)?)\s*[kK]\b", part)
             if k_match:
                 try:
+                    # Use float conversion to preserve decimal precision for k-suffix
                     base_value = float(k_match.group(1))
                     amount = base_value * 1000
                     # Create a consistent Price-like object
                     price = SimplePrice(amount=Decimal(str(amount)))
                     prices.append(price)
                     continue
-                except (ValueError, TypeError):
-                    pass
+                except (ValueError, TypeError) as e:
+                    salary_logger.debug(
+                        "K-suffix parsing failed for part '%s': %s",
+                        part,
+                        e,
+                    )
 
             # Try normal price parsing
             try:
@@ -301,15 +323,20 @@ class LibrarySalaryParser:
         """Parse k-suffix ranges like '100-120k', '100k-150k', '110k to 150k'."""
         # Try "to" patterns with k-suffix first
         to_pattern = re.search(
-            r"(\d+(?:\.\d+)?)\s*[kK]\s+to\s+(\d+(?:\.\d+)?)\s*[kK]", text, re.IGNORECASE
+            r"(\d+(?:\.\d+)?)\s*[kK]\s+to\s+(\d+(?:\.\d+)?)\s*[kK]",
+            text,
+            re.IGNORECASE,
         )
         if to_pattern:
             try:
-                val1 = int(float(to_pattern.group(1)) * 1000)
-                val2 = int(float(to_pattern.group(2)) * 1000)
+                # Use float conversion to preserve decimal precision
+                float_val1 = float(to_pattern.group(1))
+                float_val2 = float(to_pattern.group(2))
+                val1 = int(float_val1 * 1000)
+                val2 = int(float_val2 * 1000)
                 return (min(val1, val2), max(val1, val2))
-            except (ValueError, TypeError):
-                pass
+            except (ValueError, TypeError) as e:
+                salary_logger.debug("To-pattern k-suffix parsing failed: %s", e)
 
         # Try different k-suffix patterns
         patterns = [
@@ -324,18 +351,34 @@ class LibrarySalaryParser:
 
                 if pattern == _RANGE_K_PATTERN:  # 100-120k
                     num1, num2, _k_suffix = groups
-                    val1 = LibrarySalaryParser._safe_decimal_to_int(num1) * 1000
-                    val2 = LibrarySalaryParser._safe_decimal_to_int(num2) * 1000
+                    # Use float conversion to preserve decimal precision for k-suffix
+                    float_val1 = LibrarySalaryParser._safe_decimal_to_float(num1)
+                    float_val2 = LibrarySalaryParser._safe_decimal_to_float(num2)
+                    if float_val1 is not None and float_val2 is not None:
+                        val1 = int(float_val1 * 1000)
+                        val2 = int(float_val2 * 1000)
+                    else:
+                        continue
                 elif pattern == _BOTH_K_PATTERN:  # 100k-150k
                     num1, _k1, num2, _k2 = groups
-                    val1 = LibrarySalaryParser._safe_decimal_to_int(num1) * 1000
-                    val2 = LibrarySalaryParser._safe_decimal_to_int(num2) * 1000
+                    # Use float conversion to preserve decimal precision for k-suffix
+                    float_val1 = LibrarySalaryParser._safe_decimal_to_float(num1)
+                    float_val2 = LibrarySalaryParser._safe_decimal_to_float(num2)
+                    if float_val1 is not None and float_val2 is not None:
+                        val1 = int(float_val1 * 1000)
+                        val2 = int(float_val2 * 1000)
+                    else:
+                        continue
                 elif pattern == _ONE_SIDED_K_PATTERN:  # 100k-120
                     num1, _k_suffix, num2 = groups
-                    val1 = LibrarySalaryParser._safe_decimal_to_int(num1) * 1000
-                    val2 = (
-                        LibrarySalaryParser._safe_decimal_to_int(num2) * 1000
-                    )  # Apply k to both
+                    # Use float conversion to preserve decimal precision for k-suffix
+                    float_val1 = LibrarySalaryParser._safe_decimal_to_float(num1)
+                    float_val2 = LibrarySalaryParser._safe_decimal_to_float(num2)
+                    if float_val1 is not None and float_val2 is not None:
+                        val1 = int(float_val1 * 1000)
+                        val2 = int(float_val2 * 1000)  # Apply k to both
+                    else:
+                        continue
 
                 if val1 and val2:
                     return (min(val1, val2), max(val1, val2))
@@ -361,7 +404,9 @@ class LibrarySalaryParser:
 
     @staticmethod
     def _parse_with_babel_fallback(
-        text: str, context: SalaryContext, locale: str = DEFAULT_LOCALE
+        text: str,
+        context: SalaryContext,
+        locale: str = DEFAULT_LOCALE,
     ) -> SalaryTuple:
         """Fallback parsing using babel's number parsing.
 
@@ -384,7 +429,9 @@ class LibrarySalaryParser:
 
                 # Convert time-based and apply context
                 converted_values = LibrarySalaryParser._convert_time_based_salary(
-                    [value], context.is_hourly, context.is_monthly
+                    [value],
+                    context.is_hourly,
+                    context.is_monthly,
                 )
                 final_value = converted_values[0]
                 return LibrarySalaryParser._apply_context_logic(final_value, context)
@@ -397,7 +444,9 @@ class LibrarySalaryParser:
                 value = LibrarySalaryParser._apply_k_suffix_multiplication(text, value)
 
                 converted_values = LibrarySalaryParser._convert_time_based_salary(
-                    [value], context.is_hourly, context.is_monthly
+                    [value],
+                    context.is_hourly,
+                    context.is_monthly,
                 )
                 final_value = converted_values[0]
                 return LibrarySalaryParser._apply_context_logic(final_value, context)
@@ -444,7 +493,8 @@ class LibrarySalaryParser:
 
     @staticmethod
     def _safe_decimal_to_int(
-        value_str: str, locale: str = DEFAULT_LOCALE
+        value_str: str,
+        locale: str = DEFAULT_LOCALE,
     ) -> int | None:
         """Safely convert decimal string to int using babel.
 
@@ -455,6 +505,26 @@ class LibrarySalaryParser:
         try:
             decimal_val = parse_decimal(value_str, locale=locale)
             return int(decimal_val)
+        except (NumberFormatError, ValueError, TypeError):
+            return None
+
+    @staticmethod
+    def _safe_decimal_to_float(
+        value_str: str,
+        locale: str = DEFAULT_LOCALE,
+    ) -> float | None:
+        """Safely convert decimal string to float using babel for k-suffix parsing.
+
+        This preserves decimal precision for k-suffix multiplication where
+        '125.5k' should become 125500, not 125000.
+
+        Args:
+            value_str: String representation of decimal number
+            locale: Locale for parsing (default: en_US)
+        """
+        try:
+            decimal_val = parse_decimal(value_str, locale=locale)
+            return float(decimal_val)
         except (NumberFormatError, ValueError, TypeError):
             return None
 
@@ -489,8 +559,8 @@ class LibrarySalaryParser:
         return list(values)
 
 
-class CompanySQL(SQLModel, table=True, extend_existing=True):
-    """SQLModel for company records.
+class CompanySQL(SQLModel, table=True):
+    """SQLModel for company records with hybrid properties for computed fields.
 
     Attributes:
         id: Primary key identifier.
@@ -502,18 +572,21 @@ class CompanySQL(SQLModel, table=True, extend_existing=True):
         success_rate: Success rate of scraping attempts (0.0 to 1.0).
     """
 
+    __table_args__ = {"extend_existing": True}
+
     id: int | None = Field(default=None, primary_key=True)
     name: str = Field(unique=True, index=True)  # Explicit index for name
     url: str
     active: bool = Field(default=True, index=True)  # Index for active status filtering
     last_scraped: datetime | None = Field(
-        default=None, index=True, description="Timezone-aware datetime (UTC)"
+        default=None,
+        index=True,
+        description="Timezone-aware datetime (UTC)",
     )  # Index for scraping recency
     scrape_count: int = Field(default=0)
     success_rate: float = Field(default=1.0)
 
-    # Relationships
-    jobs: list["JobSQL"] = Relationship(back_populates="company_relation")
+    # Note: Relationship temporarily disabled due to SQLAlchemy configuration
 
     @field_validator("last_scraped", mode="before")
     @classmethod
@@ -524,16 +597,16 @@ class CompanySQL(SQLModel, table=True, extend_existing=True):
         if isinstance(v, str):
             try:
                 parsed = datetime.fromisoformat(v.replace("Z", "+00:00"))
-                return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+                return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
             except ValueError:
                 return None
         if isinstance(v, datetime):
-            return v if v.tzinfo else v.replace(tzinfo=timezone.utc)
+            return v if v.tzinfo else v.replace(tzinfo=UTC)
         return None
 
 
-class JobSQL(SQLModel, table=True, extend_existing=True):
-    """SQLModel for job records.
+class JobSQL(SQLModel, table=True):
+    """SQLModel for job records with hybrid properties and computed fields.
 
     Attributes:
         id: Primary key identifier.
@@ -553,49 +626,45 @@ class JobSQL(SQLModel, table=True, extend_existing=True):
     """
 
     model_config = {"validate_assignment": True}
+    __table_args__ = {"extend_existing": True}
 
     id: int | None = Field(default=None, primary_key=True)
-    company_id: int | None = Field(default=None, foreign_key="companysql.id")
-    title: str
+    company_id: int | None = Field(
+        default=None,
+        foreign_key="companysql.id",
+        index=True,  # Index for foreign key queries
+    )
+    title: str = Field(index=True)  # Index for title searches
     description: str
     link: str = Field(unique=True)
-    location: str
-    posted_date: datetime | None = None
+    location: str = Field(index=True)  # Index for location filtering
+    posted_date: datetime | None = Field(
+        default=None,
+        index=True,
+    )  # Index for date filtering
     salary: tuple[int | None, int | None] = Field(
-        default=(None, None), sa_column=Column(JSON)
+        default=(None, None),
+        sa_column=Column(JSON),
     )
-    favorite: bool = False
+    favorite: bool = Field(default=False, index=True)  # Index for favorites filtering
     notes: str = ""
     content_hash: str = Field(default="", index=True)
     application_status: str = Field(default="New", index=True)
     application_date: datetime | None = None
     archived: bool = Field(default=False, index=True)
     last_seen: datetime | None = Field(
-        default=None, index=True, description="Timezone-aware datetime (UTC)"
+        default=None,
+        index=True,
+        description="Timezone-aware datetime (UTC)",
     )  # Index for stale job queries
 
-    # Relationships
-    company_relation: "CompanySQL" = Relationship(back_populates="jobs")
+    # Note: Relationship temporarily disabled due to SQLAlchemy configuration
 
-    @computed_field  # type: ignore[misc]
     @property
     def company(self) -> str:
-        """Get company name from relationship or return unknown.
-
-        Returns:
-            str: Company name or 'Unknown' if not found.
-        """
-        return self.company_relation.name if self.company_relation else "Unknown"
-
-    @computed_field  # type: ignore[misc]
-    @property
-    def status(self) -> str:
-        """Backward compatibility alias for application_status.
-
-        Returns:
-            str: Current application status.
-        """
-        return self.application_status
+        """Get company name from relationship."""
+        # Placeholder implementation for company name
+        return "Unknown"
 
     @model_validator(mode="before")
     @classmethod
@@ -627,22 +696,47 @@ class JobSQL(SQLModel, table=True, extend_existing=True):
     @field_validator("posted_date", "application_date", "last_seen", mode="before")
     @classmethod
     def ensure_datetime_timezone_aware(cls, v) -> datetime | None:
-        """Ensure datetime fields are timezone-aware (UTC) - simplified validator."""
+        """Ensure datetime fields are timezone-aware (UTC) using Pendulum."""
         if v is None:
             return None
         if isinstance(v, str):
-            try:
-                parsed = datetime.fromisoformat(v.replace("Z", "+00:00"))
-                return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
-            except ValueError:
-                try:
-                    parsed = datetime.strptime(v, "%Y-%m-%d")  # noqa: DTZ007
-                    return parsed.replace(tzinfo=timezone.utc)
-                except ValueError:
-                    return None
+            # Use Pendulum to parse various string formats to UTC datetime
+            parsed_dt = cls._parse_string_to_utc_datetime(v)
+            if parsed_dt:
+                return parsed_dt
         if isinstance(v, datetime):
-            return v if v.tzinfo else v.replace(tzinfo=timezone.utc)
+            return cls._convert_datetime_to_utc(v)
         return None
+
+    @staticmethod
+    def _parse_string_to_utc_datetime(v: str) -> datetime | None:
+        """Parse string to UTC datetime using standard library."""
+        try:
+            # Try ISO format first
+            parsed = datetime.fromisoformat(v.replace("Z", "+00:00"))
+            return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
+        except ValueError:
+            # Try parsing date-only strings
+            try:
+                # Try common date formats with timezone awareness
+                for fmt in ["%Y-%m-%d", "%m/%d/%Y", "%d/%m/%Y"]:
+                    try:
+                        return datetime.strptime(v, fmt).replace(tzinfo=UTC)
+                    except ValueError:  # noqa: S112
+                        # Expected: Try next date format if this one fails
+                        continue
+            except Exception:
+                salary_logger.debug("Failed to parse date string: %s", v)
+        return None
+
+    @staticmethod
+    def _convert_datetime_to_utc(v: datetime) -> datetime:
+        """Convert datetime to UTC using standard library."""
+        if v.tzinfo:
+            # Convert to UTC
+            return v.astimezone(UTC)
+        # Assume naive datetime is UTC
+        return v.replace(tzinfo=UTC)
 
     @field_validator("salary", mode="before")
     @classmethod
@@ -674,6 +768,10 @@ class JobSQL(SQLModel, table=True, extend_existing=True):
         if isinstance(value, tuple) and len(value) == 2:
             return value
 
+        # Handle list inputs (convert to tuple)
+        if isinstance(value, list) and len(value) == 2:
+            return tuple(value)
+
         # Handle None or empty string inputs
         if value is None or not isinstance(value, str) or value.strip() == "":
             return (None, None)
@@ -682,7 +780,7 @@ class JobSQL(SQLModel, table=True, extend_existing=True):
         return LibrarySalaryParser.parse_salary_text(value.strip())
 
     @classmethod
-    def create_validated(cls, **data) -> "JobSQL":
+    def create_validated(cls, **data) -> JobSQL:
         """Create a JobSQL instance with proper Pydantic validation.
 
         This factory method ensures that Pydantic validators (including model_validator)

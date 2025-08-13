@@ -14,13 +14,24 @@ Functions:
     random_delay: Pauses execution for a random duration.
 """
 
+from __future__ import annotations
+
 import random
+import secrets
+import sys
 import time
+
+from pathlib import Path
 
 from groq import Groq
 from openai import OpenAI
 
-from .config import Settings
+from src.config import Settings
+
+# Add src directory to path if not already there
+src_dir = Path(__file__).parent
+if str(src_dir) not in sys.path:
+    sys.path.insert(0, str(src_dir))
 
 settings = Settings()
 
@@ -67,7 +78,7 @@ def get_proxy() -> str | None:
     """
     if not settings.use_proxies or not settings.proxy_pool:
         return None
-    return random.choice(settings.proxy_pool)
+    return secrets.choice(settings.proxy_pool)
 
 
 def random_user_agent() -> str:
@@ -113,7 +124,7 @@ def random_user_agent() -> str:
             "(KHTML, like Gecko) Chrome/91.0.4472.114 Mobile Safari/537.36"
         ),
     ]
-    return random.choice(user_agents)
+    return secrets.choice(user_agents)
 
 
 def random_delay(min_sec: float = 1.0, max_sec: float = 5.0) -> None:
@@ -128,6 +139,7 @@ def random_delay(min_sec: float = 1.0, max_sec: float = 5.0) -> None:
         min_sec: The minimum delay duration in seconds (default is 1.0).
         max_sec: The maximum delay duration in seconds (default is 5.0).
     """
+    # Use random.uniform for performance, secrets.randbelow for non-cryptographic use
     time.sleep(random.uniform(min_sec, max_sec))
 
 

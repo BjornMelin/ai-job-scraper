@@ -26,8 +26,17 @@ class TestSettings:
             "EXTRACTION_MODEL": "",
         }
 
-        with patch.dict(os.environ, env_overrides, clear=False):
-            settings = Settings()
+        with (
+            patch.dict(os.environ, env_overrides, clear=True),
+            tempfile.TemporaryDirectory() as temp_dir,
+        ):
+            # Change to empty temp directory to avoid loading .env
+            original_cwd = str(Path.cwd())
+            try:
+                os.chdir(temp_dir)
+                settings = Settings()
+            finally:
+                os.chdir(original_cwd)
 
             assert settings.openai_api_key == ""  # Now defaults to empty string
             assert settings.groq_api_key == ""  # Now defaults to empty string
@@ -50,7 +59,7 @@ class TestSettings:
                 "USE_CHECKPOINTING": "True",
                 "DB_URL": "sqlite:///test.db",
                 "EXTRACTION_MODEL": "gpt-4",
-            }
+            },
         )
 
         try:
@@ -59,7 +68,7 @@ class TestSettings:
             assert settings.openai_api_key == "env-openai-key"
             assert settings.groq_api_key == "env-groq-key"
             assert settings.use_groq is True
-            assert settings.proxy_pool == ["proxy1", "proxy2"]
+            assert settings.proxy_pool == ["http://proxy1", "http://proxy2"]
             assert settings.use_proxies is True
             assert settings.use_checkpointing is True
             assert settings.db_url == "sqlite:///test.db"
@@ -89,7 +98,7 @@ class TestSettings:
                 "USE_PROXIES=True\n"
                 "USE_CHECKPOINTING=True\n"
                 "DB_URL=sqlite:///dotenv.db\n"
-                "EXTRACTION_MODEL=gpt-3.5\n"
+                "EXTRACTION_MODEL=gpt-3.5\n",
             )
 
             original_cwd = str(Path.cwd())
@@ -100,7 +109,7 @@ class TestSettings:
                 assert settings.openai_api_key == "dotenv-openai"
                 assert settings.groq_api_key == "dotenv-groq"
                 assert settings.use_groq is True
-                assert settings.proxy_pool == ["p1", "p2"]
+                assert settings.proxy_pool == ["http://p1", "http://p2"]
                 assert settings.use_proxies is True
                 assert settings.use_checkpointing is True
                 assert settings.db_url == "sqlite:///dotenv.db"
@@ -113,7 +122,7 @@ class TestSettings:
         with tempfile.TemporaryDirectory() as temp_dir:
             env_file = Path(temp_dir) / ".env"
             env_file.write_text(
-                "OPENAI_API_KEY=dotenv-openai\nGROQ_API_KEY=dotenv-groq\n"
+                "OPENAI_API_KEY=dotenv-openai\nGROQ_API_KEY=dotenv-groq\n",
             )
 
             os.environ["OPENAI_API_KEY"] = "env-openai"
@@ -169,11 +178,19 @@ class TestSettings:
             "GROQ_API_KEY": "",
         }
 
-        with patch.dict(os.environ, env_overrides, clear=False):
-            # Should succeed now that API keys are optional
-            settings = Settings()
-            assert settings.openai_api_key == ""  # Empty string default
-            assert settings.groq_api_key == ""  # Empty string default
+        with (
+            patch.dict(os.environ, env_overrides, clear=True),
+            tempfile.TemporaryDirectory() as temp_dir,
+        ):
+            # Change to empty temp directory to avoid loading .env
+            original_cwd = str(Path.cwd())
+            try:
+                os.chdir(temp_dir)
+                settings = Settings()
+                assert settings.openai_api_key == ""  # Empty string default
+                assert settings.groq_api_key == ""  # Empty string default
+            finally:
+                os.chdir(original_cwd)
 
     def test_settings_serialization(self):
         """Test settings serialization and deserialization."""

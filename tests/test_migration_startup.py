@@ -17,6 +17,7 @@ from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine, inspect, text
 from sqlmodel import Session, SQLModel
+
 from src.config import Settings
 from src.models import CompanySQL, JobSQL
 
@@ -223,7 +224,9 @@ class TestMigrationStartupIntegration:
     """Test migration integration with application startup process."""
 
     def test_run_migrations_function_exists_and_callable(
-        self, temp_db_path: str, startup_alembic_dir: Path
+        self,
+        temp_db_path: str,
+        startup_alembic_dir: Path,
     ) -> None:
         """Test that run_migrations function can be created and called.
 
@@ -240,7 +243,9 @@ class TestMigrationStartupIntegration:
         run_migrations()  # Should complete successfully without errors
 
     def test_startup_migration_on_fresh_database(
-        self, temp_db_path: str, startup_alembic_dir: Path
+        self,
+        temp_db_path: str,
+        startup_alembic_dir: Path,
     ) -> None:
         """Test migration execution during startup with fresh database.
 
@@ -269,7 +274,9 @@ class TestMigrationStartupIntegration:
         assert "alembic_version" in table_names
 
     def test_startup_migration_with_existing_database(
-        self, temp_db_path: str, startup_alembic_dir: Path
+        self,
+        temp_db_path: str,
+        startup_alembic_dir: Path,
     ) -> None:
         """Test migration execution during startup with existing database.
 
@@ -283,7 +290,9 @@ class TestMigrationStartupIntegration:
         # Add some test data
         with Session(engine) as session:
             company = CompanySQL(
-                name="Existing Company", url="https://existing.com/careers", active=True
+                name="Existing Company",
+                url="https://existing.com/careers",
+                active=True,
             )
             session.add(company)
             session.commit()
@@ -336,7 +345,9 @@ class TestMigrationStartupIntegration:
             assert versions[0][0] != "base"
 
     def test_startup_migration_idempotency(
-        self, temp_db_path: str, startup_alembic_dir: Path
+        self,
+        temp_db_path: str,
+        startup_alembic_dir: Path,
     ) -> None:
         """Test that startup migrations can be run multiple times safely.
 
@@ -373,7 +384,9 @@ class TestMigrationStartupIntegration:
             assert len(versions) == 1
 
     def test_startup_migration_error_handling(
-        self, temp_db_path: str, startup_alembic_dir: Path
+        self,
+        temp_db_path: str,
+        startup_alembic_dir: Path,
     ) -> None:
         """Test error handling in startup migration process.
 
@@ -398,7 +411,8 @@ class TestMigrationStartupIntegration:
             failing_run_migrations()
 
     def test_startup_with_missing_database_file(
-        self, startup_alembic_dir: Path
+        self,
+        startup_alembic_dir: Path,
     ) -> None:
         """Test startup behavior when database file is completely missing.
 
@@ -487,7 +501,9 @@ class TestMainAppIntegration:
         assert config.get_main_option("sqlalchemy.url") == settings.db_url
 
     def test_streamlit_app_starts_after_successful_migration(
-        self, temp_db_path: str, startup_alembic_dir: Path
+        self,
+        temp_db_path: str,
+        startup_alembic_dir: Path,
     ) -> None:
         """Test that Streamlit app only starts after successful migration.
 
@@ -506,7 +522,9 @@ class TestMainAppIntegration:
                 config.set_main_option("sqlalchemy.url", f"sqlite:///{temp_db_path}")
 
                 command.revision(
-                    config, autogenerate=True, message="Startup sequence test"
+                    config,
+                    autogenerate=True,
+                    message="Startup sequence test",
                 )
                 command.upgrade(config, "head")
 
@@ -540,7 +558,9 @@ class TestMainAppIntegration:
         def failing_migration():
             nonlocal migration_failed
             migration_failed = True
-            raise RuntimeError("Migration failed intentionally")
+            raise RuntimeError(
+                "DB Migration error in test_migration_startup simulation",
+            )
 
         def mock_streamlit_main():
             nonlocal app_started
@@ -559,7 +579,9 @@ class TestMigrationLogging:
     """Test migration logging and monitoring during startup."""
 
     def test_migration_success_logging(
-        self, temp_db_path: str, startup_alembic_dir: Path
+        self,
+        temp_db_path: str,
+        startup_alembic_dir: Path,
     ) -> None:
         """Test that successful migrations are properly logged.
 
@@ -589,7 +611,9 @@ class TestMigrationLogging:
             assert len(versions) == 1
 
     def test_migration_performance_monitoring(
-        self, temp_db_path: str, startup_alembic_dir: Path
+        self,
+        temp_db_path: str,
+        startup_alembic_dir: Path,
     ) -> None:
         """Test migration performance monitoring during startup.
 

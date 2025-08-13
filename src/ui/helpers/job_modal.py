@@ -3,18 +3,21 @@
 Focused helper functions for rendering job modal components.
 """
 
+from typing import TYPE_CHECKING
+
 import streamlit as st
 
-from src.schemas import Job
+if TYPE_CHECKING:
+    from src.schemas import Job
 
 
-def render_job_header(job: Job) -> None:
+def render_job_header(job: "Job") -> None:
     """Render job modal header with title and company info."""
     st.markdown(f"### {job.title}")
     st.markdown(f"**{job.company}** • {job.location}")
 
 
-def render_job_status(job: Job) -> None:
+def render_job_status(job: "Job") -> None:
     """Render job status and posted date."""
     col1, col2 = st.columns(2)
     with col1:
@@ -31,14 +34,14 @@ def render_job_status(job: Job) -> None:
         st.markdown(f"**Status:** {icon} {job.application_status}")
 
 
-def render_job_description(job: Job) -> None:
+def render_job_description(job: "Job") -> None:
     """Render job description section."""
     st.markdown("---")
     st.markdown("### Job Description")
     st.markdown(job.description)
 
 
-def render_notes_section(job: Job) -> str:
+def render_notes_section(job: "Job") -> str:
     """Render notes section and return the notes value.
 
     Returns:
@@ -55,7 +58,7 @@ def render_notes_section(job: Job) -> str:
     )
 
 
-def render_action_buttons(job: Job, notes_value: str) -> None:
+def render_action_buttons(job: "Job", notes_value: str) -> None:
     """Render modal action buttons."""
     from src.ui.utils.job_utils import save_job_notes
 
@@ -69,7 +72,10 @@ def render_action_buttons(job: Job, notes_value: str) -> None:
     with col2:
         if job.link:
             st.link_button(
-                "Apply Now", job.link, use_container_width=True, type="secondary"
+                "Apply Now",
+                job.link,
+                use_container_width=True,
+                type="secondary",
             )
 
     with col3:
