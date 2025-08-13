@@ -10,7 +10,6 @@ Simple caching using Streamlit's native @st.cache_data decorator.
 import logging
 
 from datetime import UTC, datetime
-from typing import Any
 
 # Import streamlit for caching decorators
 try:
@@ -43,9 +42,9 @@ from src.schemas import Job
 logger = logging.getLogger(__name__)
 
 # Type aliases for better readability
-type FilterDict = dict[str, Any]
+type FilterDict = dict[str, object]
 type JobCountStats = dict[str, int]
-type JobUpdateBatch = list[dict[str, Any]]
+type JobUpdateBatch = list[dict[str, object]]
 
 
 class JobService:
@@ -561,7 +560,7 @@ class JobService:
     @staticmethod
     def get_jobs_with_company_names_direct_join(
         filters: FilterDict,
-    ) -> list[dict[str, "Any"]]:
+    ) -> list[dict[str, object]]:
         """Alternative implementation using direct SQL JOIN as suggested by Sourcery.
 
         This method demonstrates the SQL join approach for fetching company names

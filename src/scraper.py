@@ -186,21 +186,26 @@ def scrape_all(max_jobs_per_company: int | None = None) -> SyncStats:
         with SessionLocal() as session:
             for job in all_jobs:
                 # Get company name from company_id
-                if hasattr(job, "company_id") and job.company_id:
-                    company = session.exec(
-                        sqlmodel.select(CompanySQL).where(
-                            CompanySQL.id == job.company_id,
-                        ),
-                    ).first()
-                    if company and company.name in active_company_names:
-                        company_filtered_jobs.append(job)
-                    elif company:
-                        logger.debug(
-                            "Excluding job from inactive company: %s",
-                            company.name,
+                match job:
+                    case job if hasattr(job, "company_id") and (
+                        company := session.exec(
+                            sqlmodel.select(CompanySQL).where(
+                                CompanySQL.id == job.company_id,
+                            )
+                        ).first()
+                    ):
+                        match company.name:
+                            case name if name in active_company_names:
+                                company_filtered_jobs.append(job)
+                            case _:
+                                logger.debug(
+                                    "Excluding job from inactive company: %s",
+                                    company.name,
+                                )
+                    case _:
+                        logger.warning(
+                            "Job missing company_id, skipping: %s", job.title
                         )
-                else:
-                    logger.warning("Job missing company_id, skipping: %s", job.title)
 
         logger.info(
             "Filtered to %d jobs from active companies (removed %d from inactive)",
@@ -341,14 +346,14 @@ def _normalize_board_jobs(board_jobs_raw: Sequence[dict]) -> list[JobSQL]:
         for raw in board_jobs_raw:
             try:
                 # Format salary from min/max amounts
-                salary = ""
-                min_amt = raw.get("min_amount")
-                max_amt = raw.get("max_amount")
-                if min_amt and max_amt:
+                # Use walrus operator for concise salary formatting
+                if (min_amt := raw.get("min_amount")) and (
+                    max_amt := raw.get("max_amount")
+                ):
                     salary = f"${min_amt}-${max_amt}"
                 elif min_amt:
                     salary = f"${min_amt}+"
-                elif max_amt:
+                elif max_amt := raw.get("max_amount"):
                     salary = f"${max_amt}"
 
                 # Get company ID from pre-loaded mapping (O(1) lookup)

@@ -18,7 +18,6 @@ with proper logging. DTO conversion prevents DetachedInstanceError issues.
 import logging
 
 from datetime import UTC, datetime
-from typing import Any
 
 import sqlalchemy.exc
 import sqlmodel
@@ -63,8 +62,8 @@ logger = logging.getLogger(__name__)
 
 # Type aliases for better readability
 type CompanyMapping = dict[str, int]
-type CompanyStatsList = list[dict[str, Any]]
-type ScrapeUpdateBatch = list[dict[str, Any]]
+type CompanyStatsList = list[dict[str, object]]
+type ScrapeUpdateBatch = list[dict[str, object]]
 
 
 def calculate_weighted_success_rate(
@@ -611,7 +610,7 @@ class CompanyService:
             raise
 
     @staticmethod
-    def get_companies_for_management() -> list[dict[str, "Any"]]:
+    def get_companies_for_management() -> list[dict[str, object]]:
         """Get all companies formatted for management UI display.
 
         Returns:

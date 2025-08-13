@@ -22,10 +22,14 @@ settings = Settings()
 logger = logging.getLogger(__name__)
 
 
+class JobboardScraperError(Exception):
+    """Custom exception for job board scraping errors."""
+
+
 def scrape_job_boards(
     keywords: list[str],
     locations: list[str],
-) -> list[dict[str, "Any"]]:
+) -> list[dict[str, Any]]:
     """Scrape job listings from structured job boards using JobSpy.
 
     This function iterates over provided locations, scrapes jobs for the combined
@@ -71,9 +75,13 @@ def scrape_job_boards(
 
             if job_count > 0:
                 all_dfs.append(jobs)
-        except Exception:
+        except ValueError as e:
             location_results[location] = 0
-            logger.exception("  ❌ Error scraping jobs for location '%s'", location)
+            logger.warning("  ❌ Job search error in location '%s': %s", location, e)
+        except Exception as e:
+            location_results[location] = 0
+            logger.exception("  ❌ Unexpected error scraping jobs for location '%s'")
+            raise JobboardScraperError(f"Error scraping jobs for {location}") from e
 
     if not all_dfs:
         logger.warning("No jobs found from any location")

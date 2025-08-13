@@ -17,10 +17,10 @@ import hashlib
 import logging
 import re
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING
 
 from babel.numbers import NumberFormatError, parse_decimal, parse_number
 from price_parser import Price
@@ -30,14 +30,6 @@ from pydantic import (
 )
 from sqlalchemy.types import JSON
 from sqlmodel import Column, Field, SQLModel
-
-if TYPE_CHECKING:
-    from collections.abc import Sequence
-
-    # Forward references for relationships
-    JobSQL = "JobSQL"
-    CompanySQL = "CompanySQL"
-
 
 # SQLAlchemy 2.0 library-first approach: Use extend_existing=True for all tables
 # This replaces the dangerous monkey patch with SQLAlchemy's built-in mechanism
