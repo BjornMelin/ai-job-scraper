@@ -12,17 +12,32 @@ from pathlib import Path
 
 
 def run_command(cmd: list[str], timeout: int = 60) -> dict:
-    """Run a command and measure execution time."""
+    """Run a command and measure execution time.
+
+    Args:
+        cmd: Command to run, must be a non-empty list of strings
+        timeout: Maximum time to allow the command to run
+
+    Returns:
+        Dict with command execution details
+    """
+    # Validate input: cmd must be a non-empty list of strings
+    if not cmd or not all(isinstance(arg, str) for arg in cmd):
+        raise ValueError("Command must be a non-empty list of strings")
+
+    # Sanitize command to prevent shell injection
+    sanitized_cmd = [str(arg).replace("`", "").replace("$", "") for arg in cmd]
+
     start_time = time.time()
     try:
-        # S603: subprocess call is safe - cmd is constructed from known strings
+        # Safe execution with input validation and error checking
         result = subprocess.run(  # noqa: S603
-            cmd,
+            sanitized_cmd,
             capture_output=True,
             text=True,
             timeout=timeout,
             cwd=Path(__file__).parent.parent,
-            check=False,
+            check=True,  # Raise CalledProcessError for non-zero exit codes
         )
         elapsed = time.time() - start_time
     except subprocess.TimeoutExpired:

@@ -16,7 +16,7 @@ import time
 import uuid
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import streamlit as st
@@ -63,7 +63,7 @@ class TaskInfo:
 _session_state_lock = threading.Lock()
 
 
-def _atomic_check_and_set(key: str, check_value: Any, set_value: Any) -> bool:
+def _atomic_check_and_set(key: str, check_value: "Any", set_value: "Any") -> bool:
     """Atomically check session state value and set new value if match."""
     with _session_state_lock:
         current_value = st.session_state.get(key)
@@ -126,7 +126,7 @@ def is_scraping_active() -> bool:
     return st.session_state.get("scraping_active", False)
 
 
-def get_scraping_results() -> dict[str, Any]:
+def get_scraping_results() -> dict[str, "Any"]:
     """Get results from the last scraping operation."""
     return st.session_state.get("scraping_results", {})
 
@@ -144,7 +144,7 @@ def start_background_scraping(stay_active_in_tests: bool = False) -> str:
     st.session_state.task_progress[task_id] = ProgressInfo(
         progress=0.0,
         message="Starting scraping...",
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
     )
     st.session_state.task_id = task_id
 
@@ -213,7 +213,7 @@ def _execute_test_scraping(task_id: str) -> None:
         st.session_state.task_progress[task_id] = ProgressInfo(
             progress=1.0,
             message="Scraping completed",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
 
     # Set scraping as inactive

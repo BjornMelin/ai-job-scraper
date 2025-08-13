@@ -13,6 +13,7 @@ import streamlit as st
 
 from groq import Groq
 from openai import OpenAI
+
 from src.ui.utils.ui_helpers import is_streamlit_context
 
 logger = logging.getLogger(__name__)
@@ -97,7 +98,7 @@ def test_api_connection(provider: str, api_key: str) -> tuple[bool, str]:
     return success, message
 
 
-def load_settings() -> dict[str, Any]:
+def load_settings() -> dict[str, "Any"]:
     """Load current settings from environment and session state.
 
     Returns:
@@ -111,7 +112,7 @@ def load_settings() -> dict[str, Any]:
     }
 
 
-def save_settings(settings: dict[str, Any]) -> None:
+def save_settings(settings: dict[str, "Any"]) -> None:
     """Save settings to session state and environment variables.
 
     Args:

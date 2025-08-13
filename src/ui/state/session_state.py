@@ -5,7 +5,7 @@ replacing the custom StateManager singleton with direct st.session_state usage
 for better performance and maintainability.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import streamlit as st
 
@@ -22,8 +22,8 @@ def init_session_state() -> None:
         "filters": {
             "company": [],
             "keyword": "",
-            "date_from": datetime.now(timezone.utc) - timedelta(days=30),
-            "date_to": datetime.now(timezone.utc),
+            "date_from": datetime.now(UTC) - timedelta(days=30),
+            "date_to": datetime.now(UTC),
             "salary_min": SALARY_DEFAULT_MIN,
             "salary_max": SALARY_DEFAULT_MAX,
         },
@@ -43,8 +43,8 @@ def clear_filters() -> None:
     st.session_state.filters = {
         "company": [],
         "keyword": "",
-        "date_from": datetime.now(timezone.utc) - timedelta(days=30),
-        "date_to": datetime.now(timezone.utc),
+        "date_from": datetime.now(UTC) - timedelta(days=30),
+        "date_to": datetime.now(UTC),
         "salary_min": SALARY_DEFAULT_MIN,
         "salary_max": SALARY_DEFAULT_MAX,
     }

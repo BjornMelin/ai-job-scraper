@@ -13,7 +13,7 @@ Key improvements from library-first-optimization branch:
 
 import logging
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import streamlit as st
 
@@ -223,7 +223,7 @@ def _render_progress_dashboard() -> None:
                 break
 
         if start_time:
-            time_elapsed = (datetime.now(timezone.utc) - start_time).total_seconds()
+            time_elapsed = (datetime.now(UTC) - start_time).total_seconds()
             eta = calculate_eta(total_companies, completed_companies, time_elapsed)
         else:
             eta = "Calculating..."
