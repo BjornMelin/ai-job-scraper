@@ -1,7 +1,17 @@
 """Configuration settings for the AI Job Scraper application."""
 
+from __future__ import annotations
+
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class DatabaseURLError(ValueError):
+    """Custom exception for database URL configuration errors."""
+
+
+class LogLevelError(ValueError):
+    """Custom exception for invalid log level configuration."""
 
 
 class Settings(BaseSettings):
@@ -55,9 +65,22 @@ class Settings(BaseSettings):
     @field_validator("db_url")
     @classmethod
     def validate_db_url(cls, v: str) -> str:
-        """Validate database URL format."""
+        """Validate database URL format.
+
+        Args:
+            v (str): Database URL to validate.
+
+        Returns:
+            str: Validated database URL.
+
+        Raises:
+            DatabaseURLError: If the database URL is invalid.
+        """
         if not v:
-            raise ValueError("Database URL cannot be empty")
+            raise DatabaseURLError(
+                "Database URL configuration is missing or invalid. "
+                "Please provide a valid database connection URL."
+            )
 
         supported_schemes = ("sqlite://", "postgresql://", "mysql://")
         if not v.startswith(supported_schemes) and not v.startswith("sqlite:"):
@@ -85,9 +108,21 @@ class Settings(BaseSettings):
     @field_validator("log_level")
     @classmethod
     def validate_log_level(cls, v: str) -> str:
-        """Validate logging level."""
+        """Validate logging level.
+
+        Args:
+            v (str): Log level to validate.
+
+        Returns:
+            str: Validated log level in uppercase.
+
+        Raises:
+            LogLevelError: If the log level is invalid.
+        """
         valid_levels = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
         if v.upper() not in valid_levels:
-            error_msg = f"Invalid log level: {v}. Must be one of {valid_levels}"
-            raise ValueError(error_msg)
+            raise LogLevelError(
+                f"Invalid logging configuration: '{v}' is not a valid log level. "
+                f"Supported levels are: {', '.join(valid_levels)}"
+            )
         return v.upper()

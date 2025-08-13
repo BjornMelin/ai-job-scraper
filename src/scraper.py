@@ -9,7 +9,7 @@ user-defined fields like favorites during updates.
 import logging
 
 from collections.abc import Sequence
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 # Rich imports for beautiful CLI output
 import sqlmodel
@@ -20,13 +20,18 @@ from rich.panel import Panel
 from rich.table import Table
 
 from .constants import AI_REGEX, SEARCH_KEYWORDS, SEARCH_LOCATIONS
+from .core_utils import random_delay
 from .database import SessionLocal
 from .models import CompanySQL, JobSQL
 from .scraper_company_pages import DEFAULT_MAX_JOBS_PER_COMPANY, scrape_company_pages
 from .scraper_job_boards import scrape_job_boards
 from .services.company_service import CompanyService
 from .services.database_sync import SmartSyncEngine
-from .utils import random_delay
+
+
+class ScraperParameterError(ValueError):
+    """Custom exception for invalid scraper configuration parameters."""
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -99,14 +104,14 @@ def scrape_all(max_jobs_per_company: int | None = None) -> SyncStats:
             style="blue",
         )
     )
-    start_time = datetime.now(timezone.utc)
+    start_time = datetime.now(UTC)
 
     # Validate max_jobs_per_company parameter
     if max_jobs_per_company is not None:
         if not isinstance(max_jobs_per_company, int):
-            raise ValueError("max_jobs_per_company must be an integer")
+            raise ScraperParameterError("max_jobs_per_company must be an integer")
         if max_jobs_per_company < 1:
-            raise ValueError("max_jobs_per_company must be at least 1")
+            raise ScraperParameterError("max_jobs_per_company must be at least 1")
 
     # Log the job limit being used
     limit = max_jobs_per_company or DEFAULT_MAX_JOBS_PER_COMPANY
@@ -230,7 +235,7 @@ def scrape_all(max_jobs_per_company: int | None = None) -> SyncStats:
     sync_stats = sync_engine.sync_jobs(dedup_jobs)
 
     # Calculate and log total execution time
-    end_time = datetime.now(timezone.utc)
+    end_time = datetime.now(UTC)
     duration = (end_time - start_time).total_seconds()
 
     # Create a beautiful Rich table for final statistics
@@ -353,7 +358,7 @@ def _normalize_board_jobs(board_jobs_raw: Sequence[dict]) -> list[JobSQL]:
                     posted_date=raw.get("date_posted"),
                     salary=salary,
                     application_status="New",
-                    last_seen=datetime.now(timezone.utc),
+                    last_seen=datetime.now(UTC),
                 )
                 board_jobs.append(job)
 

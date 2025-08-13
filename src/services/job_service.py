@@ -9,7 +9,7 @@ Simple caching using Streamlit's native @st.cache_data decorator.
 
 import logging
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 # Import streamlit for caching decorators
@@ -35,6 +35,7 @@ except ImportError:
 from sqlalchemy import func, or_
 from sqlalchemy.orm import joinedload
 from sqlmodel import select
+
 from src.constants import SALARY_DEFAULT_MIN, SALARY_UNBOUNDED_THRESHOLD
 from src.database import db_session
 from src.models import CompanySQL, JobSQL
@@ -249,7 +250,7 @@ class JobService:
                     and old_status != "Applied"
                     and job.application_date is None
                 ):
-                    job.application_date = datetime.now(timezone.utc)
+                    job.application_date = datetime.now(UTC)
 
                 logger.info(
                     "Updated job %s status from '%s' to '%s'",
@@ -469,8 +470,9 @@ class JobService:
             try:
                 dt = datetime.fromisoformat(date_input)
                 if dt.tzinfo is None:
-                    dt = dt.replace(tzinfo=timezone.utc)
-            except ValueError:
+                    dt = dt.replace(tzinfo=UTC)
+            except ValueError:  # noqa: S110
+                # Expected: Continue to alternative date parsing if ISO format fails
                 pass
             else:
                 return dt
@@ -487,10 +489,11 @@ class JobService:
             for date_format in date_formats:
                 try:
                     return datetime.strptime(date_input, date_format).replace(
-                        tzinfo=timezone.utc
+                        tzinfo=UTC
                     )
 
-                except ValueError:
+                except ValueError:  # noqa: S112
+                    # Expected: Try next date format if this one fails
                     continue
 
             # If all formats fail, log warning
@@ -543,7 +546,7 @@ class JobService:
                             and job.application_status == "Applied"
                             and not job.application_date
                         ):
-                            job.application_date = datetime.now(timezone.utc)
+                            job.application_date = datetime.now(UTC)
 
                 logger.info("Bulk updated %d jobs", len(job_updates))
                 return True
@@ -555,7 +558,7 @@ class JobService:
     @staticmethod
     def get_jobs_with_company_names_direct_join(
         filters: FilterDict,
-    ) -> list[dict[str, Any]]:
+    ) -> list[dict[str, "Any"]]:
         """Alternative implementation using direct SQL JOIN as suggested by Sourcery.
 
         This method demonstrates the SQL join approach for fetching company names

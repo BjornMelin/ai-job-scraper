@@ -16,7 +16,7 @@ from jobspy import Site, scrape_jobs
 
 from .config import Settings
 from .constants import AI_REGEX
-from .utils import random_delay, resolve_jobspy_proxies
+from .core_utils import random_delay, resolve_jobspy_proxies
 
 settings = Settings()
 logger = logging.getLogger(__name__)
@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 def scrape_job_boards(
     keywords: list[str], locations: list[str]
-) -> list[dict[str, Any]]:
+) -> list[dict[str, "Any"]]:
     """Scrape job listings from structured job boards using JobSpy.
 
     This function iterates over provided locations, scrapes jobs for the combined

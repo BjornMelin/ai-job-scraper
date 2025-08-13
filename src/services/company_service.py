@@ -17,15 +17,14 @@ with proper logging. DTO conversion prevents DetachedInstanceError issues.
 
 import logging
 
-from datetime import datetime, timezone
-
-# Import Any for proper type hints
+from datetime import UTC, datetime
 from typing import Any
 
 import sqlalchemy.exc
 import sqlmodel
 
 from sqlalchemy.orm import selectinload
+from sqlmodel import func, select
 
 # Import streamlit for caching decorators
 try:
@@ -47,7 +46,6 @@ except ImportError:
 
     st = _DummyStreamlit()
 
-from sqlmodel import func, select
 from src.database import db_session
 from src.models import CompanySQL, JobSQL
 from src.schemas import Company
@@ -55,6 +53,11 @@ from src.ui.utils.ui_helpers import (
     calculate_active_jobs_count,
     calculate_total_jobs_count,
 )
+
+
+class CompanyValidationError(ValueError):
+    """Custom exception for company-related validation errors."""
+
 
 logger = logging.getLogger(__name__)
 
@@ -194,14 +197,15 @@ class CompanyService:
             Newly created Company DTO object.
 
         Raises:
-            Exception: If database operation fails or company name already exists.
+            CompanyValidationError: If company name or URL is empty or already exists.
+            Exception: If database operation fails.
         """
         try:
             # Validate inputs
             if not name or not name.strip():
-                raise ValueError("Company name cannot be empty")
+                raise CompanyValidationError("Company name cannot be empty")
             if not url or not url.strip():
-                raise ValueError("Company URL cannot be empty")
+                raise CompanyValidationError("Company URL cannot be empty")
 
             name = name.strip()
             url = url.strip()
@@ -210,7 +214,7 @@ class CompanyService:
                 # Check if company already exists
                 if session.exec(select(CompanySQL).filter_by(name=name)).first():
                     error_msg = f"Company '{name}' already exists"
-                    raise ValueError(error_msg)
+                    raise CompanyValidationError(error_msg)
 
                 # Create new company
                 company = CompanySQL(
@@ -329,7 +333,7 @@ class CompanyService:
         """
         try:
             if last_scraped is None:
-                last_scraped = datetime.now(timezone.utc)
+                last_scraped = datetime.now(UTC)
 
             with db_session() as session:
                 company = session.exec(
@@ -570,9 +574,7 @@ class CompanyService:
                 for update in updates:
                     company_id = update["company_id"]
                     success = update["success"]
-                    last_scraped = update.get(
-                        "last_scraped", datetime.now(timezone.utc)
-                    )
+                    last_scraped = update.get("last_scraped", datetime.now(UTC))
 
                     if company := companies_by_id.get(company_id):
                         company.scrape_count += 1
@@ -593,7 +595,7 @@ class CompanyService:
             raise
 
     @staticmethod
-    def get_companies_for_management() -> list[dict[str, Any]]:
+    def get_companies_for_management() -> list[dict[str, "Any"]]:
         """Get all companies formatted for management UI display.
 
         Returns:

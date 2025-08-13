@@ -9,10 +9,11 @@ implements smart archiving rules.
 import hashlib
 import logging
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func
 from sqlmodel import Session, select
+
 from src.database import SessionLocal
 from src.models import JobSQL
 
@@ -107,15 +108,25 @@ class SmartSyncEngine:
                 existing_jobs_map = {}
 
             # Step 2: Process incoming jobs (insert/update) using bulk-loaded data
+            # Track processed links within this batch to prevent duplicates
+            processed_links = set()
+
             for job in jobs:
                 if not job.link:
                     logger.warning("Skipping job without link: %s", job.title)
+                    continue
+
+                # Check for duplicates within the current batch
+                if job.link in processed_links:
+                    logger.warning("Skipping duplicate link in batch: %s", job.link)
+                    stats["skipped"] += 1
                     continue
 
                 operation = self._sync_single_job_optimized(
                     session, job, existing_jobs_map
                 )
                 stats[operation] += 1
+                processed_links.add(job.link)
 
             # Step 3: Handle stale jobs (archive/delete)
             stale_stats = self._handle_stale_jobs(session, current_links)
@@ -196,7 +207,7 @@ class SmartSyncEngine:
             str: Always returns 'inserted'.
         """
         # Ensure required fields are set
-        job.last_seen = datetime.now(timezone.utc)
+        job.last_seen = datetime.now(UTC)
         if not job.application_status:
             job.application_status = "New"
         if not job.content_hash:
@@ -225,7 +236,7 @@ class SmartSyncEngine:
         # Check if content has actually changed
         if existing.content_hash == new_content_hash:
             # Content unchanged, just update last_seen and skip
-            existing.last_seen = datetime.now(timezone.utc)
+            existing.last_seen = datetime.now(UTC)
             # Unarchive if it was archived (job is back!)
             if existing.archived:
                 existing.archived = False
@@ -260,7 +271,7 @@ class SmartSyncEngine:
         existing.posted_date = new_job.posted_date
         existing.salary = new_job.salary
         existing.content_hash = new_content_hash
-        existing.last_seen = datetime.now(timezone.utc)
+        existing.last_seen = datetime.now(UTC)
 
         # Unarchive if it was archived (job is back!)
         if existing.archived:
@@ -292,12 +303,17 @@ class SmartSyncEngine:
         stats = {"archived": 0, "deleted": 0}
 
         # Find all non-archived jobs not in current scrape
-        stale_jobs = session.exec(
-            select(JobSQL).where(
-                ~JobSQL.archived,
-                ~JobSQL.link.in_(current_links),
-            )
-        ).all()
+        if current_links:
+            # Normal case: exclude jobs with links in current_links
+            stale_jobs = session.exec(
+                select(JobSQL).where(
+                    ~JobSQL.archived,
+                    ~JobSQL.link.in_(current_links),
+                )
+            ).all()
+        else:
+            # Edge case: when current_links is empty, all non-archived jobs are stale
+            stale_jobs = session.exec(select(JobSQL).where(~JobSQL.archived)).all()
 
         for job in stale_jobs:
             if self._has_user_data(job):
@@ -434,7 +450,7 @@ class SmartSyncEngine:
         """
         session = self._get_session()
         try:
-            cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_threshold)
+            cutoff_date = datetime.now(UTC) - timedelta(days=days_threshold)
 
             # Find archived jobs that haven't been seen in a long time
             # and don't have recent application activity
