@@ -239,15 +239,13 @@ class SafeIntValidator(BaseModel):
             ):  # Check bool before int since bool is subclass of int
                 return int(v)
             if isinstance(v, int | float):
+                import math
+
                 return max(
                     0,
                     int(v)
                     if isinstance(v, int)
-                    else (
-                        int(v)
-                        if v.__class__.__name__ != "float" or v.is_finite()
-                        else 0
-                    ),
+                    else (int(v) if isinstance(v, float) and math.isfinite(v) else 0),
                 )
             if isinstance(v, str):
                 v = v.strip()
@@ -262,6 +260,9 @@ class SafeIntValidator(BaseModel):
                         return max(0, int(float(match.group()))) if match else 0
         except (ValueError, TypeError, AttributeError):
             return 0
+
+        # Fallback for unhandled types
+        return 0
 
 
 def safe_int(value: "Any", default: int = 0) -> int:
@@ -418,7 +419,9 @@ def calculate_total_jobs_count(jobs: list["JobSQL"] | None) -> int:
     Returns:
         Total number of jobs
     """
-    return len(jobs) if jobs else 0
+    if not jobs or not isinstance(jobs, list):
+        return 0
+    return len(jobs)
 
 
 def calculate_active_jobs_count(jobs: list["JobSQL"] | None) -> int:
@@ -432,7 +435,12 @@ def calculate_active_jobs_count(jobs: list["JobSQL"] | None) -> int:
     Returns:
         Number of active (non-archived) jobs
     """
-    return len([j for j in jobs if not j.archived]) if jobs else 0
+    if not jobs or not isinstance(jobs, list):
+        return 0
+    try:
+        return len([j for j in jobs if not j.archived])
+    except (AttributeError, TypeError):
+        return 0
 
 
 def find_last_job_posted(jobs: list["JobSQL"] | None) -> datetime | None:
@@ -446,9 +454,12 @@ def find_last_job_posted(jobs: list["JobSQL"] | None) -> datetime | None:
     Returns:
         Most recent posting date or None
     """
-    if not jobs:
+    if not jobs or not isinstance(jobs, list):
         return None
-    return max((j.posted_date for j in jobs if j.posted_date), default=None)
+    try:
+        return max((j.posted_date for j in jobs if j.posted_date), default=None)
+    except (AttributeError, TypeError):
+        return None
 
 
 def format_success_rate_percentage(success_rate: float) -> float:
@@ -462,7 +473,12 @@ def format_success_rate_percentage(success_rate: float) -> float:
     Returns:
         Success rate as percentage (0-100), rounded to 1 decimal place
     """
-    return round(success_rate * 100, 1)
+    try:
+        if not isinstance(success_rate, (int, float)):
+            return 0.0
+        return round(success_rate * 100, 1)
+    except (TypeError, ValueError):
+        return 0.0
 
 
 # Additional formatter functions for test compatibility

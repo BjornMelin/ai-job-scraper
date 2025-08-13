@@ -362,7 +362,7 @@ class TestBackgroundTaskHandling:
 
     def test_start_background_scraping_initializes_state(self, mock_session_state):
         """Test start_background_scraping initializes session state properly."""
-        task_id = start_background_scraping()
+        task_id = start_background_scraping(stay_active_in_tests=True)
 
         # Should return a valid UUID
         assert task_id is not None
@@ -545,7 +545,7 @@ class TestT1RealisticScenarios:
     def test_typical_scraping_workflow(self, mock_session_state):
         """Test typical scraping workflow using simplified background helpers."""
         # Start scraping
-        task_id = start_background_scraping()
+        task_id = start_background_scraping(stay_active_in_tests=True)
         assert is_scraping_active()
 
         # Check initial progress
@@ -605,7 +605,7 @@ class TestT1RealisticScenarios:
     def test_background_helpers_integration(self, mock_session_state, mock_streamlit):
         """Test integration between throttled rerun and task management."""
         # Start background task
-        start_background_scraping()
+        start_background_scraping(stay_active_in_tests=True)
 
         # Use throttled rerun for UI updates
         throttled_rerun("scraping_ui", 0.5, should_rerun=is_scraping_active())

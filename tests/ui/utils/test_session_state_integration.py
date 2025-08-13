@@ -119,7 +119,7 @@ class TestT1TaskManagementIntegration:
     def test_task_management_with_background_scraping(self, mock_session_state):
         """Test task management integration with background scraping workflow."""
         # Start background scraping (creates task automatically)
-        task_id = start_background_scraping()
+        task_id = start_background_scraping(stay_active_in_tests=True)
 
         # Verify scraping task was created in progress tracking
         progress = get_scraping_progress()
@@ -245,7 +245,7 @@ class TestT1ComponentIntegration:
     def test_throttled_rerun_with_task_status(self, mock_session_state, mock_streamlit):
         """Test throttled rerun integration with task status checking."""
         # Start background task
-        start_background_scraping()
+        start_background_scraping(stay_active_in_tests=True)
 
         # Use throttled rerun based on scraping status
         throttled_rerun("ui_refresh", 0.5, should_rerun=is_scraping_active())
@@ -319,7 +319,7 @@ class TestT1ErrorHandlingAndRecovery:
     def test_background_scraping_error_handling(self, mock_session_state):
         """Test background scraping error handling in simplified implementation."""
         # Start scraping
-        start_background_scraping()
+        start_background_scraping(stay_active_in_tests=True)
         assert is_scraping_active()
 
         # Simulate error condition by corrupting session state
@@ -487,7 +487,7 @@ class TestT1RealisticProductionScenarios:
     def test_typical_job_scraping_workflow(self, mock_session_state, mock_streamlit):
         """Test typical job scraping workflow using T1 components."""
         # Start scraping
-        start_background_scraping()
+        start_background_scraping(stay_active_in_tests=True)
         assert is_scraping_active()
 
         # Add company progress tracking
@@ -564,7 +564,7 @@ class TestT1RealisticProductionScenarios:
     def test_error_recovery_in_production_workflow(self, mock_session_state):
         """Test error recovery in production-like workflow."""
         # Start normal operation
-        start_background_scraping()
+        start_background_scraping(stay_active_in_tests=True)
 
         # Add some processing tasks
         processing_tasks = []

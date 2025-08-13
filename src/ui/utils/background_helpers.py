@@ -92,13 +92,24 @@ def add_task(task_id: str, task_info: TaskInfo) -> None:
 
 def get_task(task_id: str) -> TaskInfo | None:
     """Get task info from session state."""
-    return st.session_state.get("tasks", {}).get(task_id)
+    try:
+        tasks = st.session_state.get("tasks", {})
+        if not isinstance(tasks, dict):
+            return None
+        return tasks.get(task_id)
+    except (AttributeError, KeyError):
+        return None
 
 
 def remove_task(task_id: str) -> None:
     """Remove task from session state."""
-    if "tasks" in st.session_state:
-        st.session_state.tasks.pop(task_id, None)
+    try:
+        if "tasks" in st.session_state:
+            tasks = st.session_state.tasks
+            if isinstance(tasks, dict):
+                tasks.pop(task_id, None)
+    except (AttributeError, KeyError):
+        pass
 
 
 # Throttled rerun utility from refresh.py
@@ -123,7 +134,11 @@ def throttled_rerun(
 # Key functions from background_tasks.py
 def is_scraping_active() -> bool:
     """Check if scraping is currently active."""
-    return st.session_state.get("scraping_active", False)
+    try:
+        result = st.session_state.get("scraping_active", False)
+        return bool(result) if isinstance(result, (bool, int, str)) else False
+    except (AttributeError, KeyError):
+        return False
 
 
 def get_scraping_results() -> dict[str, "Any"]:
