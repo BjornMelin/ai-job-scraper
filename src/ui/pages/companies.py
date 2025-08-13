@@ -15,7 +15,7 @@ from src.ui.utils.database_helpers import (
     display_feedback_messages,
     init_session_state_keys,
 )
-from src.ui.utils.system_utils import is_streamlit_context
+from src.ui.utils.ui_helpers import is_streamlit_context
 
 logger = logging.getLogger(__name__)
 

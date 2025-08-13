@@ -12,22 +12,18 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-# Computed field helpers
-from src.ui.utils.computed_fields import (
+# All UI helpers consolidated in ui_helpers.py
+from src.ui.utils.ui_helpers import (
     calculate_active_jobs_count,
     calculate_days_since_posted,
     calculate_total_jobs_count,
     find_last_job_posted,
+    format_salary_range,
+    format_success_rate_percentage,
     get_job_company_name,
     get_salary_max,
     get_salary_min,
     is_job_recently_posted,
-)
-
-# Formatting utilities
-from src.ui.utils.formatters import (
-    format_salary_range,
-    format_success_rate_percentage,
 )
 
 

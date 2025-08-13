@@ -13,9 +13,9 @@ import pytest
 
 from pydantic import ValidationError
 
-from src.ui.utils.system_utils import is_streamlit_context
-from src.ui.utils.validators import (
+from src.ui.utils.ui_helpers import (
     SafeIntValidator,
+    is_streamlit_context,
     safe_int,
     safe_job_count,
 )

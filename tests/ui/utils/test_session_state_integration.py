@@ -35,7 +35,7 @@ from src.ui.utils.database_helpers import (
     clean_session_state,
     get_cached_session_factory,
 )
-from src.ui.utils.validators import safe_int
+from src.ui.utils.ui_helpers import safe_int
 
 
 class TestT1TaskManagementIntegration:
