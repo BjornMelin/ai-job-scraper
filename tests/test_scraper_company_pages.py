@@ -7,7 +7,7 @@ proxy configuration, and error handling scenarios.
 
 import hashlib
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -990,7 +990,7 @@ class TestStateManagement:
             location="Remote",
             content_hash="hash123",
             application_status="New",
-            last_seen=datetime.now(timezone.utc),
+            last_seen=datetime.now(UTC),
         )
 
         state: State = {

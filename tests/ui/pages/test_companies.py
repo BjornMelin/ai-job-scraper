@@ -404,7 +404,7 @@ class TestShowCompaniesPage:
 
     @pytest.mark.parametrize(
         ("company_count", "expected_active"),
-        [
+        (
             ([], 0),
             ([Company(id=1, name="Test", url="https://test.com", active=True)], 1),
             (
@@ -421,7 +421,7 @@ class TestShowCompaniesPage:
                 ],
                 0,
             ),
-        ],
+        ),
     )
     def test_companies_page_calculates_correct_statistics(  # pylint: disable=R0917
         self,
@@ -795,13 +795,13 @@ class TestCompanyPageBoundaryConditions:
 
     @pytest.mark.parametrize(
         ("session_name", "session_url", "expected_error"),
-        [
+        (
             (None, "https://test.com", "Company name is required"),
             ("", "https://test.com", "Company name is required"),
             ("Test Co", None, "Company URL is required"),
             ("Test Co", "", "Company URL is required"),
             (None, None, "Company name is required"),  # Name checked first
-        ],
+        ),
     )
     def test_add_company_validation_edge_cases(
         self, mock_session_state, session_name, session_url, expected_error

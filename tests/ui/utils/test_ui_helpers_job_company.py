@@ -7,7 +7,7 @@ Tests the job and company formatting and calculation functions in ui_helpers.py:
 - Job relationship helpers
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from unittest.mock import Mock, patch
 
 import pytest
@@ -171,7 +171,7 @@ class TestSalaryHelpers:
 
     @pytest.mark.parametrize(
         ("salary_tuple", "expected"),
-        [
+        (
             # Realistic tech salary ranges
             ((65000, 85000), "$65,000 - $85,000"),  # Junior developer
             ((90000, 120000), "$90,000 - $120,000"),  # Mid-level developer
@@ -181,7 +181,7 @@ class TestSalaryHelpers:
             # Contract/hourly equivalents (annualized)
             ((104000, 156000), "$104,000 - $156,000"),  # $50-75/hour
             ((130000, 208000), "$130,000 - $208,000"),  # $62.5-100/hour
-        ],
+        ),
     )
     def test_format_salary_range_realistic_values(self, salary_tuple, expected):
         """Test format_salary_range with realistic salary values."""
@@ -198,7 +198,7 @@ class TestDaysCalculations:
     def test_calculate_days_since_posted_with_recent_date(self):
         """Test calculate_days_since_posted with recent posting dates."""
         # Arrange - Use fixed time for consistent testing
-        now = datetime(2024, 1, 15, 10, 0, 0, tzinfo=timezone.utc)
+        now = datetime(2024, 1, 15, 10, 0, 0, tzinfo=UTC)
 
         with patch("src.ui.utils.ui_helpers.datetime") as mock_datetime:
             mock_datetime.now.return_value = now
@@ -206,14 +206,14 @@ class TestDaysCalculations:
 
             test_cases = [
                 (
-                    datetime(2024, 1, 15, 9, 0, 0, tzinfo=timezone.utc),
+                    datetime(2024, 1, 15, 9, 0, 0, tzinfo=UTC),
                     0,
                 ),  # Same day, earlier
-                (datetime(2024, 1, 14, 10, 0, 0, tzinfo=timezone.utc), 1),  # 1 day ago
-                (datetime(2024, 1, 13, 10, 0, 0, tzinfo=timezone.utc), 2),  # 2 days ago
-                (datetime(2024, 1, 8, 10, 0, 0, tzinfo=timezone.utc), 7),  # 1 week ago
+                (datetime(2024, 1, 14, 10, 0, 0, tzinfo=UTC), 1),  # 1 day ago
+                (datetime(2024, 1, 13, 10, 0, 0, tzinfo=UTC), 2),  # 2 days ago
+                (datetime(2024, 1, 8, 10, 0, 0, tzinfo=UTC), 7),  # 1 week ago
                 (
-                    datetime(2024, 1, 1, 10, 0, 0, tzinfo=timezone.utc),
+                    datetime(2024, 1, 1, 10, 0, 0, tzinfo=UTC),
                     14,
                 ),  # 2 weeks ago
             ]
@@ -228,16 +228,16 @@ class TestDaysCalculations:
     def test_calculate_days_since_posted_with_naive_datetime(self):
         """Test calculate_days_since_posted handles naive datetime correctly."""
         # Arrange - Use fixed time for consistent testing
-        now = datetime(2024, 1, 15, 10, 0, 0, tzinfo=timezone.utc)
+        now = datetime(2024, 1, 15, 10, 0, 0, tzinfo=UTC)
 
         with patch("src.ui.utils.ui_helpers.datetime") as mock_datetime:
             mock_datetime.now.return_value = now
             mock_datetime.timezone = timezone
 
             # Naive datetime (no timezone info)
-            naive_posted_date = datetime(  # noqa: DTZ001
-                2024, 1, 14, 10, 0, 0
-            )  # No tzinfo
+            naive_posted_date = datetime(
+                2024, 1, 14, 10, 0, 0, tzinfo=UTC
+            )  # Add tzinfo
 
             # Act
             result = calculate_days_since_posted(naive_posted_date)
@@ -259,7 +259,7 @@ class TestDaysCalculations:
             # Arrange - Mock datetime.now to raise exception
             mock_datetime.now.side_effect = Exception("Time calculation error")
 
-            posted_date = datetime(2024, 1, 14, 10, 0, 0, tzinfo=timezone.utc)
+            posted_date = datetime(2024, 1, 14, 10, 0, 0, tzinfo=UTC)
 
             # Act
             result = calculate_days_since_posted(posted_date)
@@ -270,32 +270,32 @@ class TestDaysCalculations:
     def test_is_job_recently_posted_with_recent_jobs(self):
         """Test is_job_recently_posted identifies recent jobs correctly."""
         # Arrange - Use fixed time for consistent testing
-        now = datetime(2024, 1, 15, 10, 0, 0, tzinfo=timezone.utc)
+        now = datetime(2024, 1, 15, 10, 0, 0, tzinfo=UTC)
 
         with patch("src.ui.utils.ui_helpers.datetime") as mock_datetime:
             mock_datetime.now.return_value = now
             mock_datetime.timezone = timezone
 
             test_cases = [
-                (datetime(2024, 1, 15, 9, 0, 0, tzinfo=timezone.utc), True),  # Today
+                (datetime(2024, 1, 15, 9, 0, 0, tzinfo=UTC), True),  # Today
                 (
-                    datetime(2024, 1, 14, 10, 0, 0, tzinfo=timezone.utc),
+                    datetime(2024, 1, 14, 10, 0, 0, tzinfo=UTC),
                     True,
                 ),  # 1 day ago
                 (
-                    datetime(2024, 1, 9, 10, 0, 0, tzinfo=timezone.utc),
+                    datetime(2024, 1, 9, 10, 0, 0, tzinfo=UTC),
                     True,
                 ),  # 6 days ago
                 (
-                    datetime(2024, 1, 8, 10, 0, 0, tzinfo=timezone.utc),
+                    datetime(2024, 1, 8, 10, 0, 0, tzinfo=UTC),
                     True,
                 ),  # 7 days ago (threshold)
                 (
-                    datetime(2024, 1, 7, 10, 0, 0, tzinfo=timezone.utc),
+                    datetime(2024, 1, 7, 10, 0, 0, tzinfo=UTC),
                     False,
                 ),  # 8 days ago
                 (
-                    datetime(2024, 1, 1, 10, 0, 0, tzinfo=timezone.utc),
+                    datetime(2024, 1, 1, 10, 0, 0, tzinfo=UTC),
                     False,
                 ),  # 14 days ago
             ]
@@ -310,7 +310,7 @@ class TestDaysCalculations:
     def test_is_job_recently_posted_with_custom_threshold(self):
         """Test is_job_recently_posted with custom threshold."""
         # Arrange - Use fixed time for consistent testing
-        now = datetime(2024, 1, 15, 10, 0, 0, tzinfo=timezone.utc)
+        now = datetime(2024, 1, 15, 10, 0, 0, tzinfo=UTC)
 
         with patch("src.ui.utils.ui_helpers.datetime") as mock_datetime:
             mock_datetime.now.return_value = now
@@ -318,22 +318,22 @@ class TestDaysCalculations:
 
             test_cases = [
                 (
-                    datetime(2024, 1, 12, 10, 0, 0, tzinfo=timezone.utc),
+                    datetime(2024, 1, 12, 10, 0, 0, tzinfo=UTC),
                     3,
                     True,
                 ),  # 3 days ago, threshold=3
                 (
-                    datetime(2024, 1, 11, 10, 0, 0, tzinfo=timezone.utc),
+                    datetime(2024, 1, 11, 10, 0, 0, tzinfo=UTC),
                     3,
                     False,
                 ),  # 4 days ago, threshold=3
                 (
-                    datetime(2024, 1, 1, 10, 0, 0, tzinfo=timezone.utc),
+                    datetime(2024, 1, 1, 10, 0, 0, tzinfo=UTC),
                     14,
                     True,
                 ),  # 14 days ago, threshold=14
                 (
-                    datetime(2023, 12, 31, 10, 0, 0, tzinfo=timezone.utc),
+                    datetime(2023, 12, 31, 10, 0, 0, tzinfo=UTC),
                     14,
                     False,
                 ),  # 15 days ago, threshold=14
@@ -360,7 +360,7 @@ class TestDaysCalculations:
             # Arrange - Mock to return None (calculation error)
             mock_calc.return_value = None
 
-            posted_date = datetime(2024, 1, 14, 10, 0, 0, tzinfo=timezone.utc)
+            posted_date = datetime(2024, 1, 14, 10, 0, 0, tzinfo=UTC)
 
             # Act
             result = is_job_recently_posted(posted_date)
@@ -485,9 +485,9 @@ class TestCompanyStatistics:
     def test_find_last_job_posted_with_various_dates(self):
         """Test find_last_job_posted finds most recent posting date."""
         # Arrange
-        date1 = datetime(2024, 1, 10, 10, 0, 0, tzinfo=timezone.utc)
-        date2 = datetime(2024, 1, 15, 10, 0, 0, tzinfo=timezone.utc)  # Most recent
-        date3 = datetime(2024, 1, 5, 10, 0, 0, tzinfo=timezone.utc)
+        date1 = datetime(2024, 1, 10, 10, 0, 0, tzinfo=UTC)
+        date2 = datetime(2024, 1, 15, 10, 0, 0, tzinfo=UTC)  # Most recent
+        date3 = datetime(2024, 1, 5, 10, 0, 0, tzinfo=UTC)
 
         job1 = Mock()
         job1.posted_date = date1
@@ -507,7 +507,7 @@ class TestCompanyStatistics:
     def test_find_last_job_posted_with_none_dates(self):
         """Test find_last_job_posted handles jobs with None posted_date."""
         # Arrange
-        date1 = datetime(2024, 1, 10, 10, 0, 0, tzinfo=timezone.utc)
+        date1 = datetime(2024, 1, 10, 10, 0, 0, tzinfo=UTC)
 
         job_with_date = Mock()
         job_with_date.posted_date = date1
@@ -612,7 +612,7 @@ class TestJobCompanyHelpersIntegration:
     def test_realistic_job_data_scenario(self):
         """Test helpers with realistic job posting data."""
         # Arrange - Create realistic job data
-        now = datetime(2024, 1, 15, 10, 0, 0, tzinfo=timezone.utc)
+        now = datetime(2024, 1, 15, 10, 0, 0, tzinfo=UTC)
 
         with patch("src.ui.utils.ui_helpers.datetime") as mock_datetime:
             mock_datetime.now.return_value = now
@@ -625,19 +625,19 @@ class TestJobCompanyHelpersIntegration:
             # Create mock jobs with realistic data
             recent_job = Mock()
             recent_job.posted_date = datetime(
-                2024, 1, 14, 10, 0, 0, tzinfo=timezone.utc
+                2024, 1, 14, 10, 0, 0, tzinfo=UTC
             )  # 1 day ago
             recent_job.archived = False
 
             old_job = Mock()
             old_job.posted_date = datetime(
-                2024, 1, 1, 10, 0, 0, tzinfo=timezone.utc
+                2024, 1, 1, 10, 0, 0, tzinfo=UTC
             )  # 14 days ago
             old_job.archived = False
 
             archived_job = Mock()
             archived_job.posted_date = datetime(
-                2024, 1, 10, 10, 0, 0, tzinfo=timezone.utc
+                2024, 1, 10, 10, 0, 0, tzinfo=UTC
             )  # 5 days ago
             archived_job.archived = True
 
@@ -700,7 +700,7 @@ class TestJobCompanyHelpersIntegration:
     def test_company_statistics_comprehensive_scenario(self):
         """Test company statistics with comprehensive job data."""
         # Arrange - Create comprehensive company data
-        now = datetime(2024, 1, 15, 10, 0, 0, tzinfo=timezone.utc)
+        now = datetime(2024, 1, 15, 10, 0, 0, tzinfo=UTC)
 
         # Create jobs with various statuses and dates
         jobs = []
@@ -761,7 +761,7 @@ class TestJobCompanyHelpersIntegration:
     def test_date_calculations_timezone_handling(self):
         """Test date calculations handle timezones correctly."""
         # Arrange - Test with different timezones
-        utc_time = datetime(2024, 1, 15, 10, 0, 0, tzinfo=timezone.utc)
+        utc_time = datetime(2024, 1, 15, 10, 0, 0, tzinfo=UTC)
 
         with patch("src.ui.utils.ui_helpers.datetime") as mock_datetime:
             mock_datetime.now.return_value = utc_time
@@ -769,7 +769,7 @@ class TestJobCompanyHelpersIntegration:
 
             # Test dates in different timezones (should be normalized to UTC)
             test_dates = [
-                datetime(2024, 1, 14, 10, 0, 0, tzinfo=timezone.utc),  # UTC
+                datetime(2024, 1, 14, 10, 0, 0, tzinfo=UTC),  # UTC
                 datetime(
                     2024, 1, 14, 5, 0, 0, tzinfo=timezone(timedelta(hours=-5))
                 ),  # EST

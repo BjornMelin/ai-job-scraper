@@ -12,6 +12,7 @@ import pytest
 
 from groq import Groq
 from openai import OpenAI
+
 from src.ui.pages.settings import (
     load_settings,
     save_settings,
@@ -164,12 +165,12 @@ class TestApiConnectionTesting:
 
     @pytest.mark.parametrize(
         ("error_message", "expected_message"),
-        [
+        (
             ("404 not found", "❌ API endpoint not found"),
             ("quota exceeded", "❌ Rate limit exceeded"),
             ("network error", "❌ Network connection failed"),
             ("Some unexpected error", "❌ Connection failed: Some unexpected error"),
-        ],
+        ),
     )
     def test_test_api_connection_error_handling(self, error_message, expected_message):
         """Test various error conditions are handled appropriately."""
@@ -441,11 +442,11 @@ class TestSettingsPageRendering:
 
     @pytest.mark.parametrize(
         ("max_jobs", "expected_message_type", "message_keywords"),
-        [
+        (
             (25, "info", ["Conservative limit", "25 jobs"]),
             (75, "info", ["Moderate limit", "75 jobs"]),
             (150, "warning", ["High limit", "150 jobs", "may take longer"]),
-        ],
+        ),
     )
     def test_settings_page_displays_scraping_limit_feedback(
         self,

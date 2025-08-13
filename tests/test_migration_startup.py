@@ -17,6 +17,7 @@ from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine, inspect, text
 from sqlmodel import Session, SQLModel
+
 from src.config import Settings
 from src.models import CompanySQL, JobSQL
 
@@ -540,7 +541,9 @@ class TestMainAppIntegration:
         def failing_migration():
             nonlocal migration_failed
             migration_failed = True
-            raise RuntimeError("Migration failed intentionally")
+            raise RuntimeError(
+                "DB Migration error in test_migration_startup simulation"
+            )
 
         def mock_streamlit_main():
             nonlocal app_started

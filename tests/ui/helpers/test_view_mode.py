@@ -98,7 +98,7 @@ class TestSelectViewMode:
         assert "view_mode_favorites_tab" in selectbox_calls[2][1]["key"]
         assert "grid_columns_favorites_tab" in selectbox_calls[3][1]["key"]
 
-    @pytest.mark.parametrize("grid_columns", [2, 3, 4])
+    @pytest.mark.parametrize("grid_columns", (2, 3, 4))
     def test_select_view_mode_with_different_grid_columns(
         self, mock_streamlit, grid_columns
     ):
@@ -252,7 +252,7 @@ class TestApplyViewMode:
             mock_list.assert_called_once_with([])
 
     @pytest.mark.parametrize(
-        "view_mode", ["LIST", "list", "List", "CARD", "card", "Card"]
+        "view_mode", ("LIST", "list", "List", "CARD", "card", "Card")
     )
     def test_apply_view_mode_case_sensitivity(self, sample_jobs_dto, view_mode):
         """Test apply_view_mode handles different case variations."""

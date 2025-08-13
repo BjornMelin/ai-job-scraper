@@ -727,7 +727,7 @@ class TestJobsPageIntegration:
 
     @pytest.mark.parametrize(
         "scenario_name",
-        ["no_jobs_scenario", "single_applied_favorite_scenario", "mixed_jobs_scenario"],
+        ("no_jobs_scenario", "single_applied_favorite_scenario", "mixed_jobs_scenario"),
     )
     def test_job_tabs_calculate_correct_counts(
         self,

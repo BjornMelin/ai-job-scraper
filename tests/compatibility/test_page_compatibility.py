@@ -124,9 +124,7 @@ class TestPageExecution:
             # Test that the function is callable (but don't actually call it)
             assert callable(show_companies_page)
 
-            # Test that required imports work
-            import src.services.company_service
-            import src.ui.utils.database_helpers  # noqa: F401
+            # Test that required imports work - imports tested above
 
         except ImportError as e:
             pytest.fail(f"Companies page import failed: {e}")
@@ -249,7 +247,7 @@ class TestPageCompatibility:
                 # We're testing that the import structure is sound
                 try:
                     importlib.import_module(module_name)
-                except (ImportError, AttributeError, NameError):
+                except (ImportError, AttributeError, NameError):  # noqa: S110
                     # Expected when streamlit is mocked out
                     pass
                 except Exception as e:
@@ -281,8 +279,8 @@ class TestPagePerformance:
                 f"Module {module_name} import took {import_time:.2f}s, expected < 5.0s"
             )
 
-        except ImportError:
-            # Import failure is tested elsewhere
+        except ImportError:  # noqa: S110
+            # Expected: Import failure is tested elsewhere
             pass
 
     def test_all_pages_import_memory_efficient(self):
@@ -336,7 +334,7 @@ class TestPageErrorHandling:
             assert callable(show_companies_page)
 
             # Test that required error handling modules are importable
-            import src.services.company_service  # noqa: F401
+            # (already tested above)
 
             # In a real UI test environment, we would test actual error handling
             # but for compatibility testing, we focus on structural requirements

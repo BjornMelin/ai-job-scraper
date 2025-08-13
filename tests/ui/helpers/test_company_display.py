@@ -3,7 +3,7 @@
 Tests the rendering functions for company information, statistics, and cards.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import Mock, patch
 
 import pytest
@@ -94,7 +94,7 @@ class TestRenderCompanyStatistics:
             name="Test Company",
             url="https://test.com",
             active=True,
-            last_scraped=datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc),
+            last_scraped=datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC),
             scrape_count=25,
             success_rate=0.84,
         )
@@ -144,7 +144,7 @@ class TestRenderCompanyStatistics:
             name="Zero Scrapes",
             url="https://zero.com",
             active=True,
-            last_scraped=datetime.now(timezone.utc),
+            last_scraped=datetime.now(UTC),
             scrape_count=0,
             success_rate=1.0,
         )
@@ -161,12 +161,12 @@ class TestRenderCompanyStatistics:
 
     @pytest.mark.parametrize(
         ("success_rate", "expected_percentage"),
-        [
+        (
             (0.0, "0.0%"),
             (0.5, "50.0%"),
             (0.846, "84.6%"),
             (1.0, "100.0%"),
-        ],
+        ),
     )
     def test_render_company_statistics_success_rate_formatting(
         self, mock_streamlit, success_rate, expected_percentage
@@ -178,7 +178,7 @@ class TestRenderCompanyStatistics:
             name="Test Company",
             url="https://test.com",
             active=True,
-            last_scraped=datetime.now(timezone.utc),
+            last_scraped=datetime.now(UTC),
             scrape_count=10,
             success_rate=success_rate,
         )
@@ -331,7 +331,7 @@ class TestRenderCompanyCard:
                 name="Scraped Co",
                 url="https://scraped.com",
                 active=True,
-                last_scraped=datetime.now(timezone.utc),
+                last_scraped=datetime.now(UTC),
                 scrape_count=5,
                 success_rate=0.8,
             ),
@@ -438,7 +438,7 @@ class TestCompanyDisplayIntegration:
                 name="Good Co",
                 url="https://good.com",
                 active=True,
-                last_scraped=datetime.now(timezone.utc),
+                last_scraped=datetime.now(UTC),
                 scrape_count=20,
                 success_rate=0.95,
             ),
@@ -448,7 +448,7 @@ class TestCompanyDisplayIntegration:
                 name="Poor Co",
                 url="https://poor.com",
                 active=False,
-                last_scraped=datetime.now(timezone.utc),
+                last_scraped=datetime.now(UTC),
                 scrape_count=10,
                 success_rate=0.3,
             ),
@@ -458,7 +458,7 @@ class TestCompanyDisplayIntegration:
                 name="Edge Co",
                 url="https://edge.com",
                 active=True,
-                last_scraped=datetime.now(timezone.utc),
+                last_scraped=datetime.now(UTC),
                 scrape_count=0,
                 success_rate=1.0,
             ),

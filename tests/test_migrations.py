@@ -10,15 +10,19 @@ import tempfile
 
 from collections.abc import Generator
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
 from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine, inspect, text
-from sqlalchemy.engine import Engine
 from sqlmodel import Session, SQLModel
+
 from src.models import CompanySQL, JobSQL
+
+if TYPE_CHECKING:
+    from sqlalchemy.engine import Engine
 
 
 @pytest.fixture
@@ -161,7 +165,7 @@ def alembic_config(temp_db_path: str, temp_alembic_dir: Path) -> Config:
 
 
 @pytest.fixture
-def test_engine(temp_db_path: str) -> Engine:
+def test_engine(temp_db_path: str) -> "Engine":
     """Create a test SQLAlchemy engine.
 
     Args:
@@ -215,7 +219,7 @@ class TestAlembicConfiguration:
 class TestMigrationExecution:
     """Test migration script execution and database operations."""
 
-    def test_fresh_database_creation(self, test_engine: Engine) -> None:
+    def test_fresh_database_creation(self, test_engine: "Engine") -> None:
         """Test creating a fresh database with all tables.
 
         Simulates initial database setup using SQLModel.metadata.create_all()
@@ -232,7 +236,7 @@ class TestMigrationExecution:
         assert "jobsql" in table_names
 
     def test_migration_upgrade_head(
-        self, alembic_config: Config, test_engine: Engine
+        self, alembic_config: Config, test_engine: "Engine"
     ) -> None:
         """Test running 'alembic upgrade head' on empty database.
 
@@ -259,7 +263,7 @@ class TestMigrationExecution:
             assert len(versions) == 1  # Should have one migration applied
 
     def test_table_schema_validation(
-        self, alembic_config: Config, test_engine: Engine
+        self, alembic_config: Config, test_engine: "Engine"
     ) -> None:
         """Test that migrated tables match SQLModel definitions.
 
@@ -320,7 +324,7 @@ class TestMigrationExecution:
         assert "company_id" in fk["constrained_columns"]
 
     def test_indexes_creation(
-        self, alembic_config: Config, test_engine: Engine
+        self, alembic_config: Config, test_engine: "Engine"
     ) -> None:
         """Test that database indexes are properly created by migrations.
 
@@ -366,7 +370,7 @@ class TestMigrationExecution:
             )
 
     def test_migration_idempotency(
-        self, alembic_config: Config, test_engine: Engine
+        self, alembic_config: Config, test_engine: "Engine"
     ) -> None:
         """Test that running migrations multiple times is safe and idempotent.
 
@@ -394,7 +398,7 @@ class TestMigrationExecution:
             assert len(versions) == 1
 
     def test_downgrade_functionality(
-        self, alembic_config: Config, test_engine: Engine
+        self, alembic_config: Config, test_engine: "Engine"
     ) -> None:
         """Test that migration downgrade functionality works correctly.
 
@@ -426,7 +430,7 @@ class TestMigrationWithData:
     """Test migrations with existing data to ensure data safety."""
 
     def test_migration_preserves_existing_data(
-        self, alembic_config: Config, test_engine: Engine
+        self, alembic_config: Config, test_engine: "Engine"
     ) -> None:
         """Test that migrations preserve existing data during schema updates.
 

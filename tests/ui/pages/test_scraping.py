@@ -5,7 +5,7 @@ scraping dashboard UI page, focusing on real user scenarios and
 background task management.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import patch
 
 from src.ui.utils.background_helpers import CompanyProgress
@@ -333,14 +333,14 @@ class TestScrapingPageProgressDashboard:
                 name="TechCorp",
                 status="Completed",
                 jobs_found=25,
-                start_time=datetime(2024, 1, 1, 10, 0, tzinfo=timezone.utc),
-                end_time=datetime(2024, 1, 1, 10, 5, tzinfo=timezone.utc),
+                start_time=datetime(2024, 1, 1, 10, 0, tzinfo=UTC),
+                end_time=datetime(2024, 1, 1, 10, 5, tzinfo=UTC),
             ),
             "DataCo": CompanyProgress(
                 name="DataCo",
                 status="Scraping",
                 jobs_found=15,
-                start_time=datetime(2024, 1, 1, 10, 2, tzinfo=timezone.utc),
+                start_time=datetime(2024, 1, 1, 10, 2, tzinfo=UTC),
             ),
             "AI Corp": CompanyProgress(name="AI Corp", status="Pending", jobs_found=0),
         }
@@ -380,7 +380,7 @@ class TestScrapingPageProgressDashboard:
     ):
         """Test progress dashboard calculates and displays ETA correctly."""
         # Arrange
-        start_time = datetime(2024, 1, 1, 10, 0, tzinfo=timezone.utc)
+        start_time = datetime(2024, 1, 1, 10, 0, tzinfo=UTC)
         company_progress = {
             "TechCorp": CompanyProgress(
                 name="TechCorp",
@@ -497,8 +497,8 @@ class TestScrapingPageActivitySummary:
             "TechCorp": CompanyProgress(
                 name="TechCorp",
                 status="Completed",
-                start_time=datetime(2024, 1, 1, 10, 0, tzinfo=timezone.utc),
-                end_time=datetime(2024, 1, 1, 10, 5, tzinfo=timezone.utc),
+                start_time=datetime(2024, 1, 1, 10, 0, tzinfo=UTC),
+                end_time=datetime(2024, 1, 1, 10, 5, tzinfo=UTC),
             )
         }
 
@@ -533,14 +533,14 @@ class TestScrapingPageActivitySummary:
             "TechCorp": CompanyProgress(
                 name="TechCorp",
                 status="Completed",
-                start_time=datetime(2024, 1, 1, 10, 0, tzinfo=timezone.utc),
-                end_time=datetime(2024, 1, 1, 10, 2, tzinfo=timezone.utc),  # 2 minutes
+                start_time=datetime(2024, 1, 1, 10, 0, tzinfo=UTC),
+                end_time=datetime(2024, 1, 1, 10, 2, tzinfo=UTC),  # 2 minutes
             ),
             "DataCo": CompanyProgress(
                 name="DataCo",
                 status="Completed",
-                start_time=datetime(2024, 1, 1, 10, 0, tzinfo=timezone.utc),
-                end_time=datetime(2024, 1, 1, 10, 4, tzinfo=timezone.utc),  # 4 minutes
+                start_time=datetime(2024, 1, 1, 10, 0, tzinfo=UTC),
+                end_time=datetime(2024, 1, 1, 10, 4, tzinfo=UTC),  # 4 minutes
             ),
         }
 

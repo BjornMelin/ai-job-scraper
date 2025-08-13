@@ -10,12 +10,13 @@ This module tests the Pydantic Data Transfer Objects (DTOs) to ensure:
 
 import json
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
 from pydantic import ValidationError
 from sqlmodel import Session
+
 from src.models import CompanySQL, JobSQL
 from src.schemas import Company, Job
 
@@ -37,7 +38,7 @@ class TestCompanyDTO:
 
     def test_company_creation_with_all_fields(self):
         """Test creating Company DTO with all fields provided."""
-        last_scraped = datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
+        last_scraped = datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC)
 
         company = Company(
             id=1,
@@ -97,7 +98,7 @@ class TestCompanyDTO:
 
     def test_company_json_serialization(self):
         """Test JSON serialization of Company DTO."""
-        last_scraped = datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
+        last_scraped = datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC)
 
         company = Company(
             id=1,
@@ -188,9 +189,9 @@ class TestJobDTO:
 
     def test_job_creation_with_all_fields(self):
         """Test creating Job DTO with all fields provided."""
-        posted_date = datetime(2024, 1, 10, 9, 0, 0, tzinfo=timezone.utc)
-        app_date = datetime(2024, 1, 15, 14, 30, 0, tzinfo=timezone.utc)
-        last_seen = datetime(2024, 1, 20, 12, 0, 0, tzinfo=timezone.utc)
+        posted_date = datetime(2024, 1, 10, 9, 0, 0, tzinfo=UTC)
+        app_date = datetime(2024, 1, 15, 14, 30, 0, tzinfo=UTC)
+        last_seen = datetime(2024, 1, 20, 12, 0, 0, tzinfo=UTC)
 
         job = Job(
             id=1,
@@ -329,7 +330,7 @@ class TestJobDTO:
         session.refresh(sql_company)
 
         # Create a JobSQL instance with relationship
-        posted_date = datetime(2024, 1, 10, 9, 0, 0, tzinfo=timezone.utc)
+        posted_date = datetime(2024, 1, 10, 9, 0, 0, tzinfo=UTC)
         sql_job = JobSQL(
             id=1,
             company_id=sql_company.id,
@@ -364,7 +365,16 @@ class TestJobDTO:
         assert dto_job.description == sql_job.description
         assert dto_job.link == sql_job.link
         assert dto_job.location == sql_job.location
-        assert dto_job.posted_date == sql_job.posted_date
+        # Handle timezone-aware comparison
+        if sql_job.posted_date and dto_job.posted_date:
+            expected_posted_date = (
+                sql_job.posted_date.replace(tzinfo=UTC)
+                if sql_job.posted_date.tzinfo is None
+                else sql_job.posted_date
+            )
+            assert dto_job.posted_date == expected_posted_date
+        else:
+            assert dto_job.posted_date == sql_job.posted_date
         assert (
             dto_job.salary == tuple(sql_job.salary)
             if isinstance(sql_job.salary, list)
@@ -377,8 +387,8 @@ class TestJobDTO:
 
     def test_job_json_serialization(self):
         """Test JSON serialization of Job DTO."""
-        posted_date = datetime(2024, 1, 10, 9, 0, 0, tzinfo=timezone.utc)
-        app_date = datetime(2024, 1, 15, 14, 30, 0, tzinfo=timezone.utc)
+        posted_date = datetime(2024, 1, 10, 9, 0, 0, tzinfo=UTC)
+        app_date = datetime(2024, 1, 15, 14, 30, 0, tzinfo=UTC)
 
         job = Job(
             id=1,
@@ -478,7 +488,7 @@ class TestDTOIntegration:
     def test_company_to_dto_conversion_preserves_data(self, session):
         """Test that Company SQLModel to DTO conversion preserves all data."""
         # Create company with all fields
-        last_scraped = datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
+        last_scraped = datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC)
         sql_company = CompanySQL(
             name="Integration Company",
             url="https://integration.com/careers",
@@ -498,7 +508,16 @@ class TestDTOIntegration:
         assert dto_company.name == sql_company.name
         assert dto_company.url == sql_company.url
         assert dto_company.active == sql_company.active
-        assert dto_company.last_scraped == sql_company.last_scraped
+        # Handle timezone-aware comparison
+        if sql_company.last_scraped and dto_company.last_scraped:
+            expected_last_scraped = (
+                sql_company.last_scraped.replace(tzinfo=UTC)
+                if sql_company.last_scraped.tzinfo is None
+                else sql_company.last_scraped
+            )
+            assert dto_company.last_scraped == expected_last_scraped
+        else:
+            assert dto_company.last_scraped == sql_company.last_scraped
         assert dto_company.scrape_count == sql_company.scrape_count
         assert dto_company.success_rate == sql_company.success_rate
 

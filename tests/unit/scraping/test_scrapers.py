@@ -8,13 +8,14 @@ This module contains tests for the job scraping functionality including:
 - Data validation and transformation
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from unittest.mock import patch
 
 import pandas as pd
 
 from sqlmodel import Session, select
+
 from src.models import CompanySQL, JobSQL
 from src.scraper import scrape_all
 from src.scraper_company_pages import scrape_company_pages
@@ -33,7 +34,7 @@ def test_update_db_new_jobs(session: Session) -> None:
         "description": "AI role",
         "link": "https://new.co/job1",
         "location": "Remote",
-        "posted_date": datetime.now(timezone.utc),
+        "posted_date": datetime.now(UTC),
         "salary": "$100k-150k",
     }
     job = JobSQL.model_validate(job_data)
@@ -48,7 +49,7 @@ def test_update_db_new_jobs(session: Session) -> None:
 
 
 @patch("src.scraper.engine")
-def test_update_db_upsert_and_delete(mock_engine: Any, session: Session) -> None:
+def test_update_db_upsert_and_delete(mock_engine: "Any", session: Session) -> None:
     """Test database upsert and stale job deletion with mocked engine.
 
     Validates the complete database update workflow including:
@@ -67,7 +68,7 @@ def test_update_db_upsert_and_delete(mock_engine: Any, session: Session) -> None
         "description": "Old desc",
         "link": "https://exist.co/job",
         "location": "Old Loc",
-        "posted_date": datetime.now(timezone.utc) - timedelta(days=1),
+        "posted_date": datetime.now(UTC) - timedelta(days=1),
         "salary": (80000, 120000),
         "favorite": True,  # User field to preserve
     }
@@ -99,7 +100,7 @@ def test_update_db_upsert_and_delete(mock_engine: Any, session: Session) -> None
     existing_job.company = "Exist Co"
     existing_job.description = "Updated desc"
     existing_job.location = "Updated Loc"
-    existing_job.posted_date = datetime.now(timezone.utc)
+    existing_job.posted_date = datetime.now(UTC)
     existing_job.salary = (90000, 130000)
 
     # Add new job
@@ -138,7 +139,7 @@ def test_update_db_upsert_and_delete(mock_engine: Any, session: Session) -> None
 @patch("src.scraper.scrape_job_boards")
 @patch("src.scraper_company_pages.scrape_company_pages")
 def test_scrape_all_workflow(
-    mock_scrape_company_pages: Any, mock_scrape_boards: Any
+    mock_scrape_company_pages: "Any", mock_scrape_boards: "Any"
 ) -> None:
     """Test complete scrape_all workflow with comprehensive mocking.
 
@@ -170,7 +171,7 @@ def test_scrape_all_workflow(
             "description": "ML role",
             "job_url": "https://board.co/job2",
             "location": "Office",
-            "date_posted": datetime.now(timezone.utc),
+            "date_posted": datetime.now(UTC),
             "min_amount": 100000,
             "max_amount": 150000,
         }
@@ -201,7 +202,7 @@ def test_scrape_all_workflow(
 @patch("src.scraper.scrape_job_boards")
 @patch("src.scraper_company_pages.scrape_company_pages")
 def test_scrape_all_filtering(
-    mock_scrape_company_pages: Any, mock_scrape_boards: Any
+    mock_scrape_company_pages: "Any", mock_scrape_boards: "Any"
 ) -> None:
     """Test job relevance filtering in scrape_all workflow.
 
@@ -261,7 +262,7 @@ def test_scrape_all_filtering(
 @patch("src.scraper_company_pages.SmartScraperMultiGraph")
 @patch("src.scraper_company_pages.load_active_companies")
 def test_scrape_company_pages(
-    mock_load_companies: Any, mock_scraper_class: Any, mock_save_jobs: Any
+    mock_load_companies: "Any", mock_scraper_class: "Any", mock_save_jobs: "Any"
 ) -> None:
     """Test company page scraping with SmartScraperMultiGraph mocking.
 
@@ -293,7 +294,7 @@ def test_scrape_company_pages(
 
 
 @patch("src.scraper_job_boards.scrape_jobs")
-def test_scrape_job_boards(mock_scrape_jobs: Any) -> None:
+def test_scrape_job_boards(mock_scrape_jobs: "Any") -> None:
     """Test job board scraping with pandas DataFrame mocking.
 
     Validates that job board scraping returns properly structured

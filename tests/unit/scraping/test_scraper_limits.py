@@ -9,7 +9,7 @@ Tests cover:
 
 import logging
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest import mock
 
 from src.models import CompanySQL, JobSQL
@@ -228,11 +228,11 @@ class TestScrapeAllLimits:
                 description="Test job",
                 link="https://example.com/job1",
                 location="Remote",
-                posted_date=datetime.now(timezone.utc),
+                posted_date=datetime.now(UTC),
                 salary="$100k-150k",
                 content_hash="hash1",
                 application_status="New",
-                last_seen=datetime.now(timezone.utc),
+                last_seen=datetime.now(UTC),
             )
         ]
         mock_job_boards.return_value = []
@@ -351,11 +351,11 @@ class TestScrapeAllLimits:
                 description="Only job",
                 link="https://example.com/job1",
                 location="Remote",
-                posted_date=datetime.now(timezone.utc),
+                posted_date=datetime.now(UTC),
                 salary="$100k-150k",
                 content_hash="hash1",
                 application_status="New",
-                last_seen=datetime.now(timezone.utc),
+                last_seen=datetime.now(UTC),
             )
         ]
         mock_job_boards.return_value = []
@@ -393,7 +393,7 @@ class TestScrapeAllLimits:
                 "description": "Job from board",
                 "location": "Remote",
                 "job_url": "https://board.com/job1",
-                "date_posted": datetime.now(timezone.utc),
+                "date_posted": datetime.now(UTC),
                 "min_amount": 100000,
                 "max_amount": 150000,
             }
@@ -433,11 +433,11 @@ class TestScrapeAllLimits:
                 description="Job from company",
                 link="https://company.com/job1",
                 location="Remote",
-                posted_date=datetime.now(timezone.utc),
+                posted_date=datetime.now(UTC),
                 salary="$100k-150k",
                 content_hash="hash1",
                 application_status="New",
-                last_seen=datetime.now(timezone.utc),
+                last_seen=datetime.now(UTC),
             )
         ]
         # Job board scraper raises exception
@@ -490,8 +490,8 @@ class TestLimitEdgeCases:
             try:
                 result = scrape_company_pages(max_jobs_per_company="50")
                 assert isinstance(result, list)
-            except (TypeError, ValueError):
-                # Expected behavior for invalid types
+            except (TypeError, ValueError):  # noqa: S110
+                # Expected: Test verifies proper error handling for invalid types
                 pass
 
 

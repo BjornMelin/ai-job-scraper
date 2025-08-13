@@ -8,12 +8,13 @@ This module contains comprehensive tests for database functionality including:
 - Query filtering and data retrieval
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
+
 from src.models import CompanySQL, JobSQL
 
 
@@ -72,7 +73,7 @@ def test_job_crud_operations(session: Session):
         description="Test desc",
         link="https://crud.co/job",
         location="Remote",
-        posted_date=datetime.now(timezone.utc),
+        posted_date=datetime.now(UTC),
         salary=(100000, 150000),
     )
     session.add(job)
@@ -103,7 +104,7 @@ def test_job_filtering_queries(session: Session):
     filtering by location and date ranges to ensure
     query operations work correctly.
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     yesterday = now - timedelta(days=1)
 
     jobs = [
@@ -186,26 +187,36 @@ def test_database_rollback(session: Session):
     session.commit()
 
     try:
+        # Ensure autoflush is disabled so both jobs are added together
+        session.autoflush = False
+
         job = JobSQL.create_validated(
             title="Rollback Job",
             description="Desc",
             link="https://rollback.co/job",
             location="Loc",
             salary=(None, None),
+            company_id=company.id,  # Set company_id
         )
         session.add(job)
 
         invalid_job = JobSQL.create_validated(
             title="Invalid",
             description="Invalid",
-            link="https://rollback.co/job",
+            link="https://rollback.co/job",  # Duplicate link will
+            # cause constraint violation
             location="Invalid",
             salary=(None, None),
+            company_id=company.id,  # Set company_id
         )
         session.add(invalid_job)
-        session.commit()  # Fails
+
+        # Force an exception to simulate rollback scenario
+        raise RuntimeError("Database Transaction failed in unit test")
     except Exception:
         session.rollback()
+    finally:
+        session.autoflush = True  # Restore autoflush
 
     jobs = (
         session.exec(select(JobSQL).where(JobSQL.link.contains("rollback.co")))

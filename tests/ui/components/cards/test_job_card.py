@@ -4,7 +4,7 @@ Tests job card rendering, interactive controls, and user actions for
 individual job postings in both grid and list views.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import patch
 
 import pytest
@@ -275,7 +275,7 @@ class TestDateFormatting:
     def test_format_posted_date_returns_today_for_current_date(self):
         """Test date formatting returns 'Today' for current date."""
         # Arrange
-        current_date = datetime.now(timezone.utc)
+        current_date = datetime.now(UTC)
 
         # Act
         result = _format_posted_date(current_date)
@@ -286,9 +286,7 @@ class TestDateFormatting:
     def test_format_posted_date_returns_yesterday_for_one_day_ago(self):
         """Test date formatting returns 'Yesterday' for one day ago."""
         # Arrange
-        yesterday = datetime.now(timezone.utc).replace(
-            hour=0, minute=0, second=0, microsecond=0
-        )
+        yesterday = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
         yesterday = yesterday.replace(day=yesterday.day - 1)
 
         # Act
@@ -301,9 +299,7 @@ class TestDateFormatting:
         """Test date formatting returns 'N days ago' for multiple days."""
         # Arrange
         days_ago = 5
-        old_date = datetime.now(timezone.utc).replace(
-            day=datetime.now(timezone.utc).day - days_ago
-        )
+        old_date = datetime.now(UTC).replace(day=datetime.now(UTC).day - days_ago)
 
         # Act
         result = _format_posted_date(old_date)
@@ -381,12 +377,12 @@ class TestJobGridRendering:
 
     @pytest.mark.parametrize(
         ("num_jobs", "num_columns", "expected_rows"),
-        [
+        (
             (3, 3, 1),  # 3 jobs in 3 columns = 1 row
             (4, 3, 2),  # 4 jobs in 3 columns = 2 rows
             (6, 3, 2),  # 6 jobs in 3 columns = 2 rows
             (7, 3, 3),  # 7 jobs in 3 columns = 3 rows
-        ],
+        ),
     )
     def test_render_jobs_grid_calculates_correct_rows(
         self, mock_streamlit, num_jobs, num_columns, expected_rows

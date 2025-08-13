@@ -5,7 +5,7 @@ status information, description, notes section, and action buttons with various
 data scenarios and edge cases.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -98,7 +98,7 @@ class TestRenderJobStatus:
 
     def test_render_job_status_with_posted_date(self, mock_streamlit):
         """Test rendering job status with posted date."""
-        posted_date = datetime(2024, 1, 15, 10, 30, tzinfo=timezone.utc)
+        posted_date = datetime(2024, 1, 15, 10, 30, tzinfo=UTC)
         job = Job(
             id=1,
             company_id=1,
@@ -143,14 +143,14 @@ class TestRenderJobStatus:
 
     @pytest.mark.parametrize(
         ("status", "expected_icon"),
-        [
+        (
             ("New", "🔵"),
             ("Interested", "🟡"),
             ("Applied", "🟢"),
             ("Rejected", "🔴"),
             ("Unknown", "⚪"),
             ("", "⚪"),
-        ],
+        ),
     )
     def test_render_job_status_with_different_statuses(
         self, mock_streamlit, status, expected_icon

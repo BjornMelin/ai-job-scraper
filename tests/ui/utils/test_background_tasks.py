@@ -4,7 +4,7 @@ Tests the background task system including task creation, progress tracking,
 company progress management, and integration with Streamlit session state.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import Mock, patch
 
 import pytest
@@ -44,8 +44,8 @@ class TestCompanyProgress:
     def test_company_progress_with_custom_values(self):
         """Test CompanyProgress accepts custom values."""
         # Arrange
-        start_time = datetime.now(timezone.utc)
-        end_time = datetime.now(timezone.utc)
+        start_time = datetime.now(UTC)
+        end_time = datetime.now(UTC)
 
         # Act
         progress = CompanyProgress(
@@ -73,7 +73,7 @@ class TestCompanyProgress:
         # Act
         progress.status = "Scraping"
         progress.jobs_found = 10
-        progress.start_time = datetime.now(timezone.utc)
+        progress.start_time = datetime.now(UTC)
 
         # Assert
         assert progress.status == "Scraping"
@@ -87,7 +87,7 @@ class TestProgressInfo:
     def test_progress_info_creation(self):
         """Test ProgressInfo creates correctly with all fields."""
         # Arrange
-        timestamp = datetime.now(timezone.utc)
+        timestamp = datetime.now(UTC)
 
         # Act
         info = ProgressInfo(
@@ -106,7 +106,7 @@ class TestTaskInfo:
     def test_task_info_creation(self):
         """Test TaskInfo creates correctly with all fields."""
         # Arrange
-        timestamp = datetime.now(timezone.utc)
+        timestamp = datetime.now(UTC)
 
         # Act
         task = TaskInfo(
@@ -137,7 +137,7 @@ class TestSessionStateTaskFunctions:
             status="running",
             progress=0.0,
             message="Starting",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
 
         # Act
@@ -156,7 +156,7 @@ class TestSessionStateTaskFunctions:
             status="running",
             progress=0.5,
             message="In progress",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
         mock_session_state.update({"tasks": {"task-123": task_info}})
 
@@ -182,7 +182,7 @@ class TestSessionStateTaskFunctions:
             status="completed",
             progress=1.0,
             message="Done",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
         mock_session_state.update({"tasks": {"task-123": task_info}})
 
@@ -258,7 +258,7 @@ class TestBackgroundTaskStateFunctions:
             "task-123": ProgressInfo(
                 progress=0.5,
                 message="In progress",
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
             )
         }
         mock_session_state.update({"task_progress": progress})
@@ -589,7 +589,7 @@ class TestBackgroundTaskIntegration:
                 status="running",
                 progress=i * 0.1,
                 message=f"Task {i} running",
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
             )
             tasks.append(task)
 

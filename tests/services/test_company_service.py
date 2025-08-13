@@ -9,7 +9,7 @@ Tests cover filtering, state mutations, edge cases, and error conditions.
 
 import logging
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
 import pytest
@@ -17,6 +17,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, select
+
 from src.models import CompanySQL, JobSQL
 from src.schemas import Company
 from src.services.company_service import CompanyService, calculate_weighted_success_rate
@@ -47,7 +48,7 @@ def test_session(test_engine):
 @pytest.fixture
 def sample_companies(test_session):
     """Create sample companies for testing."""
-    base_date = datetime.now(timezone.utc)
+    base_date = datetime.now(UTC)
 
     companies = [
         CompanySQL(
@@ -98,7 +99,7 @@ def sample_companies(test_session):
 @pytest.fixture
 def sample_jobs(test_session, sample_companies):
     """Create sample jobs linked to companies for testing job counts."""
-    base_date = datetime.now(timezone.utc)
+    base_date = datetime.now(UTC)
 
     jobs = [
         # TechCorp jobs (2 active, 1 archived)
@@ -398,7 +399,7 @@ class TestCompanyServiceUpdates:
     ):
         """Test scrape stats update with custom timestamp."""
         company_id = sample_companies[0].id
-        custom_date = datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
+        custom_date = datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC)
 
         result = CompanyService.update_company_scrape_stats(
             company_id, success=True, last_scraped=custom_date
@@ -421,7 +422,7 @@ class TestCompanyServiceUpdates:
 
     def test_bulk_update_scrape_stats_success(self, mock_db_session, sample_companies):
         """Test bulk updating scrape statistics."""
-        base_date = datetime.now(timezone.utc)
+        base_date = datetime.now(UTC)
 
         updates = [
             {
@@ -496,7 +497,7 @@ class TestCompanyServiceEdgeCases:
 
     def test_company_dto_conversion_all_fields(self, mock_db_session, test_session):
         """Test that all CompanySQL fields are properly converted to Company DTO."""
-        base_date = datetime.now(timezone.utc)
+        base_date = datetime.now(UTC)
 
         # Create company with all fields populated
         company_sql = CompanySQL(
@@ -671,7 +672,7 @@ class TestCompanyServiceIntegration:
 
     def test_bulk_operations_workflow(self, mock_db_session, sample_companies):
         """Test bulk operations and statistics workflow."""
-        base_date = datetime.now(timezone.utc)
+        base_date = datetime.now(UTC)
 
         # Capture original scrape counts before updates
         original_counts = {
@@ -923,7 +924,7 @@ class TestCompanyServiceBulkGetOrCreate:
 
         # Mock flush to raise an unexpected error (not integrity error)
         def mock_flush_with_error(self):  # noqa: ARG001
-            raise MockDatabaseError("Unexpected database error")
+            raise MockDatabaseError("Simulated flush error during test")
 
         with (
             patch.object(test_session, "flush", side_effect=mock_flush_with_error),

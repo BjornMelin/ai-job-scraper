@@ -4,7 +4,7 @@ Tests the rendering, styling, and data display functionality of the
 CompanyProgressCard component used in the scraping dashboard.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from unittest.mock import patch
 
 from src.ui.components.progress.company_progress_card import (
@@ -163,7 +163,7 @@ class TestCompanyProgressCardProgressBar:
     ):
         """Test scraping status shows time-based progress estimation."""
         # Arrange
-        start_time = datetime(2024, 1, 1, 10, 0, tzinfo=timezone.utc)
+        start_time = datetime(2024, 1, 1, 10, 0, tzinfo=UTC)
         progress = CompanyProgress(
             name="TechCorp", status="Scraping", jobs_found=15, start_time=start_time
         )
@@ -171,9 +171,7 @@ class TestCompanyProgressCardProgressBar:
 
         with patch("src.ui.utils.background_helpers.datetime") as mock_datetime:
             # Mock current time to be 1 minute after start (should show ~50% progress)
-            mock_datetime.now.return_value = datetime(
-                2024, 1, 1, 10, 1, tzinfo=timezone.utc
-            )
+            mock_datetime.now.return_value = datetime(2024, 1, 1, 10, 1, tzinfo=UTC)
             mock_datetime.timezone = timezone
 
             # Act
@@ -246,8 +244,8 @@ class TestCompanyProgressCardMetrics:
     ):
         """Test metrics section displays jobs found and scraping speed."""
         # Arrange
-        start_time = datetime(2024, 1, 1, 10, 0, tzinfo=timezone.utc)
-        end_time = datetime(2024, 1, 1, 10, 5, tzinfo=timezone.utc)  # 5 minutes
+        start_time = datetime(2024, 1, 1, 10, 0, tzinfo=UTC)
+        end_time = datetime(2024, 1, 1, 10, 5, tzinfo=UTC)  # 5 minutes
         progress = CompanyProgress(
             name="TechCorp",
             status="Completed",
@@ -317,8 +315,8 @@ class TestCompanyProgressCardTimingInfo:
     ):
         """Test timing section shows start, end, and duration information."""
         # Arrange
-        start_time = datetime(2024, 1, 1, 10, 0, tzinfo=timezone.utc)
-        end_time = datetime(2024, 1, 1, 10, 3, tzinfo=timezone.utc)
+        start_time = datetime(2024, 1, 1, 10, 0, tzinfo=UTC)
+        end_time = datetime(2024, 1, 1, 10, 3, tzinfo=UTC)
         progress = CompanyProgress(
             name="TechCorp",
             status="Completed",
@@ -356,7 +354,7 @@ class TestCompanyProgressCardTimingInfo:
     ):
         """Test timing shows elapsed time for active scraping."""
         # Arrange
-        start_time = datetime(2024, 1, 1, 10, 0, tzinfo=timezone.utc)
+        start_time = datetime(2024, 1, 1, 10, 0, tzinfo=UTC)
         progress = CompanyProgress(
             name="TechCorp", status="Scraping", jobs_found=15, start_time=start_time
         )
@@ -372,9 +370,7 @@ class TestCompanyProgressCardTimingInfo:
             patch("src.ui.utils.background_helpers.datetime") as mock_datetime,
         ):
             # Mock current time to be 2 minutes after start
-            mock_datetime.now.return_value = datetime(
-                2024, 1, 1, 10, 2, tzinfo=timezone.utc
-            )
+            mock_datetime.now.return_value = datetime(2024, 1, 1, 10, 2, tzinfo=UTC)
             mock_datetime.timezone = timezone
 
             mock_format_time.return_value = "10:00:00"
@@ -508,8 +504,8 @@ class TestCompanyProgressCardIntegration:
     def test_complete_card_rendering_workflow(self, mock_streamlit, mock_session_state):
         """Test complete card rendering with all components."""
         # Arrange - Create a realistic progress object
-        start_time = datetime(2024, 1, 1, 10, 0, tzinfo=timezone.utc)
-        end_time = datetime(2024, 1, 1, 10, 5, tzinfo=timezone.utc)
+        start_time = datetime(2024, 1, 1, 10, 0, tzinfo=UTC)
+        end_time = datetime(2024, 1, 1, 10, 5, tzinfo=UTC)
         progress = CompanyProgress(
             name="TechCorp",
             status="Completed",

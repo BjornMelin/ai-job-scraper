@@ -304,11 +304,11 @@ class TestPaginationURLBuilding:
 
     @pytest.mark.parametrize(
         ("pagination_type", "expected_params"),
-        [
+        (
             ("page_param", {"page": ["1"]}),
             ("offset_limit", {"offset": ["0"], "limit": ["20"]}),
             ("workday", {"offset": ["0"], "limit": ["20"]}),
-        ],
+        ),
     )
     def test_pagination_types_with_defaults(self, pagination_type, expected_params):
         """Test different pagination types with their default values."""
@@ -523,7 +523,7 @@ class TestJobDataNormalization:
 
     @pytest.mark.parametrize(
         ("field_variations", "expected_value"),
-        [
+        (
             # Title variations
             ({"jobTitle": "Test Job"}, "Test Job"),
             ({"position": "Test Position"}, "Test Position"),
@@ -549,7 +549,7 @@ class TestJobDataNormalization:
             ({"datePosted": "2024-02-01"}, "2024-02-01"),
             ({"date": "2024-03-01"}, "2024-03-01"),
             ({"publishedAt": "2024-04-01"}, "2024-04-01"),
-        ],
+        ),
     )
     def test_normalize_job_data_field_variations(
         self, field_variations, expected_value
@@ -615,7 +615,7 @@ class TestPaginationIntegration:
 
     @pytest.mark.parametrize(
         ("url", "pagination_type", "params", "expected_in_url"),
-        [
+        (
             # Real-world examples based on COMPANY_SCHEMAS
             (
                 "https://jobs.careers.microsoft.com/global/en/search",
@@ -640,7 +640,7 @@ class TestPaginationIntegration:
                 {"param": "page", "page": 3},
                 "page=3",
             ),
-        ],
+        ),
     )
     def test_real_world_pagination_scenarios(
         self, url, pagination_type, params, expected_in_url

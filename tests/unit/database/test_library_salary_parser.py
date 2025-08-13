@@ -199,7 +199,7 @@ class TestLibrarySalaryParserDirectly:
 
     @pytest.mark.parametrize(
         ("text", "expected_range"),
-        [
+        (
             # Test library integration edge cases
             ("£100k-£150k", (100000, 150000)),  # Multiple currency symbols
             ("€85.5k to €95.5k", (85500, 95500)),  # Decimal k values - BUG FIX
@@ -217,7 +217,7 @@ class TestLibrarySalaryParserDirectly:
             ("To be determined", (None, None)),
             ("Competitive package", (None, None)),
             ("Contact for details", (None, None)),
-        ],
+        ),
     )
     def test_library_integration_cases(
         self, text: str, expected_range: tuple[int | None, int | None]

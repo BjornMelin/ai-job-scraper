@@ -6,12 +6,13 @@ weighted success rate calculations. Tests are designed to achieve 90%+ coverage
 and validate both business logic and performance optimizations.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from sqlalchemy.exc import IntegrityError
+
 from src.models import CompanySQL
 from src.schemas import Company
 from src.services.company_service import CompanyService, calculate_weighted_success_rate
@@ -272,7 +273,7 @@ class TestCompanyService:
         mock_session.exec.return_value.first.return_value = mock_company
 
         # Test successful scrape
-        test_time = datetime.now(timezone.utc)
+        test_time = datetime.now(UTC)
         result = CompanyService.update_company_scrape_stats(1, True, test_time)
 
         assert result is True

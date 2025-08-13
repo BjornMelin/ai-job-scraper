@@ -23,14 +23,14 @@ class TestRelevantPhrases:
 
     @pytest.mark.parametrize(
         "expected_term",
-        [
+        (
             "ai",
             "artificial intelligence",
             "machine learning",
             "data scientist",
             "mlops",
             "deep learning",
-        ],
+        ),
     )
     def test_relevant_phrases_contain_expected_terms(self, expected_term):
         """Test that the list contains expected AI/ML terms."""
@@ -61,7 +61,7 @@ class TestAIRegex:
 
     @pytest.mark.parametrize(
         ("test_title", "should_match"),
-        [
+        (
             ("Senior AI Engineer", True),
             ("Machine Learning Engineer", True),
             ("Data Scientist", True),
@@ -84,7 +84,7 @@ class TestAIRegex:
             ("Staff ML Engineer", True),
             ("Principal ML Engineer", True),
             ("Generative AI Engineer", True),
-        ],
+        ),
     )
     def test_ai_regex_matches(self, test_title, should_match):
         """Test that the AI regex correctly matches AI-related job titles."""
@@ -150,7 +150,7 @@ class TestSearchConfiguration:
         assert len(SEARCH_KEYWORDS) > 0
 
     @pytest.mark.parametrize(
-        "expected_keyword", ["ai", "machine learning", "data science"]
+        "expected_keyword", ("ai", "machine learning", "data science")
     )
     def test_search_keywords_contain_expected_terms(self, expected_keyword):
         """Test that search keywords contain expected AI/ML terms."""
@@ -170,7 +170,7 @@ class TestSearchConfiguration:
         assert isinstance(SEARCH_LOCATIONS, list)
         assert len(SEARCH_LOCATIONS) > 0
 
-    @pytest.mark.parametrize("expected_location", ["USA", "Remote"])
+    @pytest.mark.parametrize("expected_location", ("USA", "Remote"))
     def test_search_locations_contain_expected_values(self, expected_location):
         """Test that search locations contain expected values."""
         assert expected_location in SEARCH_LOCATIONS, (

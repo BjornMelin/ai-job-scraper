@@ -4,7 +4,7 @@ This module provides fixtures for testing Streamlit UI components with proper
 mocking of Streamlit functionality and service layer dependencies.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -240,7 +240,7 @@ def sample_company_dto():
         name="Tech Corp",
         url="https://techcorp.com/careers",
         active=True,
-        last_scraped=datetime.now(timezone.utc),
+        last_scraped=datetime.now(UTC),
         scrape_count=5,
         success_rate=0.8,
     )
@@ -255,7 +255,7 @@ def sample_companies_dto():
             name="Tech Corp",
             url="https://techcorp.com/careers",
             active=True,
-            last_scraped=datetime.now(timezone.utc),
+            last_scraped=datetime.now(UTC),
             scrape_count=5,
             success_rate=0.8,
         ),
@@ -273,7 +273,7 @@ def sample_companies_dto():
             name="AI Solutions",
             url="https://aisolutions.com/careers",
             active=True,
-            last_scraped=datetime.now(timezone.utc),
+            last_scraped=datetime.now(UTC),
             scrape_count=12,
             success_rate=0.92,
         ),
@@ -294,7 +294,7 @@ def sample_job_dto():
         ),
         link="https://techcorp.com/careers/ai-engineer-123",
         location="San Francisco, CA",
-        posted_date=datetime.now(timezone.utc),
+        posted_date=datetime.now(UTC),
         salary=(120000, 180000),
         favorite=False,
         notes="Interesting role with good growth potential",
@@ -302,14 +302,14 @@ def sample_job_dto():
         application_status="New",
         application_date=None,
         archived=False,
-        last_seen=datetime.now(timezone.utc),
+        last_seen=datetime.now(UTC),
     )
 
 
 @pytest.fixture
 def sample_jobs_dto():
     """Create a list of sample job DTOs for testing."""
-    base_time = datetime.now(timezone.utc)
+    base_time = datetime.now(UTC)
 
     return [
         Job(

@@ -14,7 +14,7 @@ These tests verify real-world usage scenarios after the refactoring.
 
 import logging
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
 import pytest
@@ -22,6 +22,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel
+
 from src.constants import APPLICATION_STATUSES
 from src.models import CompanySQL, JobSQL
 from src.services.company_service import CompanyService
@@ -90,7 +91,7 @@ class TestScrapeToUIWorkflow:
         assert all(name in company_map for name in company_names)
 
         # Step 2: Create jobs for these companies using the company_map
-        base_date = datetime.now(timezone.utc)
+        base_date = datetime.now(UTC)
         jobs_data = [
             {
                 "company_id": company_map["TechStart Inc"],
@@ -257,7 +258,7 @@ class TestScrapeToUIWorkflow:
         assert "NewBulkCorp" in company_map
 
         # Step 3: Create jobs for these companies
-        base_date = datetime.now(timezone.utc)
+        base_date = datetime.now(UTC)
         jobs = [
             JobSQL(
                 company_id=company_map["Integration Corp"],
@@ -401,7 +402,7 @@ class TestScrapeToUIWorkflow:
         assert all(f"PerfTest Corp {i:03d}" in company_map for i in range(50))
 
         # Create jobs for performance testing
-        base_date = datetime.now(timezone.utc)
+        base_date = datetime.now(UTC)
         jobs = []
         statuses = ["New", "Interested", "Applied", "Rejected"]
 

@@ -12,6 +12,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from pydantic import ValidationError
+
 from src.ui.utils.ui_helpers import (
     SafeIntValidator,
     is_streamlit_context,
@@ -269,7 +270,7 @@ class TestSafeInt:
 
     @pytest.mark.parametrize(
         ("input_val", "expected"),
-        [
+        (
             (None, 0),
             ("", 0),
             ("invalid", 0),
@@ -282,7 +283,7 @@ class TestSafeInt:
             (42, 42),
             (True, 1),
             (False, 0),
-        ],
+        ),
     )
     def test_safe_int_comprehensive_inputs(self, input_val, expected):
         """Test safe_int with comprehensive input types."""
@@ -382,14 +383,14 @@ class TestSafeJobCount:
 
     @pytest.mark.parametrize(
         ("input_val", "company", "expected"),
-        [
+        (
             (None, "Company A", 0),
             ("5", "Company B", 5),
             (-10, "Company C", 0),
             (25, "Company D", 25),
             ("invalid", "Company E", 0),
             ([], "Company F", 0),
-        ],
+        ),
     )
     def test_safe_job_count_various_scenarios(self, input_val, company, expected):
         """Test safe_job_count with various input scenarios."""

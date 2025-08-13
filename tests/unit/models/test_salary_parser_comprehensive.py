@@ -59,7 +59,7 @@ class TestLibrarySalaryParser:
 
     @pytest.mark.parametrize(
         ("text", "expected"),
-        [
+        (
             # Basic k-suffix single values
             ("100k", (100000, 100000)),
             ("75K", (75000, 75000)),
@@ -93,7 +93,7 @@ class TestLibrarySalaryParser:
             ("$8000 per month", (96000, 96000)),  # 8000 * 12
             ("£5000/month", (60000, 60000)),
             ("€6000/mo", (72000, 72000)),
-        ],
+        ),
     )
     def test_parse_salary_text_common_patterns(self, text, expected):
         """Test parse_salary_text with common salary patterns."""

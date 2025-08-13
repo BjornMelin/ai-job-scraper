@@ -7,27 +7,28 @@ Tests focus on real-world scenarios and edge cases to ensure robust operation.
 
 import hashlib
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from sqlmodel import Session
 from src.models import CompanySQL, JobSQL
 from src.scraper import (
     _normalize_board_jobs,
+    app as scraper_cli,
     get_or_create_company,
     scrape_all,
 )
-from src.scraper import (
-    app as scraper_cli,
-)
+
+if TYPE_CHECKING:
+    from sqlmodel import Session
 
 
 class TestGetOrCreateCompany:
     """Test suite for company management functions."""
 
-    def test_get_or_create_company_new(self, session: Session) -> None:
+    def test_get_or_create_company_new(self, session: "Session") -> None:
         """Test creating a new company when it doesn't exist."""
         company_name = "New Tech Corp"
 
@@ -41,7 +42,7 @@ class TestGetOrCreateCompany:
         assert company.active is True
         assert company.url == ""
 
-    def test_get_or_create_company_existing(self, session: Session) -> None:
+    def test_get_or_create_company_existing(self, session: "Session") -> None:
         """Test retrieving existing company without creating duplicate."""
         company_name = "Existing Corp"
 
@@ -65,7 +66,7 @@ class TestGetOrCreateCompany:
 
     @patch("src.scraper.logger")
     def test_get_or_create_company_database_error(
-        self, mock_logger: Mock, session: Session
+        self, mock_logger: Mock, session: "Session"
     ) -> None:
         """Test handling database errors during company creation."""
         company_name = "Error Corp"
@@ -103,7 +104,7 @@ class TestNormalizeBoardJobs:
                 "description": "AI role description",
                 "job_url": "https://tech.com/jobs/1",
                 "location": "San Francisco, CA",
-                "date_posted": datetime.now(timezone.utc),
+                "date_posted": datetime.now(UTC),
                 "min_amount": 100000,
                 "max_amount": 150000,
             },
@@ -128,7 +129,7 @@ class TestNormalizeBoardJobs:
         assert job1.title == "AI Engineer"
         assert job1.company_id == 1
         assert job1.location == "San Francisco, CA"
-        assert job1.salary == "$100000-$150000"
+        assert job1.salary == (100000, 150000)  # Now returns tuple format
         assert job1.application_status == "New"
         assert job1.content_hash is not None
 
@@ -136,7 +137,7 @@ class TestNormalizeBoardJobs:
         job2 = result[1]
         assert job2.title == "ML Engineer"
         assert job2.company_id == 2
-        assert job2.salary == "$200000"
+        assert job2.salary == (200000, 200000)  # Single value becomes (value, value)
 
         # Verify session was properly closed
         mock_session.close.assert_called_once()
@@ -211,10 +212,18 @@ class TestNormalizeBoardJobs:
         mock_company_service.bulk_get_or_create_companies.return_value = {"Corp": 1}
 
         test_cases = [
-            (100000, 150000, "$100000-$150000"),
-            (100000, None, "$100000+"),
-            (None, 150000, "$150000"),
-            (None, None, ""),
+            (100000, 150000, (100000, 150000)),  # Range: "$100000-$150000"
+            (
+                100000,
+                None,
+                (100000, 100000),
+            ),  # Single value: "$100000+"  -> (100000, 100000)
+            (
+                None,
+                150000,
+                (150000, 150000),
+            ),  # Single value: "$150000"  -> (150000, 150000)
+            (None, None, (None, None)),  # Empty: ""
         ]
 
         for min_amt, max_amt, expected_salary in test_cases:
@@ -288,7 +297,7 @@ class TestNormalizeBoardJobs:
         job = result[0]
 
         # Verify content hash is generated properly
-        expected_content = "Test JobTest descriptionCorp"
+        expected_content = "Test Job|Test description|https://corp.com/job1"
         expected_hash = hashlib.sha256(expected_content.encode()).hexdigest()
         assert job.content_hash == expected_hash
 
@@ -317,7 +326,7 @@ class TestScrapeAll:
             location="SF",
             content_hash="company_hash",
             application_status="New",
-            last_seen=datetime.now(timezone.utc),
+            last_seen=datetime.now(UTC),
         )
         mock_company_scraper.return_value = [company_job]
 
@@ -355,7 +364,7 @@ class TestScrapeAll:
                 location="Remote",
                 content_hash="board_hash",
                 application_status="New",
-                last_seen=datetime.now(timezone.utc),
+                last_seen=datetime.now(UTC),
             )
             mock_normalize.return_value = [board_job]
 
@@ -577,7 +586,7 @@ class TestScrapeAll:
             location="Location1",
             content_hash="hash1",
             application_status="New",
-            last_seen=datetime.now(timezone.utc),
+            last_seen=datetime.now(UTC),
         )
 
         duplicate_job2 = JobSQL(
@@ -588,7 +597,7 @@ class TestScrapeAll:
             location="Location2",
             content_hash="hash2",
             application_status="New",
-            last_seen=datetime.now(timezone.utc),
+            last_seen=datetime.now(UTC),
         )
 
         mock_company_scraper.return_value = [duplicate_job1]

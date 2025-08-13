@@ -27,6 +27,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from sqlalchemy.orm.exc import DetachedInstanceError
 from sqlmodel import Session
+
 from src.models import CompanySQL, JobSQL
 from src.schemas import Company, Job
 
