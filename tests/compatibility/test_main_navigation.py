@@ -314,7 +314,7 @@ class TestPageConfiguration:
                     "About": (
                         "AI-powered job scraper for managing your job search "
                         "efficiently."
-                    )
+                    ),
                 },
             )
 

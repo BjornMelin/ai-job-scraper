@@ -76,7 +76,9 @@ def test_settings():
 def sample_company(session: Session):
     """Create and insert a sample company for testing."""
     company = CompanySQL(
-        name="Test Company", url="https://test.com/careers", active=True
+        name="Test Company",
+        url="https://test.com/careers",
+        active=True,
     )
     session.add(company)
     session.commit()

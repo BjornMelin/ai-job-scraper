@@ -42,7 +42,7 @@ class TestSettingsIntegration:
 
         # Step 2: Mock scraping with settings
         with mock.patch(
-            "src.services.job_service.JobService.get_active_companies"
+            "src.services.job_service.JobService.get_active_companies",
         ) as mock_companies:
             mock_companies.return_value = ["Tech Corp", "AI Startup"]
 
@@ -108,7 +108,7 @@ class TestSettingsIntegration:
 
         # Mock active companies
         with mock.patch(
-            "src.services.job_service.JobService.get_active_companies"
+            "src.services.job_service.JobService.get_active_companies",
         ) as mock_companies:
             mock_companies.return_value = ["Company A", "Company B"]
 
@@ -143,7 +143,7 @@ class TestSettingsIntegration:
             mock_session_state["max_jobs_per_company"] = case["limit"]
 
             with mock.patch(
-                "src.services.job_service.JobService.get_active_companies"
+                "src.services.job_service.JobService.get_active_companies",
             ) as mock_companies:
                 mock_companies.return_value = ["Test Company"]
 
@@ -168,7 +168,7 @@ class TestSettingsIntegration:
         mock_session_state["max_jobs_per_company"] = 20
 
         with mock.patch(
-            "src.services.job_service.JobService.get_active_companies"
+            "src.services.job_service.JobService.get_active_companies",
         ) as mock_companies:
             mock_companies.return_value = ["Progress Corp", "Track Inc"]
 
@@ -225,7 +225,7 @@ class TestSettingsIntegration:
 
             # Test with background task
             with mock.patch(
-                "src.services.job_service.JobService.get_active_companies"
+                "src.services.job_service.JobService.get_active_companies",
             ) as mock_companies:
                 mock_companies.return_value = ["Edge Case Corp"]
 
@@ -258,7 +258,7 @@ class TestSettingsIntegration:
 
         # Simulate concurrent operations
         with mock.patch(
-            "src.services.job_service.JobService.get_active_companies"
+            "src.services.job_service.JobService.get_active_companies",
         ) as mock_companies:
             mock_companies.return_value = ["Concurrent Corp"]
 
@@ -291,7 +291,7 @@ class TestSettingsIntegration:
         save_settings({"max_jobs_per_company": 40})
 
         with mock.patch(
-            "src.services.job_service.JobService.get_active_companies"
+            "src.services.job_service.JobService.get_active_companies",
         ) as mock_companies:
             mock_companies.return_value = ["Error Corp"]
 
@@ -322,14 +322,14 @@ class TestSettingsIntegration:
             {
                 "llm_provider": "OpenAI",
                 "max_jobs_per_company": 35,
-            }
+            },
         )
         mock_session_state["temp_key"] = "temp_value"
         mock_session_state["another_temp"] = 123
 
         # Run scraping operation
         with mock.patch(
-            "src.services.job_service.JobService.get_active_companies"
+            "src.services.job_service.JobService.get_active_companies",
         ) as mock_companies:
             mock_companies.return_value = ["Cleanup Corp"]
 
@@ -367,7 +367,7 @@ class TestSettingsWithRealScenarios:
         save_settings({"max_jobs_per_company": 30})
 
         with mock.patch(
-            "src.services.job_service.JobService.get_active_companies"
+            "src.services.job_service.JobService.get_active_companies",
         ) as mock_companies:
             mock_companies.return_value = ["User Corp"]
 
@@ -413,13 +413,14 @@ class TestSettingsWithRealScenarios:
             save_settings({"max_jobs_per_company": session["limit"]})
 
             with mock.patch(
-                "src.services.job_service.JobService.get_active_companies"
+                "src.services.job_service.JobService.get_active_companies",
             ) as mock_companies:
                 mock_companies.return_value = session["companies"]
 
                 with mock.patch("src.scraper.scrape_all") as mock_scrape_all:
                     mock_scrape_all.return_value = dict.fromkeys(
-                        session["companies"], session["limit"]
+                        session["companies"],
+                        session["limit"],
                     )
 
                     # Start scraping
@@ -476,7 +477,7 @@ class TestSettingsWithRealScenarios:
         save_settings({"max_jobs_per_company": 25})
 
         with mock.patch(
-            "src.services.job_service.JobService.get_active_companies"
+            "src.services.job_service.JobService.get_active_companies",
         ) as mock_companies:
             # No active companies
             mock_companies.return_value = []
@@ -512,7 +513,7 @@ class TestSettingsWithRealScenarios:
 
             if i % 2 == 0:  # Test scraping on even iterations
                 with mock.patch(
-                    "src.services.job_service.JobService.get_active_companies"
+                    "src.services.job_service.JobService.get_active_companies",
                 ) as mock_companies:
                     mock_companies.return_value = [f"Stress{i} Corp"]
 

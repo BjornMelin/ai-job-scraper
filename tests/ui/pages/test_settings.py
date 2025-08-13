@@ -126,7 +126,7 @@ class TestApiConnectionTesting:
 
         with patch.object(Groq, "chat") as mock_chat:
             mock_chat.completions.create.side_effect = Exception(
-                "429 rate limit exceeded"
+                "429 rate limit exceeded",
             )
 
             # Act
@@ -208,7 +208,7 @@ class TestSettingsLoading:
                 {
                     "llm_provider": "Groq",
                     "max_jobs_per_company": 75,
-                }
+                },
             )
 
             # Act
@@ -251,7 +251,7 @@ class TestSettingsLoading:
                 {
                     "llm_provider": "OpenAI",
                     "max_jobs_per_company": 100,
-                }
+                },
             )
 
             # Act
@@ -327,7 +327,9 @@ class TestSettingsPageRendering:
     """Test the complete settings page rendering and interactions."""
 
     def test_settings_page_displays_title_and_description(
-        self, mock_streamlit, mock_session_state
+        self,
+        mock_streamlit,
+        mock_session_state,
     ):
         """Test settings page displays correct title and description."""
         # Arrange
@@ -338,11 +340,13 @@ class TestSettingsPageRendering:
             # Assert
             mock_streamlit["title"].assert_called_with("Settings")
             mock_streamlit["markdown"].assert_any_call(
-                "Configure your AI Job Scraper settings"
+                "Configure your AI Job Scraper settings",
             )
 
     def test_settings_page_displays_llm_provider_selection(
-        self, mock_streamlit, mock_session_state
+        self,
+        mock_streamlit,
+        mock_session_state,
     ):
         """Test settings page displays LLM provider radio selection."""
         # Arrange
@@ -363,7 +367,9 @@ class TestSettingsPageRendering:
             assert provider_call.kwargs["horizontal"] is True
 
     def test_settings_page_displays_api_key_inputs(
-        self, mock_streamlit, mock_session_state
+        self,
+        mock_streamlit,
+        mock_session_state,
     ):
         """Test settings page displays API key input fields."""
         # Arrange
@@ -394,7 +400,9 @@ class TestSettingsPageRendering:
             assert "gsk_..." in groq_call.kwargs["placeholder"]
 
     def test_settings_page_displays_test_connection_buttons(
-        self, mock_streamlit, mock_session_state
+        self,
+        mock_streamlit,
+        mock_session_state,
     ):
         """Test settings page displays test connection buttons."""
         # Arrange
@@ -420,7 +428,9 @@ class TestSettingsPageRendering:
             assert groq_button_call.kwargs["disabled"] is True  # No API key
 
     def test_settings_page_displays_scraping_configuration(
-        self, mock_streamlit, mock_session_state
+        self,
+        mock_streamlit,
+        mock_session_state,
     ):
         """Test settings page displays scraping configuration section."""
         # Arrange
@@ -479,7 +489,9 @@ class TestSettingsPageRendering:
                 assert keyword in limit_message_call.args[0]
 
     def test_settings_page_displays_current_settings_summary(
-        self, mock_streamlit, mock_session_state
+        self,
+        mock_streamlit,
+        mock_session_state,
     ):
         """Test settings page displays current settings summary."""
         # Arrange
@@ -502,7 +514,9 @@ class TestSettingsPageRendering:
             assert any("✅ Set" in text for text in markdown_texts)  # API keys status
 
     def test_settings_page_handles_api_connection_test_success(
-        self, mock_streamlit, mock_session_state
+        self,
+        mock_streamlit,
+        mock_session_state,
     ):
         """Test settings page handles successful API connection test."""
         # Arrange
@@ -522,7 +536,9 @@ class TestSettingsPageRendering:
             mock_streamlit["success"].assert_called()
 
     def test_settings_page_handles_api_connection_test_failure(
-        self, mock_streamlit, mock_session_state
+        self,
+        mock_streamlit,
+        mock_session_state,
     ):
         """Test settings page handles failed API connection test."""
         # Arrange
@@ -542,7 +558,9 @@ class TestSettingsPageRendering:
             mock_streamlit["error"].assert_called()
 
     def test_settings_page_saves_settings_successfully(
-        self, mock_streamlit, mock_session_state
+        self,
+        mock_streamlit,
+        mock_session_state,
     ):
         """Test settings page saves settings and displays success message."""
         # Arrange
@@ -570,7 +588,9 @@ class TestSettingsPageRendering:
             )
 
     def test_settings_page_handles_save_settings_error(
-        self, mock_streamlit, mock_session_state
+        self,
+        mock_streamlit,
+        mock_session_state,
     ):
         """Test settings page handles errors during save operation."""
         # Arrange
@@ -592,7 +612,9 @@ class TestSettingsPageRendering:
             assert any("❌ Failed to save settings" in msg for msg in error_messages)
 
     def test_settings_page_displays_api_key_security_reminder(
-        self, mock_streamlit, mock_session_state
+        self,
+        mock_streamlit,
+        mock_session_state,
     ):
         """Test settings page displays security reminder for API keys."""
         # Arrange
@@ -616,7 +638,9 @@ class TestSettingsPageRendering:
         assert security_reminder
 
     def test_settings_page_provider_icons_display_correctly(
-        self, mock_streamlit, mock_session_state
+        self,
+        mock_streamlit,
+        mock_session_state,
     ):
         """Test settings page displays correct provider icons."""
         # Arrange
@@ -651,7 +675,9 @@ class TestSettingsPageBoundaryConditions:
             mock_streamlit["title"].assert_called_with("Settings")
 
     def test_settings_page_handles_invalid_session_values(
-        self, mock_streamlit, mock_session_state
+        self,
+        mock_streamlit,
+        mock_session_state,
     ):
         """Test settings page handles invalid session values gracefully."""
         # Arrange
@@ -659,7 +685,7 @@ class TestSettingsPageBoundaryConditions:
             {
                 "llm_provider": "InvalidProvider",  # Invalid provider
                 "max_jobs_per_company": "not_a_number",  # Invalid type
-            }
+            },
         )
         with patch.dict(os.environ, {}, clear=True):
             # Act & Assert - should not raise exception
@@ -669,7 +695,9 @@ class TestSettingsPageBoundaryConditions:
             mock_streamlit["title"].assert_called_with("Settings")
 
     def test_settings_page_handles_extremely_large_job_limits(
-        self, mock_streamlit, mock_session_state
+        self,
+        mock_streamlit,
+        mock_session_state,
     ):
         """Test settings page handles extremely large job limit values."""
         # Arrange
@@ -687,7 +715,9 @@ class TestSettingsPageBoundaryConditions:
             assert max_jobs_call.kwargs["max_value"] == 200
 
     def test_settings_page_environment_variables_override_detection(
-        self, mock_streamlit, mock_session_state
+        self,
+        mock_streamlit,
+        mock_session_state,
     ):
         """Test settings page correctly detects environment variable status."""
         # Arrange
@@ -712,7 +742,9 @@ class TestSettingsPageIntegration:
     """Test integration scenarios and complete workflows."""
 
     def test_complete_settings_configuration_workflow(
-        self, mock_streamlit, mock_session_state
+        self,
+        mock_streamlit,
+        mock_session_state,
     ):
         """Test complete workflow of configuring and saving settings."""
         # Arrange - Simulate user interactions
@@ -751,7 +783,9 @@ class TestSettingsPageIntegration:
             mock_streamlit["success"].assert_called()
 
     def test_api_testing_workflow_with_both_providers(
-        self, mock_streamlit, mock_session_state
+        self,
+        mock_streamlit,
+        mock_session_state,
     ):
         """Test API testing workflow for both providers."""
         # Arrange
@@ -796,7 +830,9 @@ class TestSettingsPageIntegration:
             mock_streamlit["error"].assert_called()
 
     def test_settings_persistence_across_page_loads(
-        self, mock_streamlit, mock_session_state
+        self,
+        mock_streamlit,
+        mock_session_state,
     ):
         """Test that settings persist correctly across multiple page loads."""
         # Arrange - Set initial session state
@@ -804,7 +840,7 @@ class TestSettingsPageIntegration:
             {
                 "llm_provider": "Groq",
                 "max_jobs_per_company": 75,
-            }
+            },
         )
 
         with patch.dict(

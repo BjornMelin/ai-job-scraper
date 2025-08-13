@@ -154,10 +154,18 @@ class TestT1TaskManagementIntegration:
         """Test that task management maintains proper session state isolation."""
         # Add tasks with different data types and structures
         string_task = TaskInfo(
-            "string-task", "status", 0.5, "message", datetime.now(UTC)
+            "string-task",
+            "status",
+            0.5,
+            "message",
+            datetime.now(UTC),
         )
         dict_task = TaskInfo(
-            "dict-task", "active", 0.8, "complex message", datetime.now(UTC)
+            "dict-task",
+            "active",
+            0.8,
+            "complex message",
+            datetime.now(UTC),
         )
 
         add_task("string-task", string_task)
@@ -231,7 +239,7 @@ class TestT1ComponentIntegration:
         # Use UI helpers for progress-related calculations
         percentage = safe_int(progress_task.progress * 100)  # Convert to percentage
         jobs_processed = safe_int(
-            progress_task.progress * 150
+            progress_task.progress * 150,
         )  # Simulate 150 total jobs
 
         # Verify calculations work correctly
@@ -373,7 +381,11 @@ class TestT1PerformanceWithSimplifiedImplementations:
         # Create, update, and remove many tasks
         for i in range(1000):
             task = TaskInfo(
-                f"perf-{i}", "running", i / 1000, f"msg-{i}", datetime.now(UTC)
+                f"perf-{i}",
+                "running",
+                i / 1000,
+                f"msg-{i}",
+                datetime.now(UTC),
             )
             add_task(f"perf-{i}", task)
 
@@ -416,7 +428,9 @@ class TestT1PerformanceWithSimplifiedImplementations:
                 throttled_rerun("perf_test", 10.0, should_rerun=True)
             else:
                 throttled_rerun(
-                    "perf_test", 10.0, should_rerun=True
+                    "perf_test",
+                    10.0,
+                    should_rerun=True,
                 )  # Should be throttled
 
             # Clean up
@@ -529,7 +543,7 @@ class TestT1RealisticProductionScenarios:
                 "current_page": "jobs",
                 "filter_criteria": {"location": "remote", "salary_min": 80000},
                 "ui_state": {"sidebar_expanded": True, "view_mode": "cards"},
-            }
+            },
         )
 
         # Add background tasks

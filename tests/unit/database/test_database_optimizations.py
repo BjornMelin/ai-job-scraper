@@ -69,7 +69,9 @@ def test_streamlit_session_management():
     with streamlit_db_session() as session:
         # Create a test company
         test_company = CompanySQL(
-            name=company_name, url=f"https://test-{unique_id}.com", active=True
+            name=company_name,
+            url=f"https://test-{unique_id}.com",
+            active=True,
         )
         session.add(test_company)
         # Session should auto-commit on exit
@@ -195,7 +197,9 @@ def test_performance_monitoring():
 
     creation_time = time.time() - start_time
     logger.info(
-        "Created/attempted %d companies in %.3fs", len(created_companies), creation_time
+        "Created/attempted %d companies in %.3fs",
+        len(created_companies),
+        creation_time,
     )
 
     # Test bulk job queries

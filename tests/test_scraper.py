@@ -48,7 +48,9 @@ class TestGetOrCreateCompany:
 
         # Create existing company
         existing_company = CompanySQL(
-            name=company_name, url="https://existing.com/careers", active=True
+            name=company_name,
+            url="https://existing.com/careers",
+            active=True,
         )
         session.add(existing_company)
         session.commit()
@@ -66,7 +68,9 @@ class TestGetOrCreateCompany:
 
     @patch("src.scraper.logger")
     def test_get_or_create_company_database_error(
-        self, mock_logger: Mock, session: "Session"
+        self,
+        mock_logger: Mock,
+        session: "Session",
     ) -> None:
         """Test handling database errors during company creation."""
         company_name = "Error Corp"
@@ -85,7 +89,9 @@ class TestNormalizeBoardJobs:
     @patch("src.scraper.CompanyService")
     @patch("src.scraper.SessionLocal")
     def test_normalize_board_jobs_success(
-        self, mock_session_local: Mock, mock_company_service: Mock
+        self,
+        mock_session_local: Mock,
+        mock_company_service: Mock,
     ) -> None:
         """Test successful normalization of job board data."""
         mock_session = MagicMock()
@@ -155,7 +161,10 @@ class TestNormalizeBoardJobs:
     @patch("src.scraper.SessionLocal")
     @patch("src.scraper.logger")
     def test_normalize_board_jobs_malformed_data(
-        self, mock_logger: Mock, mock_session_local: Mock, mock_company_service: Mock
+        self,
+        mock_logger: Mock,
+        mock_session_local: Mock,
+        mock_company_service: Mock,
     ) -> None:
         """Test handling malformed job data."""
         mock_session = MagicMock()
@@ -203,7 +212,9 @@ class TestNormalizeBoardJobs:
     @patch("src.scraper.CompanyService")
     @patch("src.scraper.SessionLocal")
     def test_normalize_board_jobs_salary_parsing(
-        self, mock_session_local: Mock, mock_company_service: Mock
+        self,
+        mock_session_local: Mock,
+        mock_company_service: Mock,
     ) -> None:
         """Test various salary format parsing scenarios."""
         mock_session = MagicMock()
@@ -235,7 +246,7 @@ class TestNormalizeBoardJobs:
                     "job_url": f"https://corp.com/job-{min_amt}-{max_amt}",
                     "min_amount": min_amt,
                     "max_amount": max_amt,
-                }
+                },
             ]
 
             result = _normalize_board_jobs(raw_jobs)
@@ -247,7 +258,10 @@ class TestNormalizeBoardJobs:
     @patch("src.scraper.SessionLocal")
     @patch("src.scraper.logger")
     def test_normalize_board_jobs_database_error(
-        self, mock_logger: Mock, mock_session_local: Mock, mock_company_service: Mock
+        self,
+        mock_logger: Mock,
+        mock_session_local: Mock,
+        mock_company_service: Mock,
     ) -> None:
         """Test handling database errors during normalization."""
         mock_session = MagicMock()
@@ -255,7 +269,7 @@ class TestNormalizeBoardJobs:
 
         # Mock database error during company bulk operation
         mock_company_service.bulk_get_or_create_companies.side_effect = Exception(
-            "DB Error"
+            "DB Error",
         )
 
         raw_jobs = [
@@ -264,7 +278,7 @@ class TestNormalizeBoardJobs:
                 "company": "Corp",
                 "description": "Description",
                 "job_url": "https://corp.com/job1",
-            }
+            },
         ]
 
         with pytest.raises(Exception, match="DB Error"):
@@ -276,7 +290,9 @@ class TestNormalizeBoardJobs:
     @patch("src.scraper.CompanyService")
     @patch("src.scraper.SessionLocal")
     def test_normalize_board_jobs_content_hash_generation(
-        self, mock_session_local: Mock, mock_company_service: Mock
+        self,
+        mock_session_local: Mock,
+        mock_company_service: Mock,
     ) -> None:
         """Test content hash generation for change detection."""
         mock_session = MagicMock()
@@ -340,7 +356,7 @@ class TestScrapeAll:
                 "location": "Remote",
                 "min_amount": 120000,
                 "max_amount": 160000,
-            }
+            },
         ]
 
         # Mock sync engine
@@ -412,7 +428,7 @@ class TestScrapeAll:
                 "company": "Board Corp",
                 "description": "AI role",
                 "job_url": "https://board.com/job1",
-            }
+            },
         ]
 
         # Mock sync engine
@@ -493,7 +509,7 @@ class TestScrapeAll:
                 "company": "Corp",
                 "description": "Role",
                 "job_url": "https://corp.com/job1",
-            }
+            },
         ]
 
         mock_sync_instance = Mock()
@@ -535,7 +551,7 @@ class TestScrapeAll:
                 "company": "Corp",
                 "description": "Sales role",
                 "job_url": "https://corp.com/sales1",
-            }
+            },
         ]
 
         with patch("src.scraper._normalize_board_jobs") as mock_normalize:

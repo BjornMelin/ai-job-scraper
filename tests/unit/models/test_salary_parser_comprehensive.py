@@ -193,21 +193,27 @@ class TestLibrarySalaryParser:
         # Hourly conversion
         values = [50, 30]
         result = LibrarySalaryParser._convert_time_based_salary(
-            values, is_hourly=True, is_monthly=False
+            values,
+            is_hourly=True,
+            is_monthly=False,
         )
         assert result == [104000, 62400]  # 50*40*52, 30*40*52
 
         # Monthly conversion
         values = [8000, 10000]
         result = LibrarySalaryParser._convert_time_based_salary(
-            values, is_hourly=False, is_monthly=True
+            values,
+            is_hourly=False,
+            is_monthly=True,
         )
         assert result == [96000, 120000]  # 8000*12, 10000*12
 
         # No conversion (annual)
         values = [100000, 150000]
         result = LibrarySalaryParser._convert_time_based_salary(
-            values, is_hourly=False, is_monthly=False
+            values,
+            is_hourly=False,
+            is_monthly=False,
         )
         assert result == [100000, 150000]
 

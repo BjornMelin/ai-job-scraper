@@ -251,9 +251,10 @@ class TestPageCompatibility:
                     # Expected when streamlit is mocked out
                     pass
                 except Exception as e:
-                    pytest.fail(
+                    error_message = (
                         f"Unexpected error with mocked streamlit for {module_name}: {e}"
                     )
+                    pytest.fail(error_message)
 
 
 class TestPagePerformance:
@@ -343,7 +344,7 @@ class TestPageErrorHandling:
             pytest.fail(f"Companies page error handling compatibility failed: {e}")
         except Exception as e:
             pytest.fail(
-                f"Companies page structure incompatible with error handling: {e}"
+                f"Companies page structure incompatible with error handling: {e}",
             )
 
     def test_pages_handle_import_errors_in_dependencies(self):
@@ -371,12 +372,12 @@ class TestPageErrorHandling:
                         # Expected for modules that require pandas
                         if "pandas" not in str(e):
                             pytest.fail(
-                                f"Unexpected import error for {module_name}: {e}"
+                                f"Unexpected import error for {module_name}: {e}",
                             )
                     except Exception as e:
                         pytest.fail(
                             f"Unexpected error with mocked dependencies "
-                            f"for {module_name}: {e}"
+                            f"for {module_name}: {e}",
                         )
 
             except Exception as e:

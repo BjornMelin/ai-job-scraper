@@ -40,7 +40,9 @@ class TestJobCardRendering:
         assert any("San Francisco, CA" in call for call in markdown_calls)
 
     def test_render_job_card_displays_status_badge(
-        self, mock_streamlit, sample_job_dto
+        self,
+        mock_streamlit,
+        sample_job_dto,
     ):
         """Test job card displays status badge with correct styling."""
         # Act
@@ -56,7 +58,9 @@ class TestJobCardRendering:
         assert any("New" in call for call in status_badge_calls)
 
     def test_render_job_card_shows_favorite_star_when_favorited(
-        self, mock_streamlit, sample_job_dto
+        self,
+        mock_streamlit,
+        sample_job_dto,
     ):
         """Test job card shows star icon when job is favorited."""
         # Arrange
@@ -72,7 +76,9 @@ class TestJobCardRendering:
         assert any("⭐" in call for call in markdown_calls)
 
     def test_render_job_card_hides_favorite_star_when_not_favorited(
-        self, mock_streamlit, sample_job_dto
+        self,
+        mock_streamlit,
+        sample_job_dto,
     ):
         """Test job card hides star icon when job is not favorited."""
         # Arrange
@@ -88,7 +94,9 @@ class TestJobCardRendering:
         assert all("⭐" not in call for call in markdown_calls)
 
     def test_render_job_card_creates_status_selectbox(
-        self, mock_streamlit, sample_job_dto
+        self,
+        mock_streamlit,
+        sample_job_dto,
     ):
         """Test job card creates status selectbox with correct options."""
         # Act
@@ -99,7 +107,8 @@ class TestJobCardRendering:
 
         # Find status selectbox call
         status_call = next(
-            (call for call in selectbox_calls if call.args[0] == "Status"), None
+            (call for call in selectbox_calls if call.args[0] == "Status"),
+            None,
         )
 
         assert status_call is not None
@@ -108,7 +117,9 @@ class TestJobCardRendering:
         assert status_call.kwargs["key"] == f"status_{sample_job_dto.id}"
 
     def test_render_job_card_creates_favorite_button(
-        self, mock_streamlit, sample_job_dto
+        self,
+        mock_streamlit,
+        sample_job_dto,
     ):
         """Test job card creates favorite toggle button."""
         # Act
@@ -132,7 +143,9 @@ class TestJobCardRendering:
         assert favorite_call.args[0] == expected_icon
 
     def test_render_job_card_creates_view_details_button(
-        self, mock_streamlit, sample_job_dto
+        self,
+        mock_streamlit,
+        sample_job_dto,
     ):
         """Test job card creates view details button."""
         # Act
@@ -143,7 +156,8 @@ class TestJobCardRendering:
 
         # Find view details button call
         details_call = next(
-            (call for call in button_calls if call.args[0] == "View Details"), None
+            (call for call in button_calls if call.args[0] == "View Details"),
+            None,
         )
 
         assert details_call is not None
@@ -198,7 +212,8 @@ class TestJobCardInteractions:
 
             # Assert
             mock_job_service.update_job_status.assert_called_once_with(
-                job_id, new_status
+                job_id,
+                new_status,
             )
             mock_rerun.assert_called_once()
 
@@ -343,7 +358,9 @@ class TestJobGridRendering:
     """Test job grid rendering functionality."""
 
     def test_render_jobs_grid_creates_columns_layout(
-        self, mock_streamlit, sample_jobs_dto
+        self,
+        mock_streamlit,
+        sample_jobs_dto,
     ):
         """Test jobs grid creates proper column layout."""
         # Act
@@ -363,7 +380,9 @@ class TestJobGridRendering:
         mock_streamlit["info"].assert_called_once_with("No jobs to display.")
 
     def test_render_jobs_grid_respects_column_count(
-        self, mock_streamlit, sample_jobs_dto
+        self,
+        mock_streamlit,
+        sample_jobs_dto,
     ):
         """Test jobs grid respects specified column count."""
         # Act
@@ -385,7 +404,11 @@ class TestJobGridRendering:
         ),
     )
     def test_render_jobs_grid_calculates_correct_rows(
-        self, mock_streamlit, num_jobs, num_columns, expected_rows
+        self,
+        mock_streamlit,
+        num_jobs,
+        num_columns,
+        expected_rows,
     ):
         """Test jobs grid calculates correct number of rows for different job counts."""
         # Arrange
@@ -443,7 +466,9 @@ class TestJobListRendering:
         mock_streamlit["info"].assert_called_once_with("No jobs to display.")
 
     def test_render_jobs_list_adds_separators_between_jobs(
-        self, mock_streamlit, sample_jobs_dto
+        self,
+        mock_streamlit,
+        sample_jobs_dto,
     ):
         """Test jobs list adds separators between job cards."""
         # Act
@@ -494,7 +519,8 @@ class TestJobCardIntegration:
 
             # 2. Service was called to update status
             mock_job_service.update_job_status.assert_called_once_with(
-                job_id, new_status
+                job_id,
+                new_status,
             )
 
             # 3. UI was refreshed
@@ -537,7 +563,10 @@ class TestJobCardIntegration:
             mock_rerun.assert_called_once()
 
     def test_complete_view_details_workflow(
-        self, mock_streamlit, mock_session_state, sample_job_dto
+        self,
+        mock_streamlit,
+        mock_session_state,
+        sample_job_dto,
     ):
         """Test complete workflow of viewing job details."""
         # Arrange
@@ -559,7 +588,9 @@ class TestJobCardIntegration:
         assert mock_session_state["view_job_id"] == job_id
 
     def test_render_jobs_grid_with_fewer_jobs_than_columns(
-        self, mock_streamlit, sample_jobs_dto
+        self,
+        mock_streamlit,
+        sample_jobs_dto,
     ):
         """Test jobs grid handles case with fewer jobs than columns correctly."""
         # Arrange - 2 jobs with 3 columns

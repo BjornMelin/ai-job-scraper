@@ -91,7 +91,9 @@ class TestProgressInfo:
 
         # Act
         info = ProgressInfo(
-            progress=0.75, message="Processing companies...", timestamp=timestamp
+            progress=0.75,
+            message="Processing companies...",
+            timestamp=timestamp,
         )
 
         # Assert
@@ -250,7 +252,8 @@ class TestBackgroundTaskStateFunctions:
         assert result == {}
 
     def test_get_scraping_progress_returns_session_state_value(
-        self, mock_session_state
+        self,
+        mock_session_state,
     ):
         """Test get_scraping_progress returns value from session state."""
         # Arrange
@@ -259,7 +262,7 @@ class TestBackgroundTaskStateFunctions:
                 progress=0.5,
                 message="In progress",
                 timestamp=datetime.now(UTC),
-            )
+            ),
         }
         mock_session_state.update({"task_progress": progress})
 
@@ -282,8 +285,10 @@ class TestBackgroundTaskStateFunctions:
         # Arrange
         progress = {
             "TechCorp": CompanyProgress(
-                name="TechCorp", status="Completed", jobs_found=25
-            )
+                name="TechCorp",
+                status="Completed",
+                jobs_found=25,
+            ),
         }
         mock_session_state.update({"company_progress": progress})
 
@@ -298,7 +303,8 @@ class TestStartBackgroundScraping:
     """Test the start_background_scraping function."""
 
     def test_start_background_scraping_initializes_session_state(
-        self, mock_session_state
+        self,
+        mock_session_state,
     ):
         """Test start_background_scraping initializes required session state."""
         # Act
@@ -379,7 +385,7 @@ class TestStopAllScraping:
         mock_thread = Mock()
         mock_thread.is_alive.return_value = True
         mock_session_state.update(
-            {"scraping_active": True, "scraping_thread": mock_thread}
+            {"scraping_active": True, "scraping_thread": mock_thread},
         )
 
         # Act
@@ -395,7 +401,7 @@ class TestStopAllScraping:
         mock_thread = Mock()
         mock_thread.is_alive.return_value = False
         mock_session_state.update(
-            {"scraping_active": True, "scraping_thread": mock_thread}
+            {"scraping_active": True, "scraping_thread": mock_thread},
         )
 
         # Act
@@ -429,7 +435,8 @@ class TestStartScrapingFunction:
         assert mock_session_state.get("scraping_active") is True
 
     def test_start_background_scraping_initializes_task_progress(
-        self, mock_session_state
+        self,
+        mock_session_state,
     ):
         """Test start_background_scraping initializes task progress tracking."""
         # Act
@@ -463,7 +470,8 @@ class TestStartScrapingFunction:
         assert task_id_2 in task_progress
 
     def test_start_background_scraping_sets_all_required_flags(
-        self, mock_session_state
+        self,
+        mock_session_state,
     ):
         """Test start_background_scraping sets all required session state flags."""
         # Act
@@ -485,7 +493,9 @@ class TestStartScrapingFunction:
         assert "Starting scraping" in progress_info.message
 
     def test_start_background_scraping_handles_scraping_errors_gracefully(
-        self, mock_session_state, mock_job_service
+        self,
+        mock_session_state,
+        mock_job_service,
     ):
         """Test start_background_scraping handles scraping errors without crashing."""
         # Arrange
@@ -510,7 +520,9 @@ class TestStartScrapingFunction:
             assert company_progress["TechCorp"].status == "Error"
 
     def test_start_background_scraping_stores_scraping_results(
-        self, mock_session_state, mock_job_service
+        self,
+        mock_session_state,
+        mock_job_service,
     ):
         """Test start_background_scraping stores final scraping results."""
         # Arrange
@@ -538,7 +550,9 @@ class TestBackgroundTaskIntegration:
     """Integration tests for complete background task workflows."""
 
     def test_complete_background_scraping_workflow(
-        self, mock_session_state, mock_job_service
+        self,
+        mock_session_state,
+        mock_job_service,
     ):
         """Test complete workflow from start to finish."""
         # Arrange
@@ -634,7 +648,7 @@ class TestBackgroundTaskIntegration:
                 "scraping_active": True,
                 "scraping_status": "Running",
                 "scraping_thread": Mock(),
-            }
+            },
         )
 
         # Act

@@ -236,7 +236,13 @@ class TestDaysCalculations:
 
             # Naive datetime (no timezone info)
             naive_posted_date = datetime(
-                2024, 1, 14, 10, 0, 0, tzinfo=UTC
+                2024,
+                1,
+                14,
+                10,
+                0,
+                0,
+                tzinfo=UTC,
             )  # Add tzinfo
 
             # Act
@@ -625,19 +631,37 @@ class TestJobCompanyHelpersIntegration:
             # Create mock jobs with realistic data
             recent_job = Mock()
             recent_job.posted_date = datetime(
-                2024, 1, 14, 10, 0, 0, tzinfo=UTC
+                2024,
+                1,
+                14,
+                10,
+                0,
+                0,
+                tzinfo=UTC,
             )  # 1 day ago
             recent_job.archived = False
 
             old_job = Mock()
             old_job.posted_date = datetime(
-                2024, 1, 1, 10, 0, 0, tzinfo=UTC
+                2024,
+                1,
+                1,
+                10,
+                0,
+                0,
+                tzinfo=UTC,
             )  # 14 days ago
             old_job.archived = False
 
             archived_job = Mock()
             archived_job.posted_date = datetime(
-                2024, 1, 10, 10, 0, 0, tzinfo=UTC
+                2024,
+                1,
+                10,
+                10,
+                0,
+                0,
+                tzinfo=UTC,
             )  # 5 days ago
             archived_job.archived = True
 
@@ -771,10 +795,22 @@ class TestJobCompanyHelpersIntegration:
             test_dates = [
                 datetime(2024, 1, 14, 10, 0, 0, tzinfo=UTC),  # UTC
                 datetime(
-                    2024, 1, 14, 5, 0, 0, tzinfo=timezone(timedelta(hours=-5))
+                    2024,
+                    1,
+                    14,
+                    5,
+                    0,
+                    0,
+                    tzinfo=timezone(timedelta(hours=-5)),
                 ),  # EST
                 datetime(
-                    2024, 1, 14, 15, 0, 0, tzinfo=timezone(timedelta(hours=5))
+                    2024,
+                    1,
+                    14,
+                    15,
+                    0,
+                    0,
+                    tzinfo=timezone(timedelta(hours=5)),
                 ),  # UTC+5
             ]
 
@@ -812,7 +848,7 @@ class TestJobCompanyHelpersIntegration:
                 success_rate = format_success_rate_percentage(0.5 + (i * 0.01))
 
                 results.put(
-                    (salary_range, min_salary, max_salary, company_name, success_rate)
+                    (salary_range, min_salary, max_salary, company_name, success_rate),
                 )
 
         # Create multiple threads

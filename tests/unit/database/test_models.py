@@ -102,7 +102,9 @@ def test_job_sql_creation(session: Session) -> None:
     """
     # First create a company with unique name for this test
     company = CompanySQL(
-        name="AI Test Co", url="https://ai-test.co/careers", active=True
+        name="AI Test Co",
+        url="https://ai-test.co/careers",
+        active=True,
     )
     session.add(company)
     session.commit()
@@ -261,7 +263,8 @@ def test_job_unique_link(session: Session) -> None:
     ),
 )
 def test_salary_parsing(
-    salary_input: "Any", expected: tuple[int | None, int | None]
+    salary_input: "Any",
+    expected: tuple[int | None, int | None],
 ) -> None:
     """Test salary parsing validator with various input formats.
 

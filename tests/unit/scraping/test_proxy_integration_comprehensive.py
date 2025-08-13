@@ -27,7 +27,7 @@ class TestJobBoardScraperProxyIntegration:
                 "company": ["TechCorp"],
                 "location": ["Remote"],
                 "description": ["AI Engineer role"],
-            }
+            },
         )
 
         with patch("src.scraper_job_boards.scrape_jobs") as mock_scrape_jobs:
@@ -61,7 +61,7 @@ class TestJobBoardScraperProxyIntegration:
                 "company": ["TechCorp"],
                 "location": ["Remote"],
                 "description": ["AI Engineer role"],
-            }
+            },
         )
 
         with patch("src.scraper_job_boards.scrape_jobs") as mock_scrape_jobs:
@@ -90,7 +90,7 @@ class TestJobBoardScraperProxyIntegration:
                 "company": ["TechCorp"],
                 "location": ["Remote"],
                 "description": ["AI Engineer role"],
-            }
+            },
         )
 
         with patch("src.scraper_job_boards.scrape_jobs") as mock_scrape_jobs:
@@ -138,7 +138,7 @@ class TestJobBoardScraperProxyIntegration:
                 "company": ["TechCorp"],
                 "location": ["San Francisco"],
                 "description": ["AI Engineer role"],
-            }
+            },
         )
 
         with patch("src.scraper_job_boards.scrape_jobs") as mock_scrape_jobs:
@@ -149,7 +149,8 @@ class TestJobBoardScraperProxyIntegration:
 
                 # Act
                 scrape_job_boards(
-                    ["ai engineer"], ["san francisco", "new york", "remote"]
+                    ["ai engineer"],
+                    ["san francisco", "new york", "remote"],
                 )
 
                 # Assert - Should be called 3 times (once per location) with same
@@ -169,7 +170,10 @@ class TestCompanyPageScraperProxyIntegration:
         test_settings.proxy_pool = ["http://proxy1:8080"]
 
         company = CompanySQL(
-            id=1, name="TechCorp", url="https://techcorp.com/careers", active=True
+            id=1,
+            name="TechCorp",
+            url="https://techcorp.com/careers",
+            active=True,
         )
 
         mock_result = {"https://techcorp.com/careers": {"jobs": []}}
@@ -211,7 +215,10 @@ class TestCompanyPageScraperProxyIntegration:
         test_settings.proxy_pool = ["http://proxy1:8080"]  # Should be ignored
 
         company = CompanySQL(
-            id=1, name="TechCorp", url="https://techcorp.com/careers", active=True
+            id=1,
+            name="TechCorp",
+            url="https://techcorp.com/careers",
+            active=True,
         )
 
         mock_result = {"https://techcorp.com/careers": {"jobs": []}}
@@ -235,7 +242,8 @@ class TestCompanyPageScraperProxyIntegration:
 
                 # Should not contain proxy configuration
                 assert "loader_kwargs" not in config or "proxy" not in config.get(
-                    "loader_kwargs", {}
+                    "loader_kwargs",
+                    {},
                 )
 
     def test_scrapegraphai_handles_proxy_failure_gracefully(self, test_settings):
@@ -245,7 +253,10 @@ class TestCompanyPageScraperProxyIntegration:
         test_settings.proxy_pool = ["http://invalid-proxy:8080"]
 
         company = CompanySQL(
-            id=1, name="TechCorp", url="https://techcorp.com/careers", active=True
+            id=1,
+            name="TechCorp",
+            url="https://techcorp.com/careers",
+            active=True,
         )
 
         with patch("src.scraper_company_pages.SmartScraperMultiGraph") as mock_graph:
@@ -270,7 +281,8 @@ class TestCompanyPageScraperProxyIntegration:
                 assert result == {"partial_jobs": []}
 
     def test_scrapegraphai_proxy_configuration_in_details_extraction(
-        self, test_settings
+        self,
+        test_settings,
     ):
         """Test proxy configuration is also applied to job details extraction."""
         # Arrange
@@ -282,14 +294,14 @@ class TestCompanyPageScraperProxyIntegration:
                 "company": "TechCorp",
                 "title": "AI Engineer",
                 "url": "https://techcorp.com/job1",
-            }
+            },
         ]
 
         mock_result = {
             "https://techcorp.com/job1": {
                 "description": "AI role",
                 "location": "Remote",
-            }
+            },
         }
 
         with patch("src.scraper_company_pages.SmartScraperMultiGraph") as mock_graph:
@@ -318,7 +330,8 @@ class TestCompanyPageScraperProxyIntegration:
             assert config["loader_kwargs"]["proxy"]["server"] == "http://proxy1:8080"
 
     def test_scrapegraphai_uses_different_proxies_for_different_requests(
-        self, test_settings
+        self,
+        test_settings,
     ):
         """Test ScrapeGraphAI can use different proxies for different extractions."""
         # Arrange
@@ -326,13 +339,16 @@ class TestCompanyPageScraperProxyIntegration:
         test_settings.proxy_pool = ["http://proxy1:8080", "http://proxy2:8080"]
 
         company = CompanySQL(
-            id=1, name="TechCorp", url="https://techcorp.com/careers", active=True
+            id=1,
+            name="TechCorp",
+            url="https://techcorp.com/careers",
+            active=True,
         )
 
         mock_list_result = {
             "https://techcorp.com/careers": {
-                "jobs": [{"title": "AI Engineer", "url": "https://techcorp.com/job1"}]
-            }
+                "jobs": [{"title": "AI Engineer", "url": "https://techcorp.com/job1"}],
+            },
         }
 
         with patch("src.scraper_company_pages.SmartScraperMultiGraph") as mock_graph:
@@ -359,7 +375,7 @@ class TestCompanyPageScraperProxyIntegration:
             # Reset mock for details extraction
             mock_graph.reset_mock()
             mock_instance.run.return_value = {
-                "https://techcorp.com/job1": {"description": "AI role"}
+                "https://techcorp.com/job1": {"description": "AI role"},
             }
 
             # Extract details (second proxy)
@@ -434,7 +450,7 @@ class TestProxyErrorHandlingAndRecovery:
                 "company": ["TechCorp"],
                 "location": ["Remote"],
                 "description": ["AI Engineer role"],
-            }
+            },
         )
 
         with patch("src.scraper_job_boards.scrape_jobs") as mock_scrape_jobs:
@@ -515,7 +531,7 @@ class TestProxyErrorHandlingAndRecovery:
                 "company": ["TechCorp"],
                 "location": ["Remote"],
                 "description": ["AI Engineer role"],
-            }
+            },
         )
 
         with patch("src.scraper_job_boards.scrape_jobs") as mock_scrape_jobs:
@@ -550,7 +566,7 @@ class TestProxyConfigurationEdgeCases:
                 "company": ["TechCorp"],
                 "location": ["Remote"],
                 "description": ["AI Engineer role"],
-            }
+            },
         )
 
         with patch("src.scraper_job_boards.scrape_jobs") as mock_scrape_jobs:
@@ -565,7 +581,7 @@ class TestProxyConfigurationEdgeCases:
                 # Assert
                 call_kwargs = mock_scrape_jobs.call_args.kwargs
                 assert call_kwargs["proxies"] == [
-                    "http://user:pass@proxy.example.com:8080"
+                    "http://user:pass@proxy.example.com:8080",
                 ]
 
     def test_mixed_proxy_protocols_in_pool(self, test_settings):
@@ -585,7 +601,7 @@ class TestProxyConfigurationEdgeCases:
                 "company": ["TechCorp"],
                 "location": ["Remote"],
                 "description": ["AI Engineer role"],
-            }
+            },
         )
 
         with patch("src.scraper_job_boards.scrape_jobs") as mock_scrape_jobs:
@@ -617,7 +633,7 @@ class TestProxyConfigurationEdgeCases:
                 "company": ["TechCorp"],
                 "location": ["Remote"],
                 "description": ["AI Engineer role"],
-            }
+            },
         )
 
         with patch("src.scraper_job_boards.scrape_jobs") as mock_scrape_jobs:
@@ -642,14 +658,17 @@ class TestProxyConfigurationEdgeCases:
         test_settings.proxy_pool = ["http://monitored-proxy:8080"]
 
         company = CompanySQL(
-            id=1, name="TechCorp", url="https://techcorp.com/careers", active=True
+            id=1,
+            name="TechCorp",
+            url="https://techcorp.com/careers",
+            active=True,
         )
 
         with patch("src.scraper_company_pages.SmartScraperMultiGraph") as mock_graph:
             mock_instance = MagicMock()
             mock_graph.return_value = mock_instance
             mock_instance.run.return_value = {
-                "https://techcorp.com/careers": {"jobs": []}
+                "https://techcorp.com/careers": {"jobs": []},
             }
 
             with (

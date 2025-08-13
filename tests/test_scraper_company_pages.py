@@ -37,10 +37,16 @@ class TestLoadActiveCompanies:
         # Mock database results
         mock_companies = [
             CompanySQL(
-                id=1, name="Active Corp 1", url="https://corp1.com/careers", active=True
+                id=1,
+                name="Active Corp 1",
+                url="https://corp1.com/careers",
+                active=True,
             ),
             CompanySQL(
-                id=2, name="Active Corp 2", url="https://corp2.com/careers", active=True
+                id=2,
+                name="Active Corp 2",
+                url="https://corp2.com/careers",
+                active=True,
             ),
         ]
         mock_session.exec.return_value.all.return_value = mock_companies
@@ -70,7 +76,9 @@ class TestLoadActiveCompanies:
     @patch("src.scraper_company_pages.SessionLocal")
     @patch("src.scraper_company_pages.logger")
     def test_load_active_companies_database_error(
-        self, mock_logger: Mock, mock_session_local: Mock
+        self,
+        mock_logger: Mock,
+        mock_session_local: Mock,
     ) -> None:
         """Test handling database errors during company loading."""
         mock_session = MagicMock()
@@ -89,7 +97,9 @@ class TestProxyConfiguration:
     @patch("src.scraper_company_pages.settings")
     @patch("src.scraper_company_pages.get_proxy")
     def test_add_proxy_config_enabled(
-        self, mock_get_proxy: Mock, mock_settings: Mock
+        self,
+        mock_get_proxy: Mock,
+        mock_settings: Mock,
     ) -> None:
         """Test adding proxy configuration when proxies are enabled."""
         mock_settings.use_proxies = True
@@ -130,7 +140,9 @@ class TestProxyConfiguration:
     @patch("src.scraper_company_pages.settings")
     @patch("src.scraper_company_pages.get_proxy")
     def test_add_proxy_config_no_available_proxy(
-        self, mock_get_proxy: Mock, mock_settings: Mock
+        self,
+        mock_get_proxy: Mock,
+        mock_settings: Mock,
     ) -> None:
         """Test handling when no proxy is available."""
         mock_settings.use_proxies = True
@@ -168,10 +180,16 @@ class TestExtractJobLists:
         state: State = {
             "companies": [
                 CompanySQL(
-                    id=1, name="Test Corp", url="https://test.com/careers", active=True
+                    id=1,
+                    name="Test Corp",
+                    url="https://test.com/careers",
+                    active=True,
                 ),
                 CompanySQL(
-                    id=2, name="Demo Inc", url="https://demo.com/jobs", active=True
+                    id=2,
+                    name="Demo Inc",
+                    url="https://demo.com/jobs",
+                    active=True,
                 ),
             ],
             "max_jobs_per_company": 10,
@@ -188,12 +206,12 @@ class TestExtractJobLists:
                 "jobs": [
                     {"title": "AI Engineer", "url": "/careers/ai-engineer"},
                     {"title": "ML Engineer", "url": "/careers/ml-engineer"},
-                ]
+                ],
             },
             "https://demo.com/jobs": {
                 "jobs": [
                     {"title": "Data Scientist", "url": "/jobs/data-scientist"},
-                ]
+                ],
             },
         }
 
@@ -251,7 +269,10 @@ class TestExtractJobLists:
         state: State = {
             "companies": [
                 CompanySQL(
-                    id=1, name="Test Corp", url="https://test.com/careers", active=True
+                    id=1,
+                    name="Test Corp",
+                    url="https://test.com/careers",
+                    active=True,
                 ),
             ],
             "max_jobs_per_company": 10,
@@ -264,14 +285,15 @@ class TestExtractJobLists:
         mock_scraper_instance = Mock()
         mock_scraper_class.return_value = mock_scraper_instance
         mock_scraper_instance.run.return_value = {
-            "https://test.com/careers": "invalid response format"  # Not dict
+            "https://test.com/careers": "invalid response format",  # Not dict
         }
 
         result = extract_job_lists(state)
 
         assert result == {"partial_jobs": []}
         mock_logger.warning.assert_called_with(
-            "Failed to extract jobs from %s", "https://test.com/careers"
+            "Failed to extract jobs from %s",
+            "https://test.com/careers",
         )
 
     @patch("src.scraper_company_pages.SmartScraperMultiGraph")
@@ -292,7 +314,10 @@ class TestExtractJobLists:
         state: State = {
             "companies": [
                 CompanySQL(
-                    id=1, name="Test Corp", url="https://test.com/careers", active=True
+                    id=1,
+                    name="Test Corp",
+                    url="https://test.com/careers",
+                    active=True,
                 ),
             ],
             "max_jobs_per_company": 2,  # Limit to 2 jobs
@@ -311,8 +336,8 @@ class TestExtractJobLists:
                     {"title": "Job 2", "url": "/job2"},
                     {"title": "Job 3", "url": "/job3"},  # Should be filtered out
                     {"title": "Job 4", "url": "/job4"},  # Should be filtered out
-                ]
-            }
+                ],
+            },
         }
 
         result = extract_job_lists(state)
@@ -340,7 +365,10 @@ class TestExtractJobLists:
         state: State = {
             "companies": [
                 CompanySQL(
-                    id=1, name="Test Corp", url="https://test.com/careers/", active=True
+                    id=1,
+                    name="Test Corp",
+                    url="https://test.com/careers/",
+                    active=True,
                 ),
             ],
             "max_jobs_per_company": 10,
@@ -360,8 +388,8 @@ class TestExtractJobLists:
                         "title": "Job 3",
                         "url": "https://test.com/jobs/3",
                     },  # Absolute URL
-                ]
-            }
+                ],
+            },
         }
 
         result = extract_job_lists(state)
@@ -486,7 +514,7 @@ class TestExtractDetails:
                     "company": "Test Corp",
                     "title": "AI Engineer",
                     "url": "https://test.com/jobs/ai-engineer",
-                }
+                },
             ],
             "raw_full_jobs": [],
             "normalized_jobs": [],
@@ -496,14 +524,15 @@ class TestExtractDetails:
         mock_scraper_instance = Mock()
         mock_scraper_class.return_value = mock_scraper_instance
         mock_scraper_instance.run.return_value = {
-            "https://test.com/jobs/ai-engineer": "invalid response"  # Not a dict
+            "https://test.com/jobs/ai-engineer": "invalid response",  # Not a dict
         }
 
         result = extract_details(state)
 
         assert result == {"raw_full_jobs": []}
         mock_logger.warning.assert_called_with(
-            "Failed to extract details from %s", "https://test.com/jobs/ai-engineer"
+            "Failed to extract details from %s",
+            "https://test.com/jobs/ai-engineer",
         )
 
 
@@ -518,7 +547,10 @@ class TestNormalizeJobs:
         mock_session_local.return_value = mock_session
 
         mock_company = CompanySQL(
-            id=1, name="Test Corp", url="https://test.com", active=True
+            id=1,
+            name="Test Corp",
+            url="https://test.com",
+            active=True,
         )
         mock_session.exec.return_value.first.return_value = mock_company
 
@@ -535,7 +567,7 @@ class TestNormalizeJobs:
                     "posted_date": "2024-01-15",
                     "salary": "$120k-180k",
                     "link": "https://test.com/apply/ai-engineer",
-                }
+                },
             ],
             "normalized_jobs": [],
         }
@@ -559,14 +591,18 @@ class TestNormalizeJobs:
 
     @patch("src.scraper_company_pages.SessionLocal")
     def test_normalize_jobs_date_parsing_various_formats(
-        self, mock_session_local: Mock
+        self,
+        mock_session_local: Mock,
     ) -> None:
         """Test date parsing for various date formats."""
         mock_session = MagicMock()
         mock_session_local.return_value = mock_session
 
         mock_company = CompanySQL(
-            id=1, name="Test Corp", url="https://test.com", active=True
+            id=1,
+            name="Test Corp",
+            url="https://test.com",
+            active=True,
         )
         mock_session.exec.return_value.first.return_value = mock_company
 
@@ -590,7 +626,7 @@ class TestNormalizeJobs:
                         "description": "Description",
                         "url": "https://test.com/job1",
                         "posted_date": date_input,
-                    }
+                    },
                 ],
                 "normalized_jobs": [],
             }
@@ -633,7 +669,7 @@ class TestNormalizeJobs:
                     "title": "Engineer",
                     "description": "Description",
                     "url": "https://new.com/job1",
-                }
+                },
             ],
             "normalized_jobs": [],
         }
@@ -663,14 +699,19 @@ class TestNormalizeJobs:
     @patch("src.scraper_company_pages.SessionLocal")
     @patch("src.scraper_company_pages.logger")
     def test_normalize_jobs_content_hash_generation(
-        self, mock_logger: Mock, mock_session_local: Mock
+        self,
+        mock_logger: Mock,
+        mock_session_local: Mock,
     ) -> None:
         """Test content hash generation for duplicate detection."""
         mock_session = MagicMock()
         mock_session_local.return_value = mock_session
 
         mock_company = CompanySQL(
-            id=1, name="Test Corp", url="https://test.com", active=True
+            id=1,
+            name="Test Corp",
+            url="https://test.com",
+            active=True,
         )
         mock_session.exec.return_value.first.return_value = mock_company
 
@@ -683,7 +724,7 @@ class TestNormalizeJobs:
                     "title": "AI Engineer",
                     "description": "Job description",
                     "url": "https://test.com/job1",
-                }
+                },
             ],
             "normalized_jobs": [],
         }
@@ -703,7 +744,9 @@ class TestNormalizeJobs:
     @patch("src.scraper_company_pages.SessionLocal")
     @patch("src.scraper_company_pages.logger")
     def test_normalize_jobs_error_handling(
-        self, mock_logger: Mock, mock_session_local: Mock
+        self,
+        mock_logger: Mock,
+        mock_session_local: Mock,
     ) -> None:
         """Test error handling during job normalization."""
         mock_session = MagicMock()
@@ -721,7 +764,7 @@ class TestNormalizeJobs:
                     "title": "Job Title",
                     "description": "Description",
                     "url": "https://error.com/job1",
-                }
+                },
             ],
             "normalized_jobs": [],
         }
@@ -733,7 +776,8 @@ class TestNormalizeJobs:
 
         # Verify error was logged
         mock_logger.exception.assert_called_with(
-            "Failed to normalize job %s", "https://error.com/job1"
+            "Failed to normalize job %s",
+            "https://error.com/job1",
         )
 
 
@@ -779,16 +823,25 @@ class TestScrapeCompanyPages:
     @patch("src.scraper_company_pages.load_active_companies")
     @patch("src.scraper_company_pages.logger")
     def test_scrape_company_pages_success(
-        self, mock_logger: Mock, mock_load_companies: Mock, mock_state_graph: Mock
+        self,
+        mock_logger: Mock,
+        mock_load_companies: Mock,
+        mock_state_graph: Mock,
     ) -> None:
         """Test successful company page scraping workflow."""
         # Mock active companies
         mock_companies = [
             CompanySQL(
-                id=1, name="Corp 1", url="https://corp1.com/careers", active=True
+                id=1,
+                name="Corp 1",
+                url="https://corp1.com/careers",
+                active=True,
             ),
             CompanySQL(
-                id=2, name="Corp 2", url="https://corp2.com/careers", active=True
+                id=2,
+                name="Corp 2",
+                url="https://corp2.com/careers",
+                active=True,
             ),
         ]
         mock_load_companies.return_value = mock_companies
@@ -803,7 +856,7 @@ class TestScrapeCompanyPages:
             "normalized_jobs": [
                 Mock(spec=JobSQL),
                 Mock(spec=JobSQL),
-            ]
+            ],
         }
         mock_graph.invoke.return_value = mock_final_state
 
@@ -835,7 +888,9 @@ class TestScrapeCompanyPages:
     @patch("src.scraper_company_pages.load_active_companies")
     @patch("src.scraper_company_pages.logger")
     def test_scrape_company_pages_no_active_companies(
-        self, mock_logger: Mock, mock_load_companies: Mock
+        self,
+        mock_logger: Mock,
+        mock_load_companies: Mock,
     ) -> None:
         """Test handling when no active companies exist."""
         mock_load_companies.return_value = []
@@ -849,7 +904,10 @@ class TestScrapeCompanyPages:
     @patch("src.scraper_company_pages.load_active_companies")
     @patch("src.scraper_company_pages.logger")
     def test_scrape_company_pages_workflow_failure(
-        self, mock_logger: Mock, mock_load_companies: Mock, mock_state_graph: Mock
+        self,
+        mock_logger: Mock,
+        mock_load_companies: Mock,
+        mock_state_graph: Mock,
     ) -> None:
         """Test handling workflow execution failures."""
         # Mock active companies
@@ -911,7 +969,10 @@ class TestScrapeCompanyPages:
     @patch("src.scraper_company_pages.load_active_companies")
     @patch("src.scraper_company_pages.settings")
     def test_scrape_company_pages_without_checkpointing(
-        self, mock_settings: Mock, mock_load_companies: Mock, mock_state_graph: Mock
+        self,
+        mock_settings: Mock,
+        mock_load_companies: Mock,
+        mock_state_graph: Mock,
     ) -> None:
         """Test workflow execution without checkpointing."""
         # Disable checkpointing
@@ -937,7 +998,9 @@ class TestScrapeCompanyPages:
     @patch("src.scraper_company_pages.StateGraph")
     @patch("src.scraper_company_pages.load_active_companies")
     def test_scrape_company_pages_default_max_jobs(
-        self, mock_load_companies: Mock, mock_state_graph: Mock
+        self,
+        mock_load_companies: Mock,
+        mock_state_graph: Mock,
     ) -> None:
         """Test default max_jobs_per_company value."""
         mock_companies = [
@@ -980,7 +1043,10 @@ class TestStateManagement:
     def test_state_with_data(self) -> None:
         """Test State with actual data structures."""
         company = CompanySQL(
-            id=1, name="Test Corp", url="https://test.com", active=True
+            id=1,
+            name="Test Corp",
+            url="https://test.com",
+            active=True,
         )
         job = JobSQL(
             company_id=1,
@@ -1000,14 +1066,14 @@ class TestStateManagement:
                     "company": "Test Corp",
                     "title": "AI Engineer",
                     "url": "https://test.com/job1",
-                }
+                },
             ],
             "raw_full_jobs": [
                 {
                     "company": "Test Corp",
                     "title": "AI Engineer",
                     "description": "AI role",
-                }
+                },
             ],
             "normalized_jobs": [job],
         }

@@ -84,7 +84,7 @@ def mock_streamlit():
         # Configure container to return mock container
         mock_container_obj = MagicMock()
         mocks["container"].return_value.__enter__ = Mock(
-            return_value=mock_container_obj
+            return_value=mock_container_obj,
         )
         mocks["container"].return_value.__exit__ = Mock(return_value=None)
 
@@ -122,7 +122,7 @@ def mock_streamlit():
 
                 # Add an 'open' method that also calls the original function
                 wrapper.open = Mock(
-                    side_effect=lambda *args, **kwargs: func(*args, **kwargs)
+                    side_effect=lambda *args, **kwargs: func(*args, **kwargs),
                 )
 
                 # Copy function attributes
@@ -141,7 +141,7 @@ def mock_streamlit():
                 "tab1": mock_tab1,
                 "tab2": mock_tab2,
                 "tab3": mock_tab3,
-            }
+            },
         )
 
         yield mocks
@@ -412,7 +412,10 @@ def mock_company_service():
         ]:
             mock_service.get_all_companies.return_value = []
             mock_service.add_company.return_value = Company(
-                id=1, name="Test Company", url="https://test.com", active=True
+                id=1,
+                name="Test Company",
+                url="https://test.com",
+                active=True,
             )
             mock_service.toggle_company_active.return_value = True
             mock_service.get_active_companies_count.return_value = 0
@@ -541,7 +544,7 @@ def prevent_real_system_execution():
 
                 # Add an 'open' method that also calls the original function
                 wrapper.open = Mock(
-                    side_effect=lambda *args, **kwargs: func(*args, **kwargs)
+                    side_effect=lambda *args, **kwargs: func(*args, **kwargs),
                 )
 
                 # Copy function attributes

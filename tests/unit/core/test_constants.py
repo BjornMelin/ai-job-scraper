@@ -150,7 +150,8 @@ class TestSearchConfiguration:
         assert len(SEARCH_KEYWORDS) > 0
 
     @pytest.mark.parametrize(
-        "expected_keyword", ("ai", "machine learning", "data science")
+        "expected_keyword",
+        ("ai", "machine learning", "data science"),
     )
     def test_search_keywords_contain_expected_terms(self, expected_keyword):
         """Test that search keywords contain expected AI/ML terms."""

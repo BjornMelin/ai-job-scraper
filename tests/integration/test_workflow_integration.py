@@ -82,10 +82,12 @@ class TestWorkflowIntegration:
                 "scraping_active": False,
                 "company_progress": {
                     "TechCorp": CompanyProgress(
-                        name="TechCorp", status="Completed", jobs_found=15
-                    )
+                        name="TechCorp",
+                        status="Completed",
+                        jobs_found=15,
+                    ),
                 },
-            }
+            },
         )
 
         # Assert: Session state integration works
@@ -123,7 +125,7 @@ class TestWorkflowIntegration:
                 "scraping_active": False,
                 "scraping_status": "❌ Scraping failed: Database connection failed",
                 "company_progress": {},
-            }
+            },
         )
 
         # Assert: Error handling integration
@@ -173,7 +175,8 @@ class TestWorkflowIntegration:
             progress_keys = ["task_progress", "company_progress", "scraping_results"]
             for key in progress_keys:
                 if key in mock_session_state._data and hasattr(
-                    mock_session_state._data[key], "clear"
+                    mock_session_state._data[key],
+                    "clear",
                 ):
                     mock_session_state._data[key].clear()
 
@@ -203,13 +206,17 @@ class TestWorkflowIntegration:
                 "scraping_results": scraping_results,
                 "company_progress": {
                     "TechCorp": CompanyProgress(
-                        name="TechCorp", status="Completed", jobs_found=12
+                        name="TechCorp",
+                        status="Completed",
+                        jobs_found=12,
                     ),
                     "DataInc": CompanyProgress(
-                        name="DataInc", status="Completed", jobs_found=8
+                        name="DataInc",
+                        status="Completed",
+                        jobs_found=8,
                     ),
                 },
-            }
+            },
         )
 
         # Assert: Component integration
@@ -266,7 +273,7 @@ class TestWorkflowIntegration:
                         "progress": 1.0,
                         "message": "Scraping completed",
                         "timestamp": "2024-01-01T00:00:00Z",
-                    }
+                    },
                 },
                 "company_progress": {
                     company: CompanyProgress(
@@ -276,7 +283,7 @@ class TestWorkflowIntegration:
                     )
                     for company in companies
                 },
-            }
+            },
         )
 
         # Assert: Data flows correctly through all layers
@@ -315,13 +322,17 @@ class TestWorkflowIntegration:
                 "scraping_results": {"TechCorp": 10, "DataInc": 15},
                 "company_progress": {
                     "TechCorp": CompanyProgress(
-                        name="TechCorp", status="Completed", jobs_found=10
+                        name="TechCorp",
+                        status="Completed",
+                        jobs_found=10,
                     ),
                     "DataInc": CompanyProgress(
-                        name="DataInc", status="Completed", jobs_found=15
+                        name="DataInc",
+                        status="Completed",
+                        jobs_found=15,
                     ),
                 },
-            }
+            },
         )
 
         # Act: Import and test UI integration functions
@@ -377,7 +388,7 @@ class TestWorkflowIntegration:
 
         # Simulate completion
         mock_session_state.update(
-            {"scraping_active": False, "scraping_results": scraping_results}
+            {"scraping_active": False, "scraping_results": scraping_results},
         )
 
         # Assert: Proxy integration works

@@ -100,7 +100,9 @@ class TestSelectViewMode:
 
     @pytest.mark.parametrize("grid_columns", (2, 3, 4))
     def test_select_view_mode_with_different_grid_columns(
-        self, mock_streamlit, grid_columns
+        self,
+        mock_streamlit,
+        grid_columns,
     ):
         """Test select_view_mode with different grid column options."""
         # Mock columns
@@ -252,7 +254,8 @@ class TestApplyViewMode:
             mock_list.assert_called_once_with([])
 
     @pytest.mark.parametrize(
-        "view_mode", ("LIST", "list", "List", "CARD", "card", "Card")
+        "view_mode",
+        ("LIST", "list", "List", "CARD", "card", "Card"),
     )
     def test_apply_view_mode_case_sensitivity(self, sample_jobs_dto, view_mode):
         """Test apply_view_mode handles different case variations."""
@@ -260,7 +263,7 @@ class TestApplyViewMode:
 
         if view_mode.lower() == "card":
             with patch(
-                "src.ui.components.cards.job_card.render_jobs_grid"
+                "src.ui.components.cards.job_card.render_jobs_grid",
             ) as mock_grid:
                 apply_view_mode(jobs, view_mode, grid_columns=2)
                 if view_mode == "Card":  # Only exact match should trigger grid
@@ -269,7 +272,7 @@ class TestApplyViewMode:
                     mock_grid.assert_not_called()
         else:
             with patch(
-                "src.ui.components.cards.job_card.render_jobs_list"
+                "src.ui.components.cards.job_card.render_jobs_list",
             ) as mock_list:
                 apply_view_mode(jobs, view_mode)
                 # All non-"Card" modes should use list
@@ -315,7 +318,7 @@ class TestApplyViewMode:
 
         for columns in [1, 2, 3, 4, 5, 10]:
             with patch(
-                "src.ui.components.cards.job_card.render_jobs_grid"
+                "src.ui.components.cards.job_card.render_jobs_grid",
             ) as mock_grid:
                 apply_view_mode(jobs, "Card", grid_columns=columns)
                 mock_grid.assert_called_once_with(jobs, num_columns=columns)
@@ -475,15 +478,16 @@ class TestViewModeIntegration:
             # Apply the view mode
             if expected_mode == "Card":
                 with patch(
-                    "src.ui.components.cards.job_card.render_jobs_grid"
+                    "src.ui.components.cards.job_card.render_jobs_grid",
                 ) as mock_grid:
                     apply_view_mode(jobs, view_mode, grid_columns)
                     mock_grid.assert_called_once_with(
-                        jobs, num_columns=expected_columns
+                        jobs,
+                        num_columns=expected_columns,
                     )
             else:
                 with patch(
-                    "src.ui.components.cards.job_card.render_jobs_list"
+                    "src.ui.components.cards.job_card.render_jobs_list",
                 ) as mock_list:
                     apply_view_mode(jobs, view_mode)
                     mock_list.assert_called_once_with(jobs)

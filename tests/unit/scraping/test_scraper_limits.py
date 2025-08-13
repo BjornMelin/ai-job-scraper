@@ -54,13 +54,13 @@ class TestScrapeLimits:
                 "jobs": [
                     {"title": f"Job {i}", "url": f"https://techcorp.com/job/{i}"}
                     for i in range(20)  # More than our limit of 15
-                ]
+                ],
             },
             "https://aistartup.com/jobs": {
                 "jobs": [
                     {"title": f"AI Job {i}", "url": f"https://aistartup.com/job/{i}"}
                     for i in range(25)  # More than our limit of 15
-                ]
+                ],
             },
         }
 
@@ -97,7 +97,7 @@ class TestScrapeLimits:
         mock_load_companies.return_value = self.mock_companies
 
         with mock.patch(
-            "src.scraper_company_pages.SmartScraperMultiGraph"
+            "src.scraper_company_pages.SmartScraperMultiGraph",
         ) as mock_graph:
             mock_graph_instance = mock.Mock()
             mock_graph.return_value = mock_graph_instance
@@ -115,7 +115,7 @@ class TestScrapeLimits:
         mock_load_companies.return_value = self.mock_companies
 
         with mock.patch(
-            "src.scraper_company_pages.SmartScraperMultiGraph"
+            "src.scraper_company_pages.SmartScraperMultiGraph",
         ) as mock_graph:
             mock_graph_instance = mock.Mock()
             mock_graph.return_value = mock_graph_instance
@@ -133,7 +133,7 @@ class TestScrapeLimits:
         mock_load_companies.return_value = self.mock_companies
 
         with mock.patch(
-            "src.scraper_company_pages.SmartScraperMultiGraph"
+            "src.scraper_company_pages.SmartScraperMultiGraph",
         ) as mock_graph:
             mock_graph_instance = mock.Mock()
             mock_graph.return_value = mock_graph_instance
@@ -163,7 +163,7 @@ class TestScrapeLimits:
         }
 
         with mock.patch(
-            "src.scraper_company_pages.SmartScraperMultiGraph"
+            "src.scraper_company_pages.SmartScraperMultiGraph",
         ) as mock_graph:
             mock_graph_instance = mock.Mock()
             mock_graph.return_value = mock_graph_instance
@@ -174,8 +174,8 @@ class TestScrapeLimits:
                     "jobs": [
                         {"title": f"Job {i}", "url": f"https://techcorp.com/job/{i}"}
                         for i in range(10)  # More than limit of 5
-                    ]
-                }
+                    ],
+                },
             }
 
             with mock.patch("src.scraper_company_pages.random_delay"):
@@ -195,7 +195,7 @@ class TestScrapeLimits:
         }
 
         with mock.patch(
-            "src.scraper_company_pages.SmartScraperMultiGraph"
+            "src.scraper_company_pages.SmartScraperMultiGraph",
         ) as mock_graph:
             mock_graph_instance = mock.Mock()
             mock_graph.return_value = mock_graph_instance
@@ -216,7 +216,10 @@ class TestScrapeAllLimits:
     @mock.patch("src.scraper.scrape_job_boards")
     @mock.patch("src.scraper.SmartSyncEngine")
     def test_scrape_all_passes_limit_to_company_scraper(
-        self, mock_sync_engine, mock_job_boards, mock_company_pages
+        self,
+        mock_sync_engine,
+        mock_job_boards,
+        mock_company_pages,
     ):
         """Test scrape_all passes max_jobs_per_company to company scraper."""
         # Mock return values
@@ -233,7 +236,7 @@ class TestScrapeAllLimits:
                 content_hash="hash1",
                 application_status="New",
                 last_seen=datetime.now(UTC),
-            )
+            ),
         ]
         mock_job_boards.return_value = []
 
@@ -260,7 +263,10 @@ class TestScrapeAllLimits:
     @mock.patch("src.scraper.scrape_job_boards")
     @mock.patch("src.scraper.SmartSyncEngine")
     def test_scrape_all_default_limit(
-        self, mock_sync_engine, mock_job_boards, mock_company_pages
+        self,
+        mock_sync_engine,
+        mock_job_boards,
+        mock_company_pages,
     ):
         """Test scrape_all uses default limit when None provided."""
         mock_company_pages.return_value = []
@@ -287,7 +293,10 @@ class TestScrapeAllLimits:
     @mock.patch("src.scraper.scrape_job_boards")
     @mock.patch("src.scraper.SmartSyncEngine")
     def test_scrape_all_extreme_limits(
-        self, mock_sync_engine, mock_job_boards, mock_company_pages
+        self,
+        mock_sync_engine,
+        mock_job_boards,
+        mock_company_pages,
     ):
         """Test scrape_all handles extreme limit values."""
         mock_company_pages.return_value = []
@@ -317,7 +326,9 @@ class TestScrapeAllLimits:
     @mock.patch("src.scraper.scrape_company_pages")
     @mock.patch("src.scraper.scrape_job_boards")
     def test_scrape_all_safety_guard_both_empty(
-        self, mock_job_boards, mock_company_pages
+        self,
+        mock_job_boards,
+        mock_company_pages,
     ):
         """Test scrape_all safety guard when both scrapers return empty."""
         # Both scrapers return empty results
@@ -339,7 +350,9 @@ class TestScrapeAllLimits:
     @mock.patch("src.scraper.scrape_company_pages")
     @mock.patch("src.scraper.scrape_job_boards")
     def test_scrape_all_safety_guard_low_count(
-        self, mock_job_boards, mock_company_pages
+        self,
+        mock_job_boards,
+        mock_company_pages,
     ):
         """Test scrape_all safety guard for suspiciously low job counts."""
         # Return very few jobs
@@ -356,7 +369,7 @@ class TestScrapeAllLimits:
                 content_hash="hash1",
                 application_status="New",
                 last_seen=datetime.now(UTC),
-            )
+            ),
         ]
         mock_job_boards.return_value = []
 
@@ -381,7 +394,10 @@ class TestScrapeAllLimits:
     @mock.patch("src.scraper.scrape_job_boards")
     @mock.patch("src.scraper.SmartSyncEngine")
     def test_scrape_all_company_scraper_exception(
-        self, mock_sync_engine, mock_job_boards, mock_company_pages
+        self,
+        mock_sync_engine,
+        mock_job_boards,
+        mock_company_pages,
     ):
         """Test scrape_all handles company scraper exceptions."""
         # Company scraper raises exception
@@ -396,7 +412,7 @@ class TestScrapeAllLimits:
                 "date_posted": datetime.now(UTC),
                 "min_amount": 100000,
                 "max_amount": 150000,
-            }
+            },
         ]
 
         mock_sync_instance = mock.Mock()
@@ -422,7 +438,10 @@ class TestScrapeAllLimits:
     @mock.patch("src.scraper.scrape_job_boards")
     @mock.patch("src.scraper.SmartSyncEngine")
     def test_scrape_all_job_board_scraper_exception(
-        self, mock_sync_engine, mock_job_boards, mock_company_pages
+        self,
+        mock_sync_engine,
+        mock_job_boards,
+        mock_company_pages,
     ):
         """Test scrape_all handles job board scraper exceptions."""
         mock_company_pages.return_value = [
@@ -438,7 +457,7 @@ class TestScrapeAllLimits:
                 content_hash="hash1",
                 application_status="New",
                 last_seen=datetime.now(UTC),
-            )
+            ),
         ]
         # Job board scraper raises exception
         mock_job_boards.side_effect = Exception("Board scraping failed")
@@ -508,7 +527,7 @@ class TestLimitLogging:
                 name="Test Company",
                 url="https://test.com/careers",
                 active=True,
-            )
+            ),
         ]
 
         mock_graph_instance = mock.Mock()
@@ -518,8 +537,8 @@ class TestLimitLogging:
                 "jobs": [
                     {"title": f"Job {i}", "url": f"https://test.com/job/{i}"}
                     for i in range(30)  # More than limit
-                ]
-            }
+                ],
+            },
         }
 
         with (

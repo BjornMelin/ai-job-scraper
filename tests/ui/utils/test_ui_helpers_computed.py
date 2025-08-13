@@ -132,7 +132,13 @@ class TestT1DateCalculations:
         """Test calculation handles timezone-naive datetimes."""
         # Naive datetime (common from scraping)
         naive_date = datetime(
-            2024, 1, 1, 12, 0, 0, tzinfo=UTC
+            2024,
+            1,
+            1,
+            12,
+            0,
+            0,
+            tzinfo=UTC,
         )  # Explicitly add timezone
 
         result = calculate_days_since_posted(naive_date)
@@ -252,7 +258,9 @@ class TestT1ProgressCalculations:
     def test_calculate_eta_basic(self):
         """Test ETA calculation with basic inputs."""
         eta = calculate_eta(
-            total_companies=10, completed_companies=5, time_elapsed=300
+            total_companies=10,
+            completed_companies=5,
+            time_elapsed=300,
         )  # 5 minutes
 
         # Should calculate remaining time for 5 companies at 1 minute per company
@@ -534,7 +542,8 @@ class TestT1StreamlitContext:
         assert isinstance(result, bool)
 
     @pytest.mark.skipif(
-        True, reason="Requires actual Streamlit runtime for integration testing"
+        True,
+        reason="Requires actual Streamlit runtime for integration testing",
     )
     def test_is_streamlit_context_real_environment(self):
         """Test Streamlit context detection in real Streamlit environment."""
@@ -671,7 +680,9 @@ class TestT1RealWorldScenarios:
         # Simulate scraping progress
         speed = calculate_scraping_speed(45, start_time, end_time)
         eta = calculate_eta(
-            total_companies=20, completed_companies=12, time_elapsed=900
+            total_companies=20,
+            completed_companies=12,
+            time_elapsed=900,
         )  # 15 minutes
         progress = calculate_progress_percentage(12, 20)
 

@@ -21,7 +21,9 @@ class TestRenderCompanyInfo:
     """Test company information rendering."""
 
     def test_render_company_info_displays_name_and_url(
-        self, mock_streamlit, sample_company_dto
+        self,
+        mock_streamlit,
+        sample_company_dto,
     ):
         """Test that company name and URL are displayed correctly."""
         # Act
@@ -39,7 +41,8 @@ class TestRenderCompanyInfo:
         assert expected_link in markdown_texts
 
     def test_render_company_info_handles_special_characters_in_name(
-        self, mock_streamlit
+        self,
+        mock_streamlit,
     ):
         """Test rendering company with special characters in name."""
         # Arrange
@@ -169,7 +172,10 @@ class TestRenderCompanyStatistics:
         ),
     )
     def test_render_company_statistics_success_rate_formatting(
-        self, mock_streamlit, success_rate, expected_percentage
+        self,
+        mock_streamlit,
+        success_rate,
+        expected_percentage,
     ):
         """Test success rate is formatted correctly as percentage."""
         # Arrange
@@ -199,7 +205,9 @@ class TestRenderCompanyToggle:
     """Test company active toggle rendering."""
 
     def test_render_company_toggle_active_company(
-        self, mock_streamlit, sample_company_dto
+        self,
+        mock_streamlit,
+        sample_company_dto,
     ):
         """Test rendering toggle for active company."""
         # Arrange
@@ -242,7 +250,9 @@ class TestRenderCompanyToggle:
         assert "Inactive Company" in call_args.kwargs["help"]
 
     def test_render_company_toggle_callback_configuration(
-        self, mock_streamlit, sample_company_dto
+        self,
+        mock_streamlit,
+        sample_company_dto,
     ):
         """Test that toggle callback is configured correctly."""
         # Arrange
@@ -259,7 +269,9 @@ class TestRenderCompanyToggle:
         assert call_args.kwargs["args"] == (sample_company_dto.id,)
 
     def test_render_company_toggle_help_text_includes_company_name(
-        self, mock_streamlit, sample_company_dto
+        self,
+        mock_streamlit,
+        sample_company_dto,
     ):
         """Test that help text includes the company name."""
         # Arrange
@@ -279,7 +291,9 @@ class TestRenderCompanyCard:
     """Test complete company card rendering."""
 
     def test_render_company_card_creates_container_and_columns(
-        self, mock_streamlit, sample_company_dto
+        self,
+        mock_streamlit,
+        sample_company_dto,
     ):
         """Test company card creates bordered container with proper column layout."""
         # Arrange
@@ -296,7 +310,9 @@ class TestRenderCompanyCard:
         mock_streamlit["columns"].assert_called_with([3, 2, 1])
 
     def test_render_company_card_renders_all_components(
-        self, mock_streamlit, sample_company_dto
+        self,
+        mock_streamlit,
+        sample_company_dto,
     ):
         """Test that company card renders all components (info, stats, toggle)."""
         # Arrange
@@ -305,10 +321,10 @@ class TestRenderCompanyCard:
         with (
             patch("src.ui.helpers.company_display.render_company_info") as mock_info,
             patch(
-                "src.ui.helpers.company_display.render_company_statistics"
+                "src.ui.helpers.company_display.render_company_statistics",
             ) as mock_stats,
             patch(
-                "src.ui.helpers.company_display.render_company_toggle"
+                "src.ui.helpers.company_display.render_company_toggle",
             ) as mock_toggle,
         ):
             # Act
@@ -341,10 +357,10 @@ class TestRenderCompanyCard:
         with (
             patch("src.ui.helpers.company_display.render_company_info") as mock_info,
             patch(
-                "src.ui.helpers.company_display.render_company_statistics"
+                "src.ui.helpers.company_display.render_company_statistics",
             ) as mock_stats,
             patch(
-                "src.ui.helpers.company_display.render_company_toggle"
+                "src.ui.helpers.company_display.render_company_toggle",
             ) as mock_toggle,
         ):
             # Act - Render cards for all companies
@@ -363,14 +379,16 @@ class TestRenderCompanyCard:
                 assert mock_toggle.call_args_list[i][0][0] == company
 
     def test_render_company_card_container_context_manager(
-        self, mock_streamlit, sample_company_dto
+        self,
+        mock_streamlit,
+        sample_company_dto,
     ):
         """Test that company card properly uses container context manager."""
         # Arrange
         mock_callback = Mock()
         mock_container = Mock()
         mock_streamlit["container"].return_value.__enter__ = Mock(
-            return_value=mock_container
+            return_value=mock_container,
         )
         mock_streamlit["container"].return_value.__exit__ = Mock(return_value=None)
 
@@ -405,7 +423,9 @@ class TestCompanyDisplayIntegration:
     """Test integration scenarios for company display components."""
 
     def test_complete_company_display_workflow(
-        self, mock_streamlit, sample_companies_dto
+        self,
+        mock_streamlit,
+        sample_companies_dto,
     ):
         """Test complete workflow of displaying multiple companies."""
         # Arrange
@@ -469,10 +489,10 @@ class TestCompanyDisplayIntegration:
         with (
             patch("src.ui.helpers.company_display.render_company_info") as mock_info,
             patch(
-                "src.ui.helpers.company_display.render_company_statistics"
+                "src.ui.helpers.company_display.render_company_statistics",
             ) as mock_stats,
             patch(
-                "src.ui.helpers.company_display.render_company_toggle"
+                "src.ui.helpers.company_display.render_company_toggle",
             ) as mock_toggle,
         ):
             # Act
@@ -499,10 +519,10 @@ class TestCompanyDisplayIntegration:
         with (
             patch("src.ui.helpers.company_display.render_company_info") as mock_info,
             patch(
-                "src.ui.helpers.company_display.render_company_statistics"
+                "src.ui.helpers.company_display.render_company_statistics",
             ) as mock_stats,
             patch(
-                "src.ui.helpers.company_display.render_company_toggle"
+                "src.ui.helpers.company_display.render_company_toggle",
             ) as mock_toggle,
         ):
             # Configure one component to raise an exception
@@ -516,14 +536,16 @@ class TestCompanyDisplayIntegration:
             mock_toggle.assert_called_once()
 
     def test_company_display_callback_preservation(
-        self, mock_streamlit, sample_companies_dto
+        self,
+        mock_streamlit,
+        sample_companies_dto,
     ):
         """Test that callbacks are properly preserved across multiple renders."""
         # Arrange
         mock_callback = Mock()
 
         with patch(
-            "src.ui.helpers.company_display.render_company_toggle"
+            "src.ui.helpers.company_display.render_company_toggle",
         ) as mock_toggle:
             # Act - Render multiple companies
             for company in sample_companies_dto:

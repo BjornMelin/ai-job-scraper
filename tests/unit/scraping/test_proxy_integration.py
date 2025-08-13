@@ -23,7 +23,7 @@ def test_jobspy_proxy():
                 "company": ["Test"],
                 "location": ["Remote"],
                 "description": ["Test"],
-            }
+            },
         )
         mock_scrape_jobs.return_value = mock_df
 
@@ -53,7 +53,7 @@ def test_jobspy_proxy():
 
 
 @pytest.mark.skip(
-    reason="extract_job_lists signature changed - needs update for new architecture"
+    reason="extract_job_lists signature changed - needs update for new architecture",
 )
 def test_scrapegraphai_proxy():
     """Test that ScrapeGraphAI receives proxy configuration correctly."""
@@ -72,7 +72,7 @@ def test_proxy_disabled():
                 "company": ["test"],
                 "location": ["test"],
                 "description": ["test"],
-            }
+            },
         )
         mock_scrape_jobs.return_value = mock_df
 

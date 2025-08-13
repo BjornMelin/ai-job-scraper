@@ -38,7 +38,9 @@ class TestT1ThrottledRerunFunctionality:
     """Test T1.3: Auto-refresh Fragment Elimination - Throttled Rerun."""
 
     def test_throttled_rerun_respects_interval(
-        self, mock_session_state, mock_streamlit
+        self,
+        mock_session_state,
+        mock_streamlit,
     ):
         """Test throttled rerun respects the specified interval."""
         # First call should trigger rerun
@@ -56,7 +58,9 @@ class TestT1ThrottledRerunFunctionality:
         mock_streamlit["rerun"].assert_not_called()
 
     def test_throttled_rerun_allows_after_interval(
-        self, mock_session_state, mock_streamlit
+        self,
+        mock_session_state,
+        mock_streamlit,
     ):
         """Test throttled rerun allows execution after interval passes."""
         # First call
@@ -74,7 +78,9 @@ class TestT1ThrottledRerunFunctionality:
         mock_streamlit["rerun"].assert_called_once()
 
     def test_throttled_rerun_respects_should_rerun_flag(
-        self, mock_session_state, mock_streamlit
+        self,
+        mock_session_state,
+        mock_streamlit,
     ):
         """Test throttled rerun respects the should_rerun flag."""
         # should_rerun=False should never trigger rerun
@@ -84,7 +90,9 @@ class TestT1ThrottledRerunFunctionality:
         assert "test_key" not in mock_session_state
 
     def test_throttled_rerun_uses_default_interval(
-        self, mock_session_state, mock_streamlit
+        self,
+        mock_session_state,
+        mock_streamlit,
     ):
         """Test throttled rerun uses default interval when not specified."""
         throttled_rerun("test_key", should_rerun=True)
@@ -96,7 +104,9 @@ class TestT1ThrottledRerunFunctionality:
         assert timestamp is not None
 
     def test_throttled_rerun_handles_zero_interval(
-        self, mock_session_state, mock_streamlit
+        self,
+        mock_session_state,
+        mock_streamlit,
     ):
         """Test throttled rerun handles zero interval appropriately."""
         # Zero interval should always allow rerun
@@ -110,7 +120,9 @@ class TestT1ThrottledRerunFunctionality:
         mock_streamlit["rerun"].assert_called_once()
 
     def test_throttled_rerun_handles_negative_interval(
-        self, mock_session_state, mock_streamlit
+        self,
+        mock_session_state,
+        mock_streamlit,
     ):
         """Test throttled rerun treats negative intervals as zero."""
         throttled_rerun("test_key", -1.0, should_rerun=True)
@@ -123,7 +135,9 @@ class TestT1ThrottledRerunFunctionality:
         mock_streamlit["rerun"].assert_called_once()
 
     def test_throttled_rerun_different_keys_independent(
-        self, mock_session_state, mock_streamlit
+        self,
+        mock_session_state,
+        mock_streamlit,
     ):
         """Test different session keys are throttled independently."""
         # First key
@@ -226,7 +240,7 @@ class TestSessionStateTaskManagement:
     def test_remove_task_handles_missing_task(self, mock_session_state):
         """Test remove_task handles missing task gracefully."""
         mock_session_state.tasks = {
-            "existing": TaskInfo("existing", "done", 1.0, "msg", datetime.now(UTC))
+            "existing": TaskInfo("existing", "done", 1.0, "msg", datetime.now(UTC)),
         }
 
         # Should not raise error
@@ -442,7 +456,7 @@ class TestExecuteTestScraping:
 
         # Set up initial progress
         mock_session_state["task_progress"] = {
-            task_id: ProgressInfo(0.0, "Starting", datetime.now(UTC))
+            task_id: ProgressInfo(0.0, "Starting", datetime.now(UTC)),
         }
 
         _execute_test_scraping(task_id)

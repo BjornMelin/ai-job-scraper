@@ -58,7 +58,7 @@ class TestWarmStartupCache:
             mock_company_service.get_active_companies_count.assert_called_once()
             mock_job_service.get_job_counts_by_status.assert_called_once()
             mock_job_service.prefetch_common_queries.assert_called_once_with(
-                background=True
+                background=True,
             )
 
     def test_warm_startup_cache_custom_config(self):
@@ -109,10 +109,10 @@ class TestWarmStartupCache:
             # Arrange
             mock_st.session_state.cache_warmed = False
             mock_company_service.get_active_companies_count.side_effect = Exception(
-                "Service error"
+                "Service error",
             )
             mock_job_service.get_job_counts_by_status.side_effect = Exception(
-                "Service error"
+                "Service error",
             )
             mock_job_service.prefetch_common_queries.return_value = {
                 "queries_prefetched": 0,
@@ -186,7 +186,7 @@ class TestWarmStartupCache:
             # Arrange
             mock_st.session_state.cache_warmed = False
             mock_company_service.get_active_companies_count.side_effect = Exception(
-                "Total failure"
+                "Total failure",
             )
 
             with patch("src.utils.startup_helpers._warm_cache_sync") as mock_warm_sync:
@@ -312,10 +312,10 @@ class TestStartBackgroundPrefetching:
         ):
             # Arrange
             mock_job_service.prefetch_common_queries.side_effect = Exception(
-                "Service error"
+                "Service error",
             )
             mock_company_service.get_active_companies_count.side_effect = Exception(
-                "Service error"
+                "Service error",
             )
 
             # The loop should continue despite errors
@@ -342,7 +342,7 @@ class TestInitializePerformanceOptimizations:
         with (
             patch("src.utils.startup_helpers.warm_startup_cache") as mock_warm_cache,
             patch(
-                "src.utils.startup_helpers.start_background_prefetching"
+                "src.utils.startup_helpers.start_background_prefetching",
             ) as mock_start_prefetch,
         ):
             # Arrange
@@ -375,7 +375,7 @@ class TestInitializePerformanceOptimizations:
         with (
             patch("src.utils.startup_helpers.warm_startup_cache") as mock_warm_cache,
             patch(
-                "src.utils.startup_helpers.start_background_prefetching"
+                "src.utils.startup_helpers.start_background_prefetching",
             ) as mock_start_prefetch,
         ):
             # Arrange
@@ -400,7 +400,7 @@ class TestInitializePerformanceOptimizations:
         with (
             patch("src.utils.startup_helpers.warm_startup_cache") as mock_warm_cache,
             patch(
-                "src.utils.startup_helpers.start_background_prefetching"
+                "src.utils.startup_helpers.start_background_prefetching",
             ) as mock_start_prefetch,
         ):
             # Arrange
@@ -420,7 +420,7 @@ class TestInitializePerformanceOptimizations:
         with (
             patch("src.utils.startup_helpers.warm_startup_cache") as mock_warm_cache,
             patch(
-                "src.utils.startup_helpers.start_background_prefetching"
+                "src.utils.startup_helpers.start_background_prefetching",
             ) as mock_start_prefetch,
             patch("src.utils.startup_helpers.time") as mock_time,
         ):
@@ -540,13 +540,13 @@ class TestStartupHelpersIntegration:
             # Arrange - Various service failures
             mock_st.session_state.cache_warmed = False
             mock_company_service.get_active_companies_count.side_effect = Exception(
-                "Company service down"
+                "Company service down",
             )
             mock_job_service.get_job_counts_by_status.side_effect = Exception(
-                "Job service down"
+                "Job service down",
             )
             mock_job_service.prefetch_common_queries.side_effect = Exception(
-                "Prefetch service down"
+                "Prefetch service down",
             )
 
             # Act

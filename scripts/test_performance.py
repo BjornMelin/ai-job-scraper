@@ -129,7 +129,7 @@ def main():
                 "name": config["name"],
                 "elapsed": result["elapsed"],
                 "success": result["success"],
-            }
+            },
         )
 
         if result["success"]:

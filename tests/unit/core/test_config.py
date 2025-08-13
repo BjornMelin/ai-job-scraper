@@ -59,7 +59,7 @@ class TestSettings:
                 "USE_CHECKPOINTING": "True",
                 "DB_URL": "sqlite:///test.db",
                 "EXTRACTION_MODEL": "gpt-4",
-            }
+            },
         )
 
         try:
@@ -98,7 +98,7 @@ class TestSettings:
                 "USE_PROXIES=True\n"
                 "USE_CHECKPOINTING=True\n"
                 "DB_URL=sqlite:///dotenv.db\n"
-                "EXTRACTION_MODEL=gpt-3.5\n"
+                "EXTRACTION_MODEL=gpt-3.5\n",
             )
 
             original_cwd = str(Path.cwd())
@@ -122,7 +122,7 @@ class TestSettings:
         with tempfile.TemporaryDirectory() as temp_dir:
             env_file = Path(temp_dir) / ".env"
             env_file.write_text(
-                "OPENAI_API_KEY=dotenv-openai\nGROQ_API_KEY=dotenv-groq\n"
+                "OPENAI_API_KEY=dotenv-openai\nGROQ_API_KEY=dotenv-groq\n",
             )
 
             os.environ["OPENAI_API_KEY"] = "env-openai"

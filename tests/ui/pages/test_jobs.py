@@ -25,7 +25,9 @@ class TestJobDetailsModal:
     """Test job details modal functionality."""
 
     def test_show_job_details_modal_displays_job_info(
-        self, mock_streamlit, sample_job_dto
+        self,
+        mock_streamlit,
+        sample_job_dto,
     ):
         """Test modal displays complete job information."""
         # Act - Test the underlying functions directly
@@ -55,7 +57,9 @@ class TestJobDetailsModal:
         assert sample_job_dto.description in html_content
 
     def test_show_job_details_modal_displays_status_with_icon(
-        self, mock_streamlit, sample_job_dto
+        self,
+        mock_streamlit,
+        sample_job_dto,
     ):
         """Test modal displays application status with appropriate icon."""
         # Arrange
@@ -76,7 +80,9 @@ class TestJobDetailsModal:
         assert status_calls
 
     def test_show_job_details_modal_creates_notes_text_area(
-        self, mock_streamlit, sample_job_dto
+        self,
+        mock_streamlit,
+        sample_job_dto,
     ):
         """Test modal creates text area for job notes."""
         # Act - Test helper function directly
@@ -93,7 +99,9 @@ class TestJobDetailsModal:
         assert notes_call.kwargs["value"] == (sample_job_dto.notes or "")
 
     def test_show_job_details_modal_creates_action_buttons(
-        self, mock_streamlit, sample_job_dto
+        self,
+        mock_streamlit,
+        sample_job_dto,
     ):
         """Test modal creates save notes, apply now, and close buttons."""
         # Act - Test helper function directly
@@ -109,7 +117,9 @@ class TestJobDetailsModal:
         assert "Close" in button_labels
 
     def test_show_job_details_modal_creates_apply_link_button(
-        self, mock_streamlit, sample_job_dto
+        self,
+        mock_streamlit,
+        sample_job_dto,
     ):
         """Test modal creates apply now link button when job has link."""
         # Arrange
@@ -153,7 +163,9 @@ class TestJobDetailsModalHandling:
             mock_show_modal.assert_called_once_with(sample_jobs_dto[0])
 
     def test_handle_job_details_modal_clears_selection_when_job_not_found(
-        self, sample_jobs_dto, mock_session_state
+        self,
+        sample_jobs_dto,
+        mock_session_state,
     ):
         """Test modal handler clears selection when job not found in current list."""
         # Arrange
@@ -218,7 +230,9 @@ class TestJobActionBar:
     """Test job action bar functionality."""
 
     def test_render_action_bar_creates_refresh_button(
-        self, mock_streamlit, mock_company_service
+        self,
+        mock_streamlit,
+        mock_company_service,
     ):
         """Test action bar creates refresh jobs button."""
         # Arrange
@@ -237,7 +251,9 @@ class TestJobActionBar:
         assert refresh_button.kwargs["type"] == "primary"
 
     def test_render_action_bar_displays_active_sources_metric(
-        self, mock_streamlit, mock_company_service
+        self,
+        mock_streamlit,
+        mock_company_service,
     ):
         """Test action bar displays active sources count."""
         # Arrange
@@ -255,7 +271,9 @@ class TestJobActionBar:
         assert active_sources_metric.args[1] == 5
 
     def test_render_action_bar_handles_service_failure_for_active_sources(
-        self, mock_streamlit, mock_company_service
+        self,
+        mock_streamlit,
+        mock_company_service,
     ):
         """Test action bar handles service failure gracefully for active sources."""
         # Arrange
@@ -355,7 +373,11 @@ class TestJobTabs:
     """Test job tabs rendering and functionality."""
 
     def test_render_job_tabs_creates_three_tabs_with_counts(
-        self, mock_streamlit, sample_jobs_dto, mock_job_service, mock_session_state
+        self,
+        mock_streamlit,
+        sample_jobs_dto,
+        mock_job_service,
+        mock_session_state,
     ):
         """Test job tabs creates all jobs, favorites, and applied tabs with counts."""
         # Arrange - configure service mocks to return filtered data and session state
@@ -404,7 +426,7 @@ class TestJobTabs:
                 content_hash="hash",
                 favorite=False,
                 application_status="New",
-            )
+            ),
         ]
 
         # Act
@@ -432,7 +454,7 @@ class TestJobTabs:
                 content_hash="hash",
                 favorite=False,
                 application_status="New",
-            )
+            ),
         ]
 
         # Act
@@ -450,7 +472,9 @@ class TestJobStatistics:
     """Test job statistics dashboard."""
 
     def test_render_statistics_dashboard_displays_metrics(
-        self, mock_streamlit, sample_jobs_dto
+        self,
+        mock_streamlit,
+        sample_jobs_dto,
     ):
         """Test statistics dashboard displays all job metrics."""
         # Act
@@ -470,7 +494,9 @@ class TestJobStatistics:
         assert "2" in html_content  # Favorites (2 jobs marked as favorite)
 
     def test_render_statistics_dashboard_calculates_application_rate(
-        self, mock_streamlit, sample_jobs_dto
+        self,
+        mock_streamlit,
+        sample_jobs_dto,
     ):
         """Test statistics dashboard calculates correct application rate."""
         # Act
@@ -486,7 +512,9 @@ class TestJobStatistics:
         assert "25.0%" in html_content or "25%" in html_content
 
     def test_render_statistics_dashboard_displays_progress_bars(
-        self, mock_streamlit, sample_jobs_dto
+        self,
+        mock_streamlit,
+        sample_jobs_dto,
     ):
         """Test statistics dashboard displays progress bars for job statuses."""
         # Act
@@ -503,7 +531,9 @@ class TestJobFiltering:
     """Test job filtering functionality."""
 
     def test_get_filtered_jobs_calls_service_with_filters(
-        self, mock_session_state, mock_job_service
+        self,
+        mock_session_state,
+        mock_job_service,
     ):
         """Test job filtering calls service with correct filter parameters."""
         # Arrange
@@ -528,13 +558,15 @@ class TestJobFiltering:
         assert call_args["include_archived"] is False
 
     def test_get_filtered_jobs_handles_service_failure(
-        self, mock_session_state, mock_job_service
+        self,
+        mock_session_state,
+        mock_job_service,
     ):
         """Test job filtering handles service failure gracefully."""
         # Arrange
         mock_session_state.filters = {}
         mock_job_service["jobs_page"].get_filtered_jobs.side_effect = Exception(
-            "Database error"
+            "Database error",
         )
 
         # Act
@@ -575,13 +607,17 @@ class TestJobsPageIntegration:
         # Arrange - ensure proper data types to prevent MagicMock string errors
         validated_jobs = ensure_proper_job_data_types(sample_jobs_dto)
         self._setup_jobs_page_test(
-            mock_session_state, mock_job_service, mock_company_service, validated_jobs
+            mock_session_state,
+            mock_job_service,
+            mock_company_service,
+            validated_jobs,
         )
 
         with (
             patch("src.ui.pages.jobs.render_sidebar") as mock_render_sidebar,
             patch(
-                "src.ui.pages.jobs._get_filtered_jobs", return_value=validated_jobs
+                "src.ui.pages.jobs._get_filtered_jobs",
+                return_value=validated_jobs,
             ) as mock_get_filtered,
             patch("src.ui.pages.jobs._handle_refresh_jobs"),
         ):
@@ -629,7 +665,8 @@ class TestJobsPageIntegration:
         with (
             patch("src.ui.pages.jobs.render_sidebar") as mock_render_sidebar,
             patch(
-                "src.ui.pages.jobs._get_filtered_jobs", return_value=[]
+                "src.ui.pages.jobs._get_filtered_jobs",
+                return_value=[],
             ) as mock_get_filtered,
             patch("src.ui.pages.jobs._handle_refresh_jobs"),
         ):

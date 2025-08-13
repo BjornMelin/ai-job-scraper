@@ -114,7 +114,7 @@ class TestLibrarySalaryParserDirectly:
 
         # Remove common phrases
         cleaned = LibrarySalaryParser._clean_text_for_babel(
-            "$120k per year plus benefits"
+            "$120k per year plus benefits",
         )
         assert "per year" not in cleaned
         assert "plus benefits" not in cleaned
@@ -220,7 +220,9 @@ class TestLibrarySalaryParserDirectly:
         ),
     )
     def test_library_integration_cases(
-        self, text: str, expected_range: tuple[int | None, int | None]
+        self,
+        text: str,
+        expected_range: tuple[int | None, int | None],
     ) -> None:
         """Test library integration with various real-world formats."""
         result = LibrarySalaryParser.parse_salary_text(text)
@@ -239,7 +241,8 @@ class TestLibrarySalaryParserDirectly:
 
         # Test babel fallback with invalid input
         result = LibrarySalaryParser._parse_with_babel_fallback(
-            "no numbers here", context
+            "no numbers here",
+            context,
         )
         assert result == (None, None)
 

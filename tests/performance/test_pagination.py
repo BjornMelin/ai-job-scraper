@@ -26,7 +26,7 @@ PAGINATION_PATTERNS = {
 # Mock company schemas for testing
 COMPANY_SCHEMAS = {
     "microsoft": {
-        "pagination": {"type": "page_param", "param": "pg", "start": 1, "increment": 1}
+        "pagination": {"type": "page_param", "param": "pg", "start": 1, "increment": 1},
     },
     "openai": {
         "pagination": {
@@ -34,7 +34,7 @@ COMPANY_SCHEMAS = {
             "param": "page",
             "start": 1,
             "increment": 1,
-        }
+        },
     },
     "workday_company": {
         "pagination": {
@@ -42,13 +42,15 @@ COMPANY_SCHEMAS = {
             "offset_param": "offset",
             "limit_param": "limit",
             "limit": 20,
-        }
+        },
     },
 }
 
 
 def update_url_with_pagination(
-    base_url: str, pagination_type: str, **kwargs: Any
+    base_url: str,
+    pagination_type: str,
+    **kwargs: Any,
 ) -> str:
     """Mock implementation of pagination URL building.
 
@@ -88,12 +90,13 @@ def update_url_with_pagination(
             parsed.params,
             new_query,
             parsed.fragment,
-        )
+        ),
     )
 
 
 def detect_pagination_elements(
-    page_content: str | None, _company: str
+    page_content: str | None,
+    _company: str,
 ) -> dict[str, Any] | None:
     """Mock implementation of pagination detection.
 
@@ -175,7 +178,10 @@ class TestPaginationURLBuilding:
         """Test basic page parameter pagination URL building."""
         base_url = "https://example.com/jobs"
         result = update_url_with_pagination(
-            base_url, "page_param", param="page", page=3
+            base_url,
+            "page_param",
+            param="page",
+            page=3,
         )
 
         parsed = urlparse(result)
@@ -188,7 +194,10 @@ class TestPaginationURLBuilding:
         """Test page parameter pagination with existing URL parameters."""
         base_url = "https://example.com/jobs?filter=ai&location=sf"
         result = update_url_with_pagination(
-            base_url, "page_param", param="page", page=2
+            base_url,
+            "page_param",
+            param="page",
+            page=2,
         )
 
         parsed = urlparse(result)
@@ -292,7 +301,10 @@ class TestPaginationURLBuilding:
         """Test that special characters in URLs are properly encoded."""
         base_url = "https://example.com/jobs?q=AI%20Engineer&loc=San%20Francisco"
         result = update_url_with_pagination(
-            base_url, "page_param", param="page", page=2
+            base_url,
+            "page_param",
+            param="page",
+            page=2,
         )
 
         parsed = urlparse(result)
@@ -552,7 +564,9 @@ class TestJobDataNormalization:
         ),
     )
     def test_normalize_job_data_field_variations(
-        self, field_variations, expected_value
+        self,
+        field_variations,
+        expected_value,
     ):
         """Test normalization with various field name variations."""
         result = normalize_job_data(field_variations, "test_company")
@@ -643,7 +657,11 @@ class TestPaginationIntegration:
         ),
     )
     def test_real_world_pagination_scenarios(
-        self, url, pagination_type, params, expected_in_url
+        self,
+        url,
+        pagination_type,
+        params,
+        expected_in_url,
     ):
         """Test pagination with real-world company URL patterns."""
         result = update_url_with_pagination(url, pagination_type, **params)
@@ -660,7 +678,10 @@ class TestPaginationIntegration:
         base_url = "https://example.com/jobs?q=AI+Engineer&location=San+Francisco&remote=true&salary=150k"
 
         result = update_url_with_pagination(
-            base_url, "page_param", param="page", page=5
+            base_url,
+            "page_param",
+            param="page",
+            page=5,
         )
 
         parsed = urlparse(result)
@@ -683,7 +704,10 @@ class TestPaginationIntegration:
         results = []
         for _ in range(5):
             result = update_url_with_pagination(
-                base_url, "offset_limit", offset=40, limit=20
+                base_url,
+                "offset_limit",
+                offset=40,
+                limit=20,
             )
             results.append(result)
 

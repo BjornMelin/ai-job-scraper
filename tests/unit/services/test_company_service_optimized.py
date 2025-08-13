@@ -484,7 +484,8 @@ class TestCompanyService:
 
         company_names = {"Company A", "Company B", "Company C"}  # C is new
         result = CompanyService.bulk_get_or_create_companies(
-            mock_session, company_names
+            mock_session,
+            company_names,
         )
 
         # Should return mapping for all companies
@@ -508,7 +509,8 @@ class TestCompanyService:
 
         company_names = {"New Company"}
         result = CompanyService.bulk_get_or_create_companies(
-            mock_session, company_names
+            mock_session,
+            company_names,
         )
 
         # Should handle race condition gracefully

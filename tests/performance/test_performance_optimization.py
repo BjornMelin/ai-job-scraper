@@ -67,7 +67,8 @@ def test_bulk_company_performance():
         # Measure bulk operation performance
         start_time = time.time()
         company_map = CompanyService.bulk_get_or_create_companies(
-            session, test_companies
+            session,
+            test_companies,
         )
         bulk_time = time.time() - start_time
 
@@ -75,7 +76,7 @@ def test_bulk_company_performance():
 
         print(
             f"Bulk operation: Created/fetched {len(company_map)} companies "
-            f"in {bulk_time:.3f}s"
+            f"in {bulk_time:.3f}s",
         )
         # Removed print statement for line length
 

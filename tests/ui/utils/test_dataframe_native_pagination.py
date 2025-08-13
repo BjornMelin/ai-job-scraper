@@ -168,7 +168,9 @@ class TestJobDisplayNativeFunctionality:
     """Test job display uses native Streamlit functionality only."""
 
     def test_render_jobs_grid_uses_native_columns(
-        self, sample_jobs_dto, mock_streamlit
+        self,
+        sample_jobs_dto,
+        mock_streamlit,
     ):
         """Test grid rendering uses native st.columns."""
         render_jobs_grid(sample_jobs_dto, num_columns=3)
@@ -187,7 +189,9 @@ class TestJobDisplayNativeFunctionality:
         mock_streamlit["info"].assert_called_once_with("No jobs to display.")
 
     def test_render_jobs_list_uses_native_components(
-        self, sample_jobs_dto, mock_streamlit
+        self,
+        sample_jobs_dto,
+        mock_streamlit,
     ):
         """Test list rendering uses only native Streamlit components."""
         render_jobs_list(sample_jobs_dto)
@@ -211,7 +215,8 @@ class TestJobDisplayNativeFunctionality:
                 return_value=sample_jobs_dto[:2],
             ),
             patch(
-                "src.ui.pages.jobs._get_applied_jobs", return_value=sample_jobs_dto[:1]
+                "src.ui.pages.jobs._get_applied_jobs",
+                return_value=sample_jobs_dto[:1],
             ),
             patch("src.ui.pages.jobs._render_job_display") as mock_render,
         ):
@@ -224,7 +229,9 @@ class TestJobDisplayNativeFunctionality:
             assert mock_render.call_count == 3
 
     def test_render_job_display_integrates_native_search(
-        self, sample_jobs_dto, mock_streamlit
+        self,
+        sample_jobs_dto,
+        mock_streamlit,
     ):
         """Test job display integrates with native search functionality."""
         with (
@@ -233,7 +240,8 @@ class TestJobDisplayNativeFunctionality:
                 return_value=sample_jobs_dto,
             ) as mock_search,
             patch(
-                "src.ui.helpers.view_mode.select_view_mode", return_value=("List", None)
+                "src.ui.helpers.view_mode.select_view_mode",
+                return_value=("List", None),
             ),
             patch("src.ui.helpers.view_mode.apply_view_mode") as mock_apply,
         ):
@@ -418,7 +426,9 @@ class TestT1RealisticUsageScenarios:
     """Test realistic usage scenarios for native dataframe functionality."""
 
     def test_tab_switching_preserves_native_behavior(
-        self, sample_jobs_dto, mock_streamlit
+        self,
+        sample_jobs_dto,
+        mock_streamlit,
     ):
         """Test that tab switching works with native functionality."""
         with (
@@ -427,7 +437,8 @@ class TestT1RealisticUsageScenarios:
                 return_value=sample_jobs_dto[:2],
             ),
             patch(
-                "src.ui.pages.jobs._get_applied_jobs", return_value=sample_jobs_dto[:1]
+                "src.ui.pages.jobs._get_applied_jobs",
+                return_value=sample_jobs_dto[:1],
             ),
             patch("src.ui.pages.jobs._render_job_display") as mock_render,
         ):

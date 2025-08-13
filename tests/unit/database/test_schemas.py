@@ -323,7 +323,8 @@ class TestJobDTO:
         """Test converting JobSQL to Job DTO using from_attributes."""
         # Create a CompanySQL for the relationship
         sql_company = CompanySQL(
-            name="SQLModel Job Test Company", url="https://sqlmodel.com/careers"
+            name="SQLModel Job Test Company",
+            url="https://sqlmodel.com/careers",
         )
         session.add(sql_company)
         session.commit()
@@ -355,7 +356,7 @@ class TestJobDTO:
             {
                 **sql_job.model_dump(),
                 "company": sql_job.company,  # Use computed property
-            }
+            },
         )
 
         assert dto_job.id == sql_job.id
@@ -525,7 +526,8 @@ class TestDTOIntegration:
         """Test Job SQLModel to DTO conversion with company relationship handling."""
         # Create company
         sql_company = CompanySQL(
-            name="Relationship Company", url="https://relationship.com/careers"
+            name="Relationship Company",
+            url="https://relationship.com/careers",
         )
         session.add(sql_company)
         session.commit()
@@ -550,7 +552,7 @@ class TestDTOIntegration:
             {
                 **sql_job.model_dump(),
                 "company": sql_job.company,  # Use computed property
-            }
+            },
         )
 
         # Verify relationship is resolved to string
@@ -563,7 +565,8 @@ class TestDTOIntegration:
         # Create objects within a session scope
         with Session(engine) as session:
             sql_company = CompanySQL(
-                name="Session Test Company", url="https://session.com/careers"
+                name="Session Test Company",
+                url="https://session.com/careers",
             )
             session.add(sql_company)
             session.commit()
@@ -584,7 +587,7 @@ class TestDTOIntegration:
             # Convert to DTOs while session is still open
             company_dto = Company.model_validate(sql_company)
             job_dto = Job.model_validate(
-                {**sql_job.model_dump(), "company": sql_job.company}
+                {**sql_job.model_dump(), "company": sql_job.company},
             )
 
         # Session is now closed - test that DTOs still work

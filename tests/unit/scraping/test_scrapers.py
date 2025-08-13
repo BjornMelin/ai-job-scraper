@@ -93,7 +93,7 @@ def test_update_db_upsert_and_delete(mock_engine: "Any", session: Session) -> No
 
     # Simulate upsert operation for existing job
     existing_job_result = session.exec(
-        select(JobSQL).where(JobSQL.link == "https://exist.co/job")
+        select(JobSQL).where(JobSQL.link == "https://exist.co/job"),
     )
     existing_job = existing_job_result.first()
     existing_job.title = "Updated Title"
@@ -117,7 +117,7 @@ def test_update_db_upsert_and_delete(mock_engine: "Any", session: Session) -> No
 
     # Delete stale job explicitly
     stale_job_result = session.exec(
-        select(JobSQL).where(JobSQL.link == "https://stale.co/job")
+        select(JobSQL).where(JobSQL.link == "https://stale.co/job"),
     )
     stale_job = stale_job_result.first()
     session.delete(stale_job)
@@ -139,7 +139,8 @@ def test_update_db_upsert_and_delete(mock_engine: "Any", session: Session) -> No
 @patch("src.scraper.scrape_job_boards")
 @patch("src.scraper_company_pages.scrape_company_pages")
 def test_scrape_all_workflow(
-    mock_scrape_company_pages: "Any", mock_scrape_boards: "Any"
+    mock_scrape_company_pages: "Any",
+    mock_scrape_boards: "Any",
 ) -> None:
     """Test complete scrape_all workflow with comprehensive mocking.
 
@@ -159,8 +160,8 @@ def test_scrape_all_workflow(
                 "location": "Remote",
                 "salary": (None, None),
                 "content_hash": "test_hash_123",
-            }
-        )
+            },
+        ),
     ]
 
     # Mock job board scraping to return raw job data
@@ -174,7 +175,7 @@ def test_scrape_all_workflow(
             "date_posted": datetime.now(UTC),
             "min_amount": 100000,
             "max_amount": 150000,
-        }
+        },
     ]
 
     # Execute scrape_all and verify it runs without error
@@ -202,7 +203,8 @@ def test_scrape_all_workflow(
 @patch("src.scraper.scrape_job_boards")
 @patch("src.scraper_company_pages.scrape_company_pages")
 def test_scrape_all_filtering(
-    mock_scrape_company_pages: "Any", mock_scrape_boards: "Any"
+    mock_scrape_company_pages: "Any",
+    mock_scrape_boards: "Any",
 ) -> None:
     """Test job relevance filtering in scrape_all workflow.
 
@@ -262,7 +264,9 @@ def test_scrape_all_filtering(
 @patch("src.scraper_company_pages.SmartScraperMultiGraph")
 @patch("src.scraper_company_pages.load_active_companies")
 def test_scrape_company_pages(
-    mock_load_companies: "Any", mock_scraper_class: "Any", mock_save_jobs: "Any"
+    mock_load_companies: "Any",
+    mock_scraper_class: "Any",
+    mock_save_jobs: "Any",
 ) -> None:
     """Test company page scraping with SmartScraperMultiGraph mocking.
 
@@ -273,8 +277,8 @@ def test_scrape_company_pages(
     """
     mock_load_companies.return_value = [
         CompanySQL.model_validate(
-            {"name": "Test Co", "url": "https://test.co", "active": True}
-        )
+            {"name": "Test Co", "url": "https://test.co", "active": True},
+        ),
     ]
 
     # Mock the scraper instance and its run method
@@ -313,7 +317,7 @@ def test_scrape_job_boards(mock_scrape_jobs: "Any") -> None:
             "date_posted": [None, None],
             "min_amount": [None, None],
             "max_amount": [None, None],
-        }
+        },
     )
     mock_scrape_jobs.return_value = mock_df
 

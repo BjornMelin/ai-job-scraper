@@ -38,7 +38,8 @@ class TestT1DatabaseCaching:
 
     @patch("src.ui.utils.database_helpers.get_session")
     def test_get_cached_session_factory_uses_streamlit_cache_resource(
-        self, mock_get_session
+        self,
+        mock_get_session,
     ):
         """Test that session factory uses @st.cache_resource decorator properly."""
         mock_session = Mock(spec=Session)
@@ -110,14 +111,15 @@ class TestSessionStateValidation:
                 "user_input": "test",
                 "page_state": "jobs",
                 "filter_active": True,
-            }
+            },
         )
 
         contaminated = validate_session_state()
         assert contaminated == []
 
     def test_validate_session_state_detects_sqlalchemy_objects(
-        self, mock_session_state
+        self,
+        mock_session_state,
     ):
         """Test validation detects SQLAlchemy objects in session state."""
         # Create mock SQLAlchemy objects
@@ -132,7 +134,7 @@ class TestSessionStateValidation:
                 "session_object": mock_session,
                 "engine_object": mock_engine,
                 "model_object": mock_model,
-            }
+            },
         )
 
         with (
@@ -159,7 +161,7 @@ class TestSessionStateValidation:
                 "remove_session": mock_session,
                 "remove_engine": mock_engine,
                 "keep_number": 42,
-            }
+            },
         )
 
         with (
@@ -177,7 +179,8 @@ class TestSessionStateValidation:
     def test_validate_session_state_handles_import_error(self, mock_session_state):
         """Test validation gracefully handles SQLAlchemy import errors."""
         with patch(
-            "builtins.__import__", side_effect=ImportError("SQLAlchemy not available")
+            "builtins.__import__",
+            side_effect=ImportError("SQLAlchemy not available"),
         ):
             contaminated = validate_session_state()
             assert contaminated == []
@@ -187,7 +190,8 @@ class TestSessionStateValidation:
         mock_session_state.update({"test": "value"})
 
         with patch(
-            "builtins.__import__", side_effect=ImportError("SQLAlchemy not available")
+            "builtins.__import__",
+            side_effect=ImportError("SQLAlchemy not available"),
         ):
             removed_count = clean_session_state()
             assert removed_count == 0
@@ -241,7 +245,7 @@ class TestDatabaseHealthMonitoring:
         # We can't easily test the actual caching without Streamlit runtime
         # but we can verify the function signature and behavior
         with patch(
-            "src.ui.utils.database_helpers.get_cached_session_factory"
+            "src.ui.utils.database_helpers.get_cached_session_factory",
         ) as mock_factory:
             mock_session = Mock()
             mock_session.execute.return_value.scalar.return_value = 1
@@ -280,7 +284,7 @@ class TestDatabaseHealthMonitoring:
 
         mock_streamlit["warning"].assert_called_once_with("🟡 Database Issue")
         mock_streamlit["caption"].assert_called_once_with(
-            "Error: Connection timeout occurred during health c..."
+            "Error: Connection timeout occurred during health c...",
         )
 
     @patch("src.ui.utils.database_helpers.get_database_health")
@@ -295,7 +299,7 @@ class TestDatabaseHealthMonitoring:
 
         mock_streamlit["error"].assert_called_once_with("🔴 Database Error")
         mock_streamlit["caption"].assert_called_once_with(
-            "Error: Fatal database connection error..."
+            "Error: Fatal database connection error...",
         )
 
 
@@ -323,7 +327,9 @@ class TestUtilityHelpers:
         assert mock_session_state.get("new_key") == "default"
 
     def test_display_feedback_messages_success(
-        self, mock_session_state, mock_streamlit
+        self,
+        mock_session_state,
+        mock_streamlit,
     ):
         """Test displaying and clearing success messages."""
         mock_session_state["success_msg"] = "Operation completed successfully"
@@ -332,7 +338,7 @@ class TestUtilityHelpers:
         display_feedback_messages(["success_msg"], [])
 
         mock_streamlit["success"].assert_called_once_with(
-            "✅ Operation completed successfully"
+            "✅ Operation completed successfully",
         )
         assert mock_session_state.get("success_msg") is None
         assert mock_session_state.get("keep_this") == "value"
@@ -354,14 +360,16 @@ class TestUtilityHelpers:
         display_feedback_messages(["success_msg"], ["error_msg"])
 
         mock_streamlit["success"].assert_called_once_with(
-            "✅ Some operations succeeded"
+            "✅ Some operations succeeded",
         )
         mock_streamlit["error"].assert_called_once_with("❌ Some operations failed")
         assert mock_session_state.get("success_msg") is None
         assert mock_session_state.get("error_msg") is None
 
     def test_display_feedback_messages_no_messages(
-        self, mock_session_state, mock_streamlit
+        self,
+        mock_session_state,
+        mock_streamlit,
     ):
         """Test handling when no messages exist."""
         display_feedback_messages(["nonexistent"], ["also_nonexistent"])
@@ -504,7 +512,7 @@ class TestT1RealisticScenarios:
                 "filter_criteria": {"location": "remote"},
                 "contaminated_session": Mock(spec=Session),
                 "cached_data": [1, 2, 3],
-            }
+            },
         )
 
         # Validate and clean

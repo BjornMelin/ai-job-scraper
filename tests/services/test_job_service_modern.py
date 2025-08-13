@@ -20,7 +20,9 @@ class TestJobServiceCore:
     """Core JobService functionality tests."""
 
     def test_get_filtered_jobs_basic(
-        self, session: "Session", sample_company: CompanySQL
+        self,
+        session: "Session",
+        sample_company: CompanySQL,
     ):
         """Test basic job filtering functionality."""
         # Create test jobs
@@ -104,7 +106,11 @@ class TestJobServiceFiltering:
         ),
     )
     def test_filter_by_status(
-        self, session: "Session", sample_company: CompanySQL, status, expected_count
+        self,
+        session: "Session",
+        sample_company: CompanySQL,
+        status,
+        expected_count,
     ):
         """Test filtering jobs by application status."""
         job = JobSQL(
