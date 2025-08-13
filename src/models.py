@@ -20,11 +20,13 @@ import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from decimal import Decimal
 
-from babel.numbers import NumberFormatError, parse_decimal, parse_number
+# Standard library replacement for babel number parsing
+from decimal import Decimal, InvalidOperation
+
 from price_parser import Price
 from pydantic import (
+    computed_field,
     field_validator,
     model_validator,
 )
@@ -32,6 +34,9 @@ from sqlalchemy.types import JSON
 from sqlmodel import Column, Field, SQLModel
 
 from src.core_utils import ensure_timezone_aware
+
+# Import helper functions locally to avoid circular imports
+# from src.ui.utils import (...)
 
 # SQLAlchemy 2.0 library-first approach: Use extend_existing=True for all tables
 # This replaces the dangerous monkey patch with SQLAlchemy's built-in mechanism
@@ -109,15 +114,44 @@ DEFAULT_LOCALE = "en_US"
 
 
 class LibrarySalaryParser:
-    """Library-first salary parser using price-parser and babel.
+    """Library-first salary parser using price-parser and standard library.
 
     This class implements a modern approach to salary parsing by leveraging:
     - price-parser: For currency extraction and basic price parsing
-    - babel: For locale-aware decimal parsing
+    - Standard library: For decimal parsing
     - Custom logic: Only for salary-specific patterns (k-suffix, ranges, context)
 
     This replaces ~200 lines of regex-based parsing with library-first implementation.
     """
+
+    @staticmethod
+    def _parse_decimal_standard(text: str) -> Decimal:
+        """Parse decimal using standard library, replacing babel functionality."""
+        # Clean text for decimal parsing - remove separators but keep decimals
+        cleaned = re.sub(r"[^\d.,\-+]", "", text)
+        # Handle common formats like 1,000.50 or 1000.50
+        if "," in cleaned and "." in cleaned:
+            # Assume comma is thousands separator if it comes before dot
+            if cleaned.rfind(",") < cleaned.rfind("."):
+                cleaned = cleaned.replace(",", "")
+        elif "," in cleaned:
+            # Could be decimal separator (European) or thousands separator
+            # If there are more than 3 digits after comma, likely thousands separator
+            comma_parts = cleaned.split(",")
+            if len(comma_parts) == 2 and len(comma_parts[1]) <= 2:
+                # Likely decimal separator
+                cleaned = cleaned.replace(",", ".")
+            else:
+                # Likely thousands separator
+                cleaned = cleaned.replace(",", "")
+        return Decimal(cleaned)
+
+    @staticmethod
+    def _parse_number_standard(text: str) -> int:
+        """Parse integer using standard library, replacing babel functionality."""
+        # Remove all non-digits except minus sign
+        cleaned = re.sub(r"[^\d\-]", "", text)
+        return int(cleaned) if cleaned and cleaned != "-" else 0
 
     @staticmethod
     def parse_salary_text(text: str) -> SalaryTuple:
@@ -408,7 +442,7 @@ class LibrarySalaryParser:
     def _parse_with_babel_fallback(
         text: str,
         context: SalaryContext,
-        locale: str = DEFAULT_LOCALE,
+        locale: str = DEFAULT_LOCALE,  # noqa: ARG004
     ) -> SalaryTuple:
         """Fallback parsing using babel's number parsing.
 
@@ -418,12 +452,12 @@ class LibrarySalaryParser:
             locale: Locale for number parsing (default: en_US)
         """
         try:
-            # Clean text for babel parsing
+            # Clean text for standard parsing
             cleaned = LibrarySalaryParser._clean_text_for_babel(text)
 
             # Try parsing as decimal first
             try:
-                amount = parse_decimal(cleaned, locale=locale)
+                amount = LibrarySalaryParser._parse_decimal_standard(cleaned)
                 value = int(amount)
 
                 # Apply k-suffix if present
@@ -438,10 +472,9 @@ class LibrarySalaryParser:
                 final_value = converted_values[0]
                 return LibrarySalaryParser._apply_context_logic(final_value, context)
 
-            except NumberFormatError:
+            except (InvalidOperation, ValueError):
                 # Try as integer
-                amount = parse_number(cleaned, locale=locale)
-                value = int(amount)
+                value = LibrarySalaryParser._parse_number_standard(cleaned)
 
                 value = LibrarySalaryParser._apply_k_suffix_multiplication(text, value)
 
@@ -453,8 +486,8 @@ class LibrarySalaryParser:
                 final_value = converted_values[0]
                 return LibrarySalaryParser._apply_context_logic(final_value, context)
 
-        except (NumberFormatError, ValueError) as e:
-            salary_logger.debug("Babel parsing failed for '%s': %s", text, e)
+        except (InvalidOperation, ValueError) as e:
+            salary_logger.debug("Standard library parsing failed for '%s': %s", text, e)
 
         return (None, None)
 
@@ -496,38 +529,38 @@ class LibrarySalaryParser:
     @staticmethod
     def _safe_decimal_to_int(
         value_str: str,
-        locale: str = DEFAULT_LOCALE,
+        locale: str = DEFAULT_LOCALE,  # noqa: ARG004
     ) -> int | None:
-        """Safely convert decimal string to int using babel.
+        """Safely convert decimal string to int using standard library.
 
         Args:
             value_str: String representation of decimal number
-            locale: Locale for parsing (default: en_US)
+            locale: Locale for parsing (ignored, kept for compatibility)
         """
         try:
-            decimal_val = parse_decimal(value_str, locale=locale)
+            decimal_val = LibrarySalaryParser._parse_decimal_standard(value_str)
             return int(decimal_val)
-        except (NumberFormatError, ValueError, TypeError):
+        except (InvalidOperation, ValueError, TypeError):
             return None
 
     @staticmethod
     def _safe_decimal_to_float(
         value_str: str,
-        locale: str = DEFAULT_LOCALE,
+        locale: str = DEFAULT_LOCALE,  # noqa: ARG004
     ) -> float | None:
-        """Safely convert decimal string to float using babel for k-suffix parsing.
+        """Convert decimal string to float using standard library.
 
         This preserves decimal precision for k-suffix multiplication where
         '125.5k' should become 125500, not 125000.
 
         Args:
             value_str: String representation of decimal number
-            locale: Locale for parsing (default: en_US)
+            locale: Locale for parsing (ignored, kept for compatibility)
         """
         try:
-            decimal_val = parse_decimal(value_str, locale=locale)
+            decimal_val = LibrarySalaryParser._parse_decimal_standard(value_str)
             return float(decimal_val)
-        except (NumberFormatError, ValueError, TypeError):
+        except (InvalidOperation, ValueError, TypeError):
             return None
 
     @staticmethod
@@ -589,6 +622,34 @@ class CompanySQL(SQLModel, table=True):
     success_rate: float = Field(default=1.0)
 
     # Note: Relationship temporarily disabled due to SQLAlchemy configuration
+
+    @computed_field
+    @property
+    def total_jobs_count(self) -> int:
+        """Calculate total number of jobs."""
+        jobs = getattr(self, "jobs", None)
+        if not jobs or not isinstance(jobs, list):
+            return 0
+        return len(jobs)
+
+    @computed_field
+    @property
+    def active_jobs_count(self) -> int:
+        """Calculate number of active (non-archived) jobs."""
+        jobs = getattr(self, "jobs", None)
+        if not jobs or not isinstance(jobs, list):
+            return 0
+        return len([j for j in jobs if not getattr(j, "archived", False)])
+
+    @computed_field
+    @property
+    def last_job_posted(self) -> datetime | None:
+        """Find most recent job posting date."""
+        jobs = getattr(self, "jobs", None)
+        if not jobs:
+            return None
+        job_dates = [job.posted_date for job in jobs if job.posted_date is not None]
+        return max(job_dates) if job_dates else None
 
     @field_validator("last_scraped", mode="before")
     @classmethod
@@ -655,8 +716,66 @@ class JobSQL(SQLModel, table=True):
     @property
     def company(self) -> str:
         """Get company name from relationship."""
-        # Placeholder implementation for company name
+        # Since relationships are temporarily disabled, we need to fetch manually
+        if not self.company_id:
+            return "Unknown"
+
+        # Import here to avoid circular imports
+        from sqlmodel import select
+
+        try:
+            # Get the session from SQLAlchemy instance state
+            instance_state = getattr(self, "_sa_instance_state", None)
+            if instance_state and instance_state.session:
+                session = instance_state.session
+                result = session.exec(
+                    select(CompanySQL.name).where(CompanySQL.id == self.company_id)
+                )
+                company_name = result.first()
+                return company_name if company_name else "Unknown"
+        except Exception:
+            # Expected: Database lookup may fail when session is not available
+            # This is intentional fallback behavior
+            return "Unknown"
+
+        # Fallback - this should be handled by the service layer instead
         return "Unknown"
+
+    @computed_field
+    @property
+    def salary_range_display(self) -> str:
+        """Format salary range for display."""
+        from src.ui.utils import format_salary_range
+
+        return format_salary_range(self.salary)
+
+    @computed_field
+    @property
+    def days_since_posted(self) -> int | None:
+        """Calculate days since job was posted."""
+        if self.posted_date is None:
+            return None
+        now = datetime.now(UTC)
+        # Ensure timezone compatibility
+        posted_date = self.posted_date
+        if posted_date.tzinfo is None:
+            # If posted_date is naive, assume it's UTC
+            posted_date = posted_date.replace(tzinfo=UTC)
+        return (now - posted_date).days
+
+    @computed_field
+    @property
+    def is_recently_posted(self) -> bool:
+        """Check if job was posted within 7 days."""
+        if self.posted_date is None:
+            return False
+        now = datetime.now(UTC)
+        # Ensure timezone compatibility
+        posted_date = self.posted_date
+        if posted_date.tzinfo is None:
+            # If posted_date is naive, assume it's UTC
+            posted_date = posted_date.replace(tzinfo=UTC)
+        return (now - posted_date).days <= 7
 
     @model_validator(mode="before")
     @classmethod
