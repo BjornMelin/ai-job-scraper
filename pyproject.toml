@@ -28,61 +28,56 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-    # Core AI and LLM libraries
+    # AI and LLM
     "groq>=0.30.0,<1.0.0",
     "langchain-groq>=0.3.6,<1.0.0",
     "langgraph>=0.6.2,<1.0.0",
     "langgraph-checkpoint-sqlite>=2.0.11,<3.0.0",
     "openai>=1.98.0,<2.0.0",
-    # Web scraping and HTTP
+    # Web scraping
     "httpx>=0.28.1,<1.0.0",
     "python-jobspy>=1.1.82,<2.0.0",
     "scrapegraphai>=1.61.0,<2.0.0",
     "proxies>=1.6,<2.0.0",
-    # Data processing - prefer Polars for better performance
+    # Data processing
     "pandas>=2.3.1,<3.0.0",
-    # TODO: Consider migrating to polars for better performance
-    # "polars>=0.20.0,<1.0.0",
-    # Database and models
+    # Database
     "sqlmodel>=0.0.24,<1.0.0",
     "pydantic-settings>=2.10.1,<3.0.0",
     "alembic>=1.15.0,<2.0.0",
     # UI and CLI
     "streamlit>=1.47.1,<2.0.0",
     "typer>=0.16.0,<1.0.0",
-    # Configuration and utilities
+    # Utilities
     "python-dotenv>=1.1.1,<2.0.0",
     "price-parser>=0.4.0",
     "babel>=2.17.0",
     "humanize>=4.12.3",
+    "hatchling>=1.27.0",
 ]
 
 [project.optional-dependencies]
-# Development dependencies
 dev = [
     "pytest>=8.0.0,<9.0.0",
     "ruff>=0.12.0,<1.0.0",
     "mypy>=1.8.0,<2.0.0",
     "pre-commit>=3.6.0,<4.0.0",
-    "alembic>=1.15.0,<2.0.0",  # Database migrations
+    "alembic>=1.15.0,<2.0.0",
 ]
 
-# Production dependencies for deployment
 prod = [
     "uvicorn[standard]>=0.26.0,<1.0.0",
     "gunicorn>=21.2.0,<22.0.0",
 ]
 
-# Optional high-performance data processing
 data = [
     "polars>=1.0.0,<2.0.0",
     "pyarrow>=19.0.0,<22.0.0",
 ]
 
-# Optional database connectors
 database = [
-    "psycopg2-binary>=2.9.0,<3.0.0",  # PostgreSQL
-    "asyncpg>=0.29.0,<1.0.0",         # Async PostgreSQL
+    "psycopg2-binary>=2.9.0,<3.0.0",
+    "asyncpg>=0.29.0,<1.0.0",
 ]
 
 [project.urls]
@@ -100,17 +95,18 @@ packages = ["src"]
 path = "src/__init__.py"
 
 [tool.uv]
-# UV-specific configuration
 python-downloads = "automatic"
 python-preference = "managed"
 
-[tool.uv.sources]
-# Optional: specify custom package sources if needed
+# =============================================================================
+# RUFF CONFIGURATION
+# =============================================================================
 
 [tool.ruff]
 line-length = 88
 target-version = "py312"
 src = ["src", "tests"]
+
 extend-exclude = [
     ".venv",
     ".git",
@@ -118,133 +114,170 @@ extend-exclude = [
     "*.egg-info",
     ".pytest_cache",
     ".mypy_cache",
+    ".ruff_cache",
     "build",
     "dist",
+    "node_modules",
+    ".tox",
+    ".nox",
 ]
 
 [tool.ruff.lint]
-# Enable comprehensive rule sets for high code quality
 select = [
-    "E",   # pycodestyle errors
-    "W",   # pycodestyle warnings
-    "F",   # pyflakes
-    "I",   # isort
-    "UP",  # pyupgrade
-    "N",   # pep8-naming
-    "S",   # flake8-bandit (security)
-    "B",   # flake8-bugbear
-    "A",   # flake8-builtins
-    "COM", # flake8-commas
-    "C4",  # flake8-comprehensions
-    "DTZ", # flake8-datetimez
-    "EM",  # flake8-errmsg
-    "ICN", # flake8-import-conventions
-    "G",   # flake8-logging-format
-    "PIE", # flake8-pie
-    "PT",  # flake8-pytest-style
-    "Q",   # flake8-quotes
-    "RSE", # flake8-raise
-    "RET", # flake8-return
-    "SIM", # flake8-simplify
-    "TID", # flake8-tidy-imports
-    "TCH", # flake8-type-checking
-    "ARG", # flake8-unused-arguments
-    "PTH", # flake8-use-pathlib
-    "ERA", # eradicate
-    "PD",  # pandas-vet
-    "PGH", # pygrep-hooks
-    "PL",  # pylint
-    "TRY", # tryceratops
-    "FLY", # flynt
-    "PERF", # perflint
-    "FURB", # refurb
-    "LOG", # flake8-logging
-    "RUF", # ruff-specific rules
-    "D",   # pydocstyle
+    "E", "W", "F",  # pycodestyle, pyflakes
+    "I", "TID",     # isort, tidy-imports
+    "UP", "FLY", "FURB",  # modern Python patterns
+    "S",            # security
+    "TCH", "FA",    # type checking
+    "B", "A", "C4", "PIE", "SIM", "PGH", "RUF",  # code quality
+    "PERF",         # performance
+    "TRY", "RSE", "EM",  # error handling
+    "N", "ICN",     # naming conventions
+    "ERA", "ARG", "PTH",  # cleanup
+    "PT", "PD", "LOG",   # framework-specific
+    "Q", "COM",     # formatting
+    "D",            # documentation
+    "DTZ", "RET", "G",   # datetime, returns, logging
+    "PLC", "PLE", "PLW", "PLR09",  # selected pylint rules
 ]
 
 ignore = [
-    # Docstring formatting (Google style conflicts)
-    "D203", # 1 blank line required before class docstring (conflicts with D211)
-    "D213", # Multi-line docstring summary should start at the second line (conflicts with Google style)
-    "D107", # Missing docstring in __init__ (often not needed for simple classes)
-    "D104", # Missing docstring in public package (not always needed)
-
-    "EM101", # Exception must not use a string literal, assign to variable first
-
-    # Pylint rules that can be too strict
-    "PLR0913", # Too many arguments to function call (sometimes necessary)
-    "PLR0912", # Too many branches (sometimes necessary for business logic)
-    "PLR2004", # Magic value used in comparison (constants can be clear in context)
-    "PLR0915", # Too many statements (sometimes necessary)
-
-    # Security rules that can be too strict for local apps
-    "S311", # Standard pseudo-random generators are not suitable for crypto
-    "S605", # Starting a process with a shell (needed for some CLI tools)
-    "S607", # Starting a process with a partial executable path
-
-    # Type checking that may be too strict for AI/ML code
-    "PGH003", # Use specific rule codes when ignoring type issues
-    "TRY003", # Avoid specifying long messages outside the exception class
-    "TRY301", # Abstract `raise` to an inner function
-    
-    # Performance rules that may conflict with readability
-    "PERF203", # `try`-`except` within a loop incurs performance overhead
-    
-    # Import conventions that may not apply to all libraries
-    "ICN001", # Import conventions for certain packages
-    
-    # DateTime compatibility - prefer backward compatible timezone.utc
-    "UP017", # Use datetime.UTC alias (we prefer timezone.utc for compatibility)
-
+    # Docstring formatting (Google style)
+    "D203", "D213", "D107", "D104", "D100",
+    # Exception handling (pragmatic patterns)
+    "EM101", "EM102", "TRY003", "TRY301",
+    # Complexity (reasonable for AI/ML)
+    "PLR0913", "PLR0912", "PLR2004", "PLR0915", "PLR0911",
+    # Security (local development)
+    "S311", "S605", "S607", "S101",
+    # Type checking (practical)
+    "PGH003", "TC001", "TC002", "TC003",
+    # Performance vs readability
+    "PERF203", "PERF401",
+    # Import conventions
+    "ICN001",
+    # Datetime compatibility
+    "UP017",
     # Formatter conflicts
-    "COM812", # trailing comma (conflicts with formatter)
-    "ISC001", # single line implicit string concatenation (conflicts with formatter)
+    "COM812", "ISC001", "W191", "E111", "E114", "E117",
+    "Q000", "Q001", "Q002", "Q003",
+    # Refurb false positives
+    "FURB101", "FURB103",
+    # Pandas context
+    "PD002", "PD015",
+    # Modern Python compatibility
+    "UP038",
+    # Project structure
+    "N999",
 ]
+
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+fixable = ["ALL"]
+unfixable = []
+task-tags = ["TODO", "FIXME", "XXX", "BUG", "HACK", "NOTE"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = [
-    "S101",    # assert usage (standard practice in pytest tests)
-    "PLR2004", # Magic value used in comparison (test values are often magic)
-    "D103",    # Missing docstring in public function (test functions don't always need docs)
-    "ARG002",  # Unused method argument (pytest fixtures are injected even if not directly used)
-]
-"**/test_*.py" = [
-    "S101",    # assert usage (standard practice in pytest tests)
-    "PLR2004", # Magic value used in comparison (test values are often magic)
-    "D103",    # Missing docstring in public function (test functions don't always need docs)
-    "ARG002",  # Unused method argument (pytest fixtures are injected even if not directly used)
-]
-"seed.py" = [
-    "T201", # print found (acceptable in seed scripts)
-]
-"app.py" = [
-    "PLR0915", # Too many statements (Streamlit apps can be complex)
-    "S106",    # Possible hardcoded password (false positives in UI code)
-]
-"__init__.py" = [
-    "N999", # Invalid module name (package names can have dashes)
-]
-"tests/__init__.py" = [
-    "N999", # Invalid module name (package names can have dashes)
-]
-"src/services/database_sync.py" = [
-    "S324", # Use of insecure MD5 hash function (acceptable for non-cryptographic content fingerprinting)
-]
-"src/models.py" = [
-    "S324", # Use of insecure MD5 hash function (acceptable for non-cryptographic content fingerprinting)
-]
-"src/app_cli.py" = [
-    "S603", # subprocess call with controlled input (safe CLI launcher)
-]
+# Test files
+"tests/**/*.py" = ["S101", "PLR2004", "D103", "D100", "ARG002", "TRY301", "S311", "PLR0913", "SIM117"]
+"**/test_*.py" = ["S101", "PLR2004", "D103", "D100", "ARG002", "TRY301", "S311", "PLR0913", "SIM117"]
+
+# Application files
+"seed.py" = ["T201", "S311"]
+"app.py" = ["PLR0915", "S106", "PLR0913", "C901"]
+"src/app_cli.py" = ["S603", "T201", "PLR0912"]
+
+# Initialization files
+"__init__.py" = ["D104", "F401"]
+"src/__init__.py" = ["D104", "F401"]
+"tests/__init__.py" = ["D104"]
+
+# Data/model files
+"src/services/database_sync.py" = ["S324"]
+"src/models.py" = ["S324", "PLR0913"]
+
+# Migration/maintenance files
+"alembic/versions/*.py" = ["D103", "INP001"]
+"scripts/**/*.py" = ["T201", "S311", "PLR0913"]
+
+# Enhanced rule configurations
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
+property-decorators = ["functools.cached_property"]
+
+
+[tool.ruff.lint.flake8-type-checking]
+exempt-modules = ["typing_extensions"]
+quote-annotations = true
+runtime-evaluated-base-classes = ["pydantic.BaseModel", "sqlmodel.SQLModel"]
+
+[tool.ruff.lint.flake8-unused-arguments]
+ignore-variadic-names = true
+
+[tool.ruff.lint.flake8-bandit]
+check-typed-exception = true
+hardcoded-tmp-directory = ["/tmp", "/var/tmp", "/dev/shm"]
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Depends", "typer.Option", "typer.Argument"]
+
+[tool.ruff.lint.pylint]
+max-args = 8
+max-branches = 15
+max-returns = 8
+max-statements = 60
+
+[tool.ruff.lint.flake8-import-conventions]
+banned-from = ["typing.List", "typing.Dict", "typing.Set", "typing.Tuple"]
+
+[tool.ruff.lint.flake8-import-conventions.aliases]
+"altair" = "alt"
+"matplotlib.pyplot" = "plt"
+"numpy" = "np"
+"pandas" = "pd"
+"polars" = "pl"
+"seaborn" = "sns"
+"streamlit" = "st"
+"sqlalchemy" = "sa"
+"httpx" = "httpx"
+
+[tool.ruff.lint.flake8-pytest-style]
+fixture-parentheses = false
+parametrize-names-type = "tuple"
+parametrize-values-type = "tuple"
+parametrize-values-row-type = "tuple"
+raises-require-match-for = ["requests.RequestException", "httpx.HTTPError"]
+
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"cgi" = { msg = "The cgi module is deprecated." }
+"imp" = { msg = "The imp module is deprecated in favor of importlib." }
+"typing.Callable" = { msg = "Use collections.abc.Callable instead." }
+"typing.Iterable" = { msg = "Use collections.abc.Iterable instead." }
+"typing.Iterator" = { msg = "Use collections.abc.Iterator instead." }
+"typing.Mapping" = { msg = "Use collections.abc.Mapping instead." }
+"typing.Sequence" = { msg = "Use collections.abc.Sequence instead." }
+
+[tool.ruff.lint.pyupgrade]
+keep-runtime-typing = false
 
 [tool.ruff.lint.isort]
-known-first-party = ["ai-job-scraper"]
+known-first-party = ["src", "ai-job-scraper"]
+known-third-party = [
+    "groq", "openai", "langchain", "langgraph",
+    "httpx", "scrapegraphai", "python_jobspy",
+    "pandas", "polars", "numpy",
+    "sqlmodel", "sqlalchemy", "alembic",
+    "streamlit", "typer", "pytest",
+]
 force-single-line = false
 lines-between-types = 1
+split-on-trailing-comma = true
+from-first = false
+length-sort = false
+length-sort-straight = false
+order-by-type = true
+combine-as-imports = true
 
 [tool.ruff.format]
 quote-style = "double"
@@ -252,9 +285,12 @@ indent-style = "space"
 skip-magic-trailing-comma = false
 line-ending = "auto"
 docstring-code-format = true
-docstring-code-line-length = 60
+docstring-code-line-length = 72
+preview = false
 
-# MyPy configuration for type checking
+# =============================================================================
+# MYPY CONFIGURATION
+# =============================================================================
 [tool.mypy]
 python_version = "3.12"
 warn_return_any = true
@@ -274,7 +310,6 @@ show_column_numbers = true
 show_error_context = true
 pretty = true
 
-# Third-party library stubs
 [[tool.mypy.overrides]]
 module = [
     "scrapegraphai.*",
@@ -287,18 +322,17 @@ module = [
 ]
 ignore_missing_imports = true
 
-# Pytest configuration
+# =============================================================================
+# PYTEST CONFIGURATION
+# =============================================================================
 [tool.pytest.ini_options]
 minversion = "8.0"
-# Fast default configuration - no coverage for development
 addopts = [
     "-ra",
     "--strict-markers",
     "--strict-config",
     "--disable-warnings",
     "--tb=short",
-    # Coverage disabled by default for speed
-    # Use --cov flag explicitly when needed
 ]
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
@@ -319,7 +353,9 @@ filterwarnings = [
     "ignore::PendingDeprecationWarning",
 ]
 
-# Coverage configuration
+# =============================================================================
+# COVERAGE CONFIGURATION
+# =============================================================================
 [tool.coverage.run]
 source = ["src"]
 branch = true
@@ -342,7 +378,9 @@ exclude_lines = [
 [tool.coverage.html]
 directory = "htmlcov"
 
-# Pylint configuration
+# =============================================================================
+# PYLINT CONFIGURATION
+# =============================================================================
 [tool.pylint.main]
 source-roots = ["src", "tests"]
 py-version = "3.12"
@@ -350,71 +388,32 @@ jobs = 0  # Auto-detect CPU cores for parallel processing
 recursive = true
 
 [tool.pylint.messages_control]
-# Enable comprehensive checks while allowing reasonable exceptions
 disable = [
-    # Import and module issues (handled by ruff)
-    "import-error",  # Will be resolved by source-roots configuration
-    "wrong-import-position",  # Handled by ruff/isort
-    "relative-beyond-top-level",  # Relative imports in src layout
-    "no-name-in-module",     # Module name detection issues
-    
-    # Documentation (handled by ruff/pydocstyle)
-    "missing-module-docstring",
-    "missing-class-docstring", 
-    "missing-function-docstring",
-    
-    # Code style (handled by ruff/black)
-    "line-too-long",
-    "invalid-name",  # Variable naming handled by ruff
-    
-    # Overly restrictive checks
-    "too-few-public-methods",  # Pydantic models often have few methods
-    "too-many-arguments",      # Sometimes necessary for complex functions
-    "too-many-locals",         # Sometimes necessary for data processing
-    "too-many-branches",       # Sometimes necessary for business logic
-    "too-many-statements",     # Sometimes necessary for complex operations
-    
-    # Allow pragmatic exception handling patterns
-    "broad-exception-caught",  # Sometimes appropriate for robustness
-    
-    # Allow protected member access for SQLAlchemy patterns
-    "protected-access",        # Common pattern in SQLAlchemy and similar libraries
-    
-    # Disable singleton comparison warnings for SQLAlchemy/SQLModel
-    "singleton-comparison",    # SQLModel requires == True/False/None for queries
-    
-    # Disable no-member warnings for standard library modules
-    "no-member",              # datetime.timezone.utc is valid in Python 3.12+
-    
-    # SQLAlchemy/SQLModel specific issues
-    "not-callable",           # func.count() and similar SQLAlchemy func calls are falsely flagged as not callable
+    "import-error", "wrong-import-position", "relative-beyond-top-level", "no-name-in-module",
+    "missing-module-docstring", "missing-class-docstring", "missing-function-docstring",
+    "line-too-long", "invalid-name",
+    "too-few-public-methods", "too-many-arguments", "too-many-locals",
+    "too-many-branches", "too-many-statements",
+    "broad-exception-caught", "protected-access", "singleton-comparison",
+    "no-member", "not-callable",
 ]
 
 enable = [
-    # Focus on logic and correctness issues
-    "unused-variable",
-    "unused-argument", 
-    "undefined-variable",
-    "attribute-defined-outside-init",
-    # Note: singleton-comparison disabled for SQLAlchemy/SQLModel patterns
-    # SQLModel requires == True/False/None for database queries, not is True/False/is None
-    "no-else-raise",
-    "no-else-return",
-    "use-maxsplit-arg",
-    "duplicate-code",
+    "unused-variable", "unused-argument", "undefined-variable",
+    "attribute-defined-outside-init", "no-else-raise", "no-else-return",
+    "use-maxsplit-arg", "duplicate-code",
 ]
 
 [tool.pylint.format]
-max-line-length = 88  # Match ruff configuration
+max-line-length = 88
 
 [tool.pylint.design]
-# Allow reasonable complexity for AI/ML applications
 max-args = 8
-max-locals = 20  
+max-locals = 20
 max-branches = 15
 max-statements = 60
 max-public-methods = 25
-min-public-methods = 1  # Allow single-method classes
+min-public-methods = 1
 
 [tool.pylint.similarities]
 min-similarity-lines = 6
@@ -423,19 +422,9 @@ ignore-docstrings = true
 ignore-imports = true
 
 [tool.pylint.typecheck]
-# Ignore missing imports for third-party libraries without stubs
 ignored-modules = [
-    "scrapegraphai",
-    "python_jobspy", 
-    "proxies",
-    "streamlit",
-    "typer",
-    "pandas",
-    "polars",
-    "groq",
-    "openai",
-    "langchain_groq",
-    "langgraph",
+    "scrapegraphai", "python_jobspy", "proxies", "streamlit", "typer",
+    "pandas", "polars", "groq", "openai", "langchain_groq", "langgraph",
 ]
 
 [dependency-groups]
@@ -444,7 +433,7 @@ dev = [
     "pylint>=3.3.7",
     "pytest-asyncio>=1.1.0",
     "pytest-cov>=6.2.1",
-    "pytest-xdist>=3.6.0",  # For parallel test execution
-    "pytest-benchmark>=4.0.0",  # For performance testing
+    "pytest-xdist>=3.6.0", # For parallel test execution
+    "pytest-benchmark>=4.0.0", # For performance testing
 ]
 
