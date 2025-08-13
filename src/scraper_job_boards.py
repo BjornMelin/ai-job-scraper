@@ -23,7 +23,8 @@ logger = logging.getLogger(__name__)
 
 
 def scrape_job_boards(
-    keywords: list[str], locations: list[str]
+    keywords: list[str],
+    locations: list[str],
 ) -> list[dict[str, "Any"]]:
     """Scrape job listings from structured job boards using JobSpy.
 

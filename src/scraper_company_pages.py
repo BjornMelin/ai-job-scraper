@@ -80,7 +80,7 @@ def _add_proxy_config(config: dict, extraction_type: str) -> dict:
             config["loader_kwargs"] = {
                 "proxy": {
                     "server": proxy_url,
-                }
+                },
             }
             logger.info("Using proxy for %s extraction: %s", extraction_type, proxy_url)
     return config
@@ -285,7 +285,7 @@ def normalize_jobs(state: State) -> dict[str, list[JobSQL]]:
             try:
                 company_name = raw["company"]
                 company = session.exec(
-                    select(CompanySQL).where(CompanySQL.name == company_name)
+                    select(CompanySQL).where(CompanySQL.name == company_name),
                 ).first()
 
                 if not company:
@@ -324,7 +324,9 @@ def normalize_jobs(state: State) -> dict[str, list[JobSQL]]:
         logger.info("📊 Normalization summary:")
         logger.info("  • Raw jobs processed: %d", len(raw_jobs))
         logger.info(
-            "  • Successfully normalized: %d (%.1f%%)", len(normalized), success_rate
+            "  • Successfully normalized: %d (%.1f%%)",
+            len(normalized),
+            success_rate,
         )
         logger.info("  • Failed normalizations: %d", len(raw_jobs) - len(normalized))
 
