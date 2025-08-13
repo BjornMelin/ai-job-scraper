@@ -126,6 +126,6 @@ class TestJobServiceFiltering:
         session.commit()
 
         service = JobService(session)
-        jobs = service.get_filtered_jobs(status_filter=status)
+        jobs = service.get_filtered_jobs({"status_filter": status})
 
         assert len(jobs) == expected_count

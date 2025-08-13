@@ -355,6 +355,8 @@ def _normalize_board_jobs(board_jobs_raw: Sequence[dict]) -> list[JobSQL]:
                     salary = f"${min_amt}+"
                 elif max_amt := raw.get("max_amount"):
                     salary = f"${max_amt}"
+                else:
+                    salary = None
 
                 # Get company ID from pre-loaded mapping (O(1) lookup)
                 company_name = raw.get("company", "Unknown").strip() or "Unknown"

@@ -72,13 +72,13 @@ class TestT1SalaryFormatting:
         """Test minimum salary extraction from tuple."""
         assert ((50000, 80000)[0] if (50000, 80000) else None) == 50000
         assert ((None, 80000)[0] if (None, 80000) else None) is None
-        assert (None[0] if None else None) is None
+        assert None is None
 
     def test_get_salary_max_extraction(self):
         """Test maximum salary extraction from tuple."""
         assert ((50000, 80000)[1] if (50000, 80000) else None) == 80000
         assert ((50000, None)[1] if (50000, None) else None) is None
-        assert (None[1] if None else None) is None
+        assert None is None
 
     def test_format_salary_range_complete_range(self):
         """Test formatting complete salary ranges."""

@@ -125,8 +125,12 @@ class TestSessionStateValidation:
         # Create mock SQLAlchemy objects
         mock_session = Mock(spec=Session)
         mock_engine = Mock(spec=Engine)
-        mock_model = Mock()
-        mock_model.__class__ = Mock(spec=DeclarativeMeta)
+
+        # Create a proper mock class for SQLAlchemy model
+        class MockModel:
+            pass
+
+        mock_model = MockModel()
 
         mock_session_state.update(
             {
