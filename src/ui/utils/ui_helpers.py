@@ -13,10 +13,10 @@ import logging
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
-from pydantic import BaseModel, Field, ValidationError, field_validator
+from pydantic import validate_call
 
 if TYPE_CHECKING:
-    from src.models import CompanySQL, JobSQL
+    from src.models import JobSQL
 
 # Type aliases
 type SalaryTuple = tuple[int | None, int | None]
@@ -142,26 +142,6 @@ def format_timestamp(dt: datetime | None, format_str: str = "%H:%M:%S") -> str:
         return "N/A"
 
 
-def calculate_progress_percentage(completed: int, total: int) -> float:
-    """Calculate progress percentage with proper rounding."""
-    try:
-        if not all(isinstance(x, int | float) for x in [completed, total]):
-            return 0.0
-
-        if total <= 0 or completed < 0:
-            return 0.0
-
-        if completed >= total:
-            return 100.0
-
-        percentage = (completed / total) * 100
-        return round(percentage, 1)
-
-    except Exception:
-        logger.exception("Error calculating progress percentage")
-        return 0.0
-
-
 def format_jobs_count(count: int, singular: str = "job", plural: str = "jobs") -> str:
     """Format job count with proper singular/plural form."""
     try:
@@ -224,65 +204,57 @@ def is_streamlit_context() -> bool:
 
 
 # Validation utilities from validation_utils.py
-class SafeIntValidator(BaseModel):
-    """Pydantic model for safe integer validation."""
-
-    value: int = Field(ge=0, description="Non-negative integer value")
-
-    @field_validator("value", mode="before")
-    @classmethod
-    def convert_to_safe_int(cls, v: "Any") -> int:
-        """Convert various input types to safe non-negative integers."""
-        try:
-            if v is None:
-                return 0
-            if isinstance(
-                v,
-                bool,
-            ):  # Check bool before int since bool is subclass of int
-                return int(v)
-            if isinstance(v, int | float):
-                import math
-
-                return max(
-                    0,
-                    int(v)
-                    if isinstance(v, int)
-                    else (int(v) if isinstance(v, float) and math.isfinite(v) else 0),
-                )
-            if isinstance(v, str):
-                v = v.strip()
-                if v:
-                    try:
-                        return max(0, int(float(v)))
-                    except (ValueError, TypeError):
-                        # Extract first number from string
-                        import re
-
-                        match = re.search(r"-?\d+(?:\.\d+)?", v)
-                        return max(0, int(float(match.group()))) if match else 0
-        except (ValueError, TypeError, AttributeError):
-            return 0
-
-        # Fallback for unhandled types
-        return 0
 
 
-def safe_int(value: "Any", default: int = 0) -> int:
+@validate_call
+def safe_int(value: Any, default: int = 0) -> int:
     """Safely convert any value to a non-negative integer."""
     try:
-        validator = SafeIntValidator(value=value)
-    except ValidationError as e:
-        logger.warning("Failed to convert %s to safe integer: %s", value, e)
+        if value is None:
+            return 0
+        if isinstance(
+            value, bool
+        ):  # Check bool before int since bool is subclass of int
+            return int(value)
+        if isinstance(value, int | float):
+            import math
+
+            return max(
+                0,
+                int(value)
+                if isinstance(value, int)
+                else (
+                    int(value)
+                    if isinstance(value, float) and math.isfinite(value)
+                    else 0
+                ),
+            )
+        if isinstance(value, str):
+            value = value.strip()
+            if value:
+                try:
+                    return max(0, int(float(value)))
+                except (ValueError, TypeError):
+                    # Extract first number from string
+                    import re
+
+                    match = re.search(r"-?\d+(?:\.\d+)?", value)
+                    return (
+                        max(0, int(float(match.group()))) if match else max(0, default)
+                    )
+            else:
+                # Empty string should use default
+                return max(0, default)
+    except (ValueError, TypeError, AttributeError):
+        logger.warning("Failed to convert %s to safe integer, using default", value)
         return max(0, default)
-    except Exception:
-        logger.exception("Unexpected error converting %s to safe integer", value)
-        return max(0, default)
 
-    return validator.value
+    # Fallback for unhandled types (use default)
+    return max(0, default)
 
 
-def safe_job_count(value: "Any", company_name: str = "unknown") -> int:
+@validate_call
+def safe_job_count(value: Any, company_name: str = "unknown") -> int:
     """Safely convert job count values with context-aware logging."""
     try:
         result = safe_int(value)
@@ -301,30 +273,6 @@ def safe_job_count(value: "Any", company_name: str = "unknown") -> int:
 
 
 # Job formatting helpers (replacement for computed fields)
-
-
-def get_salary_min(salary: SalaryTuple | None) -> int | None:
-    """Extract minimum salary value from salary tuple.
-
-    Args:
-        salary: Salary tuple (min, max) or None
-
-    Returns:
-        Minimum salary value or None
-    """
-    return salary[0] if salary else None
-
-
-def get_salary_max(salary: SalaryTuple | None) -> int | None:
-    """Extract maximum salary value from salary tuple.
-
-    Args:
-        salary: Salary tuple (min, max) or None
-
-    Returns:
-        Maximum salary value or None
-    """
-    return salary[1] if salary else None
 
 
 def format_salary_range(salary: SalaryTuple | None) -> str:
@@ -396,20 +344,6 @@ def is_job_recently_posted(
     """
     days = calculate_days_since_posted(posted_date)
     return days is not None and days <= days_threshold
-
-
-def get_job_company_name(company_relation: "CompanySQL | None") -> str:
-    """Get company name from relationship.
-
-    Replacement for JobSQL.company computed field.
-
-    Args:
-        company_relation: Company relationship object
-
-    Returns:
-        Company name or 'Unknown' if not found
-    """
-    return company_relation.name if company_relation else "Unknown"
 
 
 # Company statistics helpers (replacement for computed fields)
@@ -523,7 +457,7 @@ def format_company_stats(stats: dict[str, "Any"]) -> dict[str, "Any"]:
 
 
 def format_date_relative(date: datetime | None) -> str:
-    """Format date as relative time string.
+    """Format date as relative time string using humanize.
 
     Args:
         date: Date to format
@@ -538,23 +472,13 @@ def format_date_relative(date: datetime | None) -> str:
         if not isinstance(date, datetime):
             return "Unknown"
 
-        now = datetime.now(UTC)
+        # Ensure timezone awareness for humanize
         if not date.tzinfo:
             date = date.replace(tzinfo=UTC)
 
-        delta = now - date
-        total_seconds = delta.total_seconds()
+        import humanize
 
-        if total_seconds < 60:
-            return "Just now"
-        if total_seconds < 3600:
-            minutes = int(total_seconds // 60)
-            return f"{minutes} minute{'s' if minutes != 1 else ''} ago"
-        if total_seconds < 86400:
-            hours = int(total_seconds // 3600)
-            return f"{hours} hour{'s' if hours != 1 else ''} ago"
-        days = int(total_seconds // 86400)
-        return f"{days} day{'s' if days != 1 else ''} ago"  # noqa: TRY300 - Final return in time logic
+        return humanize.naturaltime(date)
 
     except Exception:
         logger.exception("Error formatting relative date")

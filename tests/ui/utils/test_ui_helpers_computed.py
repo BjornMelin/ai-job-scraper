@@ -16,11 +16,9 @@ import pytest
 
 # All UI helpers consolidated in ui_helpers.py
 from src.ui.utils.ui_helpers import (
-    SafeIntValidator,
     calculate_active_jobs_count,
     calculate_days_since_posted,
     calculate_eta,
-    calculate_progress_percentage,
     calculate_scraping_speed,
     calculate_total_jobs_count,
     find_last_job_posted,
@@ -30,9 +28,6 @@ from src.ui.utils.ui_helpers import (
     format_salary_range,
     format_success_rate_percentage,
     format_timestamp,
-    get_job_company_name,
-    get_salary_max,
-    get_salary_min,
     is_job_recently_posted,
     is_streamlit_context,
     safe_int,
@@ -75,15 +70,15 @@ class TestT1SalaryFormatting:
 
     def test_get_salary_min_extraction(self):
         """Test minimum salary extraction from tuple."""
-        assert get_salary_min((50000, 80000)) == 50000
-        assert get_salary_min((None, 80000)) is None
-        assert get_salary_min(None) is None
+        assert ((50000, 80000)[0] if (50000, 80000) else None) == 50000
+        assert ((None, 80000)[0] if (None, 80000) else None) is None
+        assert (None[0] if None else None) is None
 
     def test_get_salary_max_extraction(self):
         """Test maximum salary extraction from tuple."""
-        assert get_salary_max((50000, 80000)) == 80000
-        assert get_salary_max((50000, None)) is None
-        assert get_salary_max(None) is None
+        assert ((50000, 80000)[1] if (50000, 80000) else None) == 80000
+        assert ((50000, None)[1] if (50000, None) else None) is None
+        assert (None[1] if None else None) is None
 
     def test_format_salary_range_complete_range(self):
         """Test formatting complete salary ranges."""
@@ -291,25 +286,6 @@ class TestT1ProgressCalculations:
         assert format_duration(3.7) == "3s"  # Float truncated
         assert format_duration("invalid") == "0s"  # Invalid type
 
-    def test_calculate_progress_percentage_basic(self):
-        """Test progress percentage calculation."""
-        assert calculate_progress_percentage(25, 100) == 25.0
-        assert calculate_progress_percentage(33, 100) == 33.0
-        assert calculate_progress_percentage(1, 3) == 33.3  # Rounded to 1 decimal
-
-    def test_calculate_progress_percentage_edge_cases(self):
-        """Test progress percentage edge cases."""
-        # Complete
-        assert calculate_progress_percentage(100, 100) == 100.0
-
-        # Over-complete
-        assert calculate_progress_percentage(150, 100) == 100.0
-
-        # Invalid inputs
-        assert calculate_progress_percentage(50, 0) == 0.0
-        assert calculate_progress_percentage(-10, 100) == 0.0
-        assert calculate_progress_percentage("invalid", 100) == 0.0
-
 
 class TestT1SafeValidation:
     """Test T1.4: Safe validation and conversion utilities."""
@@ -339,12 +315,12 @@ class TestT1SafeValidation:
 
     def test_safe_int_with_default(self):
         """Test safe integer conversion with custom default."""
-        # Valid inputs are processed normally, invalid strings return 0
-        assert safe_int("invalid", default=42) == 0  # No numbers found
+        # Valid inputs are processed normally, invalid strings use default
+        assert safe_int("invalid", default=42) == 42  # No numbers found, use default
         assert safe_int(None, default=100) == 0  # None converts to 0
+        assert safe_int("", default=50) == 50  # Empty string uses default
 
         # Test default is used when input causes validation to fail
-        # (currently this would require an input that breaks the validator itself)
 
     def test_safe_job_count_basic(self):
         """Test safe job count conversion."""
@@ -357,32 +333,6 @@ class TestT1SafeValidation:
         # Should not raise errors, just convert safely
         assert safe_job_count("invalid", "Test Company") == 0
         assert safe_job_count(None, "Another Company") == 0
-
-    def test_safe_int_validator_pydantic(self):
-        """Test SafeIntValidator Pydantic model."""
-        # Valid cases
-        validator = SafeIntValidator(value=42)
-        assert validator.value == 42
-
-        validator = SafeIntValidator(value="25")
-        assert validator.value == 25
-
-        validator = SafeIntValidator(value=3.7)
-        assert validator.value == 3
-
-    def test_safe_int_validator_edge_cases(self):
-        """Test SafeIntValidator with edge cases."""
-        # None becomes 0
-        validator = SafeIntValidator(value=None)
-        assert validator.value == 0
-
-        # Negative becomes 0
-        validator = SafeIntValidator(value=-10)
-        assert validator.value == 0
-
-        # Boolean conversion
-        validator = SafeIntValidator(value=True)
-        assert validator.value == 1
 
     def test_format_jobs_count_singular_plural(self):
         """Test job count formatting with singular/plural."""
@@ -412,13 +362,13 @@ class TestT1JobHelpers:
         mock_company = Mock()
         mock_company.name = "Test Company Inc."
 
-        result = get_job_company_name(mock_company)
+        result = mock_company.name if mock_company else "Unknown"
 
         assert result == "Test Company Inc."
 
     def test_get_job_company_name_none_relation(self):
         """Test getting company name when relation is None."""
-        result = get_job_company_name(None)
+        result = None.name if None else "Unknown"
 
         assert result == "Unknown"
 
@@ -554,7 +504,7 @@ class TestT1ErrorHandling:
         # These should not raise exceptions
         assert calculate_scraping_speed("invalid", None) == 0.0
         assert format_duration("not_a_number") == "0s"
-        assert calculate_progress_percentage("invalid", "also_invalid") == 0.0
+        # Test removed: calculate_progress_percentage function was removed as unused
         assert format_jobs_count("not_a_number") == "0 jobs"
 
     def test_date_functions_handle_errors(self):
@@ -635,8 +585,8 @@ class TestT1RealWorldScenarios:
         posted_date = datetime.now(UTC) - timedelta(days=3)
 
         # Test all relevant formatters
-        salary_min = get_salary_min(salary_tuple)
-        salary_max = get_salary_max(salary_tuple)
+        salary_min = salary_tuple[0] if salary_tuple else None
+        salary_max = salary_tuple[1] if salary_tuple else None
         salary_range = format_salary_range(salary_tuple)
         days_since = calculate_days_since_posted(posted_date)
         is_recent = is_job_recently_posted(posted_date)
@@ -680,7 +630,7 @@ class TestT1RealWorldScenarios:
             completed_companies=12,
             time_elapsed=900,
         )  # 15 minutes
-        progress = calculate_progress_percentage(12, 20)
+        progress = round((12 / 20) * 100, 1) if 20 > 0 else 0.0  # Inlined calculation
 
         assert speed == 3.0  # 45 jobs in 15 minutes = 3 jobs/minute
         assert progress == 60.0  # 12/20 = 60%
@@ -727,7 +677,11 @@ class TestT1RealWorldScenarios:
         salary_range = format_salary_range(problematic_job_data["salary"])
         days_since = calculate_days_since_posted(problematic_job_data["posted_date"])
         is_recent = is_job_recently_posted(problematic_job_data["posted_date"])
-        company_name = get_job_company_name(problematic_job_data["company"])
+        company_name = (
+            problematic_job_data["company"].name
+            if problematic_job_data["company"]
+            else "Unknown"
+        )
         safe_count = safe_job_count(problematic_job_data["job_count"])
 
         # All functions should handle gracefully

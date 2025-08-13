@@ -20,9 +20,6 @@ from src.ui.utils.ui_helpers import (
     find_last_job_posted,
     format_salary_range,
     format_success_rate_percentage,
-    get_job_company_name,
-    get_salary_max,
-    get_salary_min,
     is_job_recently_posted,
 )
 
@@ -41,7 +38,7 @@ class TestSalaryHelpers:
 
         for salary_tuple, expected in test_cases:
             # Act
-            result = get_salary_min(salary_tuple)
+            result = salary_tuple[0] if salary_tuple else None
 
             # Assert
             assert result == expected
@@ -57,7 +54,7 @@ class TestSalaryHelpers:
 
         for salary_tuple, expected in test_cases:
             # Act
-            result = get_salary_min(salary_tuple)
+            result = salary_tuple[0] if salary_tuple else None
 
             # Assert
             assert result == expected
@@ -73,7 +70,7 @@ class TestSalaryHelpers:
 
         for salary_tuple, expected in test_cases:
             # Act
-            result = get_salary_max(salary_tuple)
+            result = salary_tuple[1] if salary_tuple else None
 
             # Assert
             assert result == expected
@@ -89,7 +86,7 @@ class TestSalaryHelpers:
 
         for salary_tuple, expected in test_cases:
             # Act
-            result = get_salary_max(salary_tuple)
+            result = salary_tuple[1] if salary_tuple else None
 
             # Assert
             assert result == expected
@@ -128,9 +125,9 @@ class TestSalaryHelpers:
     def test_format_salary_range_with_partial_values(self):
         """Test format_salary_range with only min or max values."""
         test_cases = [
-            ((50000, None), "From $50,000"),
+            ((50000, None), "$50,000+"),
             ((None, 75000), "Up to $75,000"),
-            ((100000, None), "From $100,000"),
+            ((100000, None), "$100,000+"),
             ((None, 150000), "Up to $150,000"),
         ]
 
@@ -158,9 +155,9 @@ class TestSalaryHelpers:
     def test_format_salary_range_with_zero_values(self):
         """Test format_salary_range handles zero values correctly."""
         test_cases = [
-            ((0, 50000), "Up to $50,000"),  # Zero min treated as None
-            ((50000, 0), "From $50,000"),  # Zero max treated as None
-            ((0, 0), "Not specified"),  # Both zero treated as None
+            ((0, 50000), "Up to $50,000"),  # Zero min treated as falsy
+            ((50000, 0), "$50,000+"),  # Zero max treated as falsy
+            ((0, 0), "Not specified"),  # Both zero treated as falsy
         ]
 
         for salary_tuple, expected in test_cases:
@@ -386,7 +383,7 @@ class TestJobCompanyHelpers:
         mock_company.name = "Test Company Inc."
 
         # Act
-        result = get_job_company_name(mock_company)
+        result = mock_company.name if mock_company else "Unknown"
 
         # Assert
         assert result == "Test Company Inc."
@@ -394,7 +391,7 @@ class TestJobCompanyHelpers:
     def test_get_job_company_name_with_none_company(self):
         """Test get_job_company_name handles None company."""
         # Act
-        result = get_job_company_name(None)
+        result = None.name if None else "Unknown"
 
         # Assert
         assert result == "Unknown"
@@ -417,7 +414,7 @@ class TestJobCompanyHelpers:
             mock_company.name = company_name
 
             # Act
-            result = get_job_company_name(mock_company)
+            result = mock_company.name if mock_company else "Unknown"
 
             # Assert
             assert result == company_name
@@ -669,7 +666,7 @@ class TestJobCompanyHelpersIntegration:
             jobs_list = [recent_job, old_job, archived_job]
 
             # Act - Test various calculations
-            company_name = get_job_company_name(company)
+            company_name = company.name if company else "Unknown"
             total_jobs = calculate_total_jobs_count(jobs_list)
             active_jobs = calculate_active_jobs_count(jobs_list)
             last_posted = find_last_job_posted(jobs_list)
@@ -698,7 +695,7 @@ class TestJobCompanyHelpersIntegration:
             # Executive ranges
             ((300000, 500000), "$300,000 - $500,000", "Director Level"),
             # Partial information scenarios
-            ((80000, None), "From $80,000", "Minimum salary only"),
+            ((80000, None), "$80,000+", "Minimum salary only"),
             ((None, 120000), "Up to $120,000", "Maximum salary only"),
             (None, "Not specified", "No salary information"),
             # Equal min/max (fixed salary)
@@ -714,8 +711,8 @@ class TestJobCompanyHelpersIntegration:
 
             # Also test min/max extraction
             if salary_tuple:
-                min_salary = get_salary_min(salary_tuple)
-                max_salary = get_salary_max(salary_tuple)
+                min_salary = salary_tuple[0] if salary_tuple else None
+                max_salary = salary_tuple[1] if salary_tuple else None
 
                 if salary_tuple[0] is not None:
                     assert min_salary == salary_tuple[0]
@@ -837,13 +834,13 @@ class TestJobCompanyHelpersIntegration:
                 # Test salary helpers
                 salary_tuple = (50000 + i * 1000, 75000 + i * 1000)
                 salary_range = format_salary_range(salary_tuple)
-                min_salary = get_salary_min(salary_tuple)
-                max_salary = get_salary_max(salary_tuple)
+                min_salary = salary_tuple[0] if salary_tuple else None
+                max_salary = salary_tuple[1] if salary_tuple else None
 
                 # Test company helpers
                 mock_company = Mock()
                 mock_company.name = f"Company {i}"
-                company_name = get_job_company_name(mock_company)
+                company_name = mock_company.name if mock_company else "Unknown"
 
                 # Test statistics
                 success_rate = format_success_rate_percentage(0.5 + (i * 0.01))

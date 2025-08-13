@@ -11,198 +11,11 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from pydantic import ValidationError
-
 from src.ui.utils.ui_helpers import (
-    SafeIntValidator,
     is_streamlit_context,
     safe_int,
     safe_job_count,
 )
-
-
-class TestSafeIntValidator:
-    """Test the SafeIntValidator Pydantic model."""
-
-    def test_validates_positive_integers(self):
-        """Test validator accepts positive integers."""
-        test_cases = [0, 1, 10, 100, 1000, 2**31 - 1]
-
-        for value in test_cases:
-            # Act
-            validator = SafeIntValidator(value=value)
-
-            # Assert
-            assert validator.value == value
-
-    def test_converts_string_numbers(self):
-        """Test validator converts string numbers correctly."""
-        test_cases = [
-            ("0", 0),
-            ("5", 5),
-            ("123", 123),
-            ("1000", 1000),
-            ("  42  ", 42),  # With whitespace
-            ("3.0", 3),  # Float string
-            ("7.8", 7),  # Float string rounded down
-        ]
-
-        for input_str, expected in test_cases:
-            # Act
-            validator = SafeIntValidator(value=input_str)
-
-            # Assert
-            assert validator.value == expected
-
-    def test_extracts_numbers_from_mixed_strings(self):
-        """Test validator extracts first number from mixed strings."""
-        test_cases = [
-            ("5 jobs available", 5),
-            ("Found 123 results", 123),
-            ("Price: $50", 50),
-            ("Item #7 of 10", 7),
-            ("Error -5 occurred", 0),  # Negative converts to 0
-            ("10.5 hours", 10),
-            ("3.14159", 3),
-        ]
-
-        for input_str, expected in test_cases:
-            # Act
-            validator = SafeIntValidator(value=input_str)
-
-            # Assert
-            assert validator.value == expected
-
-    def test_handles_negative_numbers(self):
-        """Test validator converts negative numbers to positive."""
-        test_cases = [
-            (-1, 0),
-            (-10, 0),
-            (-100, 0),
-            ("-5", 0),
-            ("-50", 0),
-        ]
-
-        for input_val, expected in test_cases:
-            # Act
-            validator = SafeIntValidator(value=input_val)
-
-            # Assert
-            assert validator.value == expected
-
-    def test_handles_boolean_inputs(self):
-        """Test validator handles boolean inputs correctly."""
-        test_cases = [
-            (True, 1),
-            (False, 0),
-        ]
-
-        for input_bool, expected in test_cases:
-            # Act
-            validator = SafeIntValidator(value=input_bool)
-
-            # Assert
-            assert validator.value == expected
-
-    def test_handles_float_inputs(self):
-        """Test validator handles float inputs correctly."""
-        test_cases = [
-            (0.0, 0),
-            (1.0, 0),  # Complex float logic returns 0
-            (5.7, 0),  # Complex float logic returns 0
-            (99.9, 0),  # Complex float logic returns 0
-            (3.14159, 0),  # Complex float logic returns 0
-        ]
-
-        for input_float, expected in test_cases:
-            # Act
-            validator = SafeIntValidator(value=input_float)
-
-            # Assert
-            assert validator.value == expected
-
-    def test_handles_special_float_values(self):
-        """Test validator handles special float values gracefully."""
-        test_cases = [
-            (float("inf"), 0),
-            (float("-inf"), 0),
-            (float("nan"), 0),
-        ]
-
-        for input_float, expected in test_cases:
-            # Act
-            validator = SafeIntValidator(value=input_float)
-
-            # Assert
-            assert validator.value == expected
-
-    def test_handles_none_and_empty_values(self):
-        """Test validator handles None and empty values."""
-        # None should work
-        validator = SafeIntValidator(value=None)
-        assert validator.value == 0
-
-        # Empty and whitespace strings raise ValidationError (handled by safe_int)
-        with pytest.raises(ValidationError):
-            SafeIntValidator(value="")
-        with pytest.raises(ValidationError):
-            SafeIntValidator(value="   ")
-
-    def test_handles_invalid_string_formats(self):
-        """Test validator handles invalid string formats gracefully."""
-        test_cases = [
-            ("invalid", 0),
-            ("no numbers here", 0),
-            ("$$$", 0),
-            ("abc123def", 123),  # Extracts first number
-            ("prefix456suffix", 456),  # Extracts first number
-        ]
-
-        for input_str, expected in test_cases:
-            # Act
-            validator = SafeIntValidator(value=input_str)
-
-            # Assert
-            assert validator.value == expected
-
-        # Empty string raises ValidationError
-        with pytest.raises(ValidationError):
-            SafeIntValidator(value="")
-
-    def test_handles_complex_data_types(self):
-        """Test validator handles complex data types gracefully."""
-        # Complex data types raise ValidationError (handled by safe_int wrapper)
-        with pytest.raises(ValidationError):
-            SafeIntValidator(value=[])
-        with pytest.raises(ValidationError):
-            SafeIntValidator(value={})
-        with pytest.raises(ValidationError):
-            SafeIntValidator(value={"key": "value"})
-        with pytest.raises(ValidationError):
-            SafeIntValidator(value=[1, 2, 3])
-        with pytest.raises(ValidationError):
-            SafeIntValidator(value=object())
-
-    def test_field_validation_constraints(self):
-        """Test field validation enforces constraints."""
-        # Valid positive values should pass
-        validator = SafeIntValidator(value=100)
-        assert validator.value == 100
-
-        # Test that the field has ge=0 constraint
-        # This is tested implicitly by the fact that negative inputs get converted to 0
-        validator = SafeIntValidator(value=-10)
-        assert validator.value == 0
-
-    def test_field_description_and_constraints(self):
-        """Test field has proper description and constraints."""
-        # Test field configuration
-        field_info = SafeIntValidator.model_fields["value"]
-        assert field_info.description == "Non-negative integer value"
-
-        # Test constraint is applied (ge=0)
-        validator = SafeIntValidator(value=42)
-        assert validator.value == 42
 
 
 class TestSafeInt:
@@ -242,15 +55,14 @@ class TestSafeInt:
 
     def test_handles_unexpected_exceptions(self):
         """Test safe_int handles unexpected exceptions gracefully."""
-        with patch("src.ui.utils.ui_helpers.SafeIntValidator") as mock_validator:
-            # Arrange - Mock validator to raise unexpected exception
-            mock_validator.side_effect = RuntimeError("Unexpected error")
+        # For this test, we can simulate an exception by using an invalid value
+        # that would cause an exception in the conversion logic
 
-            # Act
-            result = safe_int("value", default=5)
+        # Act - use a complex object that should fall back to default
+        result = safe_int(object(), default=5)
 
-            # Assert
-            assert result == 5
+        # Assert
+        assert result == 5
 
     def test_ensures_non_negative_default(self):
         """Test safe_int ensures default is non-negative."""
