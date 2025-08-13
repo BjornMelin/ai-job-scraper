@@ -108,8 +108,12 @@ def remove_task(task_id: str) -> None:
             tasks = st.session_state.tasks
             if isinstance(tasks, dict):
                 tasks.pop(task_id, None)
-    except (AttributeError, KeyError):
-        pass
+    except (AttributeError, KeyError) as e:
+        # Log warning when task cleanup fails - non-critical operation
+        import logging
+
+        logger = logging.getLogger(__name__)
+        logger.warning("Failed to clean up task %s from session state: %s", task_id, e)
 
 
 # Throttled rerun utility from refresh.py
@@ -136,7 +140,7 @@ def is_scraping_active() -> bool:
     """Check if scraping is currently active."""
     try:
         result = st.session_state.get("scraping_active", False)
-        return bool(result) if isinstance(result, (bool, int, str)) else False
+        return bool(result) if isinstance(result, bool | int | str) else False
     except (AttributeError, KeyError):
         return False
 

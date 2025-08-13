@@ -241,7 +241,7 @@ def show_settings_page() -> None:
         # Show current limit info
         if max_jobs <= 30:
             st.info(
-                f"📊 Conservative limit: Will scrape up to {max_jobs} jobs per company"
+                f"📊 Conservative limit: Will scrape up to {max_jobs} jobs per company",
             )
         elif max_jobs <= 100:
             st.info(f"📊 Moderate limit: Will scrape up to {max_jobs} jobs per company")
@@ -266,7 +266,7 @@ def show_settings_page() -> None:
                         "groq_api_key": groq_key,
                         "llm_provider": provider,
                         "max_jobs_per_company": max_jobs,
-                    }
+                    },
                 )
 
                 # Save settings
@@ -279,7 +279,7 @@ def show_settings_page() -> None:
                 if openai_key or groq_key:
                     st.info(
                         "💡 **Note:** API keys should be set as environment variables "
-                        "(OPENAI_API_KEY, GROQ_API_KEY) for security in production."
+                        "(OPENAI_API_KEY, GROQ_API_KEY) for security in production.",
                     )
 
             except Exception:

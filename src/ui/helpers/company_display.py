@@ -72,7 +72,9 @@ def render_company_card(company: "Company", toggle_callback) -> None:
 
 
 def render_company_card_with_delete(
-    company: "Company", toggle_callback, delete_callback
+    company: "Company",
+    toggle_callback,
+    delete_callback,
 ) -> None:
     """Render a company card with info, stats, toggle, and delete button."""
     with st.container(border=True):
@@ -117,7 +119,10 @@ def render_company_card_with_delete(
 
 
 def render_company_card_with_selection(
-    company: "Company", toggle_callback, delete_callback, selection_callback
+    company: "Company",
+    toggle_callback,
+    delete_callback,
+    selection_callback,
 ) -> None:
     """Render a company card with selection, info, stats, toggle, and delete."""
     with st.container(border=True):

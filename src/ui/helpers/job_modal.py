@@ -72,7 +72,10 @@ def render_action_buttons(job: "Job", notes_value: str) -> None:
     with col2:
         if job.link:
             st.link_button(
-                "Apply Now", job.link, use_container_width=True, type="secondary"
+                "Apply Now",
+                job.link,
+                use_container_width=True,
+                type="secondary",
             )
 
     with col3:

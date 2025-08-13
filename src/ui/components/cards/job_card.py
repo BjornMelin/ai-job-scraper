@@ -41,9 +41,9 @@ def render_job_card(job: "Job") -> None:
 
         # Job title and company
         st.markdown(f"### {html.escape(job.title)}")
-        st.markdown(
-            f"**{html.escape(job.company)}** • {html.escape(job.location)} • {time_str}"
-        )
+        job_company = html.escape(job.company)
+        job_location = html.escape(job.location)
+        st.markdown(f"**{job_company}** • {job_location} • {time_str}")
 
         # Job description preview
         description_preview = (
@@ -128,7 +128,7 @@ def _format_posted_date(posted_date: "Any") -> str:
         if isinstance(posted_date, str):
             try:
                 posted_date = datetime.strptime(posted_date, "%Y-%m-%d").replace(
-                    tzinfo=UTC
+                    tzinfo=UTC,
                 )
             except ValueError:
                 logger.warning("Failed to parse posted_date string: %s", posted_date)

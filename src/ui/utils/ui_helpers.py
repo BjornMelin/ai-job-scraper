@@ -54,7 +54,9 @@ def calculate_scraping_speed(
 
 
 def calculate_eta(
-    total_companies: int, completed_companies: int, time_elapsed: int
+    total_companies: int,
+    completed_companies: int,
+    time_elapsed: int,
 ) -> str:
     """Calculate estimated time of arrival for completing all companies."""
     try:
@@ -235,7 +237,8 @@ class SafeIntValidator(BaseModel):
             if v is None:
                 return 0
             if isinstance(
-                v, bool
+                v,
+                bool,
             ):  # Check bool before int since bool is subclass of int
                 return int(v)
             if isinstance(v, int | float):
@@ -285,7 +288,10 @@ def safe_job_count(value: "Any", company_name: str = "unknown") -> int:
         result = safe_int(value)
     except Exception as e:
         logger.warning(
-            "Failed to convert job count for %s: %s (%s)", company_name, value, e
+            "Failed to convert job count for %s: %s (%s)",
+            company_name,
+            value,
+            e,
         )
         return 0
 
@@ -374,7 +380,8 @@ def calculate_days_since_posted(posted_date: datetime | None) -> int | None:
 
 
 def is_job_recently_posted(
-    posted_date: datetime | None, days_threshold: int = 7
+    posted_date: datetime | None,
+    days_threshold: int = 7,
 ) -> bool:
     """Check if job was posted within the threshold days.
 
@@ -474,7 +481,7 @@ def format_success_rate_percentage(success_rate: float) -> float:
         Success rate as percentage (0-100), rounded to 1 decimal place
     """
     try:
-        if not isinstance(success_rate, (int, float)):
+        if not isinstance(success_rate, int | float):
             return 0.0
         return round(success_rate * 100, 1)
     except (TypeError, ValueError):
@@ -500,10 +507,11 @@ def format_company_stats(stats: dict[str, "Any"]) -> dict[str, "Any"]:
         formatted = {}
         for key, value in stats.items():
             if key in ["total_jobs", "active_companies"] and isinstance(
-                value, (int, float)
+                value,
+                int | float,
             ):
                 formatted[key] = int(value)
-            elif key == "success_rate" and isinstance(value, (int, float)):
+            elif key == "success_rate" and isinstance(value, int | float):
                 formatted[key] = round(float(value), 2)
             else:
                 formatted[key] = value

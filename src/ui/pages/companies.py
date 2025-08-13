@@ -107,7 +107,9 @@ def _toggle_company_callback(company_id: int) -> None:
 
         st.session_state.toggle_error = None
         logger.info(
-            "User toggled company ID %s active status to %s", company_id, new_status
+            "User toggled company ID %s active status to %s",
+            company_id,
+            new_status,
         )
 
     except Exception as e:
@@ -171,7 +173,7 @@ def _show_bulk_delete_dialog() -> None:
 
     st.warning(
         f"⚠️ Are you sure you want to delete {selected_count} companies? "
-        "This will also delete all associated jobs and cannot be undone."
+        "This will also delete all associated jobs and cannot be undone.",
     )
 
     col1, col2 = st.columns([1, 1])
@@ -366,7 +368,9 @@ def show_companies_page() -> None:
             )
 
         st.form_submit_button(
-            "Add Company", type="primary", on_click=_add_company_callback
+            "Add Company",
+            type="primary",
+            on_click=_add_company_callback,
         )
 
     # Display all companies
@@ -442,7 +446,7 @@ def show_companies_page() -> None:
             selected_count = len(st.session_state.get("selected_companies", set()))
             st.warning(
                 f"⚠️ Are you sure you want to delete {selected_count} companies? "
-                "This will also delete all associated jobs and cannot be undone."
+                "This will also delete all associated jobs and cannot be undone.",
             )
 
             col1, col2 = st.columns([1, 1])

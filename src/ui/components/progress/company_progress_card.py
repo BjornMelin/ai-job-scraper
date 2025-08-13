@@ -83,7 +83,8 @@ class CompanyProgressCard:
         try:
             # Get status configuration
             status_info = self.status_config.get(
-                company_progress.status, self.status_config["Pending"]
+                company_progress.status,
+                self.status_config["Pending"],
             )
 
             # Create bordered container for the card
@@ -102,7 +103,9 @@ class CompanyProgressCard:
             st.error(f"Error displaying progress for {company_progress.name}")
 
     def _render_card_header(
-        self, company_progress: "CompanyProgress", status_info: dict
+        self,
+        company_progress: "CompanyProgress",
+        status_info: dict,
     ) -> None:
         """Render the card header with company name and status.
 
@@ -151,7 +154,8 @@ class CompanyProgressCard:
                 elapsed = datetime.now(UTC) - company_progress.start_time
                 # Estimate progress based on elapsed time (max 90% until completion)
                 estimated_progress = min(
-                    0.9, elapsed.total_seconds() / 120.0
+                    0.9,
+                    elapsed.total_seconds() / 120.0,
                 )  # 2 min estimate
                 progress = estimated_progress
                 progress_text = f"Scraping... ({int(progress * 100)}%)"
@@ -217,7 +221,7 @@ class CompanyProgressCard:
                 duration = company_progress.end_time - company_progress.start_time
                 duration_str = format_duration(duration.total_seconds())
                 timing_parts.extend(
-                    (f"Completed: {end_str}", f"Duration: {duration_str}")
+                    (f"Completed: {end_str}", f"Duration: {duration_str}"),
                 )
             elif company_progress.status == "Scraping":
                 elapsed = datetime.now(UTC) - company_progress.start_time

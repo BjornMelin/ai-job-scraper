@@ -46,7 +46,7 @@ def render_scraping_page() -> None:
     # Page header
     st.markdown("# 🔍 Job Scraping Dashboard")
     st.markdown(
-        "Monitor and control job scraping operations with real-time progress tracking"
+        "Monitor and control job scraping operations with real-time progress tracking",
     )
 
     # Control buttons section
@@ -77,7 +77,7 @@ def _render_control_buttons() -> None:
         active_companies = []
         st.error(
             "⚠️ Failed to load company configuration. "
-            "Please check the database connection."
+            "Please check the database connection.",
         )
 
     # Status indicator
@@ -103,7 +103,7 @@ def _render_control_buttons() -> None:
                 start_background_scraping()
                 st.success(
                     f"🚀 Scraping initiated! Monitoring {len(active_companies)} "
-                    f"companies. Progress will appear below."
+                    f"companies. Progress will appear below.",
                 )
                 st.balloons()  # Celebratory feedback
                 st.rerun()
@@ -125,7 +125,7 @@ def _render_control_buttons() -> None:
                 stopped_count = stop_all_scraping()
                 if stopped_count > 0:
                     st.warning(
-                        f"⚠️ Scraping stopped. {stopped_count} task(s) cancelled."
+                        f"⚠️ Scraping stopped. {stopped_count} task(s) cancelled.",
                     )
                     st.rerun()
                 else:
@@ -158,7 +158,7 @@ def _render_control_buttons() -> None:
 
                 st.success(
                     f"✨ Progress data reset successfully! "
-                    f"Cleared {cleared_count} data stores."
+                    f"Cleared {cleared_count} data stores.",
                 )
                 st.rerun()
             except Exception:
@@ -167,7 +167,8 @@ def _render_control_buttons() -> None:
 
     # Show current status
     current_status = st.session_state.get(
-        "scraping_status", "Ready to start scraping..."
+        "scraping_status",
+        "Ready to start scraping...",
     )
     if is_scraping:
         st.info(f"🔄 {current_status}")
@@ -243,7 +244,7 @@ def _render_progress_dashboard() -> None:
                 f"{active_companies}/{total_companies}",
                 "Companies currently being scraped",
             ),
-        ]
+        ],
     )
 
     # Overall progress bar
@@ -322,7 +323,7 @@ def _render_activity_summary() -> None:
             ("Last Run Jobs", last_run_jobs_display, ""),
             ("Last Run Time", last_run_time, ""),
             ("Avg Duration", duration_text, ""),
-        ]
+        ],
     )
 
 

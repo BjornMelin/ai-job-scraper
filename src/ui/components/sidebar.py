@@ -98,14 +98,15 @@ def _render_search_filters() -> None:
             {
                 "date_from": date_from,
                 "date_to": date_to,
-            }
+            },
         )
 
         # Salary range filter with high-value support
         st.markdown("**Salary Range**")
         current_salary_min = st.session_state.filters.get("salary_min", 0)
         current_salary_max = st.session_state.filters.get(
-            "salary_max", SALARY_DEFAULT_MAX
+            "salary_max",
+            SALARY_DEFAULT_MAX,
         )
 
         salary_range = st.slider(
@@ -127,7 +128,7 @@ def _render_search_filters() -> None:
             {
                 "salary_min": salary_range[0],
                 "salary_max": salary_range[1],
-            }
+            },
         )
 
         # Display formatted salary range with improved formatting
@@ -187,11 +188,15 @@ def _render_company_management() -> None:
                         help="Toggle to enable/disable scraping",
                     ),
                     "URL": st.column_config.LinkColumn(
-                        "URL", width="large", help="Company careers page URL"
+                        "URL",
+                        width="large",
+                        help="Company careers page URL",
                     ),
                     "Name": st.column_config.TextColumn("Company Name", width="medium"),
                     "id": st.column_config.NumberColumn(
-                        "ID", width="small", disabled=True
+                        "ID",
+                        width="small",
+                        disabled=True,
                     ),
                 },
                 hide_index=True,
@@ -254,7 +259,9 @@ def _render_add_company_form() -> None:
         )
 
         if st.form_submit_button(
-            "+ Add Company", use_container_width=True, type="primary"
+            "+ Add Company",
+            use_container_width=True,
+            type="primary",
         ):
             _handle_add_company(new_name, new_url)
 

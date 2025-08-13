@@ -120,7 +120,7 @@ def render_jobs_page() -> None:
 
     if not jobs:
         st.info(
-            "🔍 No jobs found. Try adjusting your filters or refreshing the job list."
+            "🔍 No jobs found. Try adjusting your filters or refreshing the job list.",
         )
         return
 
@@ -212,7 +212,7 @@ def _handle_refresh_jobs() -> None:
             except Exception:
                 st.write("Warning: Could not determine company count")
                 logger.warning(
-                    "REFRESH_JOBS_SOURCES_ERROR: Failed to get active companies count"
+                    "REFRESH_JOBS_SOURCES_ERROR: Failed to get active companies count",
                 )
 
             # Execute scraping and get sync stats
@@ -299,7 +299,7 @@ def _handle_refresh_jobs() -> None:
                 st.write("❌ Check logs for detailed error information")
                 st.write(
                     "Try again in a few moments or contact support if the issue "
-                    "persists"
+                    "persists",
                 )
 
 
@@ -311,7 +311,7 @@ def _render_last_refresh_status() -> None:
         if time_diff.total_seconds() < 3600:
             minutes = int(time_diff.total_seconds() / 60)
             st.info(
-                f"Last refreshed: {minutes} minute{'s' if minutes != 1 else ''} ago"
+                f"Last refreshed: {minutes} minute{'s' if minutes != 1 else ''} ago",
             )
         else:
             hours = int(time_diff.total_seconds() / 3600)
@@ -434,7 +434,7 @@ def _render_job_tabs(jobs: list["Job"]) -> None:
             f"All Jobs 📋 ({total_all:,})",
             f"Favorites ⭐ ({total_favorites:,})",
             f"Applied ✅ ({total_applied:,})",
-        ]
+        ],
     )
 
     # Render each tab with native dataframe
@@ -442,7 +442,7 @@ def _render_job_tabs(jobs: list["Job"]) -> None:
         if total_all == 0:
             st.info(
                 "🔍 No jobs found. Try adjusting your filters or refreshing the "
-                "job list."
+                "job list.",
             )
         else:
             _render_job_display(all_jobs, "all")
@@ -451,7 +451,7 @@ def _render_job_tabs(jobs: list["Job"]) -> None:
         if total_favorites == 0:
             st.info(
                 "💡 No favorite jobs yet. Star jobs you're interested in "
-                "to see them here!"
+                "to see them here!",
             )
         else:
             _render_job_display(favorites_jobs, "favorites")
@@ -460,7 +460,7 @@ def _render_job_tabs(jobs: list["Job"]) -> None:
         if total_applied == 0:
             st.info(
                 "🚀 No applications yet. Update job status to 'Applied' "
-                "to track them here!"
+                "to track them here!",
             )
         else:
             _render_job_display(applied_jobs, "applied")
@@ -515,7 +515,7 @@ def _jobs_to_dataframe(jobs: list["Job"]) -> pd.DataFrame:
                 "Description": j.description,
             }
             for j in jobs
-        ]
+        ],
     )
 
 
@@ -599,7 +599,11 @@ def _render_statistics_dashboard(jobs: list["Job"]) -> None:
     # Render progress visualization
     if total_jobs > 0:
         _render_progress_visualization(
-            total_jobs, new_jobs, interested, applied, rejected
+            total_jobs,
+            new_jobs,
+            interested,
+            applied,
+            rejected,
         )
 
 

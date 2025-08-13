@@ -138,7 +138,8 @@ def warm_startup_cache(config: dict | None = None) -> dict[str, "Any"]:
             stats["status"] = "failed"
             stats["duration_seconds"] = round(time.time() - start_time, 2)
             logger.exception(
-                "Cache warmup failed after %.2fs", stats["duration_seconds"]
+                "Cache warmup failed after %.2fs",
+                stats["duration_seconds"],
             )
         else:
             return stats

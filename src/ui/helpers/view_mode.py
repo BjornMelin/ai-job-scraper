@@ -42,7 +42,9 @@ def select_view_mode(tab_key: str) -> tuple[str, int | None]:
 
 
 def apply_view_mode(
-    jobs: list, view_mode: str, grid_columns: int | None = None
+    jobs: list,
+    view_mode: str,
+    grid_columns: int | None = None,
 ) -> None:
     """Apply the selected view mode to render jobs.
 
