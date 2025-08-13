@@ -13,8 +13,8 @@ import pandas as pd
 
 from src.schemas import Job
 from src.ui.components.cards.job_card import render_jobs_grid, render_jobs_list
-from src.ui.helpers.view_mode import apply_view_mode, select_view_mode
 from src.ui.pages.jobs import _jobs_to_dataframe, _render_job_display, _render_job_tabs
+from src.ui.ui_rendering import apply_view_mode, select_view_mode
 
 
 class TestT1PaginationElimination:
@@ -27,8 +27,8 @@ class TestT1PaginationElimination:
         import inspect
 
         import src.ui.components.cards.job_card as job_card_module
-        import src.ui.helpers.view_mode as view_mode_module
         import src.ui.pages.jobs as jobs_module
+        import src.ui.ui_rendering as view_mode_module
 
         jobs_source = inspect.getsource(jobs_module)
         view_mode_source = inspect.getsource(view_mode_module)
@@ -240,10 +240,10 @@ class TestJobDisplayNativeFunctionality:
                 return_value=sample_jobs_dto,
             ) as mock_search,
             patch(
-                "src.ui.helpers.view_mode.select_view_mode",
+                "src.ui.ui_rendering.select_view_mode",
                 return_value=("List", None),
             ),
-            patch("src.ui.helpers.view_mode.apply_view_mode") as mock_apply,
+            patch("src.ui.ui_rendering.apply_view_mode") as mock_apply,
         ):
             _render_job_display(sample_jobs_dto, "test_tab")
 
@@ -338,8 +338,8 @@ class TestT1NativeFunctionalityValidation:
         """Test that no custom pagination classes exist in the codebase."""
         # Import all UI modules to check for pagination classes
         import src.ui.components.cards.job_card as job_card_module
-        import src.ui.helpers.view_mode as view_mode_module
         import src.ui.pages.jobs as jobs_module
+        import src.ui.ui_rendering as view_mode_module
 
         modules = [jobs_module, view_mode_module, job_card_module]
 
@@ -366,8 +366,8 @@ class TestT1NativeFunctionalityValidation:
 
     def test_no_custom_pagination_functions(self):
         """Test that no custom pagination functions exist."""
-        import src.ui.helpers.view_mode as view_mode_module
         import src.ui.pages.jobs as jobs_module
+        import src.ui.ui_rendering as view_mode_module
 
         modules = [jobs_module, view_mode_module]
 

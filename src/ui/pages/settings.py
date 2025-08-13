@@ -14,7 +14,7 @@ import streamlit as st
 from groq import Groq
 from openai import OpenAI
 
-from src.ui.utils.ui_helpers import is_streamlit_context
+from src.ui.utils.system_utils import is_streamlit_context
 
 logger = logging.getLogger(__name__)
 

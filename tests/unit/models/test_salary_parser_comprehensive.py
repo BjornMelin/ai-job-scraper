@@ -374,11 +374,11 @@ class TestJobSQLSalaryIntegration:
         assert job.salary == (100000, 150000)
 
         # Test helper functions for salary display
-        from src.ui.utils.ui_helpers import (
-            format_salary_range,
+        from src.ui.utils.computed_fields import (
             get_salary_max,
             get_salary_min,
         )
+        from src.ui.utils.formatters import format_salary_range
 
         assert get_salary_min(job.salary) == 100000
         assert get_salary_max(job.salary) == 150000
@@ -386,11 +386,11 @@ class TestJobSQLSalaryIntegration:
 
     def test_jobsql_salary_helper_functions(self):
         """Test JobSQL salary helper functions (replacement for computed properties)."""
-        from src.ui.utils.ui_helpers import (
-            format_salary_range,
+        from src.ui.utils.computed_fields import (
             get_salary_max,
             get_salary_min,
         )
+        from src.ui.utils.formatters import format_salary_range
 
         # Create job with salary range
         job = JobSQL(

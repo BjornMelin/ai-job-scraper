@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from src.ui.utils.ui_helpers import (
+from src.ui.utils.formatters import (
     format_company_stats,
     format_date_relative,
     format_salary_range,

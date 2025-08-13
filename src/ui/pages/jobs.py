@@ -18,7 +18,7 @@ from src.scraper import scrape_all
 from src.services.company_service import CompanyService
 from src.services.job_service import JobService
 from src.ui.components.sidebar import render_sidebar
-from src.ui.utils.ui_helpers import is_streamlit_context
+from src.ui.utils.system_utils import is_streamlit_context
 
 if TYPE_CHECKING:
     from src.schemas import Job
@@ -33,7 +33,7 @@ def show_job_details_modal(job: "Job") -> None:
     Args:
         job: Job DTO object to display details for.
     """
-    from src.ui.helpers.job_modal import (
+    from src.ui.ui_rendering import (
         render_action_buttons,
         render_job_description,
         render_job_header,
@@ -480,7 +480,7 @@ def _render_job_display(jobs: list["Job"], tab_key: str) -> None:
     filtered_jobs = _apply_tab_search_to_jobs(jobs, tab_key)
 
     # Use helper for view mode selection and rendering
-    from src.ui.helpers.view_mode import apply_view_mode, select_view_mode
+    from src.ui.ui_rendering import apply_view_mode, select_view_mode
 
     view_mode, grid_columns = select_view_mode(tab_key)
     apply_view_mode(filtered_jobs, view_mode, grid_columns)

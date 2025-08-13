@@ -31,7 +31,7 @@ class TestJobDetailsModal:
     ):
         """Test modal displays complete job information."""
         # Act - Test the underlying functions directly
-        from src.ui.helpers.job_modal import (
+        from src.ui.ui_rendering import (
             render_job_description,
             render_job_header,
             render_job_status,
@@ -66,7 +66,7 @@ class TestJobDetailsModal:
         sample_job_dto.application_status = "Applied"
 
         # Act - Test helper function directly
-        from src.ui.helpers.job_modal import render_job_status
+        from src.ui.ui_rendering import render_job_status
 
         render_job_status(sample_job_dto)
 
@@ -86,7 +86,7 @@ class TestJobDetailsModal:
     ):
         """Test modal creates text area for job notes."""
         # Act - Test helper function directly
-        from src.ui.helpers.job_modal import render_notes_section
+        from src.ui.ui_rendering import render_notes_section
 
         render_notes_section(sample_job_dto)
 
@@ -105,7 +105,7 @@ class TestJobDetailsModal:
     ):
         """Test modal creates save notes, apply now, and close buttons."""
         # Act - Test helper function directly
-        from src.ui.helpers.job_modal import render_action_buttons
+        from src.ui.ui_rendering import render_action_buttons
 
         render_action_buttons(sample_job_dto, "test notes")
 
@@ -126,7 +126,7 @@ class TestJobDetailsModal:
         sample_job_dto.link = "https://example.com/apply"
 
         # Act - Test helper function directly
-        from src.ui.helpers.job_modal import render_action_buttons
+        from src.ui.ui_rendering import render_action_buttons
 
         render_action_buttons(sample_job_dto, "test notes")
 

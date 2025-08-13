@@ -28,7 +28,8 @@ from src.ui.utils.background_helpers import (
     stop_all_scraping,
     throttled_rerun,
 )
-from src.ui.utils.ui_helpers import calculate_eta, is_streamlit_context
+from src.ui.utils.formatters import calculate_eta
+from src.ui.utils.system_utils import is_streamlit_context
 
 logger = logging.getLogger(__name__)
 

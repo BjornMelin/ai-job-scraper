@@ -14,31 +14,37 @@ from unittest.mock import Mock
 
 import pytest
 
-from src.ui.utils.ui_helpers import (
-    # Validation utilities
-    SafeIntValidator,
+# Computed field helpers
+from src.ui.utils.computed_fields import (
     calculate_active_jobs_count,
     calculate_days_since_posted,
-    calculate_eta,
-    calculate_progress_percentage,
-    # Formatters
-    calculate_scraping_speed,
-    # Company helpers
     calculate_total_jobs_count,
     find_last_job_posted,
+    get_job_company_name,
+    get_salary_max,
+    get_salary_min,
+    is_job_recently_posted,
+)
+
+# Formatting utilities
+from src.ui.utils.formatters import (
+    calculate_eta,
+    calculate_progress_percentage,
+    calculate_scraping_speed,
     format_duration,
     format_jobs_count,
     format_salary,
     format_salary_range,
     format_success_rate_percentage,
     format_timestamp,
-    get_job_company_name,
-    get_salary_max,
-    # Job helpers
-    get_salary_min,
-    is_job_recently_posted,
-    # Streamlit context
-    is_streamlit_context,
+)
+
+# System utilities
+from src.ui.utils.system_utils import is_streamlit_context
+
+# Validation utilities
+from src.ui.utils.validators import (
+    SafeIntValidator,
     safe_int,
     safe_job_count,
 )
