@@ -14,13 +14,16 @@ def fix_typing_imports(file_path: str) -> None:
     # Define patterns for import types
     patterns = {
         "any_imports": re.compile(
-            r"^from typing import (\w+(?:, \w+)*)$", re.MULTILINE
+            r"^from typing import (\w+(?:, \w+)*)$",
+            re.MULTILINE,
         ),
         "local_imports": re.compile(
-            r"^from (src\.\w+|[\w\.]+) import (\w+(?:, \w+)*)$", re.MULTILINE
+            r"^from (src\.\w+|[\w\.]+) import (\w+(?:, \w+)*)$",
+            re.MULTILINE,
         ),
         "stdlib_imports": re.compile(
-            r"^from (collections\.abc|typing) import (\w+(?:, \w+)*)$", re.MULTILINE
+            r"^from (collections\.abc|typing) import (\w+(?:, \w+)*)$",
+            re.MULTILINE,
         ),
         "thirdparty_imports": re.compile(
             r"^from (sqlmodel|sqlalchemy|pydantic) import (\w+(?:, \w+)*)$",
@@ -90,7 +93,8 @@ def fix_typing_imports(file_path: str) -> None:
         # If TYPE_CHECKING already exists, append imports
         type_checking_pattern = re.compile(r"(if TYPE_CHECKING:)\n", re.MULTILINE)
         content = type_checking_pattern.sub(
-            r"\1\n" + type_checking_content[len("\n\nif TYPE_CHECKING:\n") :], content
+            r"\1\n" + type_checking_content[len("\n\nif TYPE_CHECKING:\n") :],
+            content,
         )
 
     with Path(file_path).open("w") as f:
