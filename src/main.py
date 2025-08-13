@@ -34,7 +34,7 @@ def main() -> None:
         layout="wide",
         initial_sidebar_state="expanded",
         menu_items={
-            "About": "AI-powered job scraper for managing your job search efficiently."
+            "About": "AI-powered job scraper for managing your job search efficiently.",
         },
     )
 

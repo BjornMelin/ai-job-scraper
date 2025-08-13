@@ -63,7 +63,7 @@ RELEVANT_PHRASES = [
     "agentic",
 ]
 AI_REGEX = re.compile(
-    r"(?i)\b(" + "|".join(re.escape(p) for p in RELEVANT_PHRASES) + r")\b"
+    r"(?i)\b(" + "|".join(re.escape(p) for p in RELEVANT_PHRASES) + r")\b",
 )
 
 SEARCH_KEYWORDS = ["ai", "machine learning", "data science"]

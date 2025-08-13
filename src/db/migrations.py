@@ -50,5 +50,5 @@ def run_migrations() -> None:
         # The app can still work with the current database state
         logger.warning(
             "Application will continue with current database schema. "
-            "Manual migration may be required."
+            "Manual migration may be required.",
         )

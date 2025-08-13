@@ -31,7 +31,9 @@ class Settings(BaseSettings):
     """
 
     model_config = SettingsConfigDict(
-        env_file=".env", env_ignore_empty=True, extra="ignore"
+        env_file=".env",
+        env_ignore_empty=True,
+        extra="ignore",
     )
 
     openai_api_key: str = ""
@@ -79,7 +81,7 @@ class Settings(BaseSettings):
         if not v:
             raise DatabaseURLError(
                 "Database URL configuration is missing or invalid. "
-                "Please provide a valid database connection URL."
+                "Please provide a valid database connection URL.",
             )
 
         supported_schemes = ("sqlite://", "postgresql://", "mysql://")
@@ -95,7 +97,7 @@ class Settings(BaseSettings):
         validated_proxies = []
         for original_proxy in v:
             if original_proxy and not original_proxy.startswith(
-                ("http://", "https://", "socks5://")
+                ("http://", "https://", "socks5://"),
             ):
                 # Assume HTTP proxy if no scheme specified
                 formatted_proxy = f"http://{original_proxy}"
@@ -123,6 +125,6 @@ class Settings(BaseSettings):
         if v.upper() not in valid_levels:
             raise LogLevelError(
                 f"Invalid logging configuration: '{v}' is not a valid log level. "
-                f"Supported levels are: {', '.join(valid_levels)}"
+                f"Supported levels are: {', '.join(valid_levels)}",
             )
         return v.upper()
