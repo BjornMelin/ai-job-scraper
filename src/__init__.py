@@ -28,7 +28,7 @@ from src.scraper_job_boards import scrape_job_boards
 # Import seed function directly when needed
 # Utilities
 # Import the missing function separately to avoid linter issues
-from .utils import (
+from .core_utils import (
     get_extraction_model,
     get_llm_client,
     get_proxy,

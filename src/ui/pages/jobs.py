@@ -8,23 +8,26 @@ with tab-based organization for different job categories.
 import asyncio
 import logging
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 import pandas as pd
 import streamlit as st
 
-from src.schemas import Job
 from src.scraper import scrape_all
 from src.services.company_service import CompanyService
 from src.services.job_service import JobService
 from src.ui.components.sidebar import render_sidebar
 from src.ui.utils.ui_helpers import is_streamlit_context
 
+if TYPE_CHECKING:
+    from src.schemas import Job
+
 logger = logging.getLogger(__name__)
 
 
 @st.dialog("Job Details", width="large")
-def show_job_details_modal(job: Job) -> None:
+def show_job_details_modal(job: "Job") -> None:
     """Show job details in a modal dialog.
 
     Args:
@@ -45,7 +48,7 @@ def show_job_details_modal(job: Job) -> None:
     render_action_buttons(job, notes_value)
 
 
-def _handle_job_details_modal(jobs: list[Job]) -> None:
+def _handle_job_details_modal(jobs: list["Job"]) -> None:
     """Handle showing the job details modal when a job is selected.
 
     Args:
@@ -151,9 +154,7 @@ def _render_page_header() -> None:
             f"""
             <div style='text-align: right; padding-top: 20px;'>
                 <small style='color: var(--text-muted);'>
-                    Last updated: {
-                datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
-            }
+                    Last updated: {datetime.now(UTC).strftime("%Y-%m-%d %H:%M")}
                 </small>
             </div>
             """,
@@ -191,7 +192,7 @@ def _handle_refresh_jobs() -> None:
     for monitoring, debugging, and user feedback. It follows modern Python
     logging best practices with structured log messages.
     """
-    refresh_start_time = datetime.now(timezone.utc)
+    refresh_start_time = datetime.now(UTC)
     logger.info(
         "REFRESH_JOBS_START: Starting job refresh workflow at %s",
         refresh_start_time.isoformat(),
@@ -217,21 +218,19 @@ def _handle_refresh_jobs() -> None:
             # Execute scraping and get sync stats
             st.write("Starting job scraping...")
             logger.info("REFRESH_JOBS_SCRAPING: Starting scraping execution")
-            scraping_start = datetime.now(timezone.utc)
+            scraping_start = datetime.now(UTC)
 
             sync_stats = _execute_scraping_safely()
             st.write("Scraping completed successfully!")
 
-            scraping_duration = (
-                datetime.now(timezone.utc) - scraping_start
-            ).total_seconds()
+            scraping_duration = (datetime.now(UTC) - scraping_start).total_seconds()
             logger.info(
                 "REFRESH_JOBS_SCRAPING_COMPLETE: Scraping completed in %.2f seconds",
                 scraping_duration,
             )
 
             # Update session state with timezone-aware datetime
-            st.session_state.last_scrape = datetime.now(timezone.utc)
+            st.session_state.last_scrape = datetime.now(UTC)
 
             # Defensive validation: ensure we got a dict with sync stats
             if not isinstance(sync_stats, dict):
@@ -251,9 +250,7 @@ def _handle_refresh_jobs() -> None:
             skipped = sync_stats.get("skipped", 0)
 
             total_processed = inserted + updated
-            total_duration = (
-                datetime.now(timezone.utc) - refresh_start_time
-            ).total_seconds()
+            total_duration = (datetime.now(UTC) - refresh_start_time).total_seconds()
 
             logger.info(
                 "REFRESH_JOBS_SYNC_STATS: inserted=%d, updated=%d, archived=%d, "
@@ -288,9 +285,7 @@ def _handle_refresh_jobs() -> None:
             st.rerun()
 
         except Exception:
-            total_duration = (
-                datetime.now(timezone.utc) - refresh_start_time
-            ).total_seconds()
+            total_duration = (datetime.now(UTC) - refresh_start_time).total_seconds()
             logger.exception(
                 "REFRESH_JOBS_FAILURE: Job refresh workflow failed after %.2fs",
                 total_duration,
@@ -311,7 +306,7 @@ def _handle_refresh_jobs() -> None:
 def _render_last_refresh_status() -> None:
     """Render the last refresh status information."""
     if hasattr(st.session_state, "last_scrape") and st.session_state.last_scrape:
-        time_diff = datetime.now(timezone.utc) - st.session_state.last_scrape
+        time_diff = datetime.now(UTC) - st.session_state.last_scrape
 
         if time_diff.total_seconds() < 3600:
             minutes = int(time_diff.total_seconds() / 60)
@@ -335,7 +330,7 @@ def _render_active_sources_metric() -> None:
         st.metric("Active Sources", 0)
 
 
-def _get_filtered_jobs() -> list[Job]:
+def _get_filtered_jobs() -> list["Job"]:
     """Get jobs filtered by current filter settings.
 
     Returns:
@@ -384,7 +379,7 @@ def _construct_job_filters(favorites_only: bool = False, **kwargs) -> dict:
     return filters
 
 
-def _get_favorites_jobs() -> list[Job]:
+def _get_favorites_jobs() -> list["Job"]:
     """Get favorite jobs filtered by current filter settings using database query.
 
     Returns:
@@ -401,7 +396,7 @@ def _get_favorites_jobs() -> list[Job]:
         return []
 
 
-def _get_applied_jobs() -> list[Job]:
+def _get_applied_jobs() -> list["Job"]:
     """Get applied jobs filtered by current filter settings using database query.
 
     Returns:
@@ -418,7 +413,7 @@ def _get_applied_jobs() -> list[Job]:
         return []
 
 
-def _render_job_tabs(jobs: list[Job]) -> None:
+def _render_job_tabs(jobs: list["Job"]) -> None:
     """Render the job tabs using native st.dataframe with built-in features.
 
     Args:
@@ -471,7 +466,7 @@ def _render_job_tabs(jobs: list[Job]) -> None:
             _render_job_display(applied_jobs, "applied")
 
 
-def _render_job_display(jobs: list[Job], tab_key: str) -> None:
+def _render_job_display(jobs: list["Job"], tab_key: str) -> None:
     """Render job display with view mode selection (Card or List).
 
     Args:
@@ -491,7 +486,7 @@ def _render_job_display(jobs: list[Job], tab_key: str) -> None:
     apply_view_mode(filtered_jobs, view_mode, grid_columns)
 
 
-def _jobs_to_dataframe(jobs: list[Job]) -> pd.DataFrame:
+def _jobs_to_dataframe(jobs: list["Job"]) -> pd.DataFrame:
     """Convert job objects to pandas DataFrame optimized for st.dataframe display.
 
     Args:
@@ -524,7 +519,7 @@ def _jobs_to_dataframe(jobs: list[Job]) -> pd.DataFrame:
     )
 
 
-def _apply_tab_search_to_jobs(jobs: list[Job], tab_key: str) -> list[Job]:
+def _apply_tab_search_to_jobs(jobs: list["Job"], tab_key: str) -> list["Job"]:
     """Apply per-tab search filtering to Job DTO objects.
 
     Args:
@@ -574,7 +569,7 @@ def _apply_tab_search_to_jobs(jobs: list[Job], tab_key: str) -> list[Job]:
     return jobs
 
 
-def _render_statistics_dashboard(jobs: list[Job]) -> None:
+def _render_statistics_dashboard(jobs: list["Job"]) -> None:
     """Render the statistics dashboard.
 
     Args:

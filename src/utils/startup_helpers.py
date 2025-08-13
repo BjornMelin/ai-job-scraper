@@ -49,7 +49,7 @@ logger = logging.getLogger(__name__)
 CACHE_WARMUP_TIMEOUT = 30  # seconds
 
 
-def warm_startup_cache(config: dict | None = None) -> dict[str, Any]:
+def warm_startup_cache(config: dict | None = None) -> dict[str, "Any"]:
     """Warm cache with commonly accessed data on application startup.
 
     This function pre-loads frequently accessed queries into the cache
@@ -81,7 +81,7 @@ def warm_startup_cache(config: dict | None = None) -> dict[str, Any]:
         "duration_seconds": 0,
     }
 
-    def _warm_cache_sync() -> dict[str, Any]:
+    def _warm_cache_sync() -> dict[str, "Any"]:
         """Internal synchronous cache warming function."""
         try:
             logger.info("Starting cache warmup process...")
@@ -214,7 +214,7 @@ def start_background_prefetching() -> bool:
         return True
 
 
-def initialize_performance_optimizations() -> dict[str, Any]:
+def initialize_performance_optimizations() -> dict[str, "Any"]:
     """Initialize all performance optimizations including caching and prefetching.
 
     This is the main entry point for startup performance optimizations.
@@ -238,7 +238,7 @@ def initialize_performance_optimizations() -> dict[str, Any]:
         logger.debug("Cache manager initialized successfully")
 
         # Warm cache with common queries
-        results["cache_warmup"] = warm_startup_cache(background=True)
+        results["cache_warmup"] = warm_startup_cache({"background": True})
 
         # Start background prefetching
         results["background_prefetch"] = start_background_prefetching()
@@ -259,7 +259,7 @@ def initialize_performance_optimizations() -> dict[str, Any]:
 
 
 @st.cache_data(ttl=3600)  # Cache for 1 hour
-def get_cache_performance_stats() -> dict[str, Any]:
+def get_cache_performance_stats() -> dict[str, "Any"]:
     """Get cache performance statistics for monitoring.
 
     Returns:

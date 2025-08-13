@@ -18,6 +18,7 @@ from typing import Any
 import streamlit as st
 
 from sqlmodel import Session
+
 from src.database import get_session
 
 logger = logging.getLogger(__name__)
@@ -72,8 +73,8 @@ def validate_session_state() -> list[str]:
                 and isinstance(value.__class__, DeclarativeMeta)
             ):
                 contaminated_keys.append(key)
-    except ImportError:
-        # SQLAlchemy not available, no contamination possible
+    except ImportError:  # noqa: S110
+        # Expected: SQLAlchemy not available, no contamination possible
         pass
     except Exception:
         logger.exception("Error validating session state")
@@ -102,8 +103,8 @@ def clean_session_state() -> int:
         for key in keys_to_remove:
             del st.session_state[key]
             removed += 1
-    except ImportError:
-        # SQLAlchemy not available, nothing to clean
+    except ImportError:  # noqa: S110
+        # Expected: SQLAlchemy not available, nothing to clean
         pass
     except Exception:
         logger.exception("Error cleaning session state")
@@ -111,7 +112,7 @@ def clean_session_state() -> int:
 
 
 @st.cache_data(ttl=60)
-def get_database_health() -> dict[str, Any]:
+def get_database_health() -> dict[str, "Any"]:
     """Get database health status with actual connectivity check."""
     try:
         # Simple connectivity test - try to get a session and execute a basic query
@@ -188,7 +189,7 @@ def suppress_sqlalchemy_warnings() -> None:
 
 
 # Session state helper functions from session_helpers.py
-def init_session_state_keys(keys: list[str], default_value: Any = None) -> None:
+def init_session_state_keys(keys: list[str], default_value: "Any" = None) -> None:
     """Initialize multiple session state keys with a default value."""
     for key in keys:
         if key not in st.session_state:

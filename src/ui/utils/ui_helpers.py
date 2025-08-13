@@ -10,7 +10,7 @@ Provides a library-first approach to UI-related utility functions.
 
 import logging
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, Field, ValidationError, field_validator
@@ -38,7 +38,7 @@ def calculate_scraping_speed(
         if start_time is None:
             return 0.0
 
-        effective_end_time = end_time or datetime.now(timezone.utc)
+        effective_end_time = end_time or datetime.now(UTC)
         duration = effective_end_time - start_time
         duration_minutes = duration.total_seconds() / 60.0
 
@@ -229,7 +229,7 @@ class SafeIntValidator(BaseModel):
 
     @field_validator("value", mode="before")
     @classmethod
-    def convert_to_safe_int(cls, v: Any) -> int:
+    def convert_to_safe_int(cls, v: "Any") -> int:
         """Convert various input types to safe non-negative integers."""
         try:
             if v is None:
@@ -264,7 +264,7 @@ class SafeIntValidator(BaseModel):
             return 0
 
 
-def safe_int(value: Any, default: int = 0) -> int:
+def safe_int(value: "Any", default: int = 0) -> int:
     """Safely convert any value to a non-negative integer."""
     try:
         validator = SafeIntValidator(value=value)
@@ -278,7 +278,7 @@ def safe_int(value: Any, default: int = 0) -> int:
     return validator.value
 
 
-def safe_job_count(value: Any, company_name: str = "unknown") -> int:
+def safe_job_count(value: "Any", company_name: str = "unknown") -> int:
     """Safely convert job count values with context-aware logging."""
     try:
         result = safe_int(value)
@@ -340,7 +340,7 @@ def format_salary_range(salary: SalaryTuple | None) -> str:
             return f"${min_sal:,}"
         return f"${min_sal:,} - ${max_sal:,}"
     if min_sal:
-        return f"From ${min_sal:,}"
+        return f"${min_sal:,}+"
     if max_sal:
         return f"Up to ${max_sal:,}"
     return "Not specified"
@@ -362,10 +362,10 @@ def calculate_days_since_posted(posted_date: datetime | None) -> int | None:
 
     try:
         # Calculate difference using standard datetime
-        now_utc = datetime.now(timezone.utc)
+        now_utc = datetime.now(UTC)
         # Ensure posted_date is timezone-aware
         if not posted_date.tzinfo:
-            posted_date = posted_date.replace(tzinfo=timezone.utc)
+            posted_date = posted_date.replace(tzinfo=UTC)
         return (now_utc - posted_date).days
     except Exception:
         logger.exception("Error calculating days since posted")
@@ -463,6 +463,108 @@ def format_success_rate_percentage(success_rate: float) -> float:
         Success rate as percentage (0-100), rounded to 1 decimal place
     """
     return round(success_rate * 100, 1)
+
+
+# Additional formatter functions for test compatibility
+
+
+def format_company_stats(stats: dict[str, "Any"]) -> dict[str, "Any"]:
+    """Format company statistics for display.
+
+    Args:
+        stats: Dictionary containing company statistics
+
+    Returns:
+        Formatted statistics dictionary
+    """
+    try:
+        if not isinstance(stats, dict):
+            return {}
+
+        formatted = {}
+        for key, value in stats.items():
+            if key in ["total_jobs", "active_companies"] and isinstance(
+                value, (int, float)
+            ):
+                formatted[key] = int(value)
+            elif key == "success_rate" and isinstance(value, (int, float)):
+                formatted[key] = round(float(value), 2)
+            else:
+                formatted[key] = value
+
+        return formatted  # noqa: TRY300 - Early return pattern preferred here
+    except Exception:
+        logger.exception("Error formatting company stats")
+        return {}
+
+
+def format_date_relative(date: datetime | None) -> str:
+    """Format date as relative time string.
+
+    Args:
+        date: Date to format
+
+    Returns:
+        Relative time string (e.g., "2 hours ago", "Just now")
+    """
+    try:
+        if date is None:
+            return "Unknown"
+
+        if not isinstance(date, datetime):
+            return "Unknown"
+
+        now = datetime.now(UTC)
+        if not date.tzinfo:
+            date = date.replace(tzinfo=UTC)
+
+        delta = now - date
+        total_seconds = delta.total_seconds()
+
+        if total_seconds < 60:
+            return "Just now"
+        if total_seconds < 3600:
+            minutes = int(total_seconds // 60)
+            return f"{minutes} minute{'s' if minutes != 1 else ''} ago"
+        if total_seconds < 86400:
+            hours = int(total_seconds // 3600)
+            return f"{hours} hour{'s' if hours != 1 else ''} ago"
+        days = int(total_seconds // 86400)
+        return f"{days} day{'s' if days != 1 else ''} ago"  # noqa: TRY300 - Final return in time logic
+
+    except Exception:
+        logger.exception("Error formatting relative date")
+        return "Unknown"
+
+
+def truncate_text(text: str | None, max_length: int) -> str:
+    """Truncate text to maximum length with ellipsis.
+
+    Args:
+        text: Text to truncate
+        max_length: Maximum length before truncation
+
+    Returns:
+        Truncated text with ellipsis if needed
+    """
+    try:
+        if not text:
+            return ""
+
+        if not isinstance(text, str):
+            text = str(text)
+
+        if len(text) <= max_length:
+            return text
+
+        # Truncate and add ellipsis, ensuring total length doesn't exceed max_length
+        if max_length <= 3:
+            return "..."[:max_length]
+        return text[: max_length - 3] + "..."
+
+    except Exception:
+        logger.exception("Error truncating text")
+        return ""
 
 
 # Exposed type aliases
