@@ -10,7 +10,7 @@ import uuid
 import streamlit as st
 
 from src.services.company_service import CompanyService
-from src.ui.helpers.company_display import render_company_card_with_selection
+from src.ui.ui_rendering import render_company_card_with_selection
 from src.ui.utils.database_helpers import (
     display_feedback_messages,
     init_session_state_keys,
@@ -412,7 +412,7 @@ def show_companies_page() -> None:
 
         # Bulk operation buttons (only show when companies are selected)
         if selected_count > 0:
-            col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
+            col1, col2, col3, _ = st.columns([1, 1, 1, 1])
 
             with col1:
                 st.button(

@@ -356,16 +356,10 @@ class TestScrapeToUIWorkflow:
         jobs = JobService.get_filtered_jobs(filters)
         assert len(jobs) == 0  # No jobs with those statuses exist yet
 
-        # Create a job and test again
-        company = CompanySQL(
-            name="Error Test Corp",
-            url="https://error.com",
-            active=True,
-        )
-        test_session.add(company)
-        test_session.commit()
-        test_session.refresh(company)
+        # Create a company and job using the services (so they use mocked sessions)
+        company = CompanyService.add_company("Error Test Corp", "https://error.com")
 
+        # Create a job by adding to test session, then use the company_id
         job = JobSQL(
             company_id=company.id,
             title="Error Test Job",
@@ -377,6 +371,9 @@ class TestScrapeToUIWorkflow:
         )
         test_session.add(job)
         test_session.commit()
+
+        # Clear the cache so the new job is visible
+        JobService.get_filtered_jobs.clear()
 
         # Now test mixed valid/invalid again
         filters = {"application_status": ["Applied", "NonExistent", "New"]}

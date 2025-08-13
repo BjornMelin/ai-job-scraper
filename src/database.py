@@ -90,7 +90,7 @@ def _create_engine_impl():
 
     logger.info(
         "Database engine created with URL: %s",
-        str(db_engine.url).split("@")[-1]
+        str(db_engine.url).rsplit("@", maxsplit=1)[-1]
         if "@" in str(db_engine.url)
         else str(db_engine.url),
     )
@@ -168,7 +168,7 @@ def _create_tables_impl(db_engine) -> None:
     """
     # Import models here to ensure they are registered with SQLModel.metadata
     # This lazy import prevents circular dependencies and ensures models are loaded
-    from src import models  # noqa: F401
+    from src import models  # noqa: F401  # pylint: disable=unused-import
 
     logger.info("Creating database tables...")
     SQLModel.metadata.create_all(db_engine)

@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from src.schemas import Job
-from src.ui.helpers.job_modal import (
+from src.ui.ui_rendering import (
     render_action_buttons,
     render_job_description,
     render_job_header,

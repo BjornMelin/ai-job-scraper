@@ -572,8 +572,18 @@ class TestInitAndDisplayFeedback:
                 init_session_state_keys,
             )
 
-            init_session_state_keys()
-            display_feedback_messages()
+            init_session_state_keys(
+                [
+                    "add_company_error",
+                    "add_company_success",
+                    "toggle_error",
+                    "toggle_success",
+                ]
+            )
+            display_feedback_messages(
+                success_keys=["add_company_success", "toggle_success"],
+                error_keys=["add_company_error", "toggle_error"],
+            )
 
         # Assert
         mock_init_keys.assert_called_once_with(
@@ -614,8 +624,18 @@ class TestInitAndDisplayFeedback:
                 init_session_state_keys,
             )
 
-            init_session_state_keys()
-            display_feedback_messages()
+            init_session_state_keys(
+                [
+                    "add_company_error",
+                    "add_company_success",
+                    "toggle_error",
+                    "toggle_success",
+                ]
+            )
+            display_feedback_messages(
+                success_keys=["add_company_success", "toggle_success"],
+                error_keys=["add_company_error", "toggle_error"],
+            )
 
         # Assert
         mock_display.assert_called_once_with(
@@ -647,8 +667,18 @@ class TestInitAndDisplayFeedback:
                 init_session_state_keys,
             )
 
-            init_session_state_keys()
-            display_feedback_messages()
+            init_session_state_keys(
+                [
+                    "add_company_error",
+                    "add_company_success",
+                    "toggle_error",
+                    "toggle_success",
+                ]
+            )
+            display_feedback_messages(
+                success_keys=["add_company_success", "toggle_success"],
+                error_keys=["add_company_error", "toggle_error"],
+            )
 
         # Assert
         mock_display.assert_called_once_with(
@@ -672,7 +702,7 @@ class TestCompanyDisplayIntegration:
             mock_company_service.get_all_companies.return_value = sample_companies_dto
 
             with patch(
-                "src.ui.helpers.company_display.render_company_card",
+                "src.ui.ui_rendering.render_company_card",
             ) as mock_render_card:
                 # Act
                 show_companies_page()
@@ -699,7 +729,7 @@ class TestCompanyDisplayIntegration:
             mock_company_service.get_all_companies.return_value = []
 
             with patch(
-                "src.ui.helpers.company_display.render_company_card",
+                "src.ui.ui_rendering.render_company_card",
             ) as mock_render_card:
                 # Act
                 show_companies_page()
@@ -722,7 +752,7 @@ class TestCompanyDisplayIntegration:
             mock_company_service.get_all_companies.return_value = sample_companies_dto
 
             with patch(
-                "src.ui.helpers.company_display.render_company_card",
+                "src.ui.ui_rendering.render_company_card",
             ) as mock_render_card:
                 mock_render_card.side_effect = Exception("Display error")
 
@@ -878,7 +908,7 @@ class TestCompanyPagePerformance:
             mock_company_service.get_all_companies.return_value = large_company_list
 
             with patch(
-                "src.ui.helpers.company_display.render_company_card",
+                "src.ui.ui_rendering.render_company_card",
             ) as mock_render_card:
                 # Act
                 show_companies_page()

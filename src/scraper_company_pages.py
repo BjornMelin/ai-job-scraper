@@ -403,10 +403,10 @@ def scrape_company_pages(
     except Exception:
         logger.exception("❌ Company pages scraping workflow failed")
         return []
-    else:
-        logger.info("=" * 50)
-        logger.info("✅ COMPANY PAGES SCRAPING COMPLETED")
-        logger.info("Total jobs scraped from company pages: %d", len(normalized_jobs))
-        logger.info("=" * 50)
 
-        return normalized_jobs
+    logger.info("=" * 50)
+    logger.info("✅ COMPANY PAGES SCRAPING COMPLETED")
+    logger.info("Total jobs scraped from company pages: %d", len(normalized_jobs))
+    logger.info("=" * 50)
+
+    return normalized_jobs

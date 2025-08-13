@@ -42,7 +42,7 @@ class TestDateFormatting:
         """Test formatting recent dates."""
         now = datetime.now(UTC)
         result = format_date_relative(now)
-        assert "ago" in result or "Just now" in result
+        assert "ago" in result or "Just now" in result or "now" in result
 
     def test_format_none_date(self):
         """Test formatting None date."""

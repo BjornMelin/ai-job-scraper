@@ -31,6 +31,8 @@ from pydantic import (
 from sqlalchemy.types import JSON
 from sqlmodel import Column, Field, SQLModel
 
+from src.core_utils import ensure_timezone_aware
+
 # SQLAlchemy 2.0 library-first approach: Use extend_existing=True for all tables
 # This replaces the dangerous monkey patch with SQLAlchemy's built-in mechanism
 # that properly handles table redefinition during Streamlit reruns
@@ -279,7 +281,7 @@ class LibrarySalaryParser:
             valid_parts.append(part)
 
         # Only proceed if we have 2-3 reasonable parts (range boundaries)
-        if not (2 <= len(valid_parts) <= 3):
+        if not 2 <= len(valid_parts) <= 3:
             return prices
 
         for raw_part in valid_parts:
@@ -591,18 +593,8 @@ class CompanySQL(SQLModel, table=True):
     @field_validator("last_scraped", mode="before")
     @classmethod
     def ensure_timezone_aware(cls, v) -> datetime | None:
-        """Ensure datetime is timezone-aware (UTC) - simplified validator."""
-        if v is None:
-            return None
-        if isinstance(v, str):
-            try:
-                parsed = datetime.fromisoformat(v.replace("Z", "+00:00"))
-                return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
-            except ValueError:
-                return None
-        if isinstance(v, datetime):
-            return v if v.tzinfo else v.replace(tzinfo=UTC)
-        return None
+        """Ensure datetime is timezone-aware (UTC) - uses shared utility."""
+        return ensure_timezone_aware(v)
 
 
 class JobSQL(SQLModel, table=True):

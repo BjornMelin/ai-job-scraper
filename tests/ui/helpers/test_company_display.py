@@ -9,7 +9,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from src.schemas import Company
-from src.ui.helpers.company_display import (
+from src.ui.ui_rendering import (
     render_company_card,
     render_company_info,
     render_company_statistics,
@@ -319,12 +319,12 @@ class TestRenderCompanyCard:
         mock_callback = Mock()
 
         with (
-            patch("src.ui.helpers.company_display.render_company_info") as mock_info,
+            patch("src.ui.ui_rendering.render_company_info") as mock_info,
             patch(
-                "src.ui.helpers.company_display.render_company_statistics",
+                "src.ui.ui_rendering.render_company_statistics",
             ) as mock_stats,
             patch(
-                "src.ui.helpers.company_display.render_company_toggle",
+                "src.ui.ui_rendering.render_company_toggle",
             ) as mock_toggle,
         ):
             # Act
@@ -355,12 +355,12 @@ class TestRenderCompanyCard:
         mock_callback = Mock()
 
         with (
-            patch("src.ui.helpers.company_display.render_company_info") as mock_info,
+            patch("src.ui.ui_rendering.render_company_info") as mock_info,
             patch(
-                "src.ui.helpers.company_display.render_company_statistics",
+                "src.ui.ui_rendering.render_company_statistics",
             ) as mock_stats,
             patch(
-                "src.ui.helpers.company_display.render_company_toggle",
+                "src.ui.ui_rendering.render_company_toggle",
             ) as mock_toggle,
         ):
             # Act - Render cards for all companies
@@ -487,12 +487,12 @@ class TestCompanyDisplayIntegration:
         mock_callback = Mock()
 
         with (
-            patch("src.ui.helpers.company_display.render_company_info") as mock_info,
+            patch("src.ui.ui_rendering.render_company_info") as mock_info,
             patch(
-                "src.ui.helpers.company_display.render_company_statistics",
+                "src.ui.ui_rendering.render_company_statistics",
             ) as mock_stats,
             patch(
-                "src.ui.helpers.company_display.render_company_toggle",
+                "src.ui.ui_rendering.render_company_toggle",
             ) as mock_toggle,
         ):
             # Act
@@ -517,12 +517,12 @@ class TestCompanyDisplayIntegration:
         mock_callback = Mock()
 
         with (
-            patch("src.ui.helpers.company_display.render_company_info") as mock_info,
+            patch("src.ui.ui_rendering.render_company_info") as mock_info,
             patch(
-                "src.ui.helpers.company_display.render_company_statistics",
+                "src.ui.ui_rendering.render_company_statistics",
             ) as mock_stats,
             patch(
-                "src.ui.helpers.company_display.render_company_toggle",
+                "src.ui.ui_rendering.render_company_toggle",
             ) as mock_toggle,
         ):
             # Configure one component to raise an exception
@@ -545,7 +545,7 @@ class TestCompanyDisplayIntegration:
         mock_callback = Mock()
 
         with patch(
-            "src.ui.helpers.company_display.render_company_toggle",
+            "src.ui.ui_rendering.render_company_toggle",
         ) as mock_toggle:
             # Act - Render multiple companies
             for company in sample_companies_dto:

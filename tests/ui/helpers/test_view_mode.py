@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 
 from src.schemas import Job
-from src.ui.helpers.view_mode import apply_view_mode, select_view_mode
+from src.ui.ui_rendering import apply_view_mode, select_view_mode
 
 
 class TestSelectViewMode:
