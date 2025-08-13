@@ -6,6 +6,8 @@ It handles database engine creation, session management, table creation,
 and SQLite optimization for concurrent access patterns.
 """
 
+from __future__ import annotations
+
 import logging
 
 from collections.abc import Generator
@@ -15,6 +17,7 @@ from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel
+
 from src.config import Settings
 from src.database_listeners.monitoring_listeners import log_slow, start_timer
 from src.database_listeners.pragma_listeners import apply_pragmas

@@ -8,18 +8,19 @@ The module also includes salary parsing functionality with comprehensive
 regex patterns for handling various salary formats from job boards.
 """
 
+# Fix for SQLAlchemy table redefinition issue during Streamlit reruns
+# This addresses the "Table already defined for this MetaData instance" error
+# that occurs when clicking the Stop button during scraping operations
+from __future__ import annotations
+
 import hashlib
 import logging
 import re
 
-
-# Fix for SQLAlchemy table redefinition issue during Streamlit reruns
-# This addresses the "Table already defined for this MetaData instance" error
-# that occurs when clicking the Stop button during scraping operations
-from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from babel.numbers import NumberFormatError, parse_decimal, parse_number
 from price_parser import Price
@@ -29,6 +30,9 @@ from pydantic import (
 )
 from sqlalchemy.types import JSON
 from sqlmodel import Column, Field, Relationship, SQLModel
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 # SQLAlchemy 2.0 library-first approach: Use extend_existing=True for all tables
 # This replaces the dangerous monkey patch with SQLAlchemy's built-in mechanism
@@ -196,7 +200,8 @@ class LibrarySalaryParser:
                 )
                 final_value = converted_values[0]
                 return LibrarySalaryParser._apply_context_logic(final_value, context)
-            except (ValueError, TypeError):
+            except (ValueError, TypeError):  # noqa: S110
+                # Expected: Continue to next parsing method if number conversion fails
                 pass
 
         # Try price-parser for non-k-suffix cases
@@ -279,8 +284,10 @@ class LibrarySalaryParser:
                     price = SimplePrice(amount=Decimal(str(amount)))
                     prices.append(price)
                     continue
-                except (ValueError, TypeError):
-                    pass
+                except (ValueError, TypeError) as e:
+                    salary_logger.debug(
+                        "K-suffix parsing failed for part '%s': %s", part, e
+                    )
 
             # Try normal price parsing
             try:
@@ -312,8 +319,8 @@ class LibrarySalaryParser:
                 val1 = int(float_val1 * 1000)
                 val2 = int(float_val2 * 1000)
                 return (min(val1, val2), max(val1, val2))
-            except (ValueError, TypeError):
-                pass
+            except (ValueError, TypeError) as e:
+                salary_logger.debug("To-pattern k-suffix parsing failed: %s", e)
 
         # Try different k-suffix patterns
         patterns = [
@@ -552,7 +559,7 @@ class CompanySQL(SQLModel, table=True, extend_existing=True):
     success_rate: float = Field(default=1.0)
 
     # Relationships
-    jobs: list["JobSQL"] = Relationship(back_populates="company_relation")
+    jobs: "list[JobSQL]" = Relationship(back_populates="company_relation")
 
     @field_validator("last_scraped", mode="before")
     @classmethod
@@ -563,11 +570,11 @@ class CompanySQL(SQLModel, table=True, extend_existing=True):
         if isinstance(v, str):
             try:
                 parsed = datetime.fromisoformat(v.replace("Z", "+00:00"))
-                return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+                return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
             except ValueError:
                 return None
         if isinstance(v, datetime):
-            return v if v.tzinfo else v.replace(tzinfo=timezone.utc)
+            return v if v.tzinfo else v.replace(tzinfo=UTC)
         return None
 
 
@@ -620,7 +627,14 @@ class JobSQL(SQLModel, table=True, extend_existing=True):
     )  # Index for stale job queries
 
     # Relationships
-    company_relation: "CompanySQL" = Relationship(back_populates="jobs")
+    company_relation: "CompanySQL | None" = Relationship(back_populates="jobs")
+
+    @property
+    def company(self) -> str:
+        """Get company name from relationship."""
+        if self.company_relation:
+            return self.company_relation.name
+        return "Unknown"
 
     @model_validator(mode="before")
     @classmethod
@@ -670,15 +684,16 @@ class JobSQL(SQLModel, table=True, extend_existing=True):
         try:
             # Try ISO format first
             parsed = datetime.fromisoformat(v.replace("Z", "+00:00"))
-            return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+            return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
         except ValueError:
             # Try parsing date-only strings
             try:
                 # Try common date formats with timezone awareness
                 for fmt in ["%Y-%m-%d", "%m/%d/%Y", "%d/%m/%Y"]:
                     try:
-                        return datetime.strptime(v, fmt).replace(tzinfo=timezone.utc)
-                    except ValueError:
+                        return datetime.strptime(v, fmt).replace(tzinfo=UTC)
+                    except ValueError:  # noqa: S112
+                        # Expected: Try next date format if this one fails
                         continue
             except Exception:
                 salary_logger.debug("Failed to parse date string: %s", v)
@@ -689,9 +704,9 @@ class JobSQL(SQLModel, table=True, extend_existing=True):
         """Convert datetime to UTC using standard library."""
         if v.tzinfo:
             # Convert to UTC
-            return v.astimezone(timezone.utc)
+            return v.astimezone(UTC)
         # Assume naive datetime is UTC
-        return v.replace(tzinfo=timezone.utc)
+        return v.replace(tzinfo=UTC)
 
     @field_validator("salary", mode="before")
     @classmethod
@@ -735,7 +750,7 @@ class JobSQL(SQLModel, table=True, extend_existing=True):
         return LibrarySalaryParser.parse_salary_text(value.strip())
 
     @classmethod
-    def create_validated(cls, **data) -> "JobSQL":
+    def create_validated(cls, **data) -> JobSQL:
         """Create a JobSQL instance with proper Pydantic validation.
 
         This factory method ensures that Pydantic validators (including model_validator)
