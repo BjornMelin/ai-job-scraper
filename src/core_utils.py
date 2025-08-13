@@ -21,6 +21,7 @@ import secrets
 import sys
 import time
 
+from datetime import UTC, datetime
 from pathlib import Path
 
 from groq import Groq
@@ -159,3 +160,33 @@ def resolve_jobspy_proxies(settings_obj=None) -> list[str] | None:
     if not settings_obj.use_proxies:
         return None
     return list(settings_obj.proxy_pool) if settings_obj.proxy_pool else []
+
+
+def ensure_timezone_aware(v) -> datetime | None:
+    """Ensure datetime is timezone-aware (UTC) - shared utility function.
+
+    This function takes a datetime value which can be a string, datetime object,
+    or None, and ensures it's timezone-aware with UTC timezone. This is used
+    across models and schemas to maintain consistent timezone handling.
+
+    Args:
+        v: Input value that can be None, str, or datetime object.
+
+    Returns:
+        datetime | None: Timezone-aware datetime in UTC, or None if input is None or invalid.
+    """
+    if v is None:
+        return None
+    if isinstance(v, str):
+        try:
+            parsed = datetime.fromisoformat(v.replace("Z", "+00:00"))
+            return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
+        except ValueError:
+            try:
+                parsed = datetime.strptime(v, "%Y-%m-%d")  # noqa: DTZ007
+                return parsed.replace(tzinfo=UTC)
+            except ValueError:
+                return None
+    if isinstance(v, datetime):
+        return v if v.tzinfo else v.replace(tzinfo=UTC)
+    return None

@@ -412,7 +412,7 @@ def show_companies_page() -> None:
 
         # Bulk operation buttons (only show when companies are selected)
         if selected_count > 0:
-            col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
+            col1, col2, col3, _ = st.columns([1, 1, 1, 1])
 
             with col1:
                 st.button(

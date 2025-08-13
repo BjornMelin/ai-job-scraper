@@ -36,13 +36,16 @@ except ImportError:
         def cache_data(**_kwargs):
             """Dummy cache decorator that passes through the function unchanged."""
 
-            def decorator(func):
+            def decorator(wrapped_func):
                 """Inner decorator function."""
-                return func
+                return wrapped_func
 
             return decorator
 
     st = _DummyStreamlit()
+
+
+from sqlalchemy import case
 
 from src.database import db_session
 from src.models import CompanySQL, JobSQL
@@ -519,9 +522,6 @@ class CompanyService:
         try:
             with db_session() as session:
                 # Use a subquery to calculate job counts instead of relationships
-                from sqlalchemy import case, func
-
-                from src.models import JobSQL
 
                 # Build subquery for job counts
                 job_count_subquery = (

@@ -13,10 +13,12 @@ All schemas include validation, JSON encoding configuration, and proper
 type hints for safe data transfer across application layers.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import ClassVar
 
 from pydantic import BaseModel, field_validator
+
+from src.core_utils import ensure_timezone_aware
 
 
 class CompanyValidationError(ValueError):
@@ -89,18 +91,8 @@ class Company(BaseModel):
     @field_validator("last_scraped", mode="before")
     @classmethod
     def ensure_timezone_aware(cls, v) -> datetime | None:
-        """Ensure datetime is timezone-aware (UTC) - simplified validator."""
-        if v is None:
-            return None
-        if isinstance(v, str):
-            try:
-                parsed = datetime.fromisoformat(v.replace("Z", "+00:00"))
-                return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
-            except ValueError:
-                return None
-        if isinstance(v, datetime):
-            return v if v.tzinfo else v.replace(tzinfo=UTC)
-        return None
+        """Ensure datetime is timezone-aware (UTC) - uses shared utility."""
+        return ensure_timezone_aware(v)
 
     class Config:
         """Pydantic configuration for Company DTO.
@@ -209,22 +201,8 @@ class Job(BaseModel):
     @field_validator("posted_date", "application_date", "last_seen", mode="before")
     @classmethod
     def ensure_datetime_timezone_aware(cls, v) -> datetime | None:
-        """Ensure datetime fields are timezone-aware (UTC) - simplified validator."""
-        if v is None:
-            return None
-        if isinstance(v, str):
-            try:
-                parsed = datetime.fromisoformat(v.replace("Z", "+00:00"))
-                return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
-            except ValueError:
-                try:
-                    parsed = datetime.strptime(v, "%Y-%m-%d")  # noqa: DTZ007
-                    return parsed.replace(tzinfo=UTC)
-                except ValueError:
-                    return None
-        if isinstance(v, datetime):
-            return v if v.tzinfo else v.replace(tzinfo=UTC)
-        return None
+        """Ensure datetime fields are timezone-aware (UTC) - uses shared utility."""
+        return ensure_timezone_aware(v)
 
     class Config:
         """Pydantic configuration for Job DTO.

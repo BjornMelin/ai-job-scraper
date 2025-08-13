@@ -62,9 +62,13 @@ def validate_session_state() -> list[str]:
     """
     contaminated_keys = []
     try:
-        from sqlalchemy import Engine
-        from sqlalchemy.ext.declarative import DeclarativeMeta
-        from sqlalchemy.orm import Session as SASession
+        from sqlalchemy import Engine  # pylint: disable=import-outside-toplevel
+        from sqlalchemy.ext.declarative import (
+            DeclarativeMeta,  # pylint: disable=import-outside-toplevel
+        )
+        from sqlalchemy.orm import (
+            Session as SASession,  # pylint: disable=import-outside-toplevel
+        )
 
         for key, value in st.session_state.items():
             # Check for SQLAlchemy Session, Engine, or mapped class instance
@@ -89,9 +93,13 @@ def clean_session_state() -> int:
     """
     removed = 0
     try:
-        from sqlalchemy import Engine
-        from sqlalchemy.ext.declarative import DeclarativeMeta
-        from sqlalchemy.orm import Session as SASession
+        from sqlalchemy import Engine  # pylint: disable=import-outside-toplevel
+        from sqlalchemy.ext.declarative import (
+            DeclarativeMeta,  # pylint: disable=import-outside-toplevel
+        )
+        from sqlalchemy.orm import (
+            Session as SASession,  # pylint: disable=import-outside-toplevel
+        )
 
         keys_to_remove = []
         for key, value in st.session_state.items():
@@ -120,7 +128,7 @@ def get_database_health() -> dict[str, "Any"]:
         session = session_factory()
         try:
             # Execute a lightweight query to verify connection
-            from sqlmodel import text
+            from sqlmodel import text  # pylint: disable=import-outside-toplevel
 
             result = session.execute(text("SELECT 1"))
             result.scalar()
@@ -132,11 +140,11 @@ def get_database_health() -> dict[str, "Any"]:
                 "status": "unhealthy",
                 "details": {"connected": False, "error": str(e)},
             }
-        else:
-            return {
-                "status": "healthy",
-                "details": {"connected": True, "message": "Database accessible"},
-            }
+
+        return {
+            "status": "healthy",
+            "details": {"connected": True, "message": "Database accessible"},
+        }
     except Exception as e:
         logger.exception("Failed to create database session")
         return {
@@ -179,9 +187,9 @@ def background_task_session() -> Generator[Session, None, None]:
 
 def suppress_sqlalchemy_warnings() -> None:
     """Suppress common SQLAlchemy warnings in Streamlit context."""
-    import warnings
+    import warnings  # pylint: disable=import-outside-toplevel
 
-    from sqlalchemy.exc import SAWarning
+    from sqlalchemy.exc import SAWarning  # pylint: disable=import-outside-toplevel
 
     # Suppress common warnings that clutter Streamlit logs
     warnings.filterwarnings("ignore", category=SAWarning, message=".*relationship.*")

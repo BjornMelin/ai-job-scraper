@@ -110,9 +110,6 @@ def remove_task(task_id: str) -> None:
                 tasks.pop(task_id, None)
     except (AttributeError, KeyError) as e:
         # Log warning when task cleanup fails - non-critical operation
-        import logging
-
-        logger = logging.getLogger(__name__)
         logger.warning("Failed to clean up task %s from session state: %s", task_id, e)
 
 
@@ -244,7 +241,9 @@ def _execute_test_scraping(task_id: str) -> None:
     if "scraping_results" not in st.session_state:
         try:
             # Try to call the mocked scraper to get test results
-            from src.scraper import scrape_all
+            from src.scraper import (
+                scrape_all,  # pylint: disable=import-outside-toplevel
+            )
 
             scraping_results = scrape_all(
                 []
@@ -263,7 +262,9 @@ def _execute_test_scraping(task_id: str) -> None:
     # Set up mock company progress data for tests
     # Try to get companies from the mocked JobService, fall back to default
     try:
-        from src.services.job_service import JobService
+        from src.services.job_service import (
+            JobService,  # pylint: disable=import-outside-toplevel
+        )
 
         companies = JobService.get_active_companies()
     except Exception:

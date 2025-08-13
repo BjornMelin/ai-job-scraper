@@ -122,8 +122,8 @@ def format_duration(seconds: int | float) -> str:
     except Exception:
         logger.exception("Error formatting duration")
         return "0s"
-    else:
-        return result
+
+    return result
 
 
 def format_timestamp(dt: datetime | None, format_str: str = "%H:%M:%S") -> str:
@@ -161,8 +161,8 @@ def format_jobs_count(count: int, singular: str = "job", plural: str = "jobs") -
     except Exception:
         logger.exception("Error formatting jobs count")
         return "0 jobs"
-    else:
-        return result
+
+    return result
 
 
 def format_salary(amount: int | float | None) -> str:
@@ -188,8 +188,8 @@ def format_salary(amount: int | float | None) -> str:
     except Exception:
         logger.exception("Error formatting salary")
         return "$0"
-    else:
-        return result
+
+    return result
 
 
 # Streamlit context from streamlit_context.py

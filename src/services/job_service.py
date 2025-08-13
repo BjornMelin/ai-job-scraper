@@ -23,9 +23,9 @@ except ImportError:
         def cache_data(**_kwargs):
             """Dummy cache decorator that passes through the function unchanged."""
 
-            def decorator(func):
+            def decorator(wrapped_func):
                 """Inner decorator function."""
-                return func
+                return wrapped_func
 
             return decorator
 
@@ -669,7 +669,7 @@ class JobService:
             raise
 
     @staticmethod
-    def invalidate_job_cache(job_id: int | None = None) -> bool:  # noqa: ARG004
+    def invalidate_job_cache(job_id: int | None = None) -> bool:  # noqa: ARG004  # pylint: disable=unused-argument
         """Clear Streamlit cache for job-related data.
 
         Args:
@@ -688,5 +688,5 @@ class JobService:
         except Exception:
             logger.exception("Failed to clear Streamlit cache")
             return False
-        else:
-            return True
+
+        return True
