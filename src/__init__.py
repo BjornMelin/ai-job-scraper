@@ -9,6 +9,19 @@ from src.config import Settings
 # Constants
 from src.constants import AI_REGEX, RELEVANT_PHRASES, SEARCH_KEYWORDS, SEARCH_LOCATIONS
 
+# Seed module - import removed to prevent double model imports in Streamlit
+# Import seed function directly when needed
+# Utilities
+# Import the missing function separately to avoid linter issues
+from src.core_utils import (
+    get_extraction_model,
+    get_llm_client,
+    get_proxy,
+    random_delay,
+    random_user_agent,
+    resolve_jobspy_proxies,
+)
+
 # Database - explicit import from database.py module
 from src.database import (
     SessionLocal,
@@ -23,19 +36,6 @@ from src.database import (
 # Scraper modules - imports removed to prevent double model imports in Streamlit
 # Import scraper functions directly in modules where needed instead
 from src.scraper_job_boards import scrape_job_boards
-
-# Seed module - import removed to prevent double model imports in Streamlit
-# Import seed function directly when needed
-# Utilities
-# Import the missing function separately to avoid linter issues
-from .core_utils import (
-    get_extraction_model,
-    get_llm_client,
-    get_proxy,
-    random_delay,
-    random_user_agent,
-    resolve_jobspy_proxies,
-)
 
 __all__ = [
     # Constants

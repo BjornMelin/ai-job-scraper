@@ -7,8 +7,8 @@ database if they do not already exist, based on their URL.
 import sqlmodel
 import typer
 
-from .config import Settings
-from .models import CompanySQL
+from src.config import Settings
+from src.models import CompanySQL
 
 settings = Settings()
 engine = sqlmodel.create_engine(settings.db_url)

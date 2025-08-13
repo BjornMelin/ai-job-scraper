@@ -18,16 +18,16 @@ from langgraph.graph import END, StateGraph
 from scrapegraphai.graphs import SmartScraperMultiGraph
 from sqlmodel import select
 
-from .config import Settings
-from .core_utils import (
+from src.config import Settings
+from src.core_utils import (
     get_extraction_model,
     get_llm_client,
     get_proxy,
     random_delay,
     random_user_agent,
 )
-from .database import SessionLocal
-from .models import CompanySQL, JobSQL
+from src.database import SessionLocal
+from src.models import CompanySQL, JobSQL
 
 settings = Settings()
 llm_client = get_llm_client()

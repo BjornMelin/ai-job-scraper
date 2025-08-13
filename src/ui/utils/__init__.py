@@ -4,7 +4,7 @@ This package contains utility modules for Streamlit UI functionality including
 background task management, data formatting, validation, and other helper functions.
 """
 
-from .background_helpers import (
+from src.ui.utils.background_helpers import (
     CompanyProgress,
     ProgressInfo,
     TaskInfo,

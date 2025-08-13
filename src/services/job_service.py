@@ -63,6 +63,9 @@ class JobService:
         DetachedInstanceError by creating clean Pydantic objects without
         database session dependencies.
 
+        Note: This method falls back to "Unknown" for company name.
+        Use _to_dto_with_company when company name is available.
+
         Args:
             job_sql: SQLModel JobSQL object to convert with all fields populated.
 
@@ -72,16 +75,36 @@ class JobService:
         Raises:
             ValidationError: If SQLModel data doesn't match DTO schema.
         """
-        # Extract company name from the relationship
-        company_name = "Unknown"
-        # Placeholder for potential future relationship handling
+        # Fallback for cases where company name is not available
         company_name = "Unknown"
 
         # Create a dictionary with the job data and the resolved company name
         job_data = job_sql.model_dump()
         job_data["company"] = company_name
 
-        # DTO cleanup - no relationship fields to remove
+        return Job.model_validate(job_data)
+
+    @staticmethod
+    def _to_dto_with_company(job_sql: JobSQL, company_name: str) -> Job:
+        """Convert a single SQLModel object to its Pydantic DTO with company name.
+
+        Helper method for consistent DTO conversion that eliminates
+        DetachedInstanceError by creating clean Pydantic objects without
+        database session dependencies.
+
+        Args:
+            job_sql: SQLModel JobSQL object to convert with all fields populated.
+            company_name: The resolved company name from the database join.
+
+        Returns:
+            Job DTO object with all fields copied from the SQLModel instance.
+
+        Raises:
+            ValidationError: If SQLModel data doesn't match DTO schema.
+        """
+        # Create a dictionary with the job data and the provided company name
+        job_data = job_sql.model_dump()
+        job_data["company"] = company_name
 
         return Job.model_validate(job_data)
 
@@ -129,11 +152,11 @@ class JobService:
                 ),
             )
 
-        # Apply company filter using JOIN for better performance
+        # Apply company filter - assumes CompanySQL is already joined
         if (
             company_filter := filters.get("company", [])
         ) and "All" not in company_filter:
-            query = query.join(CompanySQL).filter(CompanySQL.name.in_(company_filter))
+            query = query.filter(CompanySQL.name.in_(company_filter))
 
         # Apply application status filter
         if (
@@ -174,7 +197,7 @@ class JobService:
 
     @staticmethod
     @st.cache_data(ttl=300)  # Cache for 5 minutes
-    def get_filtered_jobs(filters: FilterDict) -> list[Job]:
+    def get_filtered_jobs(filters: FilterDict | None = None) -> list[Job]:
         """Get jobs filtered by the provided criteria.
 
         Uses simple Streamlit caching for improved performance.
@@ -198,19 +221,24 @@ class JobService:
         """
         try:
             with db_session() as session:
-                # Start with base query, eagerly loading company relationship
-                # TEMP: Disabled joinedload due to relationship issue
-                base_query = select(
-                    JobSQL,
-                )  # .options(joinedload(JobSQL.company_relation))
+                # Handle empty filters
+                if filters is None:
+                    filters = {}
+
+                # Join with CompanySQL to get company names
+                base_query = select(JobSQL, CompanySQL.name.label("company_name")).join(
+                    CompanySQL, JobSQL.company_id == CompanySQL.id
+                )
 
                 # Apply filters using shared method
                 query = JobService._apply_filters_to_query(base_query, filters)
 
-                jobs_sql = session.exec(query).all()
+                results = session.exec(query).all()
 
-                # Convert SQLModel objects to Pydantic DTOs using helper
-                jobs = JobService._to_dtos(jobs_sql)
+                # Convert SQLModel objects to Pydantic DTOs with company names
+                jobs = []
+                for job_sql, company_name in results:
+                    jobs.append(JobService._to_dto_with_company(job_sql, company_name))
 
                 logger.info("Retrieved %d jobs with filters: %s", len(jobs), filters)
                 return jobs
@@ -338,17 +366,17 @@ class JobService:
         """
         try:
             with db_session() as session:
-                # Use joinedload for single job lookup with company data
-                # TEMP: Disabled joinedload due to relationship issue
-                job_sql = session.exec(
-                    select(JobSQL)
-                    # .options(joinedload(JobSQL.company_relation))
-                    .filter_by(id=job_id),
+                # Join with CompanySQL to get company name
+                result = session.exec(
+                    select(JobSQL, CompanySQL.name.label("company_name"))
+                    .join(CompanySQL, JobSQL.company_id == CompanySQL.id)
+                    .filter(JobSQL.id == job_id),
                 ).first()
 
-                if job_sql:
-                    # Convert to DTO using helper method
-                    job = JobService._to_dto(job_sql)
+                if result:
+                    job_sql, company_name = result
+                    # Convert to DTO using helper method with company name
+                    job = JobService._to_dto_with_company(job_sql, company_name)
 
                     logger.info("Retrieved job %s: %s", job_id, job.title)
                     return job

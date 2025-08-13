@@ -559,7 +559,7 @@ class LibrarySalaryParser:
         return list(values)
 
 
-class CompanySQL(SQLModel, table=True, extend_existing=True):
+class CompanySQL(SQLModel, table=True):
     """SQLModel for company records with hybrid properties for computed fields.
 
     Attributes:
@@ -571,6 +571,8 @@ class CompanySQL(SQLModel, table=True, extend_existing=True):
         scrape_count: Total number of scrapes performed for this company.
         success_rate: Success rate of scraping attempts (0.0 to 1.0).
     """
+
+    __table_args__ = {"extend_existing": True}
 
     id: int | None = Field(default=None, primary_key=True)
     name: str = Field(unique=True, index=True)  # Explicit index for name
@@ -603,7 +605,7 @@ class CompanySQL(SQLModel, table=True, extend_existing=True):
         return None
 
 
-class JobSQL(SQLModel, table=True, extend_existing=True):
+class JobSQL(SQLModel, table=True):
     """SQLModel for job records with hybrid properties and computed fields.
 
     Attributes:
@@ -624,6 +626,7 @@ class JobSQL(SQLModel, table=True, extend_existing=True):
     """
 
     model_config = {"validate_assignment": True}
+    __table_args__ = {"extend_existing": True}
 
     id: int | None = Field(default=None, primary_key=True)
     company_id: int | None = Field(

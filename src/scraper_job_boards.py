@@ -14,9 +14,9 @@ import pandas as pd
 
 from jobspy import Site, scrape_jobs
 
-from .config import Settings
-from .constants import AI_REGEX
-from .core_utils import random_delay, resolve_jobspy_proxies
+from src.config import Settings
+from src.constants import AI_REGEX
+from src.core_utils import random_delay, resolve_jobspy_proxies
 
 settings = Settings()
 logger = logging.getLogger(__name__)

@@ -19,14 +19,14 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-from .constants import AI_REGEX, SEARCH_KEYWORDS, SEARCH_LOCATIONS
-from .core_utils import random_delay
-from .database import SessionLocal
-from .models import CompanySQL, JobSQL
-from .scraper_company_pages import DEFAULT_MAX_JOBS_PER_COMPANY, scrape_company_pages
-from .scraper_job_boards import scrape_job_boards
-from .services.company_service import CompanyService
-from .services.database_sync import SmartSyncEngine
+from src.constants import AI_REGEX, SEARCH_KEYWORDS, SEARCH_LOCATIONS
+from src.core_utils import random_delay
+from src.database import SessionLocal
+from src.models import CompanySQL, JobSQL
+from src.scraper_company_pages import DEFAULT_MAX_JOBS_PER_COMPANY, scrape_company_pages
+from src.scraper_job_boards import scrape_job_boards
+from src.services.company_service import CompanyService
+from src.services.database_sync import SmartSyncEngine
 
 
 class ScraperParameterError(ValueError):

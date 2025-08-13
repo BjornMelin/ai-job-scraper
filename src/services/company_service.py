@@ -48,10 +48,6 @@ except ImportError:
 from src.database import db_session
 from src.models import CompanySQL, JobSQL
 from src.schemas import Company
-from src.ui.utils.ui_helpers import (
-    calculate_active_jobs_count,
-    calculate_total_jobs_count,
-)
 
 
 class CompanyValidationError(ValueError):
@@ -524,21 +520,50 @@ class CompanyService:
         """
         try:
             with db_session() as session:
-                # Use selectinload to load job relationships, then calculate in Python
-                # This leverages computed properties efficiently
-                companies_sql = session.exec(
-                    select(CompanySQL)
-                    .options(selectinload(CompanySQL.jobs))
-                    .order_by(CompanySQL.name),
+                # Use a subquery to calculate job counts instead of relationships
+                from sqlalchemy import case, func
+
+                from src.models import JobSQL
+
+                # Build subquery for job counts
+                job_count_subquery = (
+                    select(
+                        JobSQL.company_id,
+                        func.count().label("total_jobs"),
+                        func.sum(case((JobSQL.archived.is_(False), 1), else_=0)).label(
+                            "active_jobs"
+                        ),
+                    )
+                    .filter(JobSQL.archived.is_(False))  # Only count non-archived jobs
+                    .group_by(JobSQL.company_id)
+                    .subquery()
+                )
+
+                # Main query with LEFT JOIN to get companies and their job counts
+                companies_with_counts = session.exec(
+                    select(
+                        CompanySQL,
+                        func.coalesce(job_count_subquery.c.total_jobs, 0).label(
+                            "total_jobs"
+                        ),
+                        func.coalesce(job_count_subquery.c.active_jobs, 0).label(
+                            "active_jobs"
+                        ),
+                    )
+                    .outerjoin(
+                        job_count_subquery,
+                        CompanySQL.id == job_count_subquery.c.company_id,
+                    )
+                    .order_by(CompanySQL.name)
                 ).all()
 
                 companies_with_stats = [
                     {
                         "company": company,
-                        "total_jobs": calculate_total_jobs_count(company.jobs),
-                        "active_jobs": calculate_active_jobs_count(company.jobs),
+                        "total_jobs": int(total_jobs),
+                        "active_jobs": int(active_jobs),
                     }
-                    for company in companies_sql
+                    for company, total_jobs, active_jobs in companies_with_counts
                 ]
 
                 logger.info(

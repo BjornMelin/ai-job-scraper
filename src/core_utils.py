@@ -26,7 +26,7 @@ from pathlib import Path
 from groq import Groq
 from openai import OpenAI
 
-from .config import Settings
+from src.config import Settings
 
 # Add src directory to path if not already there
 src_dir = Path(__file__).parent
