@@ -20,7 +20,7 @@ from src.constants import (
 # Removed direct database import - using service layer instead
 from src.services.company_service import CompanyService
 from src.ui.state.session_state import clear_filters
-from src.ui.utils.ui_helpers import format_salary
+from src.ui.utils import format_salary
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +32,12 @@ def render_sidebar() -> None:
     search filters, view settings, and company management. It manages the
     application state and handles user interactions within the sidebar.
     """
+    # Import URL state functions here to avoid circular imports
+    from src.ui.utils.url_state import sync_filters_from_url
+
+    # Sync filters from URL on sidebar render
+    sync_filters_from_url()
+
     with st.sidebar:
         _render_search_filters()
         st.divider()
@@ -57,7 +63,7 @@ def _render_search_filters() -> None:
             help="Select one or more companies to filter jobs",
         )
 
-        # Update filters in state manager
+        # Update filters in state manager and sync with URL
         current_filters = st.session_state.filters.copy()
         current_filters["company"] = selected_companies
         st.session_state.filters = current_filters
@@ -70,7 +76,7 @@ def _render_search_filters() -> None:
             help="Search in job titles and descriptions",
         )
 
-        # Update keyword in filters
+        # Update keyword in filters and sync with URL
         current_filters = st.session_state.filters.copy()
         current_filters["keyword"] = keyword_value
         st.session_state.filters = current_filters
@@ -134,9 +140,17 @@ def _render_search_filters() -> None:
         # Display formatted salary range with improved formatting
         _display_salary_range(salary_range)
 
+        # Sync all filter changes with URL
+        from src.ui.utils.url_state import update_url_from_filters
+
+        update_url_from_filters()
+
         # Clear filters button
         if st.button("Clear All Filters", use_container_width=True):
             clear_filters()
+            from src.ui.utils.url_state import clear_url_params
+
+            clear_url_params()
             st.rerun()
 
 

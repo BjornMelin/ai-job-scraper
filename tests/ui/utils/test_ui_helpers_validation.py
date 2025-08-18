@@ -11,7 +11,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from src.ui.utils.ui_helpers import (
+from src.ui.utils import (
     is_streamlit_context,
     safe_int,
     safe_job_count,
@@ -135,7 +135,7 @@ class TestSafeJobCount:
 
     def test_logs_conversion_information(self):
         """Test safe_job_count logs conversion information appropriately."""
-        with patch("src.ui.utils.ui_helpers.logger") as mock_logger:
+        with patch("src.ui.utils.validators.logger") as mock_logger:
             # Act - Value that gets converted
             result = safe_job_count("5", "Test Company")
 
@@ -147,10 +147,10 @@ class TestSafeJobCount:
 
     def test_logs_warning_on_conversion_failure(self):
         """Test safe_job_count logs warning on conversion failure."""
-        with patch("src.ui.utils.ui_helpers.safe_int") as mock_safe_int:
-            mock_safe_int.side_effect = Exception("Conversion failed")
+        with patch("src.ui.utils.validators.ensure_non_negative_int") as mock_validator:
+            mock_validator.side_effect = Exception("Conversion failed")
 
-            with patch("src.ui.utils.ui_helpers.logger") as mock_logger:
+            with patch("src.ui.utils.validators.logger") as mock_logger:
                 # Act
                 result = safe_job_count("invalid", "Test Company")
 
@@ -161,7 +161,7 @@ class TestSafeJobCount:
 
     def test_no_logging_for_unchanged_values(self):
         """Test safe_job_count doesn't log when value unchanged."""
-        with patch("src.ui.utils.ui_helpers.logger") as mock_logger:
+        with patch("src.ui.utils.validators.logger") as mock_logger:
             # Act - Value that doesn't change
             result = safe_job_count(10, "Test Company")
 
@@ -172,7 +172,7 @@ class TestSafeJobCount:
 
     def test_no_logging_for_none_values(self):
         """Test safe_job_count handles None values without unnecessary logging."""
-        with patch("src.ui.utils.ui_helpers.logger") as mock_logger:
+        with patch("src.ui.utils.validators.logger") as mock_logger:
             # Act
             result = safe_job_count(None, "Test Company")
 

@@ -82,6 +82,20 @@ def _is_test_environment() -> bool:
     )
 
 
+# Fragment utilities for background task display
+@st.fragment
+def minimal_task_status_fragment():
+    """Minimal fragment for task status display without auto-refresh.
+
+    Use this for simple status display that updates only on manual interaction.
+    """
+    if not is_scraping_active():
+        return
+
+    status = st.session_state.get("scraping_status", "Processing...")
+    st.info(f"🔄 {status}")
+
+
 # Direct session state operations - no custom task manager needed
 def add_task(task_id: str, task_info: TaskInfo) -> None:
     """Store task info directly in session state."""
@@ -295,3 +309,104 @@ def _execute_test_scraping(task_id: str) -> None:
         task_id,
         len(companies),
     )
+
+
+@st.fragment(run_every="2s")
+def background_task_status_fragment():
+    """Fragment for displaying background task status with auto-refresh.
+
+    This fragment auto-refreshes every 2 seconds during active background
+    tasks to show real-time progress without affecting the main page.
+    """
+    # Check if any background tasks are active
+    if not is_scraping_active():
+        # No active tasks - don't display anything
+        return
+
+    st.markdown("### ⚙️ Background Tasks")
+
+    # Display scraping status
+    scraping_status = st.session_state.get("scraping_status", "Unknown")
+
+    # Get current task progress
+    task_progress = get_scraping_progress()
+    current_task_id = st.session_state.get("task_id")
+
+    if current_task_id and current_task_id in task_progress:
+        progress_info = task_progress[current_task_id]
+
+        # Display progress bar and status
+        st.progress(
+            progress_info.progress,
+            text=f"{progress_info.message} ({progress_info.progress:.0%})",
+        )
+
+        # Show timestamp of last update
+        st.caption(f"Last updated: {progress_info.timestamp.strftime('%H:%M:%S')}")
+    else:
+        # Fallback to basic status display
+        st.info(f"Status: {scraping_status}")
+
+    # Display company-level progress if available
+    company_progress = get_company_progress()
+    if company_progress:
+        st.markdown("#### Company Progress")
+
+        # Create a summary table of company status
+        progress_data = []
+        for company_name, progress in company_progress.items():
+            progress_data.append(
+                {
+                    "Company": company_name,
+                    "Status": progress.status,
+                    "Jobs Found": progress.jobs_found,
+                    "Duration": _format_duration(
+                        progress.start_time, progress.end_time
+                    ),
+                }
+            )
+
+        if progress_data:
+            st.dataframe(
+                progress_data,
+                hide_index=True,
+                use_container_width=True,
+            )
+
+    # Add stop button for active tasks
+    if st.button("🛑 Stop All Tasks", type="secondary"):
+        stopped_count = stop_all_scraping()
+        if stopped_count > 0:
+            st.success(f"Stopped {stopped_count} background task(s)")
+            st.rerun()
+        else:
+            st.info("No active tasks to stop")
+
+
+def _format_duration(start_time: datetime | None, end_time: datetime | None) -> str:
+    """Format duration between start and end times.
+
+    Args:
+        start_time: Task start time.
+        end_time: Task end time (None if still running).
+
+    Returns:
+        Formatted duration string.
+    """
+    if not start_time:
+        return "Not started"
+
+    # Use ternary operator for duration calculation
+    duration = datetime.now(UTC) - start_time if not end_time else end_time - start_time
+
+    total_seconds = int(duration.total_seconds())
+
+    if total_seconds < 60:
+        return f"{total_seconds}s"
+    if total_seconds < 3600:
+        minutes = total_seconds // 60
+        seconds = total_seconds % 60
+        return f"{minutes}m {seconds}s"
+    hours = total_seconds // 3600
+    minutes = (total_seconds % 3600) // 60
+    return f"{hours}h {minutes}m"

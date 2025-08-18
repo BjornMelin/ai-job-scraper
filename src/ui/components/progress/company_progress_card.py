@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING
 
 import streamlit as st
 
-from src.ui.utils.ui_helpers import (
+from src.ui.utils import (
     calculate_scraping_speed,
     format_duration,
     format_jobs_count,

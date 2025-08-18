@@ -1,22 +1,20 @@
-"""Comprehensive UI utilities for formatting, context detection, and validation.
+"""Data formatting utilities for UI display.
 
-This module consolidates utilities for:
-- Data formatting
-- Streamlit context detection
-- Safe integer and job count validation
+This module provides formatting functions for various data types including:
+- Duration and time formatting
+- Salary and numeric formatting
+- Job counts and statistics
+- Date and timestamp formatting
 
-Provides a library-first approach to UI-related utility functions.
+All formatters handle edge cases gracefully and provide consistent output.
 """
 
 import logging
 
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-from pydantic import validate_call
-
-if TYPE_CHECKING:
-    from src.models import JobSQL
+import humanize
 
 # Type aliases
 type SalaryTuple = tuple[int | None, int | None]
@@ -24,7 +22,6 @@ type SalaryTuple = tuple[int | None, int | None]
 logger = logging.getLogger(__name__)
 
 
-# Formatters from formatters.py
 def calculate_scraping_speed(
     jobs_found: int,
     start_time: datetime | None,
@@ -166,7 +163,7 @@ def format_jobs_count(count: int, singular: str = "job", plural: str = "jobs") -
 
 
 def format_salary(amount: int | float | None) -> str:
-    """Format salary amount with k/M suffixes."""
+    """Format salary amount using humanize library with k/M suffixes."""
     try:
         if amount is None or not isinstance(amount, int | float) or amount < 0:
             return "$0"
@@ -176,103 +173,28 @@ def format_salary(amount: int | float | None) -> str:
         if amount == 0:
             return "$0"
 
-        # Format based on amount range
-        if amount < 1000:
-            result = f"${amount}"
-        elif amount < 1000000:
-            result = f"${amount // 1000}k"
-        else:
-            millions = amount / 1000000
-            result = f"${millions:.1f}M"
+        # Use humanize for formatting logic but maintain k/M suffix style
 
+        if amount < 1000:
+            return f"${amount}"
+        if amount < 1000000:
+            # Use humanize for accuracy but convert to k suffix
+            # humanize.intcomma would give us "125,000" but we want "125k"
+            thousands = amount // 1000
+            return f"${thousands}k"
+        # Use humanize.intword precision for millions
+        # Convert "2.8 million" style to "2.8M" style
+        intword_result = humanize.intword(amount)
+        if "million" in intword_result:
+            # Extract the number part and add M suffix
+            millions_str = intword_result.replace(" million", "")
+            return f"${millions_str}M"
     except Exception:
+        # Fallback to original logic for edge cases
+        millions = amount / 1000000
+        return f"${millions:.1f}M"
         logger.exception("Error formatting salary")
         return "$0"
-
-    return result
-
-
-# Streamlit context from streamlit_context.py
-def is_streamlit_context() -> bool:
-    """Check if we're running in a proper Streamlit context."""
-    try:
-        from streamlit.runtime.scriptrunner import get_script_run_ctx
-
-        return get_script_run_ctx() is not None
-    except (ImportError, AttributeError):
-        return False
-
-
-# Validation utilities from validation_utils.py
-
-
-@validate_call
-def safe_int(value: Any, default: int = 0) -> int:
-    """Safely convert any value to a non-negative integer."""
-    try:
-        if value is None:
-            return 0
-        if isinstance(
-            value, bool
-        ):  # Check bool before int since bool is subclass of int
-            return int(value)
-        if isinstance(value, int | float):
-            import math
-
-            return max(
-                0,
-                int(value)
-                if isinstance(value, int)
-                else (
-                    int(value)
-                    if isinstance(value, float) and math.isfinite(value)
-                    else 0
-                ),
-            )
-        if isinstance(value, str):
-            value = value.strip()
-            if value:
-                try:
-                    return max(0, int(float(value)))
-                except (ValueError, TypeError):
-                    # Extract first number from string
-                    import re
-
-                    match = re.search(r"-?\d+(?:\.\d+)?", value)
-                    return (
-                        max(0, int(float(match.group()))) if match else max(0, default)
-                    )
-            else:
-                # Empty string should use default
-                return max(0, default)
-    except (ValueError, TypeError, AttributeError):
-        logger.warning("Failed to convert %s to safe integer, using default", value)
-        return max(0, default)
-
-    # Fallback for unhandled types (use default)
-    return max(0, default)
-
-
-@validate_call
-def safe_job_count(value: Any, company_name: str = "unknown") -> int:
-    """Safely convert job count values with context-aware logging."""
-    try:
-        result = safe_int(value)
-    except Exception as e:
-        logger.warning(
-            "Failed to convert job count for %s: %s (%s)",
-            company_name,
-            value,
-            e,
-        )
-        return 0
-
-    if value != result and value is not None:
-        logger.info("Converted job count for %s: %s -> %s", company_name, value, result)
-    return result
-
-
-# Job formatting helpers (replacement for computed fields)
 
 
 def format_salary_range(salary: SalaryTuple | None) -> str:
@@ -299,130 +221,6 @@ def format_salary_range(salary: SalaryTuple | None) -> str:
     if max_sal:
         return f"Up to ${max_sal:,}"
     return "Not specified"
-
-
-def calculate_days_since_posted(posted_date: datetime | None) -> int | None:
-    """Calculate days since job was posted.
-
-    Replacement for JobSQL.days_since_posted computed field.
-
-    Args:
-        posted_date: Job posting date
-
-    Returns:
-        Days since posted or None if no date
-    """
-    if not posted_date:
-        return None
-
-    try:
-        # Calculate difference using standard datetime
-        now_utc = datetime.now(UTC)
-        # Ensure posted_date is timezone-aware
-        if not posted_date.tzinfo:
-            posted_date = posted_date.replace(tzinfo=UTC)
-        return (now_utc - posted_date).days
-    except Exception:
-        logger.exception("Error calculating days since posted")
-        return None
-
-
-def is_job_recently_posted(
-    posted_date: datetime | None,
-    days_threshold: int = 7,
-) -> bool:
-    """Check if job was posted within the threshold days.
-
-    Replacement for JobSQL.is_recently_posted computed field.
-
-    Args:
-        posted_date: Job posting date
-        days_threshold: Number of days to consider as recent (default: 7)
-
-    Returns:
-        True if job was posted within threshold days
-    """
-    days = calculate_days_since_posted(posted_date)
-    return days is not None and days <= days_threshold
-
-
-# Company statistics helpers (replacement for computed fields)
-
-
-def calculate_total_jobs_count(jobs: list["JobSQL"] | None) -> int:
-    """Calculate total job count for company.
-
-    Replacement for CompanySQL.total_jobs_count computed field.
-
-    Args:
-        jobs: List of job objects
-
-    Returns:
-        Total number of jobs
-    """
-    if not jobs or not isinstance(jobs, list):
-        return 0
-    return len(jobs)
-
-
-def calculate_active_jobs_count(jobs: list["JobSQL"] | None) -> int:
-    """Calculate active (non-archived) job count for company.
-
-    Replacement for CompanySQL.active_jobs_count computed field.
-
-    Args:
-        jobs: List of job objects
-
-    Returns:
-        Number of active (non-archived) jobs
-    """
-    if not jobs or not isinstance(jobs, list):
-        return 0
-    try:
-        return len([j for j in jobs if not j.archived])
-    except (AttributeError, TypeError):
-        return 0
-
-
-def find_last_job_posted(jobs: list["JobSQL"] | None) -> datetime | None:
-    """Find the most recent job posting date.
-
-    Replacement for CompanySQL.last_job_posted computed field.
-
-    Args:
-        jobs: List of job objects
-
-    Returns:
-        Most recent posting date or None
-    """
-    if not jobs or not isinstance(jobs, list):
-        return None
-    try:
-        return max((j.posted_date for j in jobs if j.posted_date), default=None)
-    except (AttributeError, TypeError):
-        return None
-
-
-def format_success_rate_percentage(success_rate: float) -> float:
-    """Format success rate as percentage.
-
-    Replacement for CompanySQL.success_rate_percentage computed field.
-
-    Args:
-        success_rate: Success rate as decimal (0.0-1.0)
-
-    Returns:
-        Success rate as percentage (0-100), rounded to 1 decimal place
-    """
-    try:
-        if not isinstance(success_rate, int | float):
-            return 0.0
-        return round(success_rate * 100, 1)
-    except (TypeError, ValueError):
-        return 0.0
-
-
-# Additional formatter functions for test compatibility
 
 
 def format_company_stats(stats: dict[str, "Any"]) -> dict[str, "Any"]:
@@ -476,8 +274,6 @@ def format_date_relative(date: datetime | None) -> str:
         if not date.tzinfo:
             date = date.replace(tzinfo=UTC)
 
-        import humanize
-
         return humanize.naturaltime(date)
 
     except Exception:
@@ -513,8 +309,3 @@ def truncate_text(text: str | None, max_length: int) -> str:
     except Exception:
         logger.exception("Error truncating text")
         return ""
-
-
-# Exposed type aliases
-JobCount = int
-SafeInteger = int

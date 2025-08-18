@@ -27,7 +27,8 @@ from src.ui.ui_rendering import (
     render_notes_section,
     select_view_mode,
 )
-from src.ui.utils.ui_helpers import is_streamlit_context
+from src.ui.utils import is_streamlit_context
+from src.ui.utils.background_helpers import background_task_status_fragment
 
 if TYPE_CHECKING:
     from src.schemas import Job
@@ -107,6 +108,19 @@ def render_jobs_page() -> None:
     This function orchestrates the rendering of the jobs page including
     the header, action bar, job tabs, and statistics dashboard.
     """
+    # Validate URL parameters and sync tab selection
+    from src.ui.utils.url_state import sync_tab_from_url, validate_url_params
+
+    # Validate URL parameters and show warnings if needed
+    validation_errors = validate_url_params()
+    if validation_errors:
+        st.warning(
+            "⚠️ Some URL parameters are invalid and have been ignored: "
+            + ", ".join(validation_errors.values())
+        )
+
+    sync_tab_from_url()
+
     # Render sidebar for Jobs page (moved from main.py for st.navigation compatibility)
     render_sidebar()
 
@@ -125,14 +139,17 @@ def render_jobs_page() -> None:
         )
         return
 
-    # Render job tabs
-    _render_job_tabs(jobs)
+    # Render job tabs using fragments
+    _render_job_tabs()
 
     # Render statistics dashboard
     _render_statistics_dashboard(jobs)
 
     # Show job details modal if a job is selected
     _handle_job_details_modal(jobs)
+
+    # Show background task status if active
+    background_task_status_fragment()
 
 
 def _render_page_header() -> None:
@@ -414,32 +431,100 @@ def _get_applied_jobs() -> list["Job"]:
         return []
 
 
-def _render_job_tabs(jobs: list["Job"]) -> None:
-    """Render the job tabs using native st.dataframe with built-in features.
+@st.fragment(run_every="30s")
+def _job_list_fragment():
+    """Fragment for job list display that auto-refreshes every 30 seconds.
 
-    Args:
-        jobs: List of all jobs for calculating tab counts.
+    This fragment displays job data and can refresh independently from
+    the main page filters and controls.
     """
+    # Get filtered jobs using current session state filters
+    jobs = _get_filtered_jobs()
+
+    if not jobs:
+        st.info(
+            "🔍 No jobs found. Try adjusting your filters or refreshing the job list.",
+        )
+        return
+
     # Get jobs for each tab category
     all_jobs = jobs
     favorites_jobs = _get_favorites_jobs()
     applied_jobs = _get_applied_jobs()
 
-    # Create tabs with counts
+    # Create tabs with counts and URL state management
     total_all = len(all_jobs)
     total_favorites = len(favorites_jobs)
     total_applied = len(applied_jobs)
 
-    tab1, tab2, tab3 = st.tabs(
-        [
-            f"All Jobs 📋 ({total_all:,})",
-            f"Favorites ⭐ ({total_favorites:,})",
-            f"Applied ✅ ({total_applied:,})",
-        ],
-    )
+    # Initialize selected tab from session state (synced from URL)
+    if "selected_tab" not in st.session_state:
+        st.session_state.selected_tab = "all"
 
-    # Render each tab with native dataframe
-    with tab1:
+    # Create tab selector with URL sync support
+    tab_col1, tab_col2, tab_col3, tab_col4 = st.columns([1, 1, 1, 2])
+
+    with tab_col1:
+        if st.button(
+            f"All Jobs 📋 ({total_all:,})",
+            key="tab_all",
+            type="primary" if st.session_state.selected_tab == "all" else "secondary",
+            use_container_width=True,
+        ):
+            st.session_state.selected_tab = "all"
+            from src.ui.utils.url_state import update_url_from_filters
+
+            update_url_from_filters()
+            st.rerun()
+
+    with tab_col2:
+        if st.button(
+            f"Favorites ⭐ ({total_favorites:,})",
+            key="tab_favorites",
+            type="primary"
+            if st.session_state.selected_tab == "favorites"
+            else "secondary",
+            use_container_width=True,
+        ):
+            st.session_state.selected_tab = "favorites"
+            from src.ui.utils.url_state import update_url_from_filters
+
+            update_url_from_filters()
+            st.rerun()
+
+    with tab_col3:
+        if st.button(
+            f"Applied ✅ ({total_applied:,})",
+            key="tab_applied",
+            type="primary"
+            if st.session_state.selected_tab == "applied"
+            else "secondary",
+            use_container_width=True,
+        ):
+            st.session_state.selected_tab = "applied"
+            from src.ui.utils.url_state import update_url_from_filters
+
+            update_url_from_filters()
+            st.rerun()
+
+    with tab_col4:
+        if st.button(
+            "🔗 Share Filters",
+            help="Copy shareable URL with current filters",
+            use_container_width=True,
+        ):
+            from src.ui.utils.url_state import get_shareable_url
+
+            url_params = get_shareable_url()
+            if url_params:
+                st.success(f"📋 URL copied! Share this link: `{url_params}`")
+            else:
+                st.info("No filters applied to share")
+
+    # Render content based on selected tab
+    st.markdown("---")
+
+    if st.session_state.selected_tab == "all":
         if total_all == 0:
             st.info(
                 "🔍 No jobs found. Try adjusting your filters or refreshing the "
@@ -448,7 +533,7 @@ def _render_job_tabs(jobs: list["Job"]) -> None:
         else:
             _render_job_display(all_jobs, "all")
 
-    with tab2:
+    elif st.session_state.selected_tab == "favorites":
         if total_favorites == 0:
             st.info(
                 "💡 No favorite jobs yet. Star jobs you're interested in "
@@ -457,7 +542,7 @@ def _render_job_tabs(jobs: list["Job"]) -> None:
         else:
             _render_job_display(favorites_jobs, "favorites")
 
-    with tab3:
+    elif st.session_state.selected_tab == "applied":
         if total_applied == 0:
             st.info(
                 "🚀 No applications yet. Update job status to 'Applied' "
@@ -465,6 +550,22 @@ def _render_job_tabs(jobs: list["Job"]) -> None:
             )
         else:
             _render_job_display(applied_jobs, "applied")
+
+
+@st.fragment
+def _filter_controls_fragment():
+    """Fragment for filter controls that don't auto-refresh.
+
+    This fragment handles the main filter controls and search functionality.
+    """
+    # This would render filter controls if they were moved here
+    # For now, we keep filters in the main page to trigger job list updates
+
+
+def _render_job_tabs() -> None:
+    """Render the job tabs using fragments for better performance."""
+    # Use the fragment for job list display
+    _job_list_fragment()
 
 
 def _render_job_display(jobs: list["Job"], tab_key: str) -> None:
