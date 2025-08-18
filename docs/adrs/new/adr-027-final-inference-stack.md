@@ -46,8 +46,8 @@ os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 
 # Model configuration
 config = {
-    "model": "Qwen/Qwen3-8B-Instruct",  # Recommended Qwen3 model
-    "quantization": "gptq",  # GPTQ-8bit for Qwen3-8B
+    "model": "Qwen/Qwen3-8B",  # Base model - instruct variant doesn't exist
+    "quantization": "awq",  # AWQ-4bit more efficient than GPTQ
     "dtype": "half",
     "max_model_len": 131072,  # Qwen3-8B supports 131K context
     "gpu_memory_utilization": 0.85,  # Leave headroom for thermal
@@ -68,9 +68,9 @@ llm = LLM(**config)
 
 | Model | Quantization | VRAM Usage | Tokens/sec | Context | Notes |
 |-------|--------------|------------|------------|---------|-------|
-| **Qwen3-4B-Instruct-2507** | FP16 | 7.8GB | 300-350 | 262K | Best speed |
-| **Qwen3-8B-Instruct** | GPTQ-8bit | 7.9GB | 180-220 | 131K | **Recommended** |
-| **Qwen3-14B-Instruct** | AWQ-4bit | 9.2GB | 140-160 | 131K | Max quality |
+| **Qwen3-4B-Instruct-2507** | FP16 | 7.8GB | 300-350 | 262K | Best speed (instruct) |
+| **Qwen3-8B** (base) | AWQ-4bit | 6.0GB | 180-220 | 131K | **Recommended** + structured prompting |
+| **Qwen3-14B** (base) | AWQ-4bit | 8.0GB | 140-160 | 131K | Max quality + structured prompting |
 | **Qwen3-4B-Thinking-2507** | Q5_K_M | 4.5GB | 300-330 | 262K | Reasoning mode |
 
 ### Why vLLM Wins
@@ -97,8 +97,9 @@ llm = LLM(**config)
 ### Why FA3 Doesn't Work on RTX 4090
 
 Flash Attention 3 requires Hopper-specific features:
+
 - WGMMA Instructions (Warpgroup Matrix Multiply-Accumulate)
-- TMA (Tensor Memory Accelerator) 
+- TMA (Tensor Memory Accelerator)
 - Hopper thread block clusters
 
 These are not available on Ada Lovelace, making FA2 the optimal choice for RTX 4090.
@@ -166,9 +167,13 @@ python -c "from vllm import _custom_ops as ops; print('FA2 available')"
 # Download Qwen3 model
 from huggingface_hub import snapshot_download
 
-# PRIMARY: Use base model since Instruct variant doesn't exist
+# PRIMARY: Base model with structured prompting
 model_id = "Qwen/Qwen3-8B"  # Base model - Instruct variant doesn't exist  
 snapshot_download(repo_id=model_id, cache_dir="./models")
+
+# HIGH CAPABILITY: Base model for complex tasks
+max_model_id = "Qwen/Qwen3-14B"  # Base model with structured prompting
+snapshot_download(repo_id=max_model_id, cache_dir="./models")
 
 # AVAILABLE: Download actual thinking model
 thinking_model_id = "Qwen/Qwen3-4B-Thinking-2507"  # ✅ This exists
@@ -201,8 +206,8 @@ if temp > 80:
 # config.yaml
 inference:
   engine: vllm
-  model: Qwen/Qwen3-8B-Instruct
-  quantization: gptq
+  model: Qwen/Qwen3-8B  # Base model with structured prompting
+  quantization: awq  # More efficient than GPTQ
   max_batch_size: 16
   max_tokens: 2048
   temperature: 0.1  # Low for consistency
@@ -216,7 +221,7 @@ inference:
 
 ### Key Metrics to Track
 
-- **Tokens/second**: Target 180+ for Qwen3-8B (base), 300+ for Qwen3-4B models
+- **Tokens/second**: Target 180+ for Qwen3-8B (base + AWQ), 300+ for Qwen3-4B models
 - **GPU Temperature**: Keep below 80°C
 - **VRAM Usage**: Stay under 14GB (of 16GB)
 - **Power Draw**: 100-120W sustained
@@ -225,8 +230,8 @@ inference:
 
 ### Optimization Tips
 
-1. Use AWQ-4bit for Qwen3-8B (base) - more efficient than GPTQ
-2. Use AWQ-4bit for Qwen3-14B (base) - memory efficiency for base models
+1. **Use AWQ-4bit for all base models** - more efficient than GPTQ for Qwen3-8B and Qwen3-14B
+2. **Implement structured prompting** for base models to achieve instruct-level performance
 3. Enable prefix caching for repeated prompts
 4. Batch similar-length requests
 5. Use FP8 KV cache if supported
@@ -269,7 +274,7 @@ vLLM is the clear winner because:
 ## References
 
 - [vLLM Documentation](https://docs.vllm.ai/en/latest/)
-- [Flash Attention 2 Paper](https://arxiv.org/abs/2307.08691) 
+- [Flash Attention 2 Paper](https://arxiv.org/abs/2307.08691)
 - [Flash Attention 3 Paper](https://tridao.me/publications/flash3/flash3.pdf) (Hopper-only)
 - [AWQ Quantization](https://arxiv.org/abs/2306.00978)
 - [NVIDIA Ada Lovelace Architecture](https://www.nvidia.com/content/dam/en-zz/Solutions/geforce/ada/nvidia-ada-gpu-architecture.pdf)

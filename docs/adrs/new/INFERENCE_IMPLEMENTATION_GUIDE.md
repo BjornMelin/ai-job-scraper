@@ -5,6 +5,7 @@
 This guide provides step-by-step instructions to set up the optimal inference stack for your RTX 4090 laptop GPU for the AI job scraper.
 
 ## Table of Contents
+
 1. [System Requirements](#system-requirements)
 2. [Environment Setup](#environment-setup)
 3. [vLLM Installation](#vllm-installation)
@@ -18,12 +19,14 @@ This guide provides step-by-step instructions to set up the optimal inference st
 ## System Requirements
 
 ### Hardware
+
 - **GPU**: NVIDIA RTX 4090 Laptop (16GB VRAM)
 - **RAM**: 32GB+ recommended
 - **Storage**: 100GB+ for models
 - **OS**: Ubuntu 22.04 or Windows 11 with WSL2
 
 ### Software Prerequisites
+
 ```bash
 # Check CUDA version (should be 12.1+)
 nvidia-smi
@@ -38,6 +41,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 ## Environment Setup
 
 ### 1. Create Project Structure
+
 ```bash
 mkdir -p ai-job-scraper/{models,configs,logs,data}
 cd ai-job-scraper
@@ -49,6 +53,7 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 ```
 
 ### 2. Configure Power & Thermal Management
+
 ```bash
 # Set conservative power limit for sustained operation
 sudo nvidia-smi -pl 120  # 120W power limit
@@ -61,6 +66,7 @@ nvidia-smi -q -d POWER
 ```
 
 ### 3. Create pyproject.toml
+
 ```toml
 [project]
 name = "ai-job-scraper"
@@ -93,6 +99,7 @@ dev-dependencies = [
 ## vLLM Installation
 
 ### 1. Install vLLM with Flash Attention 2
+
 ```bash
 # Install vLLM
 uv add vllm==0.6.5
@@ -106,6 +113,7 @@ python -c "import flash_attn; print(f'Flash Attention {flash_attn.__version__} i
 ```
 
 ### 2. Test vLLM with Flash Attention 2
+
 ```python
 # test_vllm.py
 import os
@@ -130,6 +138,7 @@ print(outputs[0].outputs[0].text)
 ## Model Setup
 
 ### 1. Download Recommended Model
+
 ```python
 # download_model.py
 from huggingface_hub import snapshot_download
@@ -159,6 +168,7 @@ print(f"Models downloaded to {cache_dir}")
 ```
 
 ### 2. Create Model Configuration
+
 ```python
 # src/inference/config.py
 from dataclasses import dataclass
@@ -203,6 +213,7 @@ class InferenceConfig:
 ```
 
 ### 3. Initialize Inference Engine
+
 ```python
 # src/inference/engine.py
 import os
@@ -270,11 +281,13 @@ class RTX4090InferenceEngine:
 ## Structured Output Configuration
 
 ### 1. Install Outlines
+
 ```bash
 uv add outlines
 ```
 
 ### 2. Define Job Schema
+
 ```python
 # src/schemas/job.py
 from pydantic import BaseModel, Field
@@ -341,6 +354,7 @@ class JobPosting(BaseModel):
 ```
 
 ### 3. Create Structured Extractor
+
 ```python
 # src/extraction/extractor.py
 from outlines import models, generate
@@ -414,6 +428,7 @@ Extract the job information into a structured JSON format."""
 ## Production Deployment
 
 ### 1. Create FastAPI Service
+
 ```python
 # src/api/server.py
 from fastapi import FastAPI, HTTPException, BackgroundTasks
@@ -520,6 +535,7 @@ if __name__ == "__main__":
 ```
 
 ### 2. Create Docker Configuration
+
 ```dockerfile
 # Dockerfile
 FROM nvidia/cuda:12.1.0-runtime-ubuntu22.04
@@ -560,6 +576,7 @@ CMD [".venv/bin/python", "-m", "uvicorn", "src.api.server:app", "--host", "0.0.0
 ```
 
 ### 3. Docker Compose Setup
+
 ```yaml
 # docker-compose.yml
 version: '3.8'
@@ -762,6 +779,7 @@ LAPTOP_MODEL_CONFIGS = {
    - Avoid blocking vents
 
 2. **Software Configuration**:
+
    ```bash
    # Set conservative power limit
    nvidia-smi -pl 120  # Sustainable 120W
@@ -771,6 +789,7 @@ LAPTOP_MODEL_CONFIGS = {
    ```
 
 3. **Thermal Monitoring Script**:
+
    ```python
    # monitor_gpu.py
    import pynvml
@@ -795,6 +814,7 @@ LAPTOP_MODEL_CONFIGS = {
 ## Monitoring & Optimization
 
 ### 1. Create Monitoring Script
+
 ```python
 # src/monitoring/monitor.py
 import time
@@ -862,6 +882,7 @@ if __name__ == "__main__":
 ```
 
 ### 2. Performance Optimization Script
+
 ```python
 # src/optimization/benchmark.py
 import time
@@ -929,6 +950,7 @@ def optimize_batch_size(engine: RTX4090InferenceEngine):
 ### Common Issues and Solutions
 
 #### 1. CUDA Out of Memory
+
 ```python
 # Reduce memory usage
 config = InferenceConfig(
@@ -939,6 +961,7 @@ config = InferenceConfig(
 ```
 
 #### 2. Thermal Throttling
+
 ```bash
 # Reduce power limit
 sudo nvidia-smi -pl 100  # Reduce to 100W
@@ -950,6 +973,7 @@ sudo nvidia-smi -pl 100  # Reduce to 100W
 ```
 
 #### 3. Flash Attention Not Working
+
 ```python
 # Verify Flash Attention support
 import torch
@@ -962,6 +986,7 @@ pip install flash-attn --no-build-isolation
 ```
 
 #### 4. Slow Token Generation
+
 ```python
 # Enable optimizations
 os.environ["VLLM_USE_CUDA_GRAPH"] = "true"
@@ -972,6 +997,7 @@ config.quantization = "awq"  # AWQ is faster than GPTQ
 ```
 
 #### 5. Invalid JSON Output
+
 ```python
 # Use stricter schema validation
 from pydantic import ValidationError
@@ -1003,10 +1029,10 @@ except ValidationError as e:
 2. **Thinking Mode**: Leverage Qwen3-4B-Thinking-2507 (✅ available) for complex extractions
 3. **Extended Context**: Utilize Qwen3's 131K-262K context windows
 4. **Structured Prompting**: Develop robust prompting strategies for base models
-4. **Multi-GPU**: Add second RTX 4090 for Qwen3-30B-A3B models
-5. **Caching**: Implement Redis caching for repeated extractions
-6. **Monitoring**: Set up Prometheus + Grafana dashboards
-7. **Scaling**: Deploy multiple instances with load balancing
+5. **Multi-GPU**: Add second RTX 4090 for Qwen3-30B-A3B models
+6. **Caching**: Implement Redis caching for repeated extractions
+7. **Monitoring**: Set up Prometheus + Grafana dashboards
+8. **Scaling**: Deploy multiple instances with load balancing
 
 ## Support & Resources
 
@@ -1016,4 +1042,5 @@ except ValidationError as e:
 - [RTX 4090 Optimization Guide](https://developer.nvidia.com/rtx)
 
 ## License
+
 MIT License - See LICENSE file for details

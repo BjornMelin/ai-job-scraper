@@ -1,8 +1,17 @@
 # AI Job Scraper - Final Architecture 2025
 
+> **CRITICAL UPDATE:** This document has been updated with research corrections from ADR-034 and ADR-035. Key changes: 8000 token threshold (98% local processing), corrected Qwen3 model references, Reflex UI (no NiceGUI migration needed), and 95% cost reduction.
+
 ## Executive Summary
 
 This document presents the **ultimate job scraper architecture for 2025** - a powerful, privacy-first, locally-run system that combines cutting-edge scraping, AI, and UI technologies. Built for personal use, it prioritizes speed, intelligence, and zero maintenance.
+
+**Research-Corrected Key Features:**
+
+- **98% local processing** with 8000 token threshold (up from 60% at 1000 tokens)
+- **$2.50/month costs** (down from $50/month estimates)
+- **Corrected Qwen3 models** (removed non-existent variants)
+- **Reflex UI** (no NiceGUI migration needed - WebSockets built-in)
 
 ### Key Innovations
 
@@ -128,7 +137,7 @@ dev-dependencies = [
 
 ## Project Structure
 
-```
+```text
 ai-job-scraper/
 ├── docker-compose.yml       # Full stack orchestration
 ├── pyproject.toml          # Dependencies
@@ -626,14 +635,14 @@ open http://localhost:8080
 | Extraction speed | 0.3s | 2s | 6.7x |
 | Embedding generation | 8ms | 200ms | 25x |
 | Tokens/sec | 180-220 | Variable | N/A |
-| Monthly cost | $0 | $200 | 100% |
+| Monthly cost | $2.50 | $50 | 95% |
 | Privacy | 100% | 0% | ∞ |
 
 ## Cost Analysis
 
 ### Self-Hosted (Recommended)
 
-```
+```text
 VPS (8GB RAM): $40/month
 Domain: $1/month
 Total: $41/month
@@ -641,7 +650,7 @@ Total: $41/month
 
 ### Managed Alternative
 
-```
+```text
 Heroku: $50/month
 Redis Cloud: $15/month
 OpenAI API: $100/month
@@ -649,7 +658,7 @@ Pinecone: $70/month
 Total: $235/month
 ```
 
-**Savings: $194/month (82%)**
+> **Savings: $194/month (82%)**
 
 ## Maintenance Playbook
 
