@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+**Updated** - August 2025 (Fixed LLM capability mapping and added single-model constraint)
 
 ## Context
 
@@ -19,11 +19,13 @@ With the release of GPT-5 (August 2025) and advanced local models like Qwen3, we
 ### Local Model Capabilities (RTX 4090)
 
 **✅ Available Models:**
+
 - **Qwen3-4B-Instruct-2507**: Fast processing in FP16 (~7.8GB VRAM) ✓
 - **Qwen3-4B-Thinking-2507**: Complex reasoning with Q5_K_M (~4.5GB VRAM) ✓
 - **Qwen3-30B-A3B-Instruct-2507**: Maximum capability with AWQ 4-bit (~15.5GB VRAM) ✓
 
 **🔄 Base Models (Instruct variants don't exist):**
+
 - **Qwen3-8B (base)**: With AWQ 4-bit quantization (~6GB VRAM) + structured prompting
 - **Qwen3-14B (base)**: With AWQ 4-bit quantization (~8GB VRAM) + structured prompting
 - **Performance**: 300-350 tokens/s (4B), 180-220 tokens/s (8B), 140-160 tokens/s (14B)
@@ -35,13 +37,15 @@ With the release of GPT-5 (August 2025) and advanced local models like Qwen3, we
 
 **Rationale**: Maximize local GPU utilization while leveraging cloud for complex tasks
 
+**⚠️ CRITICAL CONSTRAINT**: RTX 4090 laptop (16GB VRAM) can only run **ONE active model at a time**. Model switching required between tasks. See ADR-029 for single-model architecture implementation.
+
 ### Model Selection Matrix
 
 | Task Type | Primary Model | Fallback | Rationale |
 |-----------|--------------|----------|-----------|
 | **Job Extraction** | Qwen3-8B (base) | GPT-5-nano | Local speed, structured prompting |
 | **Complex Parsing** | Qwen3-14B (base) | GPT-5-mini | Maximum local capability |
-| **Complex Reasoning** | Qwen3-4B-Thinking-2507 | GPT-5 | Chain-of-thought reasoning |
+| **Complex Reasoning** | Qwen3-30B-A3B-Thinking-2507 | GPT-5 | Maximum reasoning capability (85+ AIME score) |
 | **Salary Analysis** | Qwen3-8B (base) | GPT-5-mini | Context + structured prompting |
 | **Resume Matching** | Qwen3-Embedding | - | Privacy critical |
 | **Summarization** | Qwen3-4B-Instruct-2507 | GPT-5-nano | Fast local processing |
@@ -56,8 +60,8 @@ import torch
 
 class ModelSelection(Enum):
     LOCAL_SMALL = "qwen3-4b-instruct-2507"  # ✅ Available
-    LOCAL_MEDIUM = "qwen3-8b-base"  # 🔄 Base model (Instruct doesn't exist) 
-    LOCAL_LARGE = "qwen3-14b-base"  # 🔄 Base model (Instruct doesn't exist)
+    LOCAL_MEDIUM = "qwen3-8b"  # 🔄 Base model (Instruct doesn't exist) 
+    LOCAL_LARGE = "qwen3-14b"  # 🔄 Base model (Instruct doesn't exist)
     LOCAL_THINKING = "qwen3-4b-thinking-2507"  # ✅ Available
     LOCAL_MAX = "qwen3-30b-a3b-instruct-2507"  # ✅ Available
     CLOUD_NANO = "gpt-5-nano"
@@ -65,11 +69,12 @@ class ModelSelection(Enum):
     CLOUD_FULL = "gpt-5"
 
 class HybridLLMRouter:
-    """Intelligent routing between local and cloud models."""
+    """Intelligent routing between local and cloud models with single-model constraint."""
     
     def __init__(self):
         self.vram_available = torch.cuda.get_device_properties(0).total_memory
-        self.local_models_loaded = {}
+        self.current_active_model = None  # Only ONE model active at a time
+        self.model_manager = None  # Reference to RTX4090ModelManager from ADR-029
         self.usage_stats = {"local": 0, "cloud": 0}
         
     def select_model(
@@ -138,8 +143,8 @@ class RTX4090ModelManager:
         self.cache_dir = Path("./models")
         self.loaded_models = {}
         self.quantization_config = {
-            "qwen3-14b-base": "AWQ-4bit",  # ~8.0GB VRAM (base model)
-            "qwen3-8b-base": "AWQ-4bit",   # ~6.0GB VRAM (base model)
+            "qwen3-14b": "AWQ-4bit",  # ~8.0GB VRAM (base model)
+            "qwen3-8b": "AWQ-4bit",   # ~6.0GB VRAM (base model)
             "qwen3-4b-instruct-2507": None,  # FP16 ~7.8GB VRAM ✅ Available
             "qwen3-4b-thinking-2507": "Q5_K_M",  # ~4.5GB VRAM ✅ Available
             "qwen3-30b-a3b-instruct-2507": "AWQ-4bit"  # ~15.5GB VRAM ✅ Available

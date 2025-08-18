@@ -37,70 +37,105 @@ inference_engine:
     disable_custom_all_reduce: true
     
 # ============================================================================
-# Model Configurations
+# Single Active Model Configuration (RTX 4090 Laptop - 16GB VRAM Constraint)
 # ============================================================================
+# CRITICAL: Only ONE model can be active at a time due to 16GB VRAM limitation
+# See ADR-029 for hardware-aware model management implementation
+
+model_switching:
+  # Single active model constraint
+  single_model_only: true
+  max_switch_time_seconds: 90
+  switch_failure_retries: 3
+  fallback_strategy: "cascade"  # 30B→14B→8B→4B→cloud
+  
+  # Model switching performance targets
+  target_switch_times:
+    between_4b_models: 20  # seconds
+    between_4b_and_8b: 30  # seconds  
+    between_8b_and_14b: 45  # seconds
+    between_14b_and_30b: 60  # seconds
+    emergency_unload: 10   # seconds
+
+# Available models (only ONE can be loaded at a time)
 models:
-  # Primary model for job extraction (CORRECTED - Instruct variant doesn't exist)
-  primary:
+  # Fast model for simple tasks (7.8GB VRAM)
+  fast:
+    id: "qwen3-4b-instruct-2507"
+    name: "Qwen/Qwen3-4B-Instruct-2507"
+    quantization: null  # FP16 fits in 7.8GB
+    max_model_len: 262144  # Full 262K context support
+    gpu_memory_utilization: 0.85
+    vram_usage_gb: 7.8
+    max_num_batched_tokens: 32768
+    max_num_seqs: 64
+    enable_prefix_caching: true
+    enable_chunked_prefill: true
+    expected_tokens_sec: "300-350"
+    use_cases: ["simple_extraction", "summarization", "formatting"]
+    
+  # Thinking model for complex reasoning (4.5GB VRAM)  
+  thinking:
+    id: "qwen3-4b-thinking-2507"
+    name: "Qwen/Qwen3-4B-Thinking-2507"
+    quantization: "Q5_K_M"
+    max_model_len: 262144
+    gpu_memory_utilization: 0.80
+    vram_usage_gb: 4.5
+    max_num_batched_tokens: 81920  # Extended for reasoning
+    max_num_seqs: 16
+    enable_prefix_caching: true
+    enable_chunked_prefill: true
+    expected_tokens_sec: "300-330"
+    use_cases: ["complex_reasoning", "multi_step_analysis", "edge_cases"]
+    
+  # Balanced model for general tasks (6.0GB VRAM with AWQ)
+  balanced:
+    id: "qwen3-8b-base"
     name: "Qwen/Qwen3-8B"  # Base model - Instruct variant doesn't exist!
     quantization: "awq"  # AWQ-4bit optimal for base models
-    max_model_len: 131072  # Qwen3-8B supports 131K context
-    gpu_memory_utilization: 0.4  # ~6.0GB VRAM usage with AWQ
+    max_model_len: 131072
+    gpu_memory_utilization: 0.85
+    vram_usage_gb: 6.0
     max_num_batched_tokens: 16384
     max_num_seqs: 32
     enable_prefix_caching: true
     enable_chunked_prefill: true
     expected_tokens_sec: "180-220"
     requires_structured_prompting: true  # Base model needs structured prompting
+    use_cases: ["standard_parsing", "job_extraction", "salary_analysis"]
     
-  # Fast model for simple tasks
-  fast:
-    name: "Qwen/Qwen3-4B-Instruct-2507"  # Updated to Qwen3-2507
-    quantization: null  # FP16 fits in 7.8GB
-    max_model_len: 262144  # Full 262K context support
-    gpu_memory_utilization: 0.5  # ~7.8GB VRAM usage
-    max_num_batched_tokens: 32768
-    max_num_seqs: 64
-    enable_prefix_caching: true
-    enable_chunked_prefill: true
-    expected_tokens_sec: "300-350"
-    
-  # Thinking model for complex reasoning
-  thinking:
-    name: "Qwen/Qwen3-4B-Thinking-2507"  # New thinking model
-    quantization: "Q5_K_M"  # Optimized quantization
-    max_model_len: 262144  # Full 262K context support
-    gpu_memory_utilization: 0.3  # ~4.5GB VRAM usage
-    max_num_batched_tokens: 81920  # Extended for reasoning
-    max_num_seqs: 16
-    enable_prefix_caching: true
-    enable_chunked_prefill: true
-    expected_tokens_sec: "300-330"
-    
-  # Large model for maximum capability (base model)
-  large:
+  # Capable model for complex tasks (8.0GB VRAM with AWQ)
+  capable:
+    id: "qwen3-14b"  
     name: "Qwen/Qwen3-14B"  # Base model - Instruct variant doesn't exist!
     quantization: "awq"  # AWQ-4bit for memory efficiency
-    max_model_len: 131072  # Full 131K context
-    gpu_memory_utilization: 0.5  # ~8.0GB VRAM usage with AWQ
+    max_model_len: 131072
+    gpu_memory_utilization: 0.85
+    vram_usage_gb: 8.0
     max_num_batched_tokens: 8192
     max_num_seqs: 16
     enable_prefix_caching: true
     enable_chunked_prefill: false  # Save memory
     expected_tokens_sec: "140-160"
     requires_structured_prompting: true  # Base model needs structured prompting
+    use_cases: ["complex_parsing", "detailed_analysis", "challenging_extraction"]
     
-  # Maximum capability model (if VRAM allows)
+  # Maximum capability model - USE WITH CAUTION (15.5GB VRAM)
   maximum:
-    name: "Qwen/Qwen3-30B-A3B-Instruct-2507"  # MoE model
-    quantization: "awq"  # AWQ-4bit required
-    max_model_len: 262144  # Full 262K context
-    gpu_memory_utilization: 0.95  # ~15.5GB VRAM usage
+    id: "qwen3-30b-a3b-instruct-2507"
+    name: "Qwen/Qwen3-30B-A3B-Instruct-2507"
+    quantization: "awq"  # AWQ-4bit REQUIRED
+    max_model_len: 262144
+    gpu_memory_utilization: 0.95  # Uses almost all VRAM
+    vram_usage_gb: 15.5
     max_num_batched_tokens: 65536
     max_num_seqs: 8  # Reduced for memory
     enable_prefix_caching: true
     enable_chunked_prefill: false  # Save memory
     expected_tokens_sec: "80-100"
+    use_cases: ["expert_reasoning", "maximum_capability_tasks", "gpt5_equivalent"]
+    warning: "ONLY load when 15.5GB+ VRAM available - may cause system instability"
 
 # ============================================================================
 # Structured Output Configuration
