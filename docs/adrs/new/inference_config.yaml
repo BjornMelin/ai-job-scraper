@@ -47,7 +47,7 @@ model_switching:
   single_model_only: true
   max_switch_time_seconds: 90
   switch_failure_retries: 3
-  fallback_strategy: "cascade"  # 30B→14B→8B→4B→cloud
+  fallback_strategy: "cascade"  # 14B→8B→4B→cloud
   
   # Model switching performance targets
   target_switch_times:
@@ -121,21 +121,21 @@ models:
     requires_structured_prompting: true  # Base model needs structured prompting
     use_cases: ["complex_parsing", "detailed_analysis", "challenging_extraction"]
     
-  # Maximum capability model - USE WITH CAUTION (15.5GB VRAM)
+  # Maximum capability model - Base Qwen3-14B for complex tasks  
   maximum:
-    id: "qwen3-30b-a3b-instruct-2507"
-    name: "Qwen/Qwen3-30B-A3B-Instruct-2507"
-    quantization: "awq"  # AWQ-4bit REQUIRED
-    max_model_len: 262144
-    gpu_memory_utilization: 0.95  # Uses almost all VRAM
-    vram_usage_gb: 15.5
-    max_num_batched_tokens: 65536
-    max_num_seqs: 8  # Reduced for memory
+    id: "qwen3-14b-base"
+    name: "Qwen/Qwen3-14B"
+    quantization: "awq"  # AWQ-4bit for RTX 4090 compatibility
+    max_model_len: 131072
+    gpu_memory_utilization: 0.85  # Safe VRAM usage
+    vram_usage_gb: 12.0  # Fits comfortably in 16GB
+    max_num_batched_tokens: 32768
+    max_num_seqs: 16
     enable_prefix_caching: true
     enable_chunked_prefill: false  # Save memory
     expected_tokens_sec: "80-100"
-    use_cases: ["expert_reasoning", "maximum_capability_tasks", "gpt5_equivalent"]
-    warning: "ONLY load when 15.5GB+ VRAM available - may cause system instability"
+    requires_structured_prompting: true  # Base model needs structured prompting
+    use_cases: ["expert_reasoning", "maximum_capability_tasks", "complex_analysis"]
 
 # ============================================================================
 # Structured Output Configuration
@@ -345,6 +345,6 @@ model_registry:
       files: ["*.safetensors", "*.json", "tokenizer*"]
       note: "Using base model with structured prompting"
       
-    - repo_id: "Qwen/Qwen3-30B-A3B-Instruct-2507"
+    - repo_id: "Qwen/Qwen3-14B"  # Base model corrected for RTX 4090
       revision: "main"
       files: ["*.safetensors", "*.json", "tokenizer*"]

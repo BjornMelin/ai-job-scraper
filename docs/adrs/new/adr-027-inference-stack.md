@@ -1,4 +1,4 @@
-# ADR-027: Inference Stack (Simplified)
+# ADR-027: Inference Stack
 
 ## Title
 
@@ -6,7 +6,7 @@ Simple vLLM Inference Stack with Native Features
 
 ## Version/Date
 
-2.0 / August 18, 2025 (Simplified from v1.0)
+2.0 / August 18, 2025
 
 ## Status
 
@@ -21,6 +21,7 @@ Use vLLM with minimal configuration, leveraging native features for all memory m
 ### Previous Over-Engineering
 
 **v1.0 Problems:**
+
 - Extensive environment variable configuration
 - Custom memory management and monitoring
 - Complex quantization and optimization settings
@@ -29,6 +30,7 @@ Use vLLM with minimal configuration, leveraging native features for all memory m
 ### Library-First Reality
 
 **vLLM Defaults Work:**
+
 - `swap_space=4` handles all memory management
 - `gpu_memory_utilization=0.85` optimizes VRAM automatically
 - Native Flash Attention 2 support for RTX 4090
@@ -37,21 +39,25 @@ Use vLLM with minimal configuration, leveraging native features for all memory m
 ## Related Requirements
 
 ### Functional Requirements
+
 - FR-019: Local model inference on RTX 4090
 - FR-020: Automatic memory and hardware management
 - FR-021: Support for multiple model sizes and types
 
 ### Non-Functional Requirements
+
 - NFR-019: Minimal configuration complexity
 - NFR-020: Use vLLM native features exclusively
 - NFR-021: Reliable inference without custom optimization
 
 ### Performance Requirements
+
 - PR-019: Optimal throughput for RTX 4090 hardware
 - PR-020: Automatic memory optimization
 - PR-021: Model switching under 60 seconds
 
 ### Integration Requirements
+
 - IR-019: Integration with model manager (ADR-019)
 - IR-020: Support for hybrid strategy (ADR-020)
 - IR-021: Compatible with scraping workflow (ADR-032)
@@ -59,16 +65,19 @@ Use vLLM with minimal configuration, leveraging native features for all memory m
 ## Alternatives
 
 ### Alternative 1: Keep Complex v1.0 Configuration
+
 **Pros:** Maximum optimization potential
 **Cons:** Complex setup, reimplements vLLM features
 **Score:** 3/10
 
 ### Alternative 2: Custom Inference Engine
+
 **Pros:** Complete control
 **Cons:** Months of development, reinventing the wheel
 **Score:** 1/10
 
 ### Alternative 3: Simple vLLM with Defaults (SELECTED)
+
 **Pros:** Works out of the box, battle-tested, minimal config
 **Cons:** Less fine-grained control
 **Score:** 9/10
@@ -124,6 +133,7 @@ graph LR
 ### Implementation Details
 
 **Complete Inference Stack (15 lines vs 150+):**
+
 ```python
 from vllm import LLM, SamplingParams
 
@@ -155,6 +165,7 @@ class SimpleInferenceStack:
 ### Configuration
 
 **Minimal Configuration:**
+
 ```yaml
 inference:
   engine: "vllm"
@@ -173,6 +184,7 @@ inference:
 ```
 
 **Hardware Detection (automatic):**
+
 ```python
 # vLLM automatically detects and optimizes for:
 # - RTX 4090 Ada Lovelace architecture
@@ -185,12 +197,14 @@ inference:
 ## Testing
 
 ### Basic Functionality Tests
+
 1. **Model Loading:** Verify vLLM loads models correctly
 2. **Inference Quality:** Test generation quality and consistency
 3. **Memory Management:** Confirm swap_space functionality
 4. **Performance:** Measure actual throughput on RTX 4090
 
 ### Integration Tests
+
 1. **Model Switching:** Test with model manager integration
 2. **Concurrent Requests:** Multiple inference requests
 3. **Long Running:** Stability over extended periods
@@ -217,6 +231,7 @@ inference:
 ### Ongoing Maintenance
 
 **Minimal maintenance required:**
+
 - Update vLLM when new versions available
 - Monitor inference performance and adjust sampling if needed
 - Track new model support and quantization options
@@ -232,6 +247,7 @@ inference:
 ## Changelog
 
 ### v2.0 - August 18, 2025
+
 - Complete simplification based on ADR-031
 - Removed all custom optimization (150+ lines)
 - Leveraged vLLM native features exclusively  
@@ -239,6 +255,7 @@ inference:
 - Eliminated manual hardware configuration
 
 ### v1.0 - August 18, 2025 (Archived)
+
 - Complex environment variable configuration
 - Manual memory management and optimization
 - Custom quantization and Flash Attention setup

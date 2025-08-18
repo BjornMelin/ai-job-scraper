@@ -10,7 +10,7 @@ Simplified Scraping Strategy with Crawl4AI Primary
 
 ## Status
 
-**Decided** - Replaces complex multi-tier scraping architecture
+**Decided** - Supersedes ADR-015 (Modern Scraping Architecture 2025)
 
 ## Description
 
@@ -21,6 +21,7 @@ Simplify web scraping architecture from a complex three-tier system (JobSpy + Cr
 ### Current Complex Architecture Problems
 
 **Current Implementation (400+ lines):**
+
 - Three separate scraping libraries with complex orchestration
 - Custom anti-bot detection and session management
 - Manual JavaScript execution and wait logic
@@ -28,6 +29,7 @@ Simplify web scraping architecture from a complex three-tier system (JobSpy + Cr
 - Redundant caching and retry mechanisms
 
 **Over-Engineering Identified:**
+
 - JobSpy, Crawl4AI, and Playwright all doing similar tasks
 - Custom logic reimplementing what Crawl4AI provides natively
 - Complex routing logic to decide which scraper to use
@@ -36,6 +38,7 @@ Simplify web scraping architecture from a complex three-tier system (JobSpy + Cr
 ### Crawl4AI Native Capabilities (Underutilized)
 
 **Built-in Features We're Not Using:**
+
 - ✅ AI-powered content extraction for ANY website
 - ✅ Built-in anti-bot detection with `anti_bot=True`
 - ✅ Automatic JavaScript execution and page rendering
@@ -47,6 +50,7 @@ Simplify web scraping architecture from a complex three-tier system (JobSpy + Cr
 ## Related Requirements
 
 ### Functional Requirements
+
 - FR-005: Extract job postings from company websites
 - FR-006: Handle JavaScript-heavy modern job sites  
 - FR-007: Extract structured data (title, salary, description, etc.)
@@ -54,18 +58,21 @@ Simplify web scraping architecture from a complex three-tier system (JobSpy + Cr
 - FR-009: Cache responses to avoid duplicate requests
 
 ### Non-Functional Requirements
+
 - NFR-005: Simple, maintainable scraping codebase
 - NFR-006: Fast development and deployment
 - NFR-007: Reliable extraction across diverse sites
 - NFR-008: Cost-effective (minimal API calls)
 
 ### Performance Requirements
+
 - PR-005: Scrape 100+ job postings in under 5 minutes
 - PR-006: Handle 10+ concurrent company scraping
 - PR-007: 95% successful extraction rate
 - PR-008: Under 2 seconds per job posting
 
 ### Integration Requirements
+
 - IR-005: Seamless integration with local AI models
 - IR-006: Direct database storage without transformation
 - IR-007: Real-time progress updates to UI
@@ -74,16 +81,19 @@ Simplify web scraping architecture from a complex three-tier system (JobSpy + Cr
 ## Alternatives
 
 ### Alternative 1: Keep Complex Multi-Tier
+
 **Pros:** Maximum coverage, fallback options
 **Cons:** 400+ lines, complex maintenance, slower development
 **Score:** 3/10
 
 ### Alternative 2: JobSpy Only
+
 **Pros:** Simple, proven for job boards
 **Cons:** Limited to major job boards, no custom companies
 **Score:** 5/10
 
 ### Alternative 3: Crawl4AI Primary with JobSpy Fallback (SELECTED)
+
 **Pros:** AI extraction, handles any site, simple codebase
 **Cons:** Newer library, potential edge cases
 **Score:** 9/10
@@ -144,6 +154,7 @@ graph LR
 ### Implementation Details
 
 **Primary Crawl4AI Implementation (20 lines):**
+
 ```python
 from crawl4ai import AsyncWebCrawler
 from pydantic import BaseModel
@@ -179,6 +190,7 @@ async def scrape_company_jobs(company_url: str) -> list[JobPosting]:
 ```
 
 **JobSpy Fallback (10 lines):**
+
 ```python
 from jobspy import scrape_jobs
 
@@ -196,6 +208,7 @@ async def scrape_job_boards(query: str, location: str = "remote") -> list[JobPos
 ```
 
 **Unified Scraping Interface (15 lines):**
+
 ```python
 from enum import Enum
 
@@ -226,6 +239,7 @@ async def scrape_jobs(
 ### Configuration
 
 **Simplified Scraping Config:**
+
 ```yaml
 scraping:
   primary:
@@ -253,17 +267,20 @@ scraping:
 ## Testing
 
 ### Crawl4AI Testing
+
 1. **AI Extraction Tests:** Verify structured data extraction quality
 2. **Anti-Bot Tests:** Confirm bypassing of common protections
 3. **Performance Tests:** Measure scraping speed and reliability
 4. **Edge Case Tests:** Handle broken pages, timeouts, empty results
 
 ### JobSpy Integration Tests
+
 1. **Multi-Board Tests:** Verify LinkedIn, Indeed, ZipRecruiter integration
 2. **Search Query Tests:** Test various job search terms
 3. **Location Tests:** Verify remote and location-based searches
 
 ### End-to-End Tests
+
 1. **Company Scraping Workflow:** Full company website scraping
 2. **Job Board Workflow:** Full job board search and extraction
 3. **Auto Strategy Tests:** Verify automatic strategy selection
@@ -291,6 +308,7 @@ scraping:
 ### Ongoing Maintenance
 
 **Minimal maintenance tasks:**
+
 - Monitor Crawl4AI updates and new features
 - Adjust extraction schemas based on site changes
 - Update anti-bot strategies as needed
@@ -306,6 +324,7 @@ scraping:
 ## Changelog
 
 ### v1.0 - August 18, 2025
+
 - Initial decision for Crawl4AI primary strategy
 - Eliminated complex multi-tier orchestration
 - Defined 90/10 usage split (Crawl4AI/JobSpy)

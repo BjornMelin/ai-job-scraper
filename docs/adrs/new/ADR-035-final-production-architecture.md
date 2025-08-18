@@ -194,19 +194,27 @@ from rq import Queue
 import asyncio
 
 class JobScraperApp:
-    """Complete job scraper application."""
+    """Complete job scraper application with single model constraint."""
     
     def __init__(self):
-        # vLLM with native features - no custom management needed
-        self.models = {
-            "primary": LLM(
-                model="Qwen/Qwen3-8B",  # Base model with structured prompting
-                swap_space=4,  # Automatic model management
-                gpu_memory_utilization=0.85
-            ),
-            "thinking": LLM(
-                model="Qwen/Qwen3-4B-Thinking-2507"  # Available instruct model
-            )
+        # Single model configuration - respects 16GB VRAM constraint
+        self.current_model = None
+        self.model_configs = {
+            "primary": {
+                "model": "Qwen/Qwen3-8B",  # Base model with structured prompting
+                "swap_space": 4,  # vLLM automatic model management
+                "gpu_memory_utilization": 0.85
+            },
+            "thinking": {
+                "model": "Qwen/Qwen3-4B-Thinking-2507",  # Available instruct model
+                "swap_space": 4,
+                "gpu_memory_utilization": 0.85
+            },
+            "maximum": {
+                "model": "Qwen/Qwen3-14B",  # Base model for highest quality
+                "swap_space": 4,
+                "gpu_memory_utilization": 0.85
+            }
         }
         
         # Task queue with native retry handling
@@ -216,8 +224,18 @@ class JobScraperApp:
         # Hybrid processing with optimized threshold
         self.threshold = 8000  # 98% local processing
     
+    def get_model(self, model_type: str = "primary") -> LLM:
+        """Lazy-load single model - vLLM swap_space handles switching."""
+        config = self.model_configs[model_type]
+        
+        # vLLM swap_space=4 automatically manages model loading/unloading
+        if not self.current_model or self.current_model.model != config["model"]:
+            self.current_model = LLM(**config)
+        
+        return self.current_model
+    
     async def extract_job(self, url: str) -> dict:
-        """Complete job extraction workflow."""
+        """Complete job extraction workflow with single model constraint."""
         
         # Scraping with AI extraction built-in
         async with AsyncWebCrawler() as crawler:
@@ -231,8 +249,13 @@ class JobScraperApp:
         content_tokens = len(result.extracted_content.split())
         
         if content_tokens < self.threshold:
-            # 98% of jobs - process locally
-            return self.local_extraction(result.extracted_content)
+            # 98% of jobs - process locally with appropriate model
+            if content_tokens < 2000:
+                model = self.get_model("primary")  # Qwen3-8B for most jobs
+            else:
+                model = self.get_model("maximum")  # Qwen3-14B for complex jobs
+            
+            return self.local_extraction(result.extracted_content, model)
         else:
             # 2% of jobs - complex content to cloud
             return self.cloud_extraction(result.extracted_content)
@@ -343,11 +366,12 @@ volumes:
 
 ### Integration Testing Strategy
 
-1. **Model Loading Tests:** Verify correct Qwen3 models load and function
-2. **Threshold Tests:** Validate 8K token threshold routing decisions
-3. **End-to-End Tests:** Complete job scraping workflow validation
-4. **Performance Tests:** Token/sec benchmarks for each model
-5. **Cost Tests:** Confirm local vs cloud processing ratios
+1. **Single Model Constraint Tests:** Verify lazy-loading respects 16GB VRAM limit
+2. **Model Loading Tests:** Verify correct Qwen3 models load and function with swap_space=4
+3. **Threshold Tests:** Validate 8K token threshold routing decisions
+4. **End-to-End Tests:** Complete job scraping workflow validation
+5. **Performance Tests:** Token/sec benchmarks for each model with memory monitoring
+6. **Cost Tests:** Confirm local vs cloud processing ratios
 
 ### Quality Assurance
 
@@ -395,6 +419,13 @@ volumes:
 - **Redis + RQ:** Task queue and background processing
 
 ## Changelog
+
+### v1.1 - August 18, 2025
+
+- **CRITICAL FIX:** Implemented lazy-loading single model pattern to respect 16GB VRAM constraint
+- **Architecture Correction:** Replaced concurrent model loading with vLLM swap_space=4 pattern
+- **Memory Safety:** Added intelligent model selection based on content complexity
+- **Hardware Compliance:** Ensured single model constraint compatibility with RTX 4090 laptop
 
 ### v1.0 - August 18, 2025
 

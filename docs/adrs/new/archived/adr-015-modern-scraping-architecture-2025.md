@@ -6,7 +6,9 @@
 
 ## Status
 
-Proposed
+**SUPERSEDED** by ADR-032 (Simplified Scraping Strategy) - August 18, 2025
+
+**Reason for Supersession:** ADR-032 provides a simplified library-first approach using Crawl4AI primary + JobSpy fallback, replacing this ADR's complex 3-tier orchestration system. ADR-032 achieves 75% code reduction (400→100 lines) while maintaining equivalent functionality and better alignment with the library-first architecture principles established in ADR-031.
 
 ## Context
 
