@@ -1,0 +1,347 @@
+{
+  "version": "1.0.0",
+  "description": "Interface contracts for AI Job Scraper Reflex UI",
+  
+  "events": {
+    "scraping": {
+      "start_scraping": {
+        "description": "Initiate scraping session",
+        "payload": {
+          "sources": ["string"],
+          "filters": {
+            "keywords": ["string"],
+            "location": "string",
+            "remote_only": "boolean",
+            "min_salary": "number",
+            "max_salary": "number",
+            "posted_within_days": "number"
+          },
+          "options": {
+            "max_jobs_per_source": "number",
+            "timeout_seconds": "number"
+          }
+        },
+        "response": {
+          "session_id": "string",
+          "status": "started | failed",
+          "message": "string"
+        }
+      },
+      
+      "scraping_progress": {
+        "description": "Real-time scraping progress update",
+        "payload": {
+          "session_id": "string",
+          "source": "string",
+          "progress": "number",
+          "jobs_found": "number",
+          "status": "running | completed | error",
+          "message": "string",
+          "timestamp": "datetime"
+        }
+      },
+      
+      "stop_scraping": {
+        "description": "Cancel ongoing scraping session",
+        "payload": {
+          "session_id": "string"
+        },
+        "response": {
+          "status": "stopped | error",
+          "jobs_collected": "number"
+        }
+      }
+    },
+    
+    "jobs": {
+      "search_jobs": {
+        "description": "Search and filter jobs",
+        "payload": {
+          "query": "string",
+          "filters": {
+            "companies": ["string"],
+            "locations": ["string"],
+            "remote_type": "onsite | remote | hybrid | any",
+            "salary_min": "number",
+            "salary_max": "number",
+            "posted_after": "datetime",
+            "tags": ["string"],
+            "status": "new | viewed | applied | rejected | interview | offer"
+          },
+          "sort": {
+            "field": "posted_date | salary | company | relevance",
+            "order": "asc | desc"
+          },
+          "pagination": {
+            "page": "number",
+            "per_page": "number"
+          }
+        },
+        "response": {
+          "jobs": ["Job"],
+          "total": "number",
+          "page": "number",
+          "pages": "number"
+        }
+      },
+      
+      "get_job_detail": {
+        "description": "Fetch detailed job information",
+        "payload": {
+          "job_id": "string"
+        },
+        "response": {
+          "job": "Job",
+          "similar_jobs": ["Job"],
+          "company_info": "Company"
+        }
+      },
+      
+      "update_job_status": {
+        "description": "Update application status for a job",
+        "payload": {
+          "job_id": "string",
+          "status": "viewed | saved | applied | rejected | interview | offer",
+          "notes": "string"
+        },
+        "response": {
+          "success": "boolean",
+          "job": "Job"
+        }
+      }
+    },
+    
+    "applications": {
+      "submit_application": {
+        "description": "Submit job application",
+        "payload": {
+          "job_id": "string",
+          "cover_letter": "string",
+          "resume_id": "string",
+          "expected_salary": "number",
+          "available_date": "date",
+          "additional_notes": "string"
+        },
+        "response": {
+          "application_id": "string",
+          "status": "submitted | error",
+          "message": "string"
+        }
+      },
+      
+      "update_application": {
+        "description": "Update application status or details",
+        "payload": {
+          "application_id": "string",
+          "status": "submitted | reviewing | interview_scheduled | rejected | offer_received | accepted | declined",
+          "interview_date": "datetime",
+          "notes": "string"
+        },
+        "response": {
+          "success": "boolean",
+          "application": "Application"
+        }
+      }
+    },
+    
+    "notifications": {
+      "notification": {
+        "description": "Real-time notification",
+        "payload": {
+          "id": "string",
+          "type": "info | success | warning | error",
+          "title": "string",
+          "message": "string",
+          "action_url": "string",
+          "timestamp": "datetime",
+          "persistent": "boolean"
+        }
+      },
+      
+      "mark_read": {
+        "description": "Mark notification as read",
+        "payload": {
+          "notification_id": "string"
+        }
+      }
+    }
+  },
+  
+  "models": {
+    "Job": {
+      "id": "string",
+      "title": "string",
+      "company_id": "string",
+      "company": "Company",
+      "location": "string",
+      "remote_type": "onsite | remote | hybrid",
+      "salary_min": "number | null",
+      "salary_max": "number | null",
+      "salary_currency": "string",
+      "description": "string",
+      "requirements": ["string"],
+      "benefits": ["string"],
+      "posted_date": "datetime",
+      "scraped_date": "datetime",
+      "expires_date": "datetime | null",
+      "source_url": "string",
+      "source_name": "string",
+      "application_status": "ApplicationStatus | null",
+      "tags": ["string"],
+      "relevance_score": "number",
+      "created_at": "datetime",
+      "updated_at": "datetime"
+    },
+    
+    "Company": {
+      "id": "string",
+      "name": "string",
+      "website": "string | null",
+      "logo_url": "string | null",
+      "industry": "string | null",
+      "size": "string | null",
+      "location": "string | null",
+      "description": "string | null",
+      "glassdoor_rating": "number | null",
+      "indeed_rating": "number | null",
+      "linkedin_url": "string | null",
+      "jobs_count": "number",
+      "created_at": "datetime",
+      "updated_at": "datetime"
+    },
+    
+    "Application": {
+      "id": "string",
+      "job_id": "string",
+      "job": "Job",
+      "applied_date": "datetime",
+      "status": "ApplicationStatus",
+      "cover_letter": "string | null",
+      "resume_version": "string | null",
+      "expected_salary": "number | null",
+      "notes": "string | null",
+      "interviews": ["Interview"],
+      "created_at": "datetime",
+      "updated_at": "datetime"
+    },
+    
+    "ScrapingSession": {
+      "id": "string",
+      "started_at": "datetime",
+      "completed_at": "datetime | null",
+      "status": "running | completed | failed | cancelled",
+      "sources": ["string"],
+      "filters": "object",
+      "jobs_found": "number",
+      "errors": ["string"],
+      "duration_seconds": "number"
+    },
+    
+    "ApplicationStatus": {
+      "enum": ["new", "viewed", "saved", "applied", "rejected", "interview", "offer", "accepted", "declined"]
+    },
+    
+    "Notification": {
+      "id": "string",
+      "type": "info | success | warning | error",
+      "title": "string",
+      "message": "string",
+      "action_url": "string | null",
+      "read": "boolean",
+      "created_at": "datetime"
+    },
+    
+    "LogEntry": {
+      "timestamp": "datetime",
+      "level": "debug | info | warning | error",
+      "source": "string",
+      "message": "string"
+    }
+  },
+  
+  "websocket": {
+    "connection": {
+      "url": "ws://localhost:8000/ws",
+      "protocols": ["reflex"],
+      "heartbeat_interval": 30000,
+      "reconnect_strategy": {
+        "max_attempts": 5,
+        "initial_delay": 1000,
+        "max_delay": 30000,
+        "multiplier": 2
+      }
+    },
+    
+    "message_types": {
+      "state_update": {
+        "description": "Server-to-client state synchronization",
+        "format": {
+          "type": "state_update",
+          "state_delta": "object",
+          "timestamp": "number"
+        }
+      },
+      
+      "event": {
+        "description": "Client-to-server event",
+        "format": {
+          "type": "event",
+          "handler": "string",
+          "payload": "object",
+          "client_id": "string"
+        }
+      },
+      
+      "stream": {
+        "description": "Streaming data update",
+        "format": {
+          "type": "stream",
+          "stream_id": "string",
+          "data": "object",
+          "complete": "boolean"
+        }
+      },
+      
+      "error": {
+        "description": "Error message",
+        "format": {
+          "type": "error",
+          "code": "string",
+          "message": "string",
+          "details": "object"
+        }
+      }
+    }
+  },
+  
+  "api_endpoints": {
+    "base_url": "http://localhost:8000",
+    
+    "auth": {
+      "login": "POST /auth/login",
+      "logout": "POST /auth/logout",
+      "refresh": "POST /auth/refresh"
+    },
+    
+    "static": {
+      "upload_resume": "POST /api/upload/resume",
+      "get_export": "GET /api/export/{format}"
+    }
+  },
+  
+  "validation": {
+    "rules": {
+      "email": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$",
+      "url": "^https?://[\\w\\-._~:/?#[\\]@!$&'()*+,;=.]+$",
+      "salary": {
+        "min": 0,
+        "max": 1000000
+      },
+      "text_length": {
+        "title": {"min": 3, "max": 200},
+        "description": {"min": 10, "max": 5000},
+        "cover_letter": {"min": 100, "max": 3000}
+      }
+    }
+  }
+}
