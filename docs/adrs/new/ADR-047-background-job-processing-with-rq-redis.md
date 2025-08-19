@@ -14,7 +14,7 @@ Advanced Background Job Processing with RQ/Redis, Reflex WebSocket Integration, 
 
 ## Description
 
-**Research-Validated Background Processing Architecture** implementing comprehensive task processing that executes long-running scraping and synchronization operations without blocking the Reflex UI. Features **RQ/Redis integration (81.5% weighted score validation)**, **Qwen3-4B-Instruct-2507 AI processing** (unanimous expert consensus), and **3-5x performance improvement** through parallel job processing with real-time WebSocket progress updates.
+**Research-Validated Background Processing Architecture** implementing comprehensive task processing that executes long-running scraping, synchronization, and **analytical operations** without blocking the Reflex UI. Features **RQ/Redis integration (81.5% weighted score validation)**, **Polars + DuckDB analytical workflows** (90.75% weighted score validation), **Qwen3-4B-Instruct-2507 AI processing** (unanimous expert consensus), and **3-80x performance improvement** through parallel job processing with real-time WebSocket progress updates.
 
 ## Context
 
@@ -36,9 +36,10 @@ Advanced Background Job Processing with RQ/Redis, Reflex WebSocket Integration, 
 
 **Integration with Enhanced Architecture:**
 
-- **Database coordination** with SQLite WAL mode and session management (ADR-037)
-- **Smart synchronization** integration with content-based change detection (ADR-038)
-- **Performance optimization** for large-scale data processing (ADR-041)
+- **Database coordination** with hybrid SQLite + DuckDB architecture (ADR-037)
+- **Enhanced data management** with Polars DataFrame processing (ADR-038)
+- **Analytical workflows** for high-performance data processing (ADR-037 integration)
+- **Performance optimization** for large-scale analytical workloads (ADR-041)
 - **Real-time updates** via Reflex WebSocket connections (ADR-024)
 
 ### Technical Architecture Evolution
@@ -53,9 +54,10 @@ Advanced Background Job Processing with RQ/Redis, Reflex WebSocket Integration, 
 **Enhanced Task Processing:**
 
 - RQ (Redis Queue) integration for scalable task management
+- **Analytical queue** for Polars + DuckDB processing workflows
 - Tenacity library for intelligent retry logic with exponential backoff
-- Database session coordination for concurrent access optimization
-- Memory-efficient processing for large datasets
+- Hybrid database session coordination for analytical workloads
+- Memory-efficient processing for large DataFrames
 
 ## Related Requirements
 
@@ -66,14 +68,18 @@ Advanced Background Job Processing with RQ/Redis, Reflex WebSocket Integration, 
 - **FR-BG-03**: Support task cancellation and status monitoring
 - **FR-BG-04**: Handle task failures with automatic retry mechanisms
 - **FR-BG-05**: Queue multiple tasks with priority and resource management
+- **FR-BG-06**: Process analytical workloads with Polars + DuckDB integration
+- **FR-BG-07**: Coordinate with ADR-037 hybrid database architecture
 
 ### Non-Functional Requirements
 
 - **NFR-BG-01**: UI remains responsive during all background operations
 - **NFR-BG-02**: Progress updates delivered <500ms latency via WebSocket
 - **NFR-BG-03**: Support 5+ concurrent background tasks efficiently
-- **NFR-BG-04**: Memory usage <300MB per active background task
+- **NFR-BG-04**: Memory usage <300MB per standard task, <500MB per analytical task
 - **NFR-BG-05**: Task recovery time <10 seconds after failure
+- **NFR-BG-06**: Analytical processing delivers 3-80x performance improvement
+- **NFR-BG-07**: Zero-copy integration with ADR-037 analytical services
 
 ## Research Validation Summary
 
@@ -89,16 +95,19 @@ Advanced Background Job Processing with RQ/Redis, Reflex WebSocket Integration, 
 **Integration with Research Findings**:
 
 - **ADR-046**: Qwen3-4B-Instruct-2507 AI processing via specialized `ai_enrich` queue
-- **ADR-035**: Docker orchestration with Redis, RQ workers, and health checks
-- **Performance Target**: Sustained 3-5x throughput improvement under realistic workloads
+- **ADR-037**: Polars + DuckDB analytical workflows via specialized `analytics` queue
+- **ADR-038**: Enhanced data management with DataFrame processing integration
+- **ADR-035**: Docker orchestration with Redis, RQ workers, and analytical containers
+- **Performance Target**: Sustained 3-5x throughput improvement + 3-80x analytical performance
 
 ## Related Decisions
 
 - **Replaces**: Broken ADR-047 (archived due to incomplete implementations)
 - **Integrates with ADR-035**: Local development architecture with Docker orchestration
 - **Coordinates with ADR-046**: LLM selection and AI processing integration
-- **Enhances ADR-037**: Database session management for concurrent background access
-- **Supports ADR-041**: Performance optimization for large-scale background processing
+- **Deep Integration with ADR-037**: Hybrid database architecture and analytical services
+- **Enhances ADR-038**: Data management with DataFrame processing workflows
+- **Supports ADR-041**: Performance optimization for analytical background processing
 
 ## Decision
 
@@ -131,7 +140,7 @@ class TaskStatus(Enum):
 class TaskProgress:
     """Comprehensive task progress tracking."""
     task_id: str
-    task_type: str  # 'scraping', 'sync', 'analysis'
+    task_type: str  # 'scraping', 'sync', 'analytics', 'dataframe_processing'
     status: TaskStatus
     progress_percentage: float = 0.0
     current_step: str = ""
@@ -450,13 +459,19 @@ from typing import Any, Dict, Optional, Callable
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 class TaskManager:
-    """Advanced task management with RQ integration and intelligent retry logic."""
+    """Enhanced task management with RQ integration and Polars + DuckDB analytical processing."""
     
     def __init__(self, redis_url: str = "redis://localhost:6379/0"):
         self.redis_conn = redis.from_url(redis_url)
+        
+        # Standard queues (preserved)
         self.default_queue = Queue('default', connection=self.redis_conn)
         self.priority_queue = Queue('priority', connection=self.redis_conn)
         self.long_running_queue = Queue('long_running', connection=self.redis_conn)
+        
+        # Enhanced queues for analytical workflows
+        self.analytics_queue = Queue('analytics', connection=self.redis_conn)
+        self.dataframe_processing_queue = Queue('dataframe_processing', connection=self.redis_conn)
         
         self.logger = logging.getLogger(__name__)
         
@@ -477,16 +492,21 @@ class TaskManager:
             if progress_callback:
                 self.job_callbacks[task_id] = progress_callback
             
-            # Enqueue scraping job based on expected duration
+            # Enhanced queue selection with analytical capabilities
             estimated_jobs = self._estimate_job_count(params)
+            analytical_processing = params.get('with_analytics', False)
             
-            if estimated_jobs > 1000:
+            if analytical_processing:
+                # Analytical jobs with DataFrame processing
+                queue = self.analytics_queue
+                timeout = '45m'  # Extended timeout for analytical workloads
+            elif estimated_jobs > 1000:
                 # Large jobs go to long-running queue
                 queue = self.long_running_queue
-                timeout = '30m'  # 30 minute timeout
+                timeout = '30m'
             elif params.get('priority', False):
                 # Priority jobs for immediate execution
-                queue = self.priority_queue 
+                queue = self.priority_queue
                 timeout = '10m'
             else:
                 # Standard jobs
