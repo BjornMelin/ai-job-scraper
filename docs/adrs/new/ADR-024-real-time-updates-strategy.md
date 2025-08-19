@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+**Accepted** - *Scope: Production architecture*
 
 ## Context
 
@@ -150,46 +150,41 @@ class ScrapingRealtimeState(RealtimeState):
     errors: list[str] = []
     log_buffer: list[LogEntry] = []
     
-    @rx.event(background=True)
-    async def start_scraping(self, sources: list[str]):
+    def start_scraping(self, sources: list[str]):
         """Stream scraping progress in real-time"""
-        async with self:
-            self.scraping_active = True
-            self.total_sources = len(sources)
-            self.completed_sources = 0
-            self.jobs_found = 0
-            self.log_buffer = []
+        self.scraping_active = True
+        self.total_sources = len(sources)
+        self.completed_sources = 0
+        self.jobs_found = 0
+        self.log_buffer = []
+        yield
         
         for source in sources:
             # Update current source
-            async with self:
-                self.current_source = source
-                self.emit_log(f"Starting {source}...", "info")
+            self.current_source = source
+            self.emit_log(f"Starting {source}...", "info")
+            yield
             
             try:
-                # Perform scraping (async)
-                jobs = await scrape_source_async(source)
+                # Perform scraping (sync or async handled by framework)
+                jobs = scrape_source(source)  # Reflex handles async internally
                 
                 # Update progress
-                async with self:
-                    self.jobs_found += len(jobs)
-                    self.completed_sources += 1
-                    self.emit_log(
-                        f"Found {len(jobs)} jobs from {source}", 
-                        "success"
-                    )
-                
-                # Yield control for UI updates
-                await asyncio.sleep(0.1)
+                self.jobs_found += len(jobs)
+                self.completed_sources += 1
+                self.emit_log(
+                    f"Found {len(jobs)} jobs from {source}", 
+                    "success"
+                )
+                yield
                 
             except Exception as e:
-                async with self:
-                    self.errors.append(str(e))
-                    self.emit_log(f"Error in {source}: {e}", "error")
+                self.errors.append(str(e))
+                self.emit_log(f"Error in {source}: {e}", "error")
+                yield
         
-        async with self:
-            self.scraping_active = False
-            self.emit_notification("Scraping complete!", "success")
+        self.scraping_active = False
+        self.emit_notification("Scraping complete!", "success")
     
     @rx.event
     def emit_log(self, message: str, level: str):
@@ -388,6 +383,14 @@ Reflex's built-in WebSocket support provides:
 - Load test concurrent connections
 - Test reconnection scenarios
 - Verify update throttling
+
+## Related ADRs
+
+- **ADR-022**: Reflex UI Framework Decision - Framework foundation for WebSocket support
+- **ADR-023**: State Management Architecture - State patterns for real-time updates  
+- **ADR-025**: Component Library Selection - UI components for progress display
+- **ADR-026**: Routing and Navigation Design - State persistence during navigation
+- **ADR-040**: Reflex Local Development - Development real-time patterns
 
 ## References
 

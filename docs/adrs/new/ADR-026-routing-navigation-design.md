@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+**Accepted** - *Scope: Production architecture*
 
 ## Context
 
@@ -520,6 +520,14 @@ The hybrid approach provides:
 - [ ] Test browser back/forward
 - [ ] Verify deep linking works
 - [ ] Add navigation analytics
+
+## Related ADRs
+
+- **ADR-022**: Reflex UI Framework Decision - Foundation framework for routing capabilities
+- **ADR-023**: State Management Architecture - URL state management integration  
+- **ADR-024**: Real-time Updates Strategy - State preservation across navigation
+- **ADR-025**: Component Library Selection - Navigation component implementations
+- **ADR-040**: Reflex Local Development - Development navigation patterns
 
 ## References
 

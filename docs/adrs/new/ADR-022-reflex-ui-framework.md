@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+**Accepted** - *Scope: Production architecture*
 
 ## Context
 
@@ -97,8 +97,8 @@ The AI Job Scraper requires a modern web UI to enable users to browse jobs, trac
 - Native SQLModel integration
 - Single codebase deployment
 - Built on proven tech (FastAPI backend, Next.js frontend)
-- Component-based architecture with rx.ComponentState
-- Background tasks with @rx.event(background=True)
+- Component-based architecture with reusable functions
+- Real-time updates with yield pattern
 
 **Cons:**
 
@@ -176,10 +176,17 @@ The framework's approach of compiling Python to React components gives us the be
 7. Performance testing and optimization
 8. Production deployment
 
+## Related ADRs
+
+- **ADR-023**: State Management Architecture - Defines state patterns for Reflex application
+- **ADR-024**: Real-time Updates Strategy - WebSocket implementation details
+- **ADR-025**: Component Library Selection - UI component choices within Reflex
+- **ADR-026**: Routing and Navigation Design - URL handling and page structure
+- **ADR-040**: Reflex Local Development - Development-specific UI patterns
+
 ## References
 
 - [Reflex Documentation](https://reflex.dev/docs/)
 - [Reflex GitHub Repository](https://github.com/reflex-dev/reflex)
 - [SQLModel Integration Guide](https://reflex.dev/docs/database/overview/)
 - [WebSocket State Management](https://reflex.dev/blog/2024-03-21-reflex-architecture/)
-- [Component State Pattern](https://reflex.dev/docs/state/substates/)

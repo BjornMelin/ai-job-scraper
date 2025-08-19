@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+**Accepted** - *Scope: Production architecture*
 
 ## Context
 
@@ -296,38 +296,19 @@ The hybrid approach provides:
 ### Creating Custom Components
 
 ```python
-class CustomComponent(rx.ComponentState):
-    """Template for custom components"""
-    
-    # State
-    value: str = ""
-    error: str = ""
-    
-    # Validation
-    @rx.event
-    def validate(self):
-        # Validation logic
-        pass
-    
-    @classmethod
-    def get_component(cls, **props):
-        # Extract props
-        label = props.pop("label", "")
-        required = props.pop("required", False)
-        
-        return rx.vstack(
-            rx.text(label),
-            rx.input(
-                value=cls.value,
-                on_change=cls.set_value,
-                on_blur=cls.validate,
-                **props
-            ),
-            rx.cond(
-                cls.error != "",
-                rx.text(cls.error, color="red", size="sm")
-            )
+def custom_input_component(label: str, value: str, error: str = "", **props):
+    """Template for custom input components"""
+    return rx.vstack(
+        rx.text(label),
+        rx.input(
+            value=value,
+            **props
+        ),
+        rx.cond(
+            error != "",
+            rx.text(error, color="red", size="sm")
         )
+    )
 ```
 
 ### Accessibility Requirements
@@ -345,6 +326,14 @@ class CustomComponent(rx.ComponentState):
 - Accessibility testing with axe-core
 - Cross-browser compatibility testing
 - Performance profiling for complex components
+
+## Related ADRs
+
+- **ADR-022**: Reflex UI Framework Decision - Foundation framework for component choices
+- **ADR-023**: State Management Architecture - Integration of components with state
+- **ADR-024**: Real-time Updates Strategy - Real-time component patterns
+- **ADR-026**: Routing and Navigation Design - Navigation component integration
+- **ADR-040**: Reflex Local Development - Development-specific component usage
 
 ## References
 

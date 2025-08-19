@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+**Accepted** - *Scope: Production architecture*
 
 ## Context
 
@@ -80,9 +80,9 @@ Use Reflex's state inheritance for logical grouping.
 - Potential for naming conflicts
 - Coupling between state classes
 
-### Option 4: Component State + Global State Hybrid
+### Option 4: Modular State Classes with Inheritance
 
-Combine rx.ComponentState for local UI state with rx.State for shared data.
+Use inherited rx.State classes for logical grouping and separation of concerns.
 
 **Pros:**
 
@@ -100,7 +100,7 @@ Combine rx.ComponentState for local UI state with rx.State for shared data.
 
 ## Decision
 
-**We will use a Component State + Global State Hybrid approach.**
+**We will use a Modular State Classes with Inheritance approach.**
 
 ## Detailed Design
 
@@ -127,14 +127,23 @@ class JobState(AppState):
         # Computed property for filtered results
         pass
 
-# Component-specific state
-class JobCard(rx.ComponentState):
-    """Encapsulated component state"""
-    expanded: bool = False
-    
-    @rx.event
-    def toggle_expand(self):
-        self.expanded = not self.expanded
+# Component-specific state (using regular functions)
+def job_card(job: Job, expanded: bool = False):
+    """Reusable job card component"""
+    return rx.card(
+        rx.vstack(
+            rx.heading(job.title),
+            rx.text(job.company.name),
+            rx.cond(
+                expanded,
+                rx.text(job.description)
+            ),
+            rx.button(
+                "Show More" if not expanded else "Show Less",
+                on_click=lambda: JobState.toggle_job_expanded(job.id)
+            )
+        )
+    )
 
 # Real-time state for WebSocket updates
 class ScrapingState(AppState):
@@ -214,11 +223,11 @@ state/
 ### 2. State Conventions
 
 - Use `rx.State` for shared/global state
-- Use `rx.ComponentState` for UI component state
+- Use functional components for reusable UI elements
 - Prefix helper methods with underscore
 - Use `@rx.var` for computed properties
 - Use `@rx.cached_var` for expensive computations
-- Use `@rx.event(background=True)` for async operations
+- Use `yield` in event handlers for real-time UI updates
 
 ### 3. Performance Patterns
 
@@ -236,9 +245,16 @@ state/
 - Verify computed properties
 - Test background tasks
 
+## Related ADRs
+
+- **ADR-022**: Reflex UI Framework Decision - Foundation framework choice
+- **ADR-024**: Real-time Updates Strategy - Implementation of real-time state patterns
+- **ADR-025**: Component Library Selection - Component integration with state
+- **ADR-026**: Routing and Navigation Design - URL state management patterns
+- **ADR-040**: Reflex Local Development - Development-specific state usage
+
 ## References
 
 - [Reflex State Management](https://reflex.dev/docs/state/overview/)
-- [Component State Documentation](https://reflex.dev/docs/state/substates/)
 - [Background Tasks in Reflex](https://reflex.dev/docs/state/background-tasks/)
 - [State Communication Patterns](https://reflex.dev/docs/state/overview/#client-states)
