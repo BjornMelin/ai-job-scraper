@@ -2,7 +2,7 @@
 
 ## Title
 
-Local Development Architecture with Reflex Framework and Library-First Integration
+Local Development Architecture with Streamlit Framework and Library-First Integration
 
 ## Version/Date
 
@@ -14,7 +14,7 @@ Local Development Architecture with Reflex Framework and Library-First Integrati
 
 ## Description
 
-Local development architecture optimized for rapid iteration and production-ready patterns. Features Reflex framework for real-time UI, **hybrid SQLModel + Polars + DuckDB database architecture** (90.75% weighted score validation), **RQ/Redis background job processing with analytical workflows** (81.5% weighted score validation), **Qwen3-4B-Instruct-2507 with vLLM optimization** (unanimous expert consensus), and Docker containerization with enhanced memory allocation for analytical workloads.
+Local development architecture optimized for rapid iteration and production-ready patterns. Features Streamlit framework for real-time UI, **hybrid SQLModel + Polars + DuckDB database architecture** (90.75% weighted score validation), **RQ/Redis background job processing with analytical workflows** (81.5% weighted score validation), **Qwen3-4B-Instruct-2507 with vLLM optimization** (unanimous expert consensus), and Docker containerization with enhanced memory allocation for analytical workloads.
 
 ## Context
 
@@ -30,7 +30,7 @@ This architecture is designed specifically for local development workflows, prio
 
 ### Framework Decisions (Research Validated)
 
-- **UI Framework**: Reflex (Python-native with validated WebSocket abstraction)
+- **UI Framework**: Streamlit (Python-native with validated real-time capabilities)
 - **Database**: Hybrid SQLModel + Polars + DuckDB architecture (90.75% weighted score validation)
 - **AI Processing**: Qwen3-4B-Instruct-2507 with vLLM (expert consensus, superior benchmarks)
 - **Background Tasks**: RQ/Redis with analytical job processing (81.5% weighted score, 3-80x performance improvement)

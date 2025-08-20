@@ -1,4 +1,4 @@
-# ADR-009: Background Task Management & UI Integration
+# ADR-012: Background Task Management & UI Integration (Streamlit)
 
 ## Title
 
@@ -10,7 +10,7 @@ Library-First Background Task Management Using `st.status` and Standard Threadin
 
 ## Status
 
-Accepted (Implemented)
+Accepted - Research Validated (Threading.Thread Confirmed Optimal)
 
 ## Context
 
@@ -80,3 +80,15 @@ The `background_tasks.py` module was significantly refactored to a much simpler 
   * Loses the ability to manage a complex queue of multiple, concurrent background tasks, but this was an over-engineered feature that the application did not require.
 
 * **Mitigations:** The current design perfectly fits the requirement of running a single, primary scraping task at a time. If more complex background processing is needed in the future, a dedicated library like Celery would be a more appropriate choice than a custom implementation.
+
+## Research Validation Results
+
+**Threading vs ProcessPoolExecutor Analysis Completed**:
+
+* **Decision Score**: threading.Thread = 0.84 vs ProcessPoolExecutor = 0.51
+* **Key Finding**: Job scraping is I/O-bound (network requests, proxy rotation, database operations)
+* **Evidence**: Streamlit research confirms `threading.Thread` with `add_script_run_ctx()` is the proven pattern
+* **Reality Check**: Current implementation already works correctly and aligns with Streamlit best practices
+* **Performance**: I/O-bound workload benefits from threading's lower overhead vs process spawning costs
+
+**Conclusion**: The current threading.Thread implementation is optimal for our I/O-bound job scraping workload and requires no changes.

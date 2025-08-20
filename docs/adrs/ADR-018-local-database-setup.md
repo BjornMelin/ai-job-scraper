@@ -1170,8 +1170,8 @@ if __name__ == "__main__":
 
 - **Enhanced ADR-017**: Local Development Architecture (Docker and dependency integration)
 - **Enhanced ADR-019**: Smart Data Synchronization (Polars DataFrame processing integration)
-- **Enhanced ADR-023**: Background Job Processing (Analytics queue and worker integration)
-- **New ADR-024**: High-Performance Data Analytics (Core analytical architecture specification)
+- **Coordinates with ADR-012**: Background Task Management (Streamlit-based UI integration)
+- **Note**: High-performance analytics (formerly ADR-024) archived - pandas sufficient per validation research
 
 ### Integration Points
 
@@ -1188,7 +1188,7 @@ if __name__ == "__main__":
 ├─────────────┼─────────────────────────────────────────────────────────────┤
 │ ADR-017     │ Enhanced: Docker orchestration, memory allocation, profiles  │
 │ ADR-019     │ Deep integration: DataFrame processing, analytics service    │
-│ ADR-023     │ Enhanced: Analytics queues, DuckDB workflows, RQ workers    │
+│ ADR-012     │ Background processing with Streamlit UI integration         │
 └─────────────┴─────────────────────────────────────────────────────────────┘
 ```
 

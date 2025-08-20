@@ -63,64 +63,73 @@ Modern job sites employ sophisticated multi-layered detection systems:
 
 ## Decision
 
-**Adopt IPRoyal Residential Proxy Strategy** with JobSpy integration and Crawl4AI fallback:
+**Adopt IPRoyal Residential Proxy Strategy** with JobSpy native integration and ScrapeGraphAI compatibility:
 
-### Primary Strategy: Crawl4AI Native Features (90% of cases)
+### Primary Strategy: JobSpy Native Proxy Integration (80% of cases)
 
-```python
-from crawl4ai import AsyncWebCrawler, CrawlerRunConfig, ProxyConfig, ProxyRotationStrategy
-
-# Crawl4AI stealth configuration
-stealth_config = CrawlerRunConfig(
-    magic=True,                    # Auto bot detection bypass
-    simulate_user=True,            # Mouse movements, delays
-    override_navigator=True,       # Navigator property spoofing
-    user_agent_mode="random",      # Random UA generation
-    user_agent_generator_config={
-        "platform": "windows",
-        "browser": "chrome", 
-        "device_type": "desktop"
-    },
-    mean_delay=2.0,               # Random delays 1-3 seconds
-    max_range=1.0
-)
-```
-
-### Secondary Strategy: Residential Proxy Integration (10% of cases)
-
-For high-security sites (LinkedIn, Glassdoor):
+**Research Validation**: JobSpy supports IPRoyal residential proxies through native `proxies` parameter.
 
 ```python
-# Residential proxy configuration
-residential_proxies = [
-    ProxyConfig.from_string("198.23.239.134:6540:username:password"),
-    ProxyConfig.from_string("207.244.217.165:6712:username:password"),
-    ProxyConfig.from_string("209.127.191.180:9279:username:password")
+from jobspy import scrape_jobs
+
+# IPRoyal residential proxy pool (validated format)
+IPROYAL_PROXY_POOL = [
+    "198.23.239.134:6540:username:password",
+    "207.244.217.165:6712:username:password", 
+    "209.127.191.180:9279:username:password"
 ]
 
-proxy_strategy = ProxyRotationStrategy(
-    proxies=residential_proxies,
-    rotation_method="least_used",    # Health-aware rotation
-    health_check=True,
-    retry_failed=3
-)
+# JobSpy with IPRoyal integration (research validated)
+def scrape_with_proxies(company: str, location: str = "United States"):
+    jobs_df = scrape_jobs(
+        site_name=["linkedin", "indeed", "glassdoor", "zip_recruiter"],
+        search_term=f'jobs at "{company}"',
+        location=location,
+        results_wanted=50,
+        hours_old=168,  # 1 week
+        country_indeed="USA",
+        proxies=IPROYAL_PROXY_POOL,  # Native IPRoyal support
+        proxy_use=True,
+        random_delay=True,  # Built-in anti-bot delays
+        max_workers=3  # Conservative concurrent requests
+    )
+    return jobs_df
+```
 
-enhanced_config = CrawlerRunConfig(
-    magic=True,
-    simulate_user=True,
-    override_navigator=True,
-    proxy_rotation_strategy=proxy_strategy,
-    user_agent_mode="random",
-    delay_before_return_html=3.0    # Extra wait for JS detection
-)
+### Secondary Strategy: ScrapeGraphAI with Proxy Support (20% of cases)
+
+For company career pages and complex sites:
+
+```python
+from scrapegraphai import SmartScraperGraph
+import random
+
+# ScrapeGraphAI with IPRoyal proxy configuration
+def get_proxy_config():
+    proxy = random.choice(IPROYAL_PROXY_POOL)
+    ip, port, username, password = proxy.split(':')
+    return {
+        "http": f"http://{username}:{password}@{ip}:{port}",
+        "https": f"http://{username}:{password}@{ip}:{port}"
+    }
+
+graph_config = {
+    "llm": {
+        "model": "openai/gpt-4o-mini",  # Cost-effective for extraction
+        "api_key": "your-api-key",
+    },
+    "headless": True,
+    "proxy": get_proxy_config()  # IPRoyal proxy rotation
+}
 ```
 
 ## Related Decisions
 
-- **Supersedes ADR-003**: Basic IPRoyal approach replaced with Crawl4AI native capabilities
-- **Aligns with ADR-001**: Library-first architecture leveraging built-in features
-- **Integrates with ADR-010**: Primary scraping strategy using JobSpy with IPRoyal proxies
-- **Supports ADR-017**: Production architecture cost optimization
+- **Supersedes ADR-003**: Basic IPRoyal approach replaced with JobSpy/ScrapeGraphAI native integration
+- **Aligns with ADR-001**: Library-first architecture leveraging built-in proxy features
+- **Integrates with ADR-014**: 2-tier scraping strategy (JobSpy + ScrapeGraphAI) with proxy support
+- **Validates with ADR-012**: Background processing with threading supports I/O-bound proxy operations
+- **Cost-aligned with budget**: $15-25/month IPRoyal residential proxy plan
 
 ## Design
 

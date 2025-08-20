@@ -10,7 +10,7 @@ Simplified Scraping Strategy with Crawl4AI Primary
 
 ## Status
 
-**Decided** - Supersedes ADR-015 (Modern Scraping Architecture 2025)
+**Decided** - Coordinates with ADR-014 (Hybrid Scraping Strategy with JobSpy + ScrapeGraphAI)
 
 ## Description
 
@@ -121,7 +121,7 @@ Simplify web scraping architecture from a complex three-tier system (JobSpy + Cr
 ## Related Decisions
 
 - **Implements ADR-001:** Library-First Architecture (leverages Crawl4AI capabilities)
-- **Updates ADR-015:** Modern Scraping Architecture (simplifies multi-tier approach)
+- **Coordinates with ADR-014:** Hybrid Scraping Strategy (simplifies multi-tier approach)
 - **Connects to ADR-004:** Local AI Integration (uses local models for extraction)
 
 ## Design

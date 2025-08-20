@@ -289,6 +289,7 @@ repomix-output.md
 current-codebase.md
 adrs-and-docs.md
 ruff_full_report.json
+reports/adrs/
 
 # Temporary files
 temp/

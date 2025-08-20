@@ -10,7 +10,7 @@ Library-First Architecture for AI Job Scraper
 
 ## Status
 
-**Decided** - Supersedes ADR-029, ADR-030, ADR-016
+**Decided** - Supersedes ADR-029, ADR-030, and archived UI migration ADRs (Streamlit validated)
 
 ## Description
 
@@ -24,7 +24,7 @@ Analysis revealed massive over-engineering across the system:
 
 1. **570+ lines reimplementing vLLM's built-in features** (ADR-029)
 2. **700+ lines of error handling when libraries provide this** (ADR-030)  
-3. **Proposing NiceGUI migration when Reflex has all needed features** (ADR-016)
+3. **UI migration proposals** (archived - Streamlit validated as optimal solution)
 4. **Complex task orchestration when RQ handles this natively**
 5. **Multi-tier scraping when Crawl4AI can handle 90% alone**
 
@@ -124,7 +124,7 @@ Analysis revealed massive over-engineering across the system:
 
 - **Supersedes ADR-029:** Hardware-aware model management (vLLM handles this)
 - **Supersedes ADR-030:** Error handling & resilience (tenacity + vLLM native)
-- **Supersedes ADR-016:** UI framework selection (Reflex already sufficient)
+- **Validates Streamlit:** UI framework selection (validated as current optimal solution)
 - **Updates ADR-004:** Local AI integration (simplified model selection)
 - **Updates ADR-006:** Hybrid LLM strategy (simple threshold routing)
 - **Updates ADR-005:** Inference stack (vLLM native implementation)
@@ -301,7 +301,7 @@ retries:
 ### v1.0 - August 18, 2025
 
 - Initial decision to adopt library-first architecture
-- Superseded ADR-029, ADR-030, ADR-016
+- Superseded ADR-029, ADR-030, and archived UI migration proposals (Streamlit validated)
 - Established 89% code reduction target
 - Defined library-specific implementation patterns
 - Created unified architecture diagram
