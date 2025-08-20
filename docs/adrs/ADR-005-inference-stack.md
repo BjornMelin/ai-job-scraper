@@ -1,20 +1,19 @@
-# ADR-005: Inference Stack
+# ADR-005: Simple vLLM Inference Stack with Native Features
+
+## Metadata
+
+**Status:** Decided  
+**Version:** 2.0  
+**Date:** August 18, 2025  
+**Authors:** Bjorn Melin
 
 ## Title
 
 Simple vLLM Inference Stack with Native Features
 
-## Version/Date
-
-2.0 / August 18, 2025
-
-## Status
-
-**Decided** - Simplified based on ADR-001 Library-First Architecture
-
 ## Description
 
-Use vLLM with minimal configuration, leveraging native features for all memory management, optimization, and hardware handling.
+Use vLLM with minimal configuration, leveraging native features for all memory management, optimization, and hardware handling. Implements library-first approach by utilizing vLLM's built-in capabilities rather than custom implementations.
 
 ## Context
 
@@ -35,6 +34,14 @@ Use vLLM with minimal configuration, leveraging native features for all memory m
 - `gpu_memory_utilization=0.85` optimizes VRAM automatically
 - Native Flash Attention 2 support for RTX 4090
 - Built-in quantization and optimization
+
+## Decision Drivers
+
+- Eliminate custom memory management complexity
+- Reduce configuration overhead and maintenance burden
+- Leverage battle-tested vLLM optimizations
+- Minimize time to deployment
+- Improve system reliability through library delegation
 
 ## Related Requirements
 
@@ -103,9 +110,9 @@ Use vLLM with minimal configuration, leveraging native features for all memory m
 
 ## Related Decisions
 
-- **Implements ADR-001:** Library-First Architecture
-- **Supports ADR-004:** Simplified model management
-- **Enables ADR-006:** Hybrid strategy implementation
+- **ADR-001** (Library-First Architecture): Foundation for vLLM adoption
+- **ADR-004** (Local AI Integration): Provides model management context
+- **ADR-006** (Hybrid Strategy): Enables local/cloud inference switching
 
 ## Design
 
@@ -212,37 +219,44 @@ inference:
 
 ## Consequences
 
-### Positive Outcomes
+### Positive
 
-- ✅ **90% configuration reduction:** 150+ → 15 lines of setup
-- ✅ **vLLM native optimization:** Automatic hardware detection
-- ✅ **Battle-tested reliability:** Production-proven inference engine
-- ✅ **Zero maintenance:** Library handles optimizations and updates
-- ✅ **RTX 4090 optimized:** Native Flash Attention 2 support
-- ✅ **Automatic scaling:** swap_space handles memory pressure
+- **90% configuration reduction:** 150+ lines → 15 lines of setup
+- **vLLM native optimization:** Automatic hardware detection and tuning
+- **Battle-tested reliability:** Production-proven inference engine with extensive user base
+- **Zero maintenance:** Library handles optimizations and updates automatically
+- **RTX 4090 optimized:** Native Flash Attention 2 support for Ada Lovelace architecture
+- **Automatic scaling:** swap_space handles memory pressure without intervention
 
-### Negative Consequences
+### Negative
 
-- ❌ **Less customization:** Can't fine-tune every parameter
-- ❌ **Library dependency:** Relies on vLLM development
-- ❌ **Black box optimization:** Less visibility into internal tuning
-- ❌ **Version coupling:** Must track vLLM compatibility
+- **Less customization:** Cannot fine-tune every performance parameter
+- **Library dependency:** System reliability depends on vLLM quality and updates
+- **Black box optimization:** Limited visibility into internal tuning decisions
+- **Version coupling:** Must maintain compatibility with vLLM release cycles
 
-### Ongoing Maintenance
+### Maintenance
 
-**Minimal maintenance required:**
+**Dependencies:**
 
-- Update vLLM when new versions available
-- Monitor inference performance and adjust sampling if needed
-- Track new model support and quantization options
-- Review vLLM release notes for RTX 4090 optimizations
+- vLLM: Core inference engine (v0.6.5+)
+- PyTorch: Backend tensor operations with CUDA support
+- Flash Attention 2: Automatic optimization for Ada Lovelace
+- CUDA: GPU acceleration and memory management
 
-### Dependencies
+**Ongoing Tasks:**
 
-- **vLLM:** Core inference engine (v0.6.5+)
-- **PyTorch:** Backend tensor operations with CUDA support
-- **Flash Attention 2:** Automatic optimization for Ada Lovelace
-- **CUDA:** GPU acceleration and memory management
+- Monitor vLLM releases for security and performance updates
+- Track new model support and quantization improvements
+- Review RTX 4090-specific optimizations in release notes
+- Adjust sampling parameters based on inference quality metrics
+
+## References
+
+- [vLLM Documentation](https://docs.vllm.ai/)
+- [RTX 4090 Optimization Guide](https://developer.nvidia.com/blog/optimizing-inference-on-rtx-40-series/)
+- [Flash Attention 2 Implementation](https://github.com/Dao-AILab/flash-attention)
+- [Qwen Model Family](https://huggingface.co/collections/Qwen)
 
 ## Changelog
 

@@ -1,4 +1,11 @@
-# ADR-018: Enhanced Database Setup
+# ADR-018: Enhanced Database Setup [SPLIT INTO ADR-018a & ADR-018b]
+
+> **IMPORTANT:** This ADR has been split for length and complexity management:
+>
+> - **ADR-018a**: Database Schema Design
+> - **ADR-018b**: Database Implementation Strategy
+>
+> This file is maintained for historical reference and cross-linking.
 
 ## Title
 
@@ -10,7 +17,7 @@ Hybrid SQLModel + Polars + DuckDB Database Architecture for Local Development
 
 ## Status
 
-**Accepted** - Enhanced with high-performance analytical layer while preserving transactional foundation
+**Split** - Original decision preserved in ADR-018a (Schema) and ADR-018b (Implementation)
 
 ## Description
 

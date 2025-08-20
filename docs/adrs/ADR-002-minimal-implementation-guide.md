@@ -1,16 +1,15 @@
-# ADR-002: Minimal Implementation Guide
+# ADR-002: Minimal Implementation Guide for 1-Week Deployment
+
+## Metadata
+
+**Status:** Accepted  
+**Version:** 2.0  
+**Date:** August 20, 2025  
+**Authors:** Bjorn Melin
 
 ## Title
 
 Minimal Implementation Guide for 1-Week Deployment
-
-## Version/Date
-
-1.0 / August 18, 2025
-
-## Status
-
-**Decided** - Implementation guideline for library-first architecture
 
 ## Description
 
@@ -40,6 +39,15 @@ Provide a step-by-step minimal implementation guide that enables deployment with
 - DevOps engineers handling deployment
 - Future maintainers and contributors
 - Anyone needing to quickly understand the system
+
+## Decision Drivers
+
+- Enable 1-week deployment through copy-paste implementation
+- Minimize decision-making overhead during implementation
+- Provide proven, working code patterns
+- Eliminate configuration complexity through smart defaults
+- Reduce debugging time through library-tested components
+- Enable rapid team onboarding and contribution
 
 ## Related Requirements
 
@@ -113,9 +121,10 @@ Provide a step-by-step minimal implementation guide that enables deployment with
 
 ## Related Decisions
 
-- **Implements ADR-001:** Library-First Architecture
-- **Uses ADR-010:** Simplified Scraping Strategy
-- **Enables rapid deployment:** 1-week target timeline
+- **ADR-001** (Library-First Architecture): Provides foundation principles implemented in this guide
+- **ADR-010** (Scraping Strategy): Implements Crawl4AI primary approach with copy-paste examples
+- **ADR-004** (Local AI Integration): Provides AI service implementation patterns
+- **ADR-005** (Inference Stack): Supplies vLLM integration examples
 
 ## Design
 
@@ -567,12 +576,29 @@ if __name__ == "__main__":
 - **Infrastructure:** Docker, Redis, NVIDIA GPU drivers
 - **Development:** uv, Git, Python 3.11+
 
+## References
+
+- [vLLM Quick Start Guide](https://docs.vllm.ai/en/latest/getting_started/quickstart.html)
+- [Reflex Tutorial](https://reflex.dev/docs/getting-started/introduction/)
+- [Crawl4AI Documentation](https://crawl4ai.com/docs/first-steps/)
+- [JobSpy Usage Examples](https://github.com/Bunsly/JobSpy)
+- [Docker Compose Guide](https://docs.docker.com/compose/)
+- [uv Package Manager](https://docs.astral.sh/uv/)
+
 ## Changelog
+
+### v2.0 - August 20, 2025
+
+- Updated to new template format for consistency
+- Added Decision Drivers section for implementation rationale  
+- Standardized cross-references to **ADR-XXX** format
+- Added comprehensive references section
+- Updated status to "Accepted" reflecting implementation reality
 
 ### v1.0 - August 18, 2025
 
-- Initial minimal implementation guide
-- Copy-paste code examples for all components
-- Single configuration file approach
-- One-command deployment with Docker
-- Automated health checking and validation
+- Initial minimal implementation guide with copy-paste patterns
+- Copy-paste code examples for all major components
+- Single configuration file approach with unified settings
+- One-command deployment with Docker Compose
+- Automated health checking and validation scripts

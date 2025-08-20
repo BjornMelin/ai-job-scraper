@@ -1,24 +1,77 @@
 # ADR-007: Structured Output Strategy for Job Extraction
 
-## Version/Date
+## Metadata
 
-2.0 / August 18, 2025
+**Status:** Decided  
+**Version:** 2.0  
+**Date:** August 18, 2025  
+**Authors:** Bjorn Melin
 
-## Status
+## Title
 
-**Decided** - August 18, 2025
+Outlines + vLLM Structured Output Strategy for Job Data Extraction
+
+## Description
+
+Implement guaranteed structured JSON output generation using Outlines library with vLLM integration for reliable job data extraction, eliminating parsing failures through finite state machine-based constrained generation.
 
 ## Context
 
-Job extraction requires reliable structured output generation to parse job postings into consistent JSON schemas. We need a library that guarantees valid JSON, supports complex schemas, and integrates well with vLLM.
+The AI job scraper requires guaranteed structured JSON output generation for reliable job data extraction from scraped content. Traditional LLM output parsing suffers from JSON formatting errors, incomplete responses, and schema validation failures.
 
-## Requirements
+### Current Problem
 
-1. **Guaranteed Valid JSON**: No parsing failures
-2. **Complex Schema Support**: Nested objects, arrays, enums
-3. **vLLM Integration**: Works with our chosen inference stack
-4. **Performance**: Minimal overhead
-5. **Pydantic Support**: Native integration preferred
+Raw LLM outputs often produce malformed JSON with missing brackets, incorrect field types, or invalid enum values. Manual parsing and validation creates fragile extraction pipelines with 10-15% failure rates.
+
+### Key Requirements
+
+- **Zero JSON Parsing Failures**: Eliminate malformed JSON generation through constrained output
+- **Complex Schema Support**: Handle nested job objects, skill arrays, and enumerated employment types
+- **vLLM Integration**: Native compatibility with local inference stack per **ADR-005**
+- **Performance Optimization**: Minimal overhead compared to retry-based validation approaches
+- **Type Safety**: Pydantic integration for automatic validation and type conversion
+
+### Technical Constraints
+
+- Must integrate with vLLM inference stack from **ADR-005**
+- Support Qwen3 model series configurations per **ADR-004**
+- Handle complex job schema with 15+ fields and nested relationships
+- Maintain sub-second generation times for real-time extraction
+
+## Decision Drivers
+
+1. **Output Reliability (35% weight)**: Guarantee 100% valid JSON output with schema compliance
+2. **vLLM Integration (30% weight)**: Native compatibility with local inference infrastructure
+3. **Performance Efficiency (25% weight)**: Minimal generation overhead vs. retry-based approaches
+4. **Schema Complexity (10% weight)**: Support for nested objects, arrays, and validation constraints
+
+## Related Requirements
+
+**Functional Requirements (FR)**:
+
+- FR-1: Generate valid JSON for all job extraction operations
+- FR-2: Support complex nested job schemas with validation
+- FR-3: Handle enumerated fields (job types, experience levels, etc.)
+- FR-4: Integrate with Pydantic models for type safety
+
+**Non-Functional Requirements (NFR)**:
+
+- NFR-1: 100% JSON validity rate (zero parsing failures)
+- NFR-2: Generation time under 2 seconds for complex schemas
+- NFR-3: Memory usage comparable to standard LLM generation
+- NFR-4: Deterministic output for identical inputs
+
+**Performance Requirements (PR)**:
+
+- PR-1: Process 50+ job extractions per minute
+- PR-2: Support concurrent generation requests
+- PR-3: Schema compilation overhead under 100ms
+
+**Integration Requirements (IR)**:
+
+- IR-1: vLLM native integration per **ADR-005**
+- IR-2: Qwen3 model compatibility per **ADR-004**
+- IR-3: Scraping pipeline integration per **ADR-014**
 
 ## Decision
 

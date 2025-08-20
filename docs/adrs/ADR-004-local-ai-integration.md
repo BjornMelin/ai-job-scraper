@@ -1,20 +1,19 @@
 # ADR-004: Local AI Integration with Qwen3-2507 Models
 
+## Metadata
+
+**Status:** Decided  
+**Version:** 2.0  
+**Date:** August 18, 2025  
+**Authors:** Bjorn Melin  
+
 ## Title
 
 Local AI Model Selection for Job Data Extraction
 
-## Version/Date
-
-2.0 / August 18, 2025
-
-## Status
-
-**Decided** - Simplified based on ADR-001 Library-First Architecture
-
 ## Description
 
-Simple local AI model selection for job data extraction, leveraging vLLM's native capabilities for all hardware management and model switching.
+Simple local AI model selection for job data extraction, leveraging vLLM's native capabilities for all hardware management and model switching. Implements three-tier model selection based on task complexity.
 
 ## Context
 
@@ -35,6 +34,14 @@ Simple local AI model selection for job data extraction, leveraging vLLM's nativ
 - Model loading and switching
 - Hardware optimization
 - Error recovery and retries
+
+## Decision Drivers
+
+- Eliminate custom hardware management complexity
+- Leverage vLLM's battle-tested model switching
+- Reduce codebase from 570+ lines to 50 lines
+- Enable reliable model selection based on task complexity
+- Minimize maintenance overhead through library delegation
 
 ## Related Requirements
 
@@ -59,7 +66,7 @@ Simple local AI model selection for job data extraction, leveraging vLLM's nativ
 ### Integration Requirements
 
 - IR-013: Direct integration with Crawl4AI extraction
-- IR-014: Seamless model switching during operation
+- IR-014: Integrated model switching during operation
 - IR-015: Unified configuration with other services
 
 ## Alternatives
@@ -103,9 +110,9 @@ Simple local AI model selection for job data extraction, leveraging vLLM's nativ
 
 ## Related Decisions
 
-- **Implements ADR-001:** Library-First Architecture
-- **Supersedes ADR-029:** Hardware management (vLLM handles this)
-- **Connects to ADR-010:** Scraping strategy (AI extraction)
+- **ADR-001** (Library-First Architecture): Foundation for simplified implementation
+- **ADR-005** (Inference Stack): Provides vLLM integration context
+- **ADR-010** (Scraping Strategy): Consumes AI extraction capabilities
 
 ## Design
 
@@ -294,6 +301,13 @@ vllm:
 - **PyTorch:** Backend tensor operations
 - **Qwen Models:** Hugging Face model weights
 - **CUDA:** GPU acceleration support
+
+## References
+
+- [vLLM Model Management](https://docs.vllm.ai/)
+- [Qwen3 Model Documentation](https://huggingface.co/collections/Qwen/qwen3-66df372f576c3bcdc5a60ae8)
+- [RTX 4090 Memory Optimization](https://developer.nvidia.com/blog/optimizing-inference-on-rtx-40-series/)
+- [PyTorch CUDA Memory Management](https://pytorch.org/docs/stable/notes/cuda.html)
 
 ## Changelog
 
