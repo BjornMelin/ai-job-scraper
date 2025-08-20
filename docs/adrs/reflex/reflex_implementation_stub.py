@@ -5,7 +5,8 @@ This file demonstrates the core architecture patterns for the Reflex-based UI.
 
 import asyncio
 
-from datetime import datetime
+from datetime import UTC, datetime
+from typing import ClassVar
 from uuid import uuid4
 
 import reflex as rx
@@ -58,7 +59,7 @@ class Job(rx.Model, table=True):
     salary_max: int | None = None
     description: str
     posted_date: datetime
-    scraped_date: datetime = datetime.now()
+    scraped_date: datetime = datetime.now(UTC)
     source_url: str
     application_status: str | None = None
 
@@ -89,7 +90,7 @@ class AppState(rx.State):
     dark_mode: bool = False
 
     # Notifications
-    notifications: list[dict] = []
+    notifications: ClassVar[list[dict]] = []
 
     @rx.event
     def toggle_sidebar(self):
@@ -102,13 +103,13 @@ class AppState(rx.State):
         self.dark_mode = not self.dark_mode
 
     @rx.event
-    def add_notification(self, message: str, type: str = "info"):
+    def add_notification(self, message: str, notification_type: str = "info"):
         """Add notification to queue."""
         notification = {
             "id": str(uuid4()),
             "message": message,
-            "type": type,
-            "timestamp": datetime.now().isoformat(),
+            "type": notification_type,
+            "timestamp": datetime.now(UTC).isoformat(),
         }
         self.notifications.insert(0, notification)
 
@@ -131,7 +132,7 @@ class JobState(AppState):
     """Job browsing and filtering state."""
 
     # Data
-    jobs: list[Job] = []
+    jobs: ClassVar[list[Job]] = []
     selected_job: Job | None = None
 
     # Filters
@@ -157,9 +158,8 @@ class JobState(AppState):
         await asyncio.sleep(1)
 
         # In real implementation, query database with filters
-        # with rx.session() as session:
-        #     query = select(Job)...
-        #     self.jobs = session.exec(query).all()
+        # Database query would go here
+        # session.exec(select(Job)...).all()
 
         async with self:
             self.loading = False
@@ -218,7 +218,7 @@ class ScrapingState(AppState):
     jobs_found: int = 0
 
     # Log
-    log_messages: list[str] = []
+    log_messages: ClassVar[list[str]] = []
 
     @rx.event(background=True)
     async def start_scraping(self, sources: list[str]):
@@ -232,7 +232,7 @@ class ScrapingState(AppState):
 
             # Create session
             self.current_session = ScrapingSession(
-                id=str(uuid4()), started_at=datetime.now(), status="running"
+                id=str(uuid4()), started_at=datetime.now(UTC), status="running"
             )
             self.add_log(f"Starting scraping session with {len(sources)} sources...")
 
@@ -253,7 +253,7 @@ class ScrapingState(AppState):
         async with self:
             self.is_scraping = False
             if self.current_session:
-                self.current_session.completed_at = datetime.now()
+                self.current_session.completed_at = datetime.now(UTC)
                 self.current_session.status = "completed"
                 self.current_session.jobs_found = self.jobs_found
 
@@ -264,7 +264,7 @@ class ScrapingState(AppState):
     @rx.event
     def add_log(self, message: str):
         """Add log message."""
-        timestamp = datetime.now().strftime("%H:%M:%S")
+        timestamp = datetime.now(UTC).strftime("%H:%M:%S")
         self.log_messages.append(f"[{timestamp}] {message}")
 
         # Keep last 100 messages
@@ -300,10 +300,12 @@ class JobCard(rx.ComponentState):
 
     @rx.event
     def toggle_expand(self):
+        """Toggle expanded state of job card."""
         self.expanded = not self.expanded
 
     @rx.event
     def toggle_save(self):
+        """Toggle saved state of job card."""
         self.saved = not self.saved
 
     @classmethod
@@ -335,7 +337,7 @@ class JobCard(rx.ComponentState):
                         rx.badge(f"${job.get('salary_max', 0):,}", variant="success"),
                     ),
                 ),
-                # Description (expandable)
+                # Description content
                 rx.cond(
                     cls.expanded,
                     rx.vstack(
@@ -562,7 +564,8 @@ def scraping_dashboard():
                     rx.hstack(
                         rx.text("Progress:"),
                         rx.text(
-                            f"{ScrapingState.completed_sources}/{ScrapingState.total_sources} sources"
+                            f"{ScrapingState.completed_sources}/"
+                            f"{ScrapingState.total_sources} sources"
                         ),
                         rx.spacer(),
                         rx.text(f"{ScrapingState.jobs_found} jobs found"),

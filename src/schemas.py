@@ -14,9 +14,8 @@ type hints for safe data transfer across application layers.
 """
 
 from datetime import datetime
-from typing import ClassVar
 
-from pydantic import BaseModel, computed_field, field_validator
+from pydantic import BaseModel, ConfigDict, computed_field, field_validator
 
 from src.core_utils import ensure_timezone_aware
 
@@ -121,15 +120,11 @@ class Company(BaseModel):
         """Ensure datetime is timezone-aware (UTC) - uses shared utility."""
         return ensure_timezone_aware(v)
 
-    class Config:
-        """Pydantic configuration for Company DTO.
-
-        Enables conversion from SQLModel objects and provides custom JSON encoding
-        for datetime objects using ISO format.
-        """
-
-        from_attributes = True  # Enable SQLModel object conversion
-        json_encoders: ClassVar = {datetime: lambda v: v.isoformat() if v else None}
+    model_config = ConfigDict(
+        from_attributes=True,  # Enable SQLModel object conversion
+        # Note: json_encoders is deprecated in Pydantic v2
+        # Use custom serializers if needed in model_dump(mode="json")
+    )
 
 
 class Job(BaseModel):
@@ -271,12 +266,8 @@ class Job(BaseModel):
         """Ensure datetime fields are timezone-aware (UTC) - uses shared utility."""
         return ensure_timezone_aware(v)
 
-    class Config:
-        """Pydantic configuration for Job DTO.
-
-        Enables conversion from SQLModel objects and provides custom JSON encoding
-        for datetime objects using ISO format.
-        """
-
-        from_attributes = True  # Enable SQLModel object conversion
-        json_encoders: ClassVar = {datetime: lambda v: v.isoformat() if v else None}
+    model_config = ConfigDict(
+        from_attributes=True,  # Enable SQLModel object conversion
+        # Note: json_encoders is deprecated in Pydantic v2
+        # Use custom serializers if needed in model_dump(mode="json")
+    )
