@@ -20,7 +20,7 @@ Enhanced data management patterns combining SQLModel's transactional capabilitie
 
 ### Enhanced Data Management Requirements
 
-This enhanced data management approach integrates with **ADR-025's Hybrid Database Architecture** to provide:
+This enhanced data management approach would integrate with **ADR-025's Hybrid Database Architecture** (when implemented) to provide:
 
 1. **Transactional Operations**: SQLModel CRUD operations for data persistence
 2. **DataFrame Processing**: Polars-based data transformations and analytics
@@ -39,15 +39,15 @@ This enhanced data management approach integrates with **ADR-025's Hybrid Databa
 
 ## Decision
 
-**Implement Enhanced Data Management with Polars + DuckDB Integration** building on ADR-025's hybrid architecture:
+**Implement Enhanced Data Management with Polars + DuckDB Integration** (pending ADR-025 implementation):
 
 ### Enhanced Data Operations with Analytics Integration
 
 ```python
-# src/services/data_service.py - Enhanced with Polars + DuckDB Integration
+# src/services/data_service.py - Enhanced with Polars + DuckDB Integration (Future)
 from sqlmodel import Session, select
 from src.models.database import engine, JobModel, CompanyModel
-from src.services.analytics_service import analytics_service  # ADR-025 integration
+# from src.services.analytics_service import analytics_service  # Future ADR-025 integration
 from typing import List, Dict, Optional, Any
 import logging
 import asyncio
@@ -692,7 +692,7 @@ def page() -> rx.Component:
 
 ### Primary Dependencies
 
-- **Enhanced Integration with ADR-025**: Hybrid Database Setup (core analytics service, DuckDB connection management, Polars processing patterns)
+- **Planned Integration with ADR-025**: Hybrid Database Setup (core analytics service, DuckDB connection management, Polars processing patterns) - *When implemented*
 - **Coordinates with ADR-023**: Background Job Processing (analytical queue integration, DataFrame processing workflows)
 - **Supports ADR-017**: Local Development Architecture (enhanced memory requirements, analytics containers)
 

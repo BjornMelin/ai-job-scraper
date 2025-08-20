@@ -90,7 +90,11 @@ This document outlines the product requirements for the **AI Job Scraper**, a lo
 
 * **Backend/Scraping:** Python 3.12+, ScrapeGraphAI, JobSpy, LangGraph, SQLModel, Groq/OpenAI SDKs
 
-* **UI:** Streamlit 1.47+
+* **UI Framework:** Reflex (latest stable) - Pure Python web framework with React-like components
+
+* **State Management:** Reflex native state with WebSocket support for real-time updates
+
+* **Component Library:** Chakra UI components via Reflex integration
 
 * **Database:** SQLite (default), compatible with PostgreSQL
 
