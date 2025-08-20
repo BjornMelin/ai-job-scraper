@@ -16,7 +16,7 @@ The AI Job Scraper is a library-first, locally-run system optimized for personal
 
 | Layer | Technology | Purpose |
 |-------|-----------|---------|
-| **UI** | Reflex | Pure Python UI with WebSocket support |
+| **UI** | Streamlit | Python web framework with built-in real-time updates |
 | **API** | FastAPI | High-performance async backend |
 | **Scraping** | JobSpy + Crawl4AI | Multi-board scraping with AI extraction |
 | **Task Queue** | RQ + Redis | Simple background job processing |
@@ -29,7 +29,7 @@ The AI Job Scraper is a library-first, locally-run system optimized for personal
 
 ```mermaid
 graph LR
-    A[User Search] --> B[Reflex UI]
+    A[User Search] --> B[Streamlit UI]
     B --> C[FastAPI]
     C --> D[RQ Task Queue]
     D --> E[Scraping Controller]
@@ -92,10 +92,10 @@ graph LR
 
 ### Why These Technologies?
 
-1. **Reflex over Streamlit/Gradio**
-   - Native WebSocket support
-   - Production-ready performance
-   - Pure Python (no JS required)
+1. **Streamlit over Reflex/Gradio**
+   - Built-in real-time components
+   - Rapid development workflow
+   - Proven for data applications
 
 2. **vLLM over Ollama/LlamaCpp**
    - Best RTX 4090 performance
@@ -147,7 +147,7 @@ services:
 ### From Current State
 
 1. **Week 1**: Database schema + scraping integration
-2. **Week 2**: Reflex UI implementation
+2. **Week 2**: Streamlit UI implementation
 3. **Week 3**: Local LLM integration
 4. **Week 4**: Vector search + matching
 5. **Week 5**: Testing + deployment
@@ -155,7 +155,7 @@ services:
 ### Future Enhancements (Post-MVP)
 
 - Multi-user support (add authentication)
-- Mobile app (React Native via Reflex)
+- Mobile responsive web UI (Streamlit mobile optimization)
 - Advanced analytics (job market trends)
 - Resume matching (vector similarity)
 - Interview scheduling (calendar integration)
@@ -189,7 +189,7 @@ services:
 
 - ✅ Use library defaults
 - ✅ Trust vLLM memory management
-- ✅ Leverage Reflex WebSockets
+- ✅ Leverage Streamlit fragments for real-time updates
 - ✅ Let RQ handle retries
 - ✅ Keep it simple
 

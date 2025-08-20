@@ -1,768 +1,417 @@
-# ADR-017: Local Development Architecture 2025
+# ADR-017: Local Development Architecture
+
+## Metadata
+
+**Status:** Accepted  
+**Version:** 4.0  
+**Date:** August 20, 2025  
+**Authors:** Bjorn Melin  
 
 ## Title
 
-Local Development Architecture with Streamlit Framework and Library-First Integration
-
-## Version/Date
-
-3.0 / August 19, 2025
-
-## Status
-
-**Accepted** - Focused on local development simplicity and maintainability
+Local Development Architecture with Streamlit Framework
 
 ## Description
 
-Local development architecture optimized for rapid iteration and production-ready patterns. Features Streamlit framework for real-time UI, **hybrid SQLModel + Polars + DuckDB database architecture** (90.75% weighted score validation), **RQ/Redis background job processing with analytical workflows** (81.5% weighted score validation), **Qwen3-4B-Instruct-2507 with vLLM optimization** (unanimous expert consensus), and Docker containerization with enhanced memory allocation for analytical workloads.
+Define local development architecture using Streamlit framework with SQLite database, achieving rapid iteration and maintainable patterns for AI job scraper application.
 
 ## Context
 
-### Local Development Focus
+The AI job scraper requires a local development architecture that balances rapid iteration with maintainable patterns while supporting the core functionality of job scraping, data management, and AI processing.
 
-This architecture is designed specifically for local development workflows, prioritizing:
+### Current Implementation Reality
 
-1. **Quick Setup**: Get running with minimal configuration
-2. **Development Velocity**: Fast iteration cycles with hot reload
-3. **Simplicity**: Avoid production complexity that slows development
-4. **Maintainability**: Library-first approach to minimize custom code
-5. **Docker Integration**: Consistent environments across development machines
+The application currently uses:
 
-### Framework Decisions (Research Validated)
+- **UI Framework**: Streamlit with `st.navigation()` for page routing
+- **Database**: SQLite with SQLModel for development simplicity  
+- **State Management**: `st.session_state` for application state
+- **Background Processing**: Streamlit-native patterns with `st.fragment()` auto-refresh
+- **AI Integration**: Local and cloud model support with configurable providers
 
-- **UI Framework**: Streamlit (Python-native with validated real-time capabilities)
-- **Database**: Hybrid SQLModel + Polars + DuckDB architecture (90.75% weighted score validation)
-- **AI Processing**: Qwen3-4B-Instruct-2507 with vLLM (expert consensus, superior benchmarks)
-- **Background Tasks**: RQ/Redis with analytical job processing (81.5% weighted score, 3-80x performance improvement)
-- **Containerization**: Docker + docker-compose with Redis, vLLM, and analytical processing containers
+### Key Development Requirements
+
+1. **Rapid Setup**: Single command development environment startup
+2. **Hot Reload**: Streamlit native hot reload for fast iteration
+3. **Simple Debugging**: Direct access to logs and database for troubleshooting
+4. **Library-First**: Minimize custom code through proven library patterns
+5. **Local-First**: Optimize for local development over production complexity
+
+## Decision Drivers
+
+1. **Solution Leverage (35% weight)**: Maximize use of proven Streamlit library capabilities vs custom implementations
+2. **Application Value (30% weight)**: Enable effective local development workflow for job scraper functionality
+3. **Maintenance & Cognitive Load (25% weight)**: Minimize complexity through library-first patterns
+4. **Architectural Adaptability (10% weight)**: Support future scaling and deployment options
 
 ## Related Requirements
 
-### Functional Requirements
+**Functional Requirements (FR)**:
 
-- **FR-035**: Deploy complete job scraper for local development in 1 week
-- **FR-036**: Support both local AI and cloud API processing
-- **FR-037**: Handle complete job extraction workflow end-to-end
-- **FR-038**: Provide real-time UI updates during scraping
+- FR-1: Support job scraping workflow with UI feedback
+- FR-2: Enable job data display and management through Streamlit interface
+- FR-3: Provide background task monitoring using `st.fragment()` patterns
+- FR-4: Support both local AI and cloud processing configurations
 
-### Non-Functional Requirements
+**Non-Functional Requirements (NFR)**:
 
-- **NFR-035**: Minimal setup complexity - single command to start
-- **NFR-036**: Development-focused performance (not production optimization)
-- **NFR-037**: Hot reload for rapid development iteration
-- **NFR-038**: Simple debugging and log access
+- NFR-1: Single command startup for development environment
+- NFR-2: Hot reload functionality for rapid iteration cycles
+- NFR-3: Simple debugging through direct log and database access
+- NFR-4: Minimal setup complexity for new developers
 
-### Performance Requirements
+**Performance Requirements (PR)**:
 
-- **PR-035**: Adequate performance for development and testing
-- **PR-036**: Real-time UI updates under 200ms for local development
-- **PR-037**: Support for development workloads (not production scale)
-- **PR-038**: Simple resource allocation for development machines
+- PR-1: UI responsiveness under 500ms for typical development operations
+- PR-2: Background task updates with 2-second refresh cycle via fragments
+- PR-3: Database queries optimized for development data volumes (100-1000 jobs)
+
+**Integration Requirements (IR)**:
+
+- IR-1: Coordinate with **ADR-012** background task management patterns
+- IR-2: Support **ADR-013** database synchronization requirements
+- IR-3: Interface with **ADR-009** AI processing configurations
+
+## Alternatives
+
+### Alternative A: Complex Multi-Framework Approach
+
+**Pros:**
+
+- Maximum theoretical flexibility with different UI frameworks
+- Advanced background processing capabilities
+- Multiple deployment options
+
+**Cons:**
+
+- High maintenance overhead with multiple frameworks
+- Complex setup and debugging
+- Over-engineering for local development needs
+
+**Technical Assessment:** Adds unnecessary complexity for development workflow
+
+### Alternative B: Minimal Single-File Approach
+
+**Pros:**
+
+- Extremely simple setup and debugging
+- No framework dependencies
+- Fast startup and iteration
+
+**Cons:**
+
+- Limited UI capabilities for job management interface
+- No built-in state management or navigation
+- Difficult to scale beyond basic functionality
+
+**Technical Assessment:** Too limited for comprehensive job scraper requirements
+
+### Alternative C: Streamlit-Native Development Architecture
+
+**Pros:**
+
+- Native Python integration with existing codebase
+- Built-in navigation, state management, and components
+- Library-first approach with `st.fragment()` for background tasks
+- Proven patterns for AI/ML applications
+
+**Cons:**
+
+- Single framework dependency (acceptable for development)
+- Browser-based interface only (acceptable for development use)
+
+**Technical Assessment:** Optimal balance of simplicity and functionality
+
+### Alternative D: FastAPI + React Development Stack
+
+**Pros:**
+
+- Modern web development patterns
+- Separation of frontend and backend concerns
+- High performance capabilities
+
+**Cons:**
+
+- Two-language development stack (Python + JavaScript)
+- Complex setup and build process
+- Over-engineering for local development needs
+
+**Technical Assessment:** Excessive complexity for development workflow
+
+## Decision Framework
+
+| Criteria | Weight | Alt A | Alt B | Alt C | Alt D |
+|----------|--------|-------|-------|-------|-------|
+| Solution Leverage | 35% | 6 | 3 | 9 | 7 |
+| Application Value | 30% | 7 | 4 | 9 | 8 |
+| Maintenance & Cognitive Load | 25% | 4 | 9 | 8 | 5 |
+| Architectural Adaptability | 10% | 8 | 3 | 7 | 9 |
+| **Weighted Score** | **100%** | **5.9** | **4.7** | **8.6** | **6.9** |
 
 ## Decision
 
-**Deploy Simple Local Development Architecture** with these components:
+> **Selected: Streamlit-Native Development Architecture**
 
-### Architecture Overview (Research Validated)
+Implement local development architecture using Streamlit framework with SQLite database, emphasizing rapid iteration and maintainable patterns based on current implementation patterns.
+
+## Related Decisions
+
+- **ADR-012**: Background Task Management - provides Streamlit-native background processing patterns
+- **ADR-013**: Database Synchronization - defines SQLModel + SQLite integration approach  
+- **ADR-009**: LLM Selection Strategy - establishes AI processing configuration patterns
+- **ADR-021**: Local Development Performance - complements with performance optimization patterns
+- **ADR-022**: Docker Containerization - provides containerized development environment setup
+
+## Design
+
+### Architecture Overview
 
 ```mermaid
 graph TB
     subgraph "Development Environment"
         DEV[Developer Machine]
-        DOCKER[Docker Desktop]
+        BROWSER[Web Browser]
     end
     
-    subgraph "Reflex Application"
-        UI[Reflex Frontend :3000]
-        API[Reflex Backend :8000]
-        STATE[Application State<br/>Real-time Updates]
+    subgraph "Streamlit Application"
+        MAIN[main.py Entry Point]
+        NAV[st.navigation Pages]
+        STATE[st.session_state Management]
+        FRAGMENTS[st.fragment Background Tasks]
     end
     
-    subgraph "Enhanced RQ Background Processing"
-        REDIS[(Redis Job Queue)]
-        FETCH_Q[io_fetch Queue]
-        PARSE_Q[parse Queue]
-        AI_Q[ai_enrich Queue]
-        ANALYTICS_Q[analytics Queue]
-        DATAFRAME_Q[dataframe_processing Queue]
-        PERSIST_Q[persist Queue]
-        WORKER1[RQ Worker 1]
-        WORKER2[RQ Worker 2]
-        WORKER3[RQ Worker AI]
-        WORKER4[RQ Analytics Worker]
+    subgraph "Core Pages"
+        JOBS[Jobs Page]
+        COMPANIES[Companies Page] 
+        SCRAPING[Scraping Page]
+        SETTINGS[Settings Page]
     end
     
-    subgraph "AI Processing (Qwen3-4B)"
-        VLLM_SHORT[vLLM Throughput Pool<br/>:8001 - Short Context]
-        VLLM_LONG[vLLM Long-Context Pool<br/>:8002 - 262K Context]
-        AI_ROUTER{Context Length<br/>Router}
-    end
-    
-    subgraph "Hybrid Data Layer"
-        DB[(SQLite Database<br/>Transactional)]
-        ANALYTICS_DB[(DuckDB Database<br/>Analytical)]
+    subgraph "Data Layer"
+        DB[(SQLite Database)]
         MODELS[SQLModel Classes]
-        POLARS[Polars DataFrames]
+        SERVICES[Service Layer]
     end
     
-    subgraph "Anti-Bot Scraping"
-        CRAWLER[Crawl4AI + magic=True]
-        PROXIES[IPRoyal Proxies]
+    subgraph "AI Processing"
+        LOCAL[Local AI Models]
+        CLOUD[Cloud API Models]
+        ROUTER[AI Router]
     end
     
-    DEV --> DOCKER
-    DOCKER --> UI
-    UI <--> API
-    API --> STATE
-    STATE --> REDIS
+    DEV --> BROWSER
+    BROWSER --> MAIN
+    MAIN --> NAV
+    NAV --> JOBS
+    NAV --> COMPANIES
+    NAV --> SCRAPING
+    NAV --> SETTINGS
     
-    REDIS --> FETCH_Q
-    REDIS --> PARSE_Q
-    REDIS --> AI_Q
-    REDIS --> ANALYTICS_Q
-    REDIS --> DATAFRAME_Q
-    REDIS --> PERSIST_Q
+    JOBS --> STATE
+    COMPANIES --> STATE
+    SCRAPING --> FRAGMENTS
     
-    WORKER1 --> FETCH_Q
-    WORKER1 --> CRAWLER
-    CRAWLER --> PROXIES
-    
-    WORKER2 --> PARSE_Q
-    WORKER3 --> AI_Q
-    WORKER3 --> AI_ROUTER
-    WORKER4 --> ANALYTICS_Q
-    WORKER4 --> DATAFRAME_Q
-    
-    AI_ROUTER --> VLLM_SHORT
-    AI_ROUTER --> VLLM_LONG
-    
-    PERSIST_Q --> MODELS
+    STATE --> SERVICES
+    SERVICES --> MODELS
     MODELS --> DB
     
-    ANALYTICS_Q --> POLARS
-    DATAFRAME_Q --> POLARS
-    POLARS --> ANALYTICS_DB
-    
-    REDIS --> STATE
-    STATE --> UI
+    FRAGMENTS --> ROUTER
+    ROUTER --> LOCAL
+    ROUTER --> CLOUD
 ```
 
-### Core Components
+### Core Implementation Patterns
 
-#### 1. Enhanced Reflex UI Framework (Expert Validated)
+#### 1. Streamlit Application Structure
 
 ```python
-# src/app.py - Main Reflex application with RQ/Redis integration
-import reflex as rx
-from src.config import config
-from src.pages import home, jobs, companies, settings
-from src.services.job_queue_service import job_queue_service
-from typing import List
+# src/main.py - Main application entry point
+import streamlit as st
+from src.ui.pages import jobs, companies, scraping, settings
 
-class AppState(rx.State):
-    """Enhanced application state with RQ/Redis background processing."""
-    
-    # Real-time scraping state
-    current_page: str = "home"
-    scraping_status: str = "idle"  # idle, running, completed, failed
-    scraping_progress: float = 0.0
-    jobs_found: int = 0
-    companies_processed: int = 0
-    current_company: str = ""
-    
-    # Job queue tracking
-    active_job_ids: List[str] = []
-    job_details: List[dict] = []
-    
-    @rx.background  # Native Reflex background processing
-    async def start_parallel_scraping(self, companies: List[str]):
-        """Start parallel scraping with RQ/Redis background processing."""
-        if self.scraping_status == "running":
-            return
-        
-        self.scraping_status = "running"
-        self.scraping_progress = 0.0
-        self.jobs_found = 0
-        self.companies_processed = 0
-        yield  # Real-time UI update
-        
-        try:
-            # Enqueue parallel processing jobs via RQ/Redis
-            job_ids = job_queue_service.enqueue_company_scraping(
-                companies=companies,
-                user_id="local_user",
-                with_ai_enhancement=True  # Qwen3-4B AI enhancement
-            )
-            
-            self.active_job_ids = job_ids
-            yield
-            
-            # Monitor job progress with real-time updates
-            await self._monitor_background_jobs(job_ids, companies)
-            
-        except Exception as e:
-            self.scraping_status = "failed"
-            self.current_company = f"Error: {str(e)}"
-            yield
-    
-    async def _monitor_background_jobs(self, job_ids: List[str], companies: List[str]):
-        """Monitor RQ background jobs with real-time progress updates."""
-        import asyncio
-        
-        completed_jobs = set()
-        while len(completed_jobs) < len(job_ids):
-            total_progress = 0.0
-            total_jobs = 0
-            current_details = []
-            
-            for i, job_id in enumerate(job_ids):
-                job_progress = job_queue_service.get_job_progress(job_id)
-                company_name = companies[i] if i < len(companies) else "Unknown"
-                
-                # Track individual job progress
-                detail = {
-                    "company": company_name,
-                    "status": job_progress.get("status", "queued"),
-                    "progress": job_progress.get("progress", 0.0),
-                    "step": job_progress.get("step", "waiting"),
-                }
-                current_details.append(detail)
-                
-                total_progress += job_progress.get("progress", 0.0)
-                
-                # Check completion
-                if job_progress.get("status") in ["finished", "failed", "canceled"]:
-                    if job_id not in completed_jobs:
-                        completed_jobs.add(job_id)
-                        if job_progress.get("status") == "finished":
-                            self.companies_processed += 1
-                            result = job_progress.get("result", {})
-                            if isinstance(result, dict) and "jobs_found" in result:
-                                total_jobs += result["jobs_found"]
-            
-            # Update UI state
-            self.scraping_progress = (total_progress / len(job_ids)) if job_ids else 0.0
-            self.jobs_found = total_jobs
-            self.job_details = current_details
-            
-            # Update status display
-            if len(completed_jobs) == len(job_ids):
-                self.scraping_status = "completed"
-                self.current_company = f"Completed {self.companies_processed} companies"
-            else:
-                running_jobs = [d for d in current_details if d["status"] == "started"]
-                if running_jobs:
-                    self.current_company = f"Processing: {running_jobs[0]['company']}"
-                else:
-                    self.current_company = f"Queue processing... ({len(completed_jobs)}/{len(job_ids)})"
-            
-            yield  # Native Reflex real-time update
-            await asyncio.sleep(1)  # Poll every second
-    
-    def cancel_scraping(self):
-        """Cancel all active scraping jobs."""
-        for job_id in self.active_job_ids:
-            job_queue_service.cancel_job(job_id)
-        self.scraping_status = "cancelled"
-        self.current_company = "Scraping cancelled"
-
-def create_app():
-    """Create Reflex application with simple routing."""
-    app = rx.App(
-        state=AppState,
-        frontend_port=config.reflex.frontend_port,
-        backend_port=config.reflex.backend_port,
+def main():
+    """Main application entry point with st.navigation routing."""
+    st.set_page_config(
+        page_title="AI Job Scraper",
+        layout="wide",
+        initial_sidebar_state="expanded"
     )
     
-    # Simple route setup
-    app.add_page(home.page, route="/")
-    app.add_page(jobs.page, route="/jobs")
-    app.add_page(companies.page, route="/companies")
-    app.add_page(settings.page, route="/settings")
+    # Define pages using st.navigation()
+    pages = [
+        st.Page("ui/pages/jobs.py", title="Jobs", icon="📋", default=True),
+        st.Page("ui/pages/companies.py", title="Companies", icon="🏢"),
+        st.Page("ui/pages/scraping.py", title="Scraping", icon="🔍"),
+        st.Page("ui/pages/settings.py", title="Settings", icon="⚙️"),
+    ]
     
-    return app
+    # Streamlit handles navigation automatically
+    pg = st.navigation(pages)
+    pg.run()
 
-app = create_app()
+if __name__ == "__main__":
+    main()
 ```
 
-#### 2. SQLModel with SQLite
+#### 2. Background Task Management with Fragments
 
 ```python
-# src/models/database.py - Simple database setup
-from sqlmodel import SQLModel, create_engine, Session, Field
-from typing import Optional
-import sqlite3
-from pathlib import Path
+# src/ui/utils/background_helpers.py - Streamlit-native background tasks
+import streamlit as st
 
-# Simple SQLite setup for development
-DATABASE_URL = "sqlite:///./data/jobs.db"
+@st.fragment(run_every="2s")
+def background_task_status_fragment():
+    """Fragment for displaying background task status with auto-refresh."""
+    if not is_scraping_active():
+        return
+    
+    st.markdown("### ⚙️ Background Tasks")
+    
+    # Display current task progress
+    scraping_status = st.session_state.get("scraping_status", "Unknown")
+    task_progress = get_scraping_progress()
+    
+    if task_progress:
+        st.progress(
+            task_progress.get("progress", 0.0),
+            text=f"{task_progress.get('message', 'Processing...')}"
+        )
+    else:
+        st.info(f"Status: {scraping_status}")
 
-# Create engine with WAL mode for better concurrency
-engine = create_engine(
-    DATABASE_URL,
-    echo=False,  # Set to True for SQL debugging
-    connect_args={
-        "check_same_thread": False,
-        "timeout": 20
-    }
-)
-
-def init_database():
-    """Initialize database with tables."""
-    # Create data directory
-    Path("./data").mkdir(exist_ok=True)
-    
-    # Create tables
-    SQLModel.metadata.create_all(engine)
-    
-    # Enable WAL mode for better performance
-    with Session(engine) as session:
-        session.exec("PRAGMA journal_mode=WAL")
-        session.exec("PRAGMA synchronous=NORMAL")
-        session.exec("PRAGMA cache_size=10000")
-        session.commit()
-
-def get_session():
-    """Get database session for dependency injection."""
-    with Session(engine) as session:
-        yield session
-
-# Simple models for development
-class JobModel(SQLModel, table=True):
-    """Job model for local development."""
-    __tablename__ = "jobs"
-    
-    id: Optional[int] = Field(default=None, primary_key=True)
-    title: str
-    company: str
-    location: Optional[str] = None
-    description: Optional[str] = None
-    salary_min: Optional[int] = None
-    salary_max: Optional[int] = None
-    url: str
-    posted_date: Optional[str] = None
-    scraped_at: str
-    
-class CompanyModel(SQLModel, table=True):
-    """Company model for local development."""
-    __tablename__ = "companies"
-    
-    id: Optional[int] = Field(default=None, primary_key=True)
-    name: str
-    domain: Optional[str] = None
-    description: Optional[str] = None
-    size: Optional[str] = None
-    industry: Optional[str] = None
+def start_background_scraping():
+    """Start background scraping using Streamlit session state."""
+    st.session_state.scraping_active = True
+    st.session_state.scraping_status = "Starting scraping..."
+    # Trigger rerun to update UI
+    st.rerun()
 ```
 
-#### 3. Simple AI Integration
+#### 3. Modal System with st.dialog
 
 ```python
-# src/services/ai_service.py - Configurable AI processing
-import asyncio
-import logging
-from typing import Optional, Dict, Any
-from src.config import config
+# src/ui/pages/jobs.py - Job details modal using st.dialog
+import streamlit as st
 
-logger = logging.getLogger(__name__)
-
-class AIService:
-    """Simple AI service for local development."""
+@st.dialog("Job Details", width="large")
+def show_job_details_modal(job):
+    """Show job details in a modal dialog."""
+    st.header(job.title)
+    st.subheader(job.company)
     
-    def __init__(self):
-        self.provider = config.ai.provider
-        self.client = self._create_client()
+    col1, col2 = st.columns(2)
+    with col1:
+        st.write(f"**Location:** {job.location or 'Remote'}")
+    with col2:
+        st.write(f"**Posted:** {job.posted_date}")
     
-    def _create_client(self):
-        """Create AI client based on configuration."""
-        if self.provider == "local":
-            return self._create_local_client()
-        elif self.provider == "openai":
-            return self._create_openai_client()
-        else:
-            raise ValueError(f"Unknown AI provider: {self.provider}")
+    st.markdown("**Description:**")
+    st.write(job.description)
     
-    def _create_local_client(self):
-        """Create local vLLM client."""
-        try:
-            from openai import AsyncOpenAI
-            return AsyncOpenAI(
-                base_url=config.ai.local_base_url,
-                api_key="local"  # vLLM doesn't require real API key
-            )
-        except ImportError:
-            logger.warning("OpenAI client not available for local vLLM")
-            return None
-    
-    def _create_openai_client(self):
-        """Create OpenAI API client."""
-        try:
-            from openai import AsyncOpenAI
-            return AsyncOpenAI(api_key=config.ai.openai_api_key)
-        except ImportError:
-            logger.error("OpenAI client not available")
-            return None
-    
-    async def extract_job_info(self, job_html: str) -> Dict[str, Any]:
-        """Extract job information from HTML."""
-        if not self.client:
-            return {"error": "AI client not available"}
-        
-        prompt = f"""
-        Extract job information from this HTML:
-        
-        {job_html[:4000]}  # Limit for development
-        
-        Return JSON with: title, company, location, salary_min, salary_max, description
-        """
-        
-        try:
-            response = await self.client.chat.completions.create(
-                model=config.ai.model_name,
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=config.ai.max_tokens,
-                temperature=config.ai.temperature
-            )
-            
-            return {"result": response.choices[0].message.content}
-            
-        except Exception as e:
-            logger.error(f"AI processing failed: {e}")
-            return {"error": str(e)}
-
-# Global AI service instance
-ai_service = AIService()
+    # Action buttons
+    if st.button("Mark as Applied"):
+        # Update job status logic
+        st.success("Job marked as applied!")
+        st.rerun()
 ```
 
-#### 4. Enhanced Docker Development Setup (Expert Validated)
+## Testing
 
-```dockerfile
-# Dockerfile - Enhanced development container with RQ support
-FROM python:3.11-slim
+### Testing Strategy
 
-WORKDIR /app
+```python
+# tests/ui/test_streamlit_components.py
+import pytest
+import streamlit as st
+from src.ui.utils.background_helpers import background_task_status_fragment
 
-# Install system dependencies for development
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    curl \
-    git \
-    redis-tools \
-    && rm -rf /var/lib/apt/lists/*
+def test_background_task_fragment():
+    """Test background task status fragment rendering."""
+    # Mock session state
+    st.session_state.scraping_active = True
+    st.session_state.scraping_status = "Testing"
+    
+    # Test fragment execution (no exceptions)
+    background_task_status_fragment()
+    
+    # Verify session state remains consistent
+    assert st.session_state.scraping_active is True
 
-# Install uv for fast dependency management  
-RUN pip install uv
-
-# Copy dependency files
-COPY pyproject.toml uv.lock* ./
-
-# Install dependencies (includes RQ, Redis, vLLM)
-RUN uv sync
-
-# Copy source code
-COPY . .
-
-# Create necessary directories
-RUN mkdir -p data logs models
-
-# Expose ports for Reflex
-EXPOSE 3000 8000
-
-# Development startup command
-CMD ["uv", "run", "reflex", "run", "--env", "dev"]
+def test_navigation_pages():
+    """Test that all navigation pages are importable."""
+    from src.ui.pages import jobs, companies, scraping, settings
+    
+    # Verify pages have required components
+    assert hasattr(jobs, 'render_jobs_page')
+    assert hasattr(companies, 'render_companies_page')
 ```
 
-```yaml
-# docker-compose.yml - Enhanced development environment with validated architecture
-version: '3.8'
+### Development Testing Patterns
 
-services:
-  # Redis for enhanced RQ job processing with analytics (VALIDATED: 81.5% weighted score)
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    command: redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru  # Increased for analytics
-    volumes:
-      - redis_data:/data
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 3
-
-  # Main Reflex application
-  app:
-    build: .
-    ports:
-      - "3000:3000"  # Reflex frontend
-      - "8000:8000"  # Reflex backend
-    volumes:
-      - ./src:/app/src          # Hot reload
-      - ./data:/app/data        # Database persistence
-      - ./logs:/app/logs        # Log access
-      - ./.env:/app/.env        # Environment config
-    environment:
-      - ENVIRONMENT=development
-      - REDIS_URL=redis://redis:6379/0
-      - DUCKDB_MEMORY_LIMIT=1GB
-      - POLARS_MAX_THREADS=4
-    depends_on:
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
-
-  # Qwen3-4B vLLM Throughput Pool (VALIDATED: Expert consensus)
-  vllm-throughput:
-    image: vllm/vllm-openai:v0.6.2
-    ports:
-      - "8001:8000"
-    command: >
-      --model Qwen/Qwen3-4B-Instruct-2507
-      --max-model-len 32768
-      --swap-space 2
-      --gpu-memory-utilization 0.85
-      --max-num-seqs 256
-      --quantization awq
-      --enable-prefix-caching
-    volumes:
-      - ./models:/root/.cache/huggingface
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
-    profiles: ["ai"]
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  # Qwen3-4B vLLM Long-Context Pool (VALIDATED: 262K native context)
-  vllm-longcontext:
-    image: vllm/vllm-openai:v0.6.2
-    ports:
-      - "8002:8000"
-    command: >
-      --model Qwen/Qwen3-4B-Instruct-2507
-      --max-model-len 262144
-      --swap-space 16
-      --gpu-memory-utilization 0.85
-      --max-num-seqs 128
-      --quantization awq
-      --enable-prefix-caching
-    volumes:
-      - ./models:/root/.cache/huggingface
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
-    profiles: ["ai-full"]  # Start with: docker-compose --profile ai-full up
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  # RQ Worker for I/O operations (fetch, parse, persist)
-  rq-worker-general:
-    build: .
-    command: uv run rq worker io_fetch parse persist --url redis://redis:6379/0
-    volumes:
-      - ./src:/app/src
-      - ./data:/app/data
-      - ./logs:/app/logs
-      - ./.env:/app/.env
-    environment:
-      - REDIS_URL=redis://redis:6379/0
-      - DUCKDB_MEMORY_LIMIT=1GB
-    depends_on:
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
-
-  # RQ Worker for analytical processing (analytics, dataframe_processing)
-  rq-worker-analytics:
-    build: .
-    command: uv run rq worker analytics dataframe_processing --url redis://redis:6379/0
-    volumes:
-      - ./src:/app/src
-      - ./data:/app/data
-      - ./logs:/app/logs
-      - ./.env:/app/.env
-    environment:
-      - REDIS_URL=redis://redis:6379/0
-      - DUCKDB_MEMORY_LIMIT=2GB
-      - POLARS_MAX_THREADS=4
-    depends_on:
-      redis:
-        condition: service_healthy
-    deploy:
-      resources:
-        limits:
-          memory: 4G
-        reservations:
-          memory: 2G
-    profiles: ["analytics"]
-    restart: unless-stopped
-
-  # RQ Worker for AI processing (requires GPU access)
-  rq-worker-ai:
-    build: .
-    command: uv run rq worker ai_enrich --url redis://redis:6379/0
-    volumes:
-      - ./src:/app/src
-      - ./data:/app/data
-      - ./logs:/app/logs
-      - ./.env:/app/.env
-    environment:
-      - REDIS_URL=redis://redis:6379/0
-      - VLLM_THROUGHPUT_URL=http://vllm-throughput:8000/v1
-      - VLLM_LONGCONTEXT_URL=http://vllm-longcontext:8000/v1
-    depends_on:
-      redis:
-        condition: service_healthy
-    profiles: ["ai"]
-    restart: unless-stopped
-
-  # RQ Dashboard for job monitoring (OPTIONAL)
-  rq-dashboard:
-    image: eoranged/rq-dashboard:latest
-    ports:
-      - "9181:9181"
-    environment:
-      - RQ_DASHBOARD_REDIS_URL=redis://redis:6379/0
-    depends_on:
-      redis:
-        condition: service_healthy
-    profiles: ["monitoring"]
-
-volumes:
-  redis_data:
-
-# Usage:
-# Development only: docker-compose up
-# With analytics: docker-compose --profile analytics up
-# With AI (single pool): docker-compose --profile ai --profile analytics up
-# Full AI (dual pools): docker-compose --profile ai-full --profile analytics up
-# With monitoring: docker-compose --profile ai --profile analytics --profile monitoring up
-```
+- **Unit Tests**: Component-level testing with mocked Streamlit context
+- **Integration Tests**: Page rendering and navigation flow validation
+- **Fragment Testing**: Background task and auto-refresh component verification
+- **Session State Tests**: State management and persistence validation
 
 ## Consequences
 
-### Positive Outcomes (Research Validated)
+### Positive
 
-- **Expert-Validated Architecture**: 100% consensus from GPT-5, O3, and Gemini-2.5-Pro
-- **3-5x Performance Improvement**: Parallel processing through RQ/Redis background jobs
-- **Superior AI Performance**: Qwen3-4B-Instruct-2507 outperforms larger models with less memory
-- **Production-Ready Patterns**: Industry-standard approaches validated by comprehensive research
-- **Real-Time Progress**: Native Reflex WebSocket integration with job status updates
-- **Library-First Implementation**: 70% code reduction through optimal library utilization
-- **Rapid Development**: Get started with `docker-compose --profile ai up`
-- **Hot Reload**: Fast development iteration cycles with container persistence
+- **Rapid Development**: Single command startup with `streamlit run src/main.py`
+- **Library-First Implementation**: Maximum leverage of Streamlit capabilities
+- **Simple Debugging**: Direct access to session state and application logs
+- **Framework Consistency**: All UI components use proven Streamlit patterns
+- **Hot Reload**: Native Streamlit hot reload for fast iteration cycles
 
-### Negative Consequences (Mitigated)
+### Negative
 
-- **GPU Requirements**: Requires NVIDIA GPU for local AI processing (RTX 4090 validated)
-- **Memory Usage**: Redis + vLLM require additional 3-4GB RAM (acceptable trade-off)
-- **Container Complexity**: Multiple services vs single container (well-orchestrated with profiles)
-- **Learning Curve**: RQ/Redis patterns vs simple async (minimal - well-documented APIs)
+- **Browser Dependency**: Requires web browser for all development interaction
+- **Session State Limitations**: Browser refresh clears application state
+- **Single-User Development**: Streamlit optimized for single developer workflow
 
-### Risk Mitigation
+### Maintenance
 
-- **Clear Documentation**: Comprehensive setup instructions
-- **Fallback Options**: Multiple AI provider options
-- **Migration Path**: Clear upgrade path to production architecture
-- **Simple Debugging**: Easy log access and debugging tools
+**Required Monitoring**:
 
-## Implementation Guidelines
+- Page load performance and responsiveness
+- Fragment auto-refresh functionality and resource usage
+- Session state management and memory consumption
+- Background task execution and completion tracking
 
-### Development Workflow
+**Update Triggers**:
 
-1. **Initial Setup**:
+- Streamlit framework updates affecting navigation or fragment behavior
+- New Streamlit features that could simplify existing patterns
+- Changes in background task requirements affecting fragment design
 
-   ```bash
-   git clone <repository>
-   cd ai-job-scraper
-   cp .env.example .env
-   docker-compose up --build
-   ```
+**Dependencies**:
 
-2. **Development Iteration**:
-   - Edit source code (hot reload enabled)
-   - View changes at <http://localhost:3000>
-   - Check logs with `docker-compose logs -f`
+- Streamlit framework for core UI functionality
+- SQLModel and SQLite for data persistence
+- Service layer architecture for business logic separation
 
-3. **Database Management**:
-   - SQLite database persists in `./data/jobs.db`
-   - Use SQLite browser for manual inspection
-   - Reset with `rm ./data/jobs.db` and restart
+## References
 
-### Key Development Patterns
+- [Streamlit Documentation](https://docs.streamlit.io/)
+- [Streamlit Navigation Guide](https://docs.streamlit.io/library/api-reference/navigation)
+- [Streamlit Fragments Documentation](https://docs.streamlit.io/library/api-reference/execution-flow/st.fragment)
+- [SQLModel Documentation](https://sqlmodel.tiangolo.com/)
+- [SQLite Optimization Guide](https://www.sqlite.org/optoverview.html)
 
-- **State Management**: Simple Reflex state for real-time updates
-- **Database Operations**: Direct SQLModel session usage
-- **AI Integration**: Configurable local/cloud processing
-- **Error Handling**: Basic logging and user feedback
-- **Testing**: Local database and mocked AI responses
+## Changelog
 
-## Related ADRs
+### v4.0 - August 20, 2025
 
-### Primary Integration Points
+- **BREAKING**: Corrected framework references from Reflex to accurate Streamlit implementation
+- Added complete 13-section template structure with decision framework
+- Removed over-complex Docker configurations inappropriate for local development
+- Added accurate Streamlit implementation patterns based on actual codebase
+- Simplified architecture to focus on local development requirements
 
-- **Enhanced Integration with ADR-025**: Hybrid Database Setup (foundational analytical architecture)
-- **Deep Integration with ADR-023**: Background Job Processing with analytical workflows
-- **Enhanced Integration with ADR-019**: Data Management with DataFrame processing
-- **ADR-009**: LLM Selection and Integration Strategy (Qwen3-4B-Instruct-2507 integration)
-- **ADR-020**: Reflex Local Development (enhanced real-time UI patterns)
-- **ADR-021**: Local Development Performance (analytical resource optimization)
+### v3.0 - August 19, 2025
 
-### Dependency Updates Required
+- Previous version with incorrect Reflex framework references
 
-- **pyproject.toml**: Add RQ, Redis, vLLM, auto-awq, polars, duckdb, pyarrow dependencies
-- **Environment Variables**: Redis URL, vLLM endpoints, DuckDB memory limits, Polars configuration
-- **Worker Deployment**: Enhanced RQ worker processes with analytical and GPU access
-- **Docker Profiles**: AI, analytics, and monitoring deployment options
-- **Memory Allocation**: Increased Docker resource limits for analytical workloads
+### v2.0 - August 18, 2025
 
-## Success Metrics (Research Validated)
-
-### Technical Performance
-
-- [ ] 3-5x improvement in company scraping throughput + 3-80x analytical processing improvement
-- [ ] Real-time progress updates with <1s latency via Reflex WebSocket integration
-- [ ] Qwen3-4B AI enhancement processing with 45-80 tokens/s performance
-- [ ] Polars + DuckDB analytical workflows deliver research-validated performance gains
-- [ ] <2 second startup time including Redis, vLLM, and analytical component initialization
-- [ ] Zero job data loss during application restarts (RQ job persistence with analytical coordination)
-
-### Development Experience
-
-- [ ] Enhanced startup profiles: `docker-compose --profile ai --profile analytics up`
-- [ ] Hot reload works for rapid development iteration with container persistence
-- [ ] RQ Dashboard accessible at localhost:9181 for enhanced job monitoring
-- [ ] Hybrid database persistence: SQLite transactional + DuckDB analytical
-- [ ] Comprehensive error handling with analytical workflow retry logic
-- [ ] DataFrame processing visible in real-time UI updates
-
-### Resource Utilization
-
-- [ ] Redis memory usage <512MB with efficient eviction policies for enhanced queues
-- [ ] vLLM GPU utilization 85-90% with AWQ-INT4 quantization (~3GB VRAM)
-- [ ] Analytical processing memory usage <4GB for DataFrames and DuckDB operations
-- [ ] Host system RAM usage <8GB total overhead for all services including analytics
-- [ ] Container startup coordination with health checks and analytical dependencies
-- [ ] DuckDB memory limits properly configured per service (1-2GB)
-
----
-
-*This ADR provides a research-validated, production-ready architecture for local development that combines rapid iteration with expert-validated performance patterns. The integration of hybrid database architecture (90.75% weighted score), RQ/Redis with analytical workflows (81.5% weighted score), and Qwen3-4B-Instruct-2507 (100% expert consensus) delivers 3-80x performance improvement while maintaining local development simplicity.*
+- Initial local development architecture concepts
