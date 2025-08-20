@@ -21,6 +21,7 @@ from src.services.job_service import JobService
 from src.ui.components.progress.company_progress_card import (
     render_company_progress_card,
 )
+from src.ui.utils import calculate_eta, is_streamlit_context
 from src.ui.utils.background_helpers import (
     get_company_progress,
     is_scraping_active,
@@ -28,7 +29,6 @@ from src.ui.utils.background_helpers import (
     stop_all_scraping,
     throttled_rerun,
 )
-from src.ui.utils.ui_helpers import calculate_eta, is_streamlit_context
 
 logger = logging.getLogger(__name__)
 

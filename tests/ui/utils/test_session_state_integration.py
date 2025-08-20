@@ -17,6 +17,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+from src.ui.utils import safe_int
 from src.ui.utils.background_helpers import (
     CompanyProgress,
     ProgressInfo,
@@ -34,9 +35,6 @@ from src.ui.utils.background_helpers import (
 from src.ui.utils.database_helpers import (
     clean_session_state,
     get_cached_session_factory,
-)
-from src.ui.utils.ui_helpers import (
-    safe_int,
 )
 
 

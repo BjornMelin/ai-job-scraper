@@ -11,7 +11,7 @@ import logging
 
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import func
+from sqlalchemy import func, not_
 from sqlmodel import Session, select
 
 from src.database import SessionLocal
@@ -317,13 +317,13 @@ class SmartSyncEngine:
             # Normal case: exclude jobs with links in current_links
             stale_jobs = session.exec(
                 select(JobSQL).where(
-                    ~JobSQL.archived,
-                    ~JobSQL.link.in_(current_links),
+                    not_(JobSQL.archived),
+                    not_(JobSQL.link.in_(current_links)),
                 ),
             ).all()
         else:
             # Edge case: when current_links is empty, all non-archived jobs are stale
-            stale_jobs = session.exec(select(JobSQL).where(~JobSQL.archived)).all()
+            stale_jobs = session.exec(select(JobSQL).where(not_(JobSQL.archived))).all()
 
         for job in stale_jobs:
             if self._has_user_data(job):
@@ -417,7 +417,7 @@ class SmartSyncEngine:
             # Get basic counts using efficient count queries
             total_jobs = session.exec(select(func.count(JobSQL.id))).scalar()
             active_jobs = session.exec(
-                select(func.count(JobSQL.id)).where(~JobSQL.archived),
+                select(func.count(JobSQL.id)).where(not_(JobSQL.archived)),
             ).scalar()
             archived_jobs = session.exec(
                 select(func.count(JobSQL.id)).where(JobSQL.archived),

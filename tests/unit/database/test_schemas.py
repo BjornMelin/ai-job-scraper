@@ -604,3 +604,171 @@ class TestDTOIntegration:
         assert "Session Test Company" in company_json
         assert "Session Engineer" in job_json
         assert "Session Test Company" in job_json  # Company name in job
+
+
+class TestJobComputedFields:
+    """Test computed fields in Job DTO for display purposes."""
+
+    def test_job_salary_range_display(self):
+        """Test salary_range_display computed field."""
+        # Test with range
+        job = Job(
+            company="Test",
+            title="Dev",
+            description="Test job",
+            link="https://test.com",
+            location="SF",
+            content_hash="hash",
+            salary=(50000, 80000),
+        )
+        assert job.salary_range_display == "$50,000 - $80,000"
+
+        # Test with min only
+        job_min_only = Job(
+            company="Test",
+            title="Dev",
+            description="Test job",
+            link="https://test.com",
+            location="SF",
+            content_hash="hash",
+            salary=(60000, None),
+        )
+        assert job_min_only.salary_range_display == "$60,000+"
+
+        # Test with max only
+        job_max_only = Job(
+            company="Test",
+            title="Dev",
+            description="Test job",
+            link="https://test.com",
+            location="SF",
+            content_hash="hash",
+            salary=(None, 90000),
+        )
+        assert job_max_only.salary_range_display == "Up to $90,000"
+
+        # Test with no salary
+        job_no_salary = Job(
+            company="Test",
+            title="Dev",
+            description="Test job",
+            link="https://test.com",
+            location="SF",
+            content_hash="hash",
+            salary=(None, None),
+        )
+        assert job_no_salary.salary_range_display == "Not specified"
+
+    def test_job_days_since_posted(self):
+        """Test days_since_posted computed field."""
+        from datetime import datetime, timedelta, timezone as tz
+
+        # Test with recent date
+        recent_date = datetime.now(tz.utc) - timedelta(days=3)
+        job = Job(
+            company="Test",
+            title="Dev",
+            description="Test job",
+            link="https://test.com",
+            location="SF",
+            content_hash="hash",
+            posted_date=recent_date,
+        )
+        assert job.days_since_posted == 3
+
+        # Test with None date
+        job_no_date = Job(
+            company="Test",
+            title="Dev",
+            description="Test job",
+            link="https://test.com",
+            location="SF",
+            content_hash="hash",
+        )
+        assert job_no_date.days_since_posted is None
+
+    def test_job_is_recently_posted(self):
+        """Test is_recently_posted computed field."""
+        from datetime import datetime, timedelta, timezone as tz
+
+        # Test recently posted (within 7 days)
+        recent_date = datetime.now(tz.utc) - timedelta(days=5)
+        job_recent = Job(
+            company="Test",
+            title="Dev",
+            description="Test job",
+            link="https://test.com",
+            location="SF",
+            content_hash="hash",
+            posted_date=recent_date,
+        )
+        assert job_recent.is_recently_posted is True
+
+        # Test not recently posted (over 7 days)
+        old_date = datetime.now(tz.utc) - timedelta(days=10)
+        job_old = Job(
+            company="Test",
+            title="Dev",
+            description="Test job",
+            link="https://test.com",
+            location="SF",
+            content_hash="hash",
+            posted_date=old_date,
+        )
+        assert job_old.is_recently_posted is False
+
+        # Test with None date
+        job_no_date = Job(
+            company="Test",
+            title="Dev",
+            description="Test job",
+            link="https://test.com",
+            location="SF",
+            content_hash="hash",
+        )
+        assert job_no_date.is_recently_posted is False
+
+
+class TestSafeIntValidator:
+    """Test new SafeInt Pydantic validator type."""
+
+    def test_safe_int_conversion(self):
+        """Test SafeInt converts various inputs to non-negative integers."""
+        from pydantic import BaseModel
+
+        from src.ui.utils.validators import SafeInt
+
+        class TestModel(BaseModel):
+            count: SafeInt
+
+        # Test valid inputs
+        assert TestModel(count=5).count == 5
+        assert TestModel(count="10").count == 10
+        assert TestModel(count=3.7).count == 3
+        assert TestModel(count=True).count == 1
+        assert TestModel(count=False).count == 0
+
+        # Test edge cases that should become 0
+        assert TestModel(count=None).count == 0
+        assert TestModel(count=-5).count == 0
+        assert TestModel(count="invalid").count == 0
+        assert TestModel(count="").count == 0
+
+    def test_job_count_validator(self):
+        """Test JobCount validator with job-specific logic."""
+        from pydantic import BaseModel
+
+        from src.ui.utils.validators import JobCount
+
+        class TestModel(BaseModel):
+            jobs: JobCount
+
+        # Test valid job counts
+        assert TestModel(jobs=0).jobs == 0
+        assert TestModel(jobs=25).jobs == 25
+        assert TestModel(jobs="15").jobs == 15
+
+        # Test invalid inputs become 0
+        assert TestModel(jobs=None).jobs == 0
+        assert TestModel(jobs=-10).jobs == 0
+        assert TestModel(jobs="invalid").jobs == 0

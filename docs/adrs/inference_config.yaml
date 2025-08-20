@@ -1,0 +1,350 @@
+# RTX 4090 Laptop Inference Configuration
+# Production-ready settings for AI Job Scraper
+
+# ============================================================================
+# Hardware Configuration
+# ============================================================================
+hardware:
+  gpu:
+    model: "RTX 4090 Laptop"
+    compute_capability: "8.9"  # Ada Lovelace
+    vram_gb: 16
+    memory_bandwidth_gb: 576
+    power_limit_watts: 120  # Conservative for sustained operation
+    max_temperature_c: 80   # Thermal throttle prevention
+    
+# ============================================================================
+# Inference Engine Configuration
+# ============================================================================
+inference_engine:
+  type: "vllm"
+  version: "0.6.5"
+  
+  # Environment settings
+  environment:
+    VLLM_ATTENTION_BACKEND: "FLASH_ATTN"  # Flash Attention 2 for Ada Lovelace
+    CUDA_VISIBLE_DEVICES: "0"
+    PYTORCH_CUDA_ALLOC_CONF: "expandable_segments:True"
+    VLLM_USE_CUDA_GRAPH: "true"
+    TORCH_CUDA_ARCH_LIST: "8.9"
+    
+  # Global settings
+  global_settings:
+    dtype: "half"  # FP16
+    enforce_eager: false  # Enable CUDA graphs
+    trust_remote_code: true
+    disable_log_stats: true  # Reduce overhead
+    disable_custom_all_reduce: true
+    
+# ============================================================================
+# Single Active Model Configuration (RTX 4090 Laptop - 16GB VRAM Constraint)
+# ============================================================================
+# CRITICAL: Only ONE model can be active at a time due to 16GB VRAM limitation
+# See archived ADR-029 for hardware-aware model management implementation (superseded by ADR-001)
+
+model_switching:
+  # Single active model constraint
+  single_model_only: true
+  max_switch_time_seconds: 90
+  switch_failure_retries: 3
+  fallback_strategy: "cascade"  # 14B→8B→4B→cloud
+  
+  # Model switching performance targets
+  target_switch_times:
+    between_4b_models: 20  # seconds
+    between_4b_and_8b: 30  # seconds  
+    between_8b_and_14b: 45  # seconds
+    between_14b_and_30b: 60  # seconds
+    emergency_unload: 10   # seconds
+
+# Available models (only ONE can be loaded at a time)
+models:
+  # Fast model for simple tasks (7.8GB VRAM)
+  fast:
+    id: "qwen3-4b-instruct-2507"
+    name: "Qwen/Qwen3-4B-Instruct-2507"
+    quantization: null  # FP16 fits in 7.8GB
+    max_model_len: 262144  # Full 262K context support
+    gpu_memory_utilization: 0.85
+    vram_usage_gb: 7.8
+    max_num_batched_tokens: 32768
+    max_num_seqs: 64
+    enable_prefix_caching: true
+    enable_chunked_prefill: true
+    expected_tokens_sec: "300-350"
+    use_cases: ["simple_extraction", "summarization", "formatting"]
+    
+  # Thinking model for complex reasoning (4.5GB VRAM)  
+  thinking:
+    id: "qwen3-4b-thinking-2507"
+    name: "Qwen/Qwen3-4B-Thinking-2507"
+    quantization: "Q5_K_M"
+    max_model_len: 262144
+    gpu_memory_utilization: 0.80
+    vram_usage_gb: 4.5
+    max_num_batched_tokens: 81920  # Extended for reasoning
+    max_num_seqs: 16
+    enable_prefix_caching: true
+    enable_chunked_prefill: true
+    expected_tokens_sec: "300-330"
+    use_cases: ["complex_reasoning", "multi_step_analysis", "edge_cases"]
+    
+  # Balanced model for general tasks (6.0GB VRAM with AWQ)
+  balanced:
+    id: "qwen3-8b-base"
+    name: "Qwen/Qwen3-8B"  # Base model - Instruct variant doesn't exist!
+    quantization: "awq"  # AWQ-4bit optimal for base models
+    max_model_len: 131072
+    gpu_memory_utilization: 0.85
+    vram_usage_gb: 6.0
+    max_num_batched_tokens: 16384
+    max_num_seqs: 32
+    enable_prefix_caching: true
+    enable_chunked_prefill: true
+    expected_tokens_sec: "180-220"
+    requires_structured_prompting: true  # Base model needs structured prompting
+    use_cases: ["standard_parsing", "job_extraction", "salary_analysis"]
+    
+  # Capable model for complex tasks (8.0GB VRAM with AWQ)
+  capable:
+    id: "qwen3-14b"  
+    name: "Qwen/Qwen3-14B"  # Base model - Instruct variant doesn't exist!
+    quantization: "awq"  # AWQ-4bit for memory efficiency
+    max_model_len: 131072
+    gpu_memory_utilization: 0.85
+    vram_usage_gb: 8.0
+    max_num_batched_tokens: 8192
+    max_num_seqs: 16
+    enable_prefix_caching: true
+    enable_chunked_prefill: false  # Save memory
+    expected_tokens_sec: "140-160"
+    requires_structured_prompting: true  # Base model needs structured prompting
+    use_cases: ["complex_parsing", "detailed_analysis", "challenging_extraction"]
+    
+  # Maximum capability model - Base Qwen3-14B for complex tasks  
+  maximum:
+    id: "qwen3-14b-base"
+    name: "Qwen/Qwen3-14B"
+    quantization: "awq"  # AWQ-4bit for RTX 4090 compatibility
+    max_model_len: 131072
+    gpu_memory_utilization: 0.85  # Safe VRAM usage
+    vram_usage_gb: 12.0  # Fits comfortably in 16GB
+    max_num_batched_tokens: 32768
+    max_num_seqs: 16
+    enable_prefix_caching: true
+    enable_chunked_prefill: false  # Save memory
+    expected_tokens_sec: "80-100"
+    requires_structured_prompting: true  # Base model needs structured prompting
+    use_cases: ["expert_reasoning", "maximum_capability_tasks", "complex_analysis"]
+
+# ============================================================================
+# Structured Output Configuration
+# ============================================================================
+structured_output:
+  library: "outlines"
+  version: "0.1.0"
+  
+  # Schema validation
+  validation:
+    strict_mode: true
+    allow_extra_fields: false
+    coerce_types: true
+    
+  # Generation settings
+  generation:
+    max_retries: 3
+    timeout_seconds: 30
+    temperature: 0.1  # Low for consistency
+    top_p: 0.95
+    top_k: 20
+    
+  # Job extraction schema
+  schemas:
+    job_posting:
+      max_title_length: 200
+      max_description_length: 5000
+      max_skills: 20
+      max_requirements: 30
+      max_benefits: 20
+      
+# ============================================================================
+# Performance Optimization
+# ============================================================================
+optimization:
+  # Batch processing
+  batching:
+    optimal_batch_size: 16
+    max_batch_size: 32
+    batch_timeout_ms: 100
+    
+  # Memory management
+  memory:
+    kv_cache_dtype: "auto"  # Let vLLM decide
+    num_gpu_blocks_override: null  # Auto-calculate
+    swap_space_gb: 4  # CPU offload buffer
+    
+  # Thermal management
+  thermal:
+    monitoring_interval_seconds: 5
+    throttle_temperature_c: 85
+    reduce_batch_at_temperature_c: 80
+    power_profiles:
+      cool: 100  # 100W for cool operation
+      balanced: 120  # 120W for normal
+      performance: 140  # 140W for burst
+      
+  # Caching
+  caching:
+    enable_prefix_caching: true
+    cache_max_entries: 1000
+    cache_ttl_seconds: 3600
+    
+# ============================================================================
+# Monitoring Configuration
+# ============================================================================
+monitoring:
+  # Metrics to track
+  metrics:
+    - gpu_utilization
+    - vram_usage
+    - temperature
+    - power_draw
+    - tokens_per_second
+    - first_token_latency
+    - total_latency
+    
+  # Logging
+  logging:
+    level: "INFO"
+    format: "json"
+    output_dir: "./logs"
+    rotation_size_mb: 100
+    retention_days: 7
+    
+  # Alerting thresholds
+  alerts:
+    high_temperature_c: 85
+    high_vram_usage_percent: 95
+    low_tokens_per_second: 100
+    high_latency_ms: 5000
+    
+# ============================================================================
+# API Configuration
+# ============================================================================
+api:
+  # Server settings
+  server:
+    host: "0.0.0.0"
+    port: 8000
+    workers: 1  # Single GPU
+    timeout_seconds: 120
+    
+  # Endpoints
+  endpoints:
+    health: "/health"
+    extract: "/extract"
+    batch_extract: "/batch_extract"
+    models: "/models"
+    metrics: "/metrics"
+    
+  # Rate limiting
+  rate_limiting:
+    enabled: true
+    requests_per_minute: 60
+    burst_size: 10
+    
+# ============================================================================
+# Deployment Configuration
+# ============================================================================
+deployment:
+  # Docker settings
+  docker:
+    base_image: "nvidia/cuda:12.1.0-runtime-ubuntu22.04"
+    python_version: "3.11"
+    cuda_version: "12.1"
+    
+  # Resource limits
+  resources:
+    memory_limit: "32Gi"
+    cpu_limit: "8"
+    gpu_count: 1
+    
+  # Health checks
+  health_check:
+    initial_delay_seconds: 30
+    period_seconds: 10
+    timeout_seconds: 5
+    success_threshold: 1
+    failure_threshold: 3
+    
+# ============================================================================
+# Fallback Configuration
+# ============================================================================
+fallback:
+  # When to fallback
+  triggers:
+    - vram_usage_percent: 95
+    - temperature_c: 87
+    - consecutive_failures: 3
+    - timeout_seconds: 60
+    
+  # Fallback options
+  options:
+    - reduce_batch_size
+    - switch_to_smaller_model
+    - reduce_max_tokens
+    - increase_temperature_threshold
+    
+# ============================================================================
+# Testing Configuration
+# ============================================================================
+testing:
+  # Benchmark settings
+  benchmarks:
+    warmup_iterations: 5
+    test_iterations: 100
+    test_prompts:
+      - length: 100
+        type: "simple_extraction"
+      - length: 500
+        type: "complex_extraction"
+      - length: 2000
+        type: "full_page_extraction"
+        
+  # Validation
+  validation:
+    check_schema_compliance: true
+    check_field_completeness: true
+    check_value_ranges: true
+    
+# ============================================================================
+# Model Download URLs
+# ============================================================================
+model_registry:
+  huggingface:
+    token: "${HF_TOKEN}"  # Set via environment variable
+    cache_dir: "./models"
+    
+  models:
+    # Qwen3-2507 series models (see ADR-004)
+    - repo_id: "Qwen/Qwen3-4B-Instruct-2507"
+      revision: "main"
+      files: ["*.safetensors", "*.json", "tokenizer*"]
+      
+    - repo_id: "Qwen/Qwen3-4B-Thinking-2507"
+      revision: "main"
+      files: ["*.safetensors", "*.json", "tokenizer*"]
+      
+    - repo_id: "Qwen/Qwen3-8B"  # Base model - Instruct doesn't exist
+      revision: "main"
+      files: ["*.safetensors", "*.json", "tokenizer*"]
+      note: "Using base model with structured prompting"
+      
+    - repo_id: "Qwen/Qwen3-14B"  # Base model - Instruct doesn't exist
+      revision: "main"
+      files: ["*.safetensors", "*.json", "tokenizer*"]
+      note: "Using base model with structured prompting"
+      
+    - repo_id: "Qwen/Qwen3-14B"  # Base model corrected for RTX 4090
+      revision: "main"
+      files: ["*.safetensors", "*.json", "tokenizer*"]

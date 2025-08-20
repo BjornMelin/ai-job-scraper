@@ -13,10 +13,14 @@ All schemas include validation, JSON encoding configuration, and proper
 type hints for safe data transfer across application layers.
 """
 
-from datetime import UTC, datetime
-from typing import ClassVar
+from datetime import datetime
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, ConfigDict, computed_field, field_validator
+
+from src.core_utils import ensure_timezone_aware
+
+# Import helper functions locally to avoid circular imports
+# from src.ui.utils import (...)
 
 
 class CompanyValidationError(ValueError):
@@ -86,31 +90,41 @@ class Company(BaseModel):
             raise CompanyValidationError("Company name cannot be empty")
         return v.strip()
 
+    @computed_field
+    @property
+    def total_jobs_count(self) -> int:
+        """Calculate total number of jobs."""
+        # For the DTO, we don't have access to the jobs relationship
+        # This would need to be set from the service layer
+        return getattr(self, "_total_jobs_count", 0)
+
+    @computed_field
+    @property
+    def active_jobs_count(self) -> int:
+        """Calculate number of active (non-archived) jobs."""
+        # For the DTO, we don't have access to the jobs relationship
+        # This would need to be set from the service layer
+        return getattr(self, "_active_jobs_count", 0)
+
+    @computed_field
+    @property
+    def last_job_posted(self) -> datetime | None:
+        """Find most recent job posting date."""
+        # For the DTO, we don't have access to the jobs relationship
+        # This would need to be set from the service layer
+        return getattr(self, "_last_job_posted", None)
+
     @field_validator("last_scraped", mode="before")
     @classmethod
     def ensure_timezone_aware(cls, v) -> datetime | None:
-        """Ensure datetime is timezone-aware (UTC) - simplified validator."""
-        if v is None:
-            return None
-        if isinstance(v, str):
-            try:
-                parsed = datetime.fromisoformat(v.replace("Z", "+00:00"))
-                return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
-            except ValueError:
-                return None
-        if isinstance(v, datetime):
-            return v if v.tzinfo else v.replace(tzinfo=UTC)
-        return None
+        """Ensure datetime is timezone-aware (UTC) - uses shared utility."""
+        return ensure_timezone_aware(v)
 
-    class Config:
-        """Pydantic configuration for Company DTO.
-
-        Enables conversion from SQLModel objects and provides custom JSON encoding
-        for datetime objects using ISO format.
-        """
-
-        from_attributes = True  # Enable SQLModel object conversion
-        json_encoders: ClassVar = {datetime: lambda v: v.isoformat() if v else None}
+    model_config = ConfigDict(
+        from_attributes=True,  # Enable SQLModel object conversion
+        # Note: json_encoders is deprecated in Pydantic v2
+        # Use custom serializers if needed in model_dump(mode="json")
+    )
 
 
 class Job(BaseModel):
@@ -206,32 +220,54 @@ class Job(BaseModel):
             raise JobValidationError("Job title cannot be empty")
         return v.strip()
 
+    @computed_field
+    @property
+    def salary_range_display(self) -> str:
+        """Format salary range for display."""
+        from src.ui.utils import format_salary_range
+
+        return format_salary_range(self.salary)
+
+    @computed_field
+    @property
+    def days_since_posted(self) -> int | None:
+        """Calculate days since job was posted."""
+        if self.posted_date is None:
+            return None
+        from datetime import UTC, datetime
+
+        now = datetime.now(UTC)
+        # Ensure timezone compatibility
+        posted_date = self.posted_date
+        if posted_date.tzinfo is None:
+            # If posted_date is naive, assume it's UTC
+            posted_date = posted_date.replace(tzinfo=UTC)
+        return (now - posted_date).days
+
+    @computed_field
+    @property
+    def is_recently_posted(self) -> bool:
+        """Check if job was posted within 7 days."""
+        if self.posted_date is None:
+            return False
+        from datetime import UTC, datetime
+
+        now = datetime.now(UTC)
+        # Ensure timezone compatibility
+        posted_date = self.posted_date
+        if posted_date.tzinfo is None:
+            # If posted_date is naive, assume it's UTC
+            posted_date = posted_date.replace(tzinfo=UTC)
+        return (now - posted_date).days <= 7
+
     @field_validator("posted_date", "application_date", "last_seen", mode="before")
     @classmethod
     def ensure_datetime_timezone_aware(cls, v) -> datetime | None:
-        """Ensure datetime fields are timezone-aware (UTC) - simplified validator."""
-        if v is None:
-            return None
-        if isinstance(v, str):
-            try:
-                parsed = datetime.fromisoformat(v.replace("Z", "+00:00"))
-                return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
-            except ValueError:
-                try:
-                    parsed = datetime.strptime(v, "%Y-%m-%d")  # noqa: DTZ007
-                    return parsed.replace(tzinfo=UTC)
-                except ValueError:
-                    return None
-        if isinstance(v, datetime):
-            return v if v.tzinfo else v.replace(tzinfo=UTC)
-        return None
+        """Ensure datetime fields are timezone-aware (UTC) - uses shared utility."""
+        return ensure_timezone_aware(v)
 
-    class Config:
-        """Pydantic configuration for Job DTO.
-
-        Enables conversion from SQLModel objects and provides custom JSON encoding
-        for datetime objects using ISO format.
-        """
-
-        from_attributes = True  # Enable SQLModel object conversion
-        json_encoders: ClassVar = {datetime: lambda v: v.isoformat() if v else None}
+    model_config = ConfigDict(
+        from_attributes=True,  # Enable SQLModel object conversion
+        # Note: json_encoders is deprecated in Pydantic v2
+        # Use custom serializers if needed in model_dump(mode="json")
+    )

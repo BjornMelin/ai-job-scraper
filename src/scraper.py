@@ -21,6 +21,8 @@ from rich.table import Table
 
 from src.constants import AI_REGEX, SEARCH_KEYWORDS, SEARCH_LOCATIONS
 from src.core_utils import random_delay
+
+# Additional imports for functions (moved from inline imports)
 from src.database import SessionLocal
 from src.models import CompanySQL, JobSQL
 from src.scraper_company_pages import DEFAULT_MAX_JOBS_PER_COMPANY, scrape_company_pages
@@ -173,7 +175,9 @@ def scrape_all(max_jobs_per_company: int | None = None) -> SyncStats:
 
     # Step 5a: Filter jobs to only include those from active companies
     try:
-        from .services.job_service import JobService
+        from src.services.job_service import (
+            JobService,  # pylint: disable=import-outside-toplevel
+        )
 
         active_company_names = set(JobService.get_active_companies())
         logger.info(
@@ -347,6 +351,7 @@ def _normalize_board_jobs(board_jobs_raw: Sequence[dict]) -> list[JobSQL]:
             try:
                 # Format salary from min/max amounts
                 # Use walrus operator for concise salary formatting
+                salary = None  # Initialize early to eliminate else clause
                 if (min_amt := raw.get("min_amount")) and (
                     max_amt := raw.get("max_amount")
                 ):
@@ -368,7 +373,9 @@ def _normalize_board_jobs(board_jobs_raw: Sequence[dict]) -> list[JobSQL]:
                     continue
 
                 # Use utility function for data cleaning
-                from src.data_cleaning import clean_string_field
+                from src.data_cleaning import (
+                    clean_string_field,  # pylint: disable=import-outside-toplevel
+                )
 
                 # Use factory method to ensure proper validation and hash generation
                 job = JobSQL.create_validated(

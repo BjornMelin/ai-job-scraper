@@ -10,12 +10,16 @@ import uuid
 import streamlit as st
 
 from src.services.company_service import CompanyService
-from src.ui.helpers.company_display import render_company_card_with_selection
+from src.ui.ui_rendering import render_company_card_with_selection
+from src.ui.utils import is_streamlit_context
+from src.ui.utils.background_helpers import (
+    get_company_progress,
+    is_scraping_active,
+)
 from src.ui.utils.database_helpers import (
     display_feedback_messages,
     init_session_state_keys,
 )
-from src.ui.utils.ui_helpers import is_streamlit_context
 
 logger = logging.getLogger(__name__)
 
@@ -134,6 +138,11 @@ def _company_selection_callback(company_id: int) -> None:
     else:
         st.session_state.selected_companies.discard(company_id)
 
+    # Sync selection changes with URL
+    from src.ui.utils.url_state import update_url_from_company_selection
+
+    update_url_from_company_selection()
+
 
 def _select_all_callback() -> None:
     """Callback function to select all companies."""
@@ -146,6 +155,11 @@ def _select_all_callback() -> None:
         for company in companies:
             if company.id:
                 st.session_state[f"select_company_{company.id}"] = True
+
+        # Sync with URL
+        from src.ui.utils.url_state import update_url_from_company_selection
+
+        update_url_from_company_selection()
         st.rerun()
     except Exception as e:
         st.session_state.bulk_operation_error = f"Failed to select all companies: {e}"
@@ -160,6 +174,11 @@ def _select_none_callback() -> None:
             for company_id in st.session_state.selected_companies:
                 st.session_state[f"select_company_{company_id}"] = False
             st.session_state.selected_companies.clear()
+
+        # Sync with URL
+        from src.ui.utils.url_state import update_url_from_company_selection
+
+        update_url_from_company_selection()
         st.rerun()
     except Exception as e:
         st.session_state.bulk_operation_error = f"Failed to clear selections: {e}"
@@ -339,6 +358,22 @@ def show_companies_page() -> None:
     - View all companies with their scraping statistics
     - Toggle active status for each company using toggles with callbacks
     """
+    # Validate URL parameters and sync company selection
+    from src.ui.utils.url_state import (
+        sync_company_selection_from_url,
+        validate_url_params,
+    )
+
+    # Validate URL parameters and show warnings if needed
+    validation_errors = validate_url_params()
+    if validation_errors:
+        st.warning(
+            "⚠️ Some URL parameters are invalid and have been ignored: "
+            + ", ".join(validation_errors.values())
+        )
+
+    sync_company_selection_from_url()
+
     st.title("Company Management")
     st.markdown("Manage companies for job scraping")
 
@@ -412,7 +447,7 @@ def show_companies_page() -> None:
 
         # Bulk operation buttons (only show when companies are selected)
         if selected_count > 0:
-            col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
+            col1, col2, col3, _ = st.columns([1, 1, 1, 1])
 
             with col1:
                 st.button(
@@ -471,24 +506,97 @@ def show_companies_page() -> None:
 
         # Show summary statistics
         st.markdown("---")
-        active_count = sum(company.active for company in companies)
-        total_companies = len(companies)
+        _render_company_statistics(companies)
 
-        col1, col2, col3 = st.columns(3)
-
-        with col1:
-            st.metric("Total Companies", total_companies)
-
-        with col2:
-            st.metric("Active Companies", active_count)
-
-        with col3:
-            inactive_count = total_companies - active_count
-            st.metric("Inactive Companies", inactive_count)
+        # Show scraping progress if active
+        _company_scraping_progress_fragment()
 
     except Exception as e:
         st.error(f"❌ Failed to load companies: {e!s}")
         logger.exception("Failed to load companies")
+
+
+@st.fragment(run_every="2s")
+def _company_scraping_progress_fragment():
+    """Fragment for displaying real-time company scraping progress.
+
+    This fragment auto-refreshes every 2 seconds during active scraping
+    to show progress updates without affecting the main company list.
+    """
+    if not is_scraping_active():
+        return
+
+    st.markdown("### 🔄 Scraping Progress")
+
+    company_progress = get_company_progress()
+
+    if not company_progress:
+        st.info("⏳ Initializing scraping...")
+        return
+
+    # Display progress for each company
+    progress_cols = st.columns(min(3, len(company_progress)))
+
+    for idx, (company_name, progress) in enumerate(company_progress.items()):
+        col = progress_cols[idx % len(progress_cols)]
+
+        with col:
+            # Status indicator
+            if progress.status == "Completed":
+                status_icon = "✅"
+                status_color = "normal"
+            elif progress.status == "In Progress":
+                status_icon = "🔄"
+                status_color = "normal"
+            elif progress.error:
+                status_icon = "❌"
+                status_color = "inverse"
+            else:
+                status_icon = "⏳"
+                status_color = "normal"
+
+            st.metric(
+                f"{status_icon} {company_name}",
+                f"{progress.jobs_found} jobs",
+                delta=progress.status,
+                delta_color=status_color,
+            )
+
+            # Show error if present
+            if progress.error:
+                st.error(f"Error: {progress.error}")
+
+    # Overall progress summary
+    total_companies = len(company_progress)
+    completed = sum(1 for p in company_progress.values() if p.status == "Completed")
+
+    overall_progress = completed / total_companies if total_companies > 0 else 0
+
+    st.progress(
+        overall_progress, text=f"Progress: {completed}/{total_companies} companies"
+    )
+
+
+def _render_company_statistics(companies):
+    """Render company statistics section.
+
+    Args:
+        companies: List of company objects.
+    """
+    active_count = sum(company.active for company in companies)
+    total_companies = len(companies)
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.metric("Total Companies", total_companies)
+
+    with col2:
+        st.metric("Active Companies", active_count)
+
+    with col3:
+        inactive_count = total_companies - active_count
+        st.metric("Inactive Companies", inactive_count)
 
 
 # Execute page when loaded by st.navigation()
