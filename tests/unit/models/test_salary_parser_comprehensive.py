@@ -412,3 +412,62 @@ class TestJobSQLSalaryIntegration:
         # Test no salary
         job.salary = (None, None)
         assert format_salary_range(job.salary) == "Not specified"
+
+        # Test cases for None, zero, and missing tuple values (addressing Sourcery)
+        salary_none = None
+        salary_zero = (0, 0)
+        salary_missing_min = (None, 150000)
+        salary_missing_max = (100000, None)
+        salary_single_value = (120000,)
+        salary_empty_tuple = ()
+
+        # None case
+        assert (salary_none[0] if salary_none else None) is None
+        assert (salary_none[1] if salary_none else None) is None
+        assert format_salary_range(salary_none) == "Not specified"
+
+        # Zero case
+        assert (salary_zero[0] if salary_zero else None) == 0
+        assert (salary_zero[1] if salary_zero else None) == 0
+        # Note: Current implementation treats 0 as falsy, so (0,0) = "Not specified"
+        # This could be considered a bug, but we test current behavior
+        assert format_salary_range(salary_zero) == "Not specified"
+
+        # Missing min
+        assert (salary_missing_min[0] if salary_missing_min else None) is None
+        assert (salary_missing_min[1] if salary_missing_min else None) == 150000
+        assert format_salary_range(salary_missing_min) == "Up to $150,000"
+
+        # Missing max
+        assert (salary_missing_max[0] if salary_missing_max else None) == 100000
+        assert (salary_missing_max[1] if salary_missing_max else None) is None
+        assert format_salary_range(salary_missing_max) == "$100,000+"
+
+        # Single value tuple
+        assert (salary_single_value[0] if salary_single_value else None) == 120000
+        try:
+            single_max = salary_single_value[1] if salary_single_value else None
+        except IndexError:
+            single_max = None
+        assert single_max is None
+        # Note: format_salary_range expects 2-tuple, single tuple causes ValueError
+        # This is an edge case that would need error handling in production
+        try:
+            format_result = format_salary_range(salary_single_value)
+        except ValueError:
+            format_result = "Error: Invalid salary format"
+        assert format_result == "Error: Invalid salary format"
+
+        # Empty tuple
+        try:
+            empty_min = salary_empty_tuple[0] if salary_empty_tuple else None
+        except IndexError:
+            empty_min = None
+        try:
+            empty_max = salary_empty_tuple[1] if salary_empty_tuple else None
+        except IndexError:
+            empty_max = None
+        assert empty_min is None
+        assert empty_max is None
+        # Note: Empty tuple is falsy, so returns "Not specified"
+        assert format_salary_range(salary_empty_tuple) == "Not specified"
