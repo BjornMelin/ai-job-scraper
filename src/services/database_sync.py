@@ -318,7 +318,7 @@ class SmartSyncEngine:
             stale_jobs = session.exec(
                 select(JobSQL).where(
                     not_(JobSQL.archived),
-                    ~JobSQL.link.in_(current_links),
+                    not_(JobSQL.link.in_(current_links)),
                 ),
             ).all()
         else:
@@ -417,7 +417,7 @@ class SmartSyncEngine:
             # Get basic counts using efficient count queries
             total_jobs = session.exec(select(func.count(JobSQL.id))).scalar()
             active_jobs = session.exec(
-                select(func.count(JobSQL.id)).where(~JobSQL.archived),
+                select(func.count(JobSQL.id)).where(not_(JobSQL.archived)),
             ).scalar()
             archived_jobs = session.exec(
                 select(func.count(JobSQL.id)).where(JobSQL.archived),
