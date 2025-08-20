@@ -529,6 +529,10 @@ The hybrid approach provides:
 - **ADR-015**: Component Library Selection - Navigation component implementations
 - **ADR-020**: Reflex Local Development - Development navigation patterns
 
+## Implementation Resources
+
+- **URL State Patterns**: See `/docs/planning/url-state-management-patterns.md` for comprehensive URL state management patterns adapted from Streamlit prototyping for Reflex implementation
+
 ## References
 
 - [Reflex Routing Documentation](https://reflex.dev/docs/pages/overview/)

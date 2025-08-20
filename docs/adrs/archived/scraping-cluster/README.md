@@ -50,7 +50,7 @@
 ## References
 
 - **Superseding ADRs:** ADR-032, ADR-036, ADR-031
-- **Implementation Guide:** `/docs/adrs/new/IMPLEMENTATION_GUIDE.md`
+- **Implementation Guide:** `/docs/planning/implementation-guide.md`
 - **Architecture Overview:** `/docs/adrs/new/ARCHITECTURE_OVERVIEW.md`
 
 ---
