@@ -1,8 +1,12 @@
 # ADR-007: Structured Output Strategy for Job Extraction
 
+## Version/Date
+
+2.0 / August 18, 2025
+
 ## Status
 
-**Decided** - January 2025
+**Decided** - August 18, 2025
 
 ## Context
 
@@ -357,8 +361,20 @@ job = job_generator(prompt)  # Always returns valid JobPosting
 - [JSONSchemaBench Paper](https://arxiv.org/abs/2501.10868)
 - [Structured Generation Survey](https://arxiv.org/abs/2406.05370)
 
-## Review
+## Changelog
 
-- **Date**: January 2025
-- **Reviewed by**: AI Engineering Team
-- **Next Review**: March 2025
+### v2.0 - August 18, 2025
+
+- Updated to use Qwen3-8B-Instruct-2507 model for optimal performance
+- Added Qwen3-14B-Instruct-2507 as backup model
+- Enhanced error handling with retry mechanisms
+- Added streaming support for real-time processing
+- Improved schema caching for performance optimization
+
+### v1.0 - August 18, 2025
+
+- Initial structured output strategy with Outlines library for guaranteed JSON generation
+- Finite State Machine (FSM) approach for 100% valid schema compliance
+- Native Pydantic integration for type-safe data extraction
+- vLLM compatibility for high-performance local inference
+- Migration path from error-prone JSON parsing to structured generation

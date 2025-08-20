@@ -1,6 +1,7 @@
 # ADR-022: Local Development Docker Containerization
 
 ## Status
+
 Accepted
 
 ## Context
@@ -10,12 +11,14 @@ Need simple Docker containerization for local development workflow without produ
 ## Decision
 
 Implement minimal Docker setup with:
+
 - Single Dockerfile for Reflex application
 - docker-compose.yml for multi-service development
 - Basic environment configuration
 - Simple health checks for development
 
 ### Architecture Components
+
 - **UI Framework**: Reflex (local development server)
 - **Database**: SQLite with SQLModel (local file-based)
 - **AI Processing**: Simple local vLLM or API fallback
@@ -251,6 +254,7 @@ echo "Development environment reset complete."
 ## Consequences
 
 ### Positive
+
 - Easy local development setup with `docker-compose up`
 - Hot reload for source code changes
 - Consistent development environment across team members
@@ -259,12 +263,14 @@ echo "Development environment reset complete."
 - Clear separation between development and production concerns
 
 ### Negative
+
 - Requires Docker and docker-compose installation
 - Additional abstraction layer for development
 - Container resource usage on development machines
 - Need to manage environment variables and configuration
 
 ### Risk Mitigation
+
 - Provide clear setup documentation
 - Include example environment configuration
 - Offer both containerized and direct development options
@@ -273,20 +279,23 @@ echo "Development environment reset complete."
 ## Validation
 
 ### Success Criteria
+
 - [ ] Developer can start environment with single command
-- [ ] Reflex application accessible at http://localhost:3000
+- [ ] Reflex application accessible at <http://localhost:3000>
 - [ ] SQLite database persists between container restarts
 - [ ] Hot reload works for source code changes
 - [ ] Health checks pass consistently
 - [ ] Logs are accessible and useful for debugging
 
 ### Testing Approach
+
 - Manual testing of development workflow
 - Documentation validation with fresh setup
 - Performance testing with reasonable development loads
 - Cross-platform compatibility (Linux, macOS, Windows with WSL)
 
 ## Related ADRs
+
 - **Updates ADR-017**: Final Production Architecture (local development focus)
 - **Replaces Archived ADR-022**: vLLM Two-Tier Deployment Strategy (production-focused)
 - **Supports ADR-020**: UI Component Architecture (Reflex containerization)
