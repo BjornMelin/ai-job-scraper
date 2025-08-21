@@ -36,36 +36,6 @@ Modern job seekers need more than keyword search. They need semantic matching, i
 - Achieve sub-second search performance at scale
 - Deliver actionable job market insights and analytics
 
-## Related Requirements
-
-### Functional Requirements
-
-- FR-016: Semantic job-to-resume matching capabilities
-- FR-017: Intelligent duplicate detection across job sources
-- FR-018: Personalized job recommendations based on user behavior
-- FR-019: Smart notifications for highly relevant new jobs
-
-### Non-Functional Requirements
-
-- NFR-016: Sub-second search response times at scale
-- NFR-017: Local processing to minimize API costs
-- NFR-018: High accuracy duplicate detection (95%+)
-- NFR-019: Scalable vector storage for 100k+ jobs
-
-### Performance Requirements
-
-- PR-016: Semantic search under 50ms p95 latency
-- PR-017: Deduplication under 2s for 1000 jobs
-- PR-018: Indexing rate of 1000 jobs per second
-- PR-019: Storage under 1GB for 100k jobs
-
-### Integration Requirements
-
-- IR-016: Integration with job scraping services
-- IR-017: Compatible with existing database architecture
-- IR-018: Real-time UI updates for search and recommendations
-- IR-019: Analytics integration with reporting services
-
 ## Alternatives
 
 ### Alternative 1: Cloud-Only Vector Search (Pinecone + OpenAI)
@@ -111,6 +81,36 @@ Modern job seekers need more than keyword search. They need semantic matching, i
 ### Embeddings: Local + Cloud Hybrid
 
 **Rationale**: Balance cost, privacy, and quality
+
+## Related Requirements
+
+### Functional Requirements
+
+- FR-016: Semantic job-to-resume matching capabilities
+- FR-017: Intelligent duplicate detection across job sources
+- FR-018: Personalized job recommendations based on user behavior
+- FR-019: Smart notifications for highly relevant new jobs
+
+### Non-Functional Requirements
+
+- NFR-016: Sub-second search response times at scale
+- NFR-017: Local processing to minimize API costs
+- NFR-018: High accuracy duplicate detection (95%+)
+- NFR-019: Scalable vector storage for 100k+ jobs
+
+### Performance Requirements
+
+- PR-016: Semantic search under 50ms p95 latency
+- PR-017: Deduplication under 2s for 1000 jobs
+- PR-018: Indexing rate of 1000 jobs per second
+- PR-019: Storage under 1GB for 100k jobs
+
+### Integration Requirements
+
+- IR-016: Integration with job scraping services
+- IR-017: Compatible with existing database architecture
+- IR-018: Real-time UI updates for search and recommendations
+- IR-019: Analytics integration with reporting services
 
 ## Related Decisions
 

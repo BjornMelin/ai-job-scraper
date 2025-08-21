@@ -60,36 +60,6 @@ Analysis revealed massive over-engineering across the system:
 - Leverage battle-tested, production-proven solutions
 - Enable rapid prototyping and iteration cycles
 
-## Related Requirements
-
-### Functional Requirements
-
-- FR-001: Local AI inference with automatic model management
-- FR-002: Real-time UI updates during scraping operations
-- FR-003: Complete error handling and graceful degradation
-- FR-004: Web scraping with anti-bot detection capabilities
-
-### Non-Functional Requirements
-
-- NFR-001: Deploy within 1 week (not 4+ weeks)
-- NFR-002: Zero/near-zero maintenance architecture
-- NFR-003: Library-first implementation (no custom code where libraries suffice)
-- NFR-004: KISS, DRY, YAGNI adherence
-
-### Performance Requirements
-
-- PR-001: Model switching under 60 seconds
-- PR-002: UI response times under 100ms
-- PR-003: Memory usage within RTX 4090 constraints (16GB)
-- PR-004: 95%+ uptime with graceful error recovery
-
-### Integration Requirements
-
-- IR-001: Integrated connection between vLLM, Streamlit, and Crawl4AI
-- IR-002: Unified configuration management
-- IR-003: Single deployment pipeline
-- IR-004: Shared logging and monitoring
-
 ## Alternatives
 
 ### Alternative 1: Continue Custom Implementation
@@ -130,6 +100,36 @@ Analysis revealed massive over-engineering across the system:
 4. **UI Framework:** Use Streamlit (proven for data applications)
 5. **Scraping:** Crawl4AI primary with JobSpy fallback
 6. **Task Management:** Pure RQ with Tenacity retry capabilities
+
+## Related Requirements
+
+### Functional Requirements
+
+- FR-001: Local AI inference with automatic model management
+- FR-002: Real-time UI updates during scraping operations
+- FR-003: Complete error handling and graceful degradation
+- FR-004: Web scraping with anti-bot detection capabilities
+
+### Non-Functional Requirements
+
+- NFR-001: Deploy within 1 week (not 4+ weeks)
+- NFR-002: Zero/near-zero maintenance architecture
+- NFR-003: Library-first implementation (no custom code where libraries suffice)
+- NFR-004: KISS, DRY, YAGNI adherence
+
+### Performance Requirements
+
+- PR-001: Model switching under 60 seconds
+- PR-002: UI response times under 100ms
+- PR-003: Memory usage within RTX 4090 constraints (16GB)
+- PR-004: 95%+ uptime with graceful error recovery
+
+### Integration Requirements
+
+- IR-001: Integrated connection between vLLM, Streamlit, and Crawl4AI
+- IR-002: Unified configuration management
+- IR-003: Single deployment pipeline
+- IR-004: Shared logging and monitoring
 
 ## Related Decisions
 

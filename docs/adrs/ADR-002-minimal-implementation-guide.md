@@ -49,36 +49,6 @@ Provide a step-by-step minimal implementation guide that enables deployment with
 - Reduce debugging time through library-tested components
 - Enable rapid team onboarding and contribution
 
-## Related Requirements
-
-### Functional Requirements
-
-- FR-010: Complete working system within 1 week
-- FR-011: Copy-paste implementation patterns
-- FR-012: Minimal configuration management
-- FR-013: Clear deployment instructions
-
-### Non-Functional Requirements
-
-- NFR-009: Zero custom code where libraries suffice
-- NFR-010: Library defaults over custom configuration
-- NFR-011: Rapid iteration and deployment
-- NFR-012: Minimal learning curve for team
-
-### Performance Requirements
-
-- PR-009: System operational within hours of setup
-- PR-010: Hot reload for development iterations
-- PR-011: Automated testing and validation
-- PR-012: One-command deployment
-
-### Integration Requirements
-
-- IR-009: All components work together out-of-the-box
-- IR-010: Shared configuration across services
-- IR-011: Unified logging and monitoring
-- IR-012: Single deployment pipeline
-
 ## Alternatives
 
 ### Alternative 1: Comprehensive Documentation
@@ -118,6 +88,36 @@ Provide a step-by-step minimal implementation guide that enables deployment with
 3. **Single Configuration:** Unified config file
 4. **One-Command Deployment:** Docker compose or equivalent
 5. **Validation Steps:** Quick health checks
+
+## Related Requirements
+
+### Functional Requirements
+
+- FR-010: Complete working system within 1 week
+- FR-011: Copy-paste implementation patterns
+- FR-012: Minimal configuration management
+- FR-013: Clear deployment instructions
+
+### Non-Functional Requirements
+
+- NFR-009: Zero custom code where libraries suffice
+- NFR-010: Library defaults over custom configuration
+- NFR-011: Rapid iteration and deployment
+- NFR-012: Minimal learning curve for team
+
+### Performance Requirements
+
+- PR-009: System operational within hours of setup
+- PR-010: Hot reload for development iterations
+- PR-011: Automated testing and validation
+- PR-012: One-command deployment
+
+### Integration Requirements
+
+- IR-009: All components work together out-of-the-box
+- IR-010: Shared configuration across services
+- IR-011: Unified logging and monitoring
+- IR-012: Single deployment pipeline
 
 ## Related Decisions
 
