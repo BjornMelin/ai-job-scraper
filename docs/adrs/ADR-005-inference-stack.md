@@ -2,7 +2,7 @@
 
 ## Metadata
 
-**Status:** Decided  
+**Status:** Accepted  
 **Version:** 2.0  
 **Date:** August 18, 2025  
 **Authors:** Bjorn Melin
@@ -39,7 +39,7 @@ Use vLLM with minimal configuration, leveraging native features for all memory m
 
 - Eliminate custom memory management complexity
 - Reduce configuration overhead and maintenance burden
-- Leverage battle-tested vLLM optimizations
+- Utilize production-tested vLLM optimizations
 - Minimize time to deployment
 - Improve system reliability through library delegation
 
@@ -85,7 +85,7 @@ Use vLLM with minimal configuration, leveraging native features for all memory m
 
 ### Alternative 3: Simple vLLM with Defaults (SELECTED)
 
-**Pros:** Works out of the box, battle-tested, minimal config
+**Pros:** Works out of the box, production-tested, minimal config
 **Cons:** Less fine-grained control
 **Score:** 9/10
 
@@ -223,7 +223,7 @@ inference:
 
 - **90% configuration reduction:** 150+ lines → 15 lines of setup
 - **vLLM native optimization:** Automatic hardware detection and tuning
-- **Battle-tested reliability:** Production-proven inference engine with extensive user base
+- **Production reliability:** Tested inference engine with extensive user base
 - **Zero maintenance:** Library handles optimizations and updates automatically
 - **RTX 4090 optimized:** Native Flash Attention 2 support for Ada Lovelace architecture
 - **Automatic scaling:** swap_space handles memory pressure without intervention

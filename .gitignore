@@ -290,6 +290,7 @@ current-codebase.md
 adrs-and-docs.md
 ruff_full_report.json
 reports/adrs/
+ai-research/
 
 # Temporary files
 temp/

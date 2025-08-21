@@ -2,7 +2,7 @@
 
 ## Metadata
 
-**Status:** Decided  
+**Status:** Accepted  
 **Version:** 2.0  
 **Date:** August 18, 2025  
 **Authors:** Bjorn Melin  
@@ -13,7 +13,7 @@ Local AI Model Selection for Job Data Extraction
 
 ## Description
 
-Simple local AI model selection for job data extraction, leveraging vLLM's native capabilities for all hardware management and model switching. Implements three-tier model selection based on task complexity.
+Local AI model selection for job data extraction, utilizing vLLM's native capabilities for hardware management and model switching. Implements three-tier model selection based on task complexity.
 
 ## Context
 
@@ -38,7 +38,7 @@ Simple local AI model selection for job data extraction, leveraging vLLM's nativ
 ## Decision Drivers
 
 - Eliminate custom hardware management complexity
-- Leverage vLLM's battle-tested model switching
+- Utilize vLLM's proven model switching
 - Reduce codebase from 570+ lines to 50 lines
 - Enable reliable model selection based on task complexity
 - Minimize maintenance overhead through library delegation
@@ -85,7 +85,7 @@ Simple local AI model selection for job data extraction, leveraging vLLM's nativ
 
 ### Alternative 3: Simple vLLM Integration (SELECTED)
 
-**Pros:** 50 lines, proven library, automatic optimization
+**Pros:** 50 lines, tested library, automatic optimization
 **Cons:** Less fine-grained control
 **Score:** 9/10
 

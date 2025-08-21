@@ -43,11 +43,13 @@ Analysis revealed massive over-engineering across the system:
 - Background tasks with async handlers
 - Mobile responsive with modern CSS
 
-**Tenacity Library:**
+**Tenacity Library (v9.0.0+):**
 
-- Comprehensive retry logic with exponential backoff
-- Circuit breaker patterns
-- Exception-specific handling
+- Complete retry logic with exponential backoff and jitter
+- Circuit breaker patterns with async/await support  
+- Exception-specific handling and custom retry conditions
+- LangGraph integration for agent retry policies
+- HTTPX transport integration for HTTP operations
 
 ## Decision Drivers
 
@@ -64,7 +66,7 @@ Analysis revealed massive over-engineering across the system:
 
 - FR-001: Local AI inference with automatic model management
 - FR-002: Real-time UI updates during scraping operations
-- FR-003: Comprehensive error handling and graceful degradation
+- FR-003: Complete error handling and graceful degradation
 - FR-004: Web scraping with anti-bot detection capabilities
 
 ### Non-Functional Requirements
@@ -83,7 +85,7 @@ Analysis revealed massive over-engineering across the system:
 
 ### Integration Requirements
 
-- IR-001: Seamless integration between vLLM, Reflex, and Crawl4AI
+- IR-001: Integrated connection between vLLM, Streamlit, and Crawl4AI
 - IR-002: Unified configuration management
 - IR-003: Single deployment pipeline
 - IR-004: Shared logging and monitoring
@@ -123,10 +125,11 @@ Analysis revealed massive over-engineering across the system:
 **Adopt Full Library-First Architecture** using native library features for all major components:
 
 1. **Model Management:** vLLM with `swap_space=4` replaces 570 lines of custom code
-2. **Error Handling:** Tenacity library replaces 700 lines of custom abstractions
-3. **UI Framework:** Keep Reflex (no NiceGUI migration needed)
-4. **Scraping:** Crawl4AI primary with JobSpy fallback
-5. **Task Management:** Pure RQ with native retry capabilities
+2. **Retry Logic:** Tenacity library (v9.0.0+) replaces all custom retry implementations
+3. **Error Handling:** Tenacity async patterns integrate with HTTPX and LangGraph workflows
+4. **UI Framework:** Use Streamlit (proven for data applications)
+5. **Scraping:** Crawl4AI primary with JobSpy fallback
+6. **Task Management:** Pure RQ with Tenacity retry capabilities
 
 ## Related Decisions
 
@@ -143,7 +146,7 @@ Analysis revealed massive over-engineering across the system:
 
 ```mermaid
 graph LR
-    A[User] --> B[Reflex UI]
+    A[User] --> B[Streamlit UI]
     B --> C[RQ Tasks]
     C --> D[Crawl4AI/JobSpy]
     C --> E[vLLM]
@@ -152,7 +155,7 @@ graph LR
     
     subgraph "Library Features"
         G[vLLM swap_space]
-        H[Reflex WebSockets]
+        H[Streamlit Fragments]
         I[Tenacity Retries]
         J[RQ Job Queue]
         K[Crawl4AI AI Extraction]
@@ -189,28 +192,46 @@ class SimpleModelManager:
         )
 ```
 
-**Error Handling (30 lines vs 700):**
+**Retry Logic with Tenacity (20 lines vs 700):**
 
 ```python
-from tenacity import retry, stop_after_attempt, wait_exponential
+from tenacity import retry, stop_after_attempt, wait_exponential_jitter
+import httpx
 
-@retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=10))
-def inference_with_fallback(prompt: str):
+# Async HTTP requests with built-in retries
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential_jitter(min=1, max=10)
+)
+async def api_request_with_retries(client: httpx.AsyncClient, url: str):
+    async with client.get(url) as response:
+        response.raise_for_status()
+        return response.json()
+
+# LLM inference with fallback  
+@retry(stop=stop_after_attempt(2), wait=wait_exponential_jitter(min=1, max=5))
+async def inference_with_fallback(prompt: str):
     try:
-        return local_llm.generate(prompt)
+        return await local_llm.agenerate(prompt)
     except Exception:
-        return cloud_api.generate(prompt)  # Simple fallback
+        return await cloud_api.agenerate(prompt)
 ```
 
-**Real-time UI (10 lines vs 200+ NiceGUI migration):**
+**Real-time UI (Streamlit fragments vs complex WebSocket management):**
 
 ```python
-class State(rx.State):
-    jobs: list = []
+import streamlit as st
+
+@st.fragment(run_every="2s")
+def background_task_status_fragment():
+    """Real-time updates using Streamlit's built-in fragments."""
+    if not st.session_state.get("scraping_active", False):
+        return
     
-    async def update_jobs(self, new_job):
-        self.jobs.append(new_job)
-        yield  # Automatic WebSocket update!
+    # Progress tracking with automatic updates
+    progress_info = st.session_state.get("task_progress", {})
+    st.progress(progress_info.get("progress", 0.0))
+    st.info(f"🔄 {progress_info.get('message', 'Processing...')}")
 ```
 
 **Scraping (20 lines vs 400):**
@@ -247,9 +268,15 @@ scraping:
   primary: "crawl4ai"  # 90% of cases
   fallback: "jobspy"   # Job boards only
   
-retries:
+tenacity:
   max_attempts: 3
-  backoff_multiplier: 2
+  min_wait: 1
+  max_wait: 10
+  jitter: true
+  
+retries:
+  http_codes: [500, 502, 503, 504, 429]
+  exceptions: ["httpx.ConnectError", "httpx.TimeoutException"]
 ```
 
 ## Testing
@@ -258,7 +285,7 @@ retries:
 
 1. **vLLM Integration Tests:** Verify swap_space functionality
 2. **Tenacity Retry Tests:** Confirm error handling patterns  
-3. **Reflex WebSocket Tests:** Validate real-time updates
+3. **Streamlit Fragment Tests:** Validate real-time updates
 4. **Crawl4AI Extraction Tests:** Test AI-powered scraping
 
 ### Integration Testing
@@ -299,10 +326,13 @@ retries:
 ### Dependencies
 
 - **vLLM:** Model inference and memory management
-- **Tenacity:** Retry logic and error handling
-- **Modern UI Framework:** WebSocket support and real-time updates
+- **Tenacity (v9.0.0+):** Comprehensive retry logic with async support, jitter, and integration patterns
+- **HTTPX:** Async HTTP client with Tenacity transport integration
+- **Streamlit:** UI framework with built-in real-time fragments and session state
 - **Crawl4AI:** AI-powered web scraping
-- **RQ:** Background job processing
+- **SQLModel:** Database ORM with built-in validation
+- **JobSpy:** Job board scraping fallback library
+- **LangGraph:** AI agent workflow orchestration with retry policies
 
 ## References
 
@@ -318,8 +348,8 @@ retries:
 
 - Updated to new template format for consistency
 - Standardized cross-references to **ADR-XXX** format
-- Enhanced decision framework with quantitative scoring
-- Added comprehensive references section
+- Updated decision framework with quantitative scoring
+- Added complete references section
 - Updated status to "Accepted" reflecting implementation reality
 
 ### v1.0 - August 18, 2025
