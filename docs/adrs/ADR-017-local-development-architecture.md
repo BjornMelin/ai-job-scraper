@@ -3,9 +3,7 @@
 ## Metadata
 
 **Status:** Accepted  
-**Version:** 4.0  
-**Date:** August 20, 2025  
-**Authors:** Bjorn Melin  
+**Version/Date:** v4.0 / 2025-08-20
 
 ## Title
 
@@ -19,152 +17,38 @@ Define local development architecture using Streamlit framework with SQLite data
 
 The AI job scraper requires a local development architecture that balances rapid iteration with maintainable patterns while supporting the core functionality of job scraping, data management, and AI processing.
 
-### Current Implementation Reality
+The application currently uses Streamlit with `st.navigation()` for page routing, SQLite with SQLModel for development simplicity, `st.session_state` for application state, Streamlit-native patterns with `st.fragment()` auto-refresh for background processing, and local and cloud model support with configurable providers.
 
-The application currently uses:
-
-- **UI Framework**: Streamlit with `st.navigation()` for page routing
-- **Database**: SQLite with SQLModel for development simplicity  
-- **State Management**: `st.session_state` for application state
-- **Background Processing**: Streamlit-native patterns with `st.fragment()` auto-refresh
-- **AI Integration**: Local and cloud model support with configurable providers
-
-### Key Development Requirements
-
-1. **Rapid Setup**: Single command development environment startup
-2. **Hot Reload**: Streamlit native hot reload for fast iteration
-3. **Simple Debugging**: Direct access to logs and database for troubleshooting
-4. **Library-First**: Minimize custom code through proven library patterns
-5. **Local-First**: Optimize for local development over production complexity
+Key development constraints include rapid setup with single command startup, Streamlit native hot reload for fast iteration, direct access to logs and database for troubleshooting, library-first approach to minimize custom code, and local-first optimization over production complexity.
 
 ## Decision Drivers
 
-1. **Solution Leverage (35% weight)**: Maximize use of proven Streamlit library capabilities vs custom implementations
-2. **Application Value (30% weight)**: Enable effective local development workflow for job scraper functionality
-3. **Maintenance & Cognitive Load (25% weight)**: Minimize complexity through library-first patterns
-4. **Architectural Adaptability (10% weight)**: Support future scaling and deployment options
-
-## Related Requirements
-
-**Functional Requirements (FR)**:
-
-- FR-1: Support job scraping workflow with UI feedback
-- FR-2: Enable job data display and management through Streamlit interface
-- FR-3: Provide background task monitoring using `st.fragment()` patterns
-- FR-4: Support both local AI and cloud processing configurations
-
-**Non-Functional Requirements (NFR)**:
-
-- NFR-1: Single command startup for development environment
-- NFR-2: Hot reload functionality for rapid iteration cycles
-- NFR-3: Simple debugging through direct log and database access
-- NFR-4: Minimal setup complexity for new developers
-
-**Performance Requirements (PR)**:
-
-- PR-1: UI responsiveness under 500ms for typical development operations
-- PR-2: Background task updates with 2-second refresh cycle via fragments
-- PR-3: Database queries optimized for development data volumes (100-1000 jobs)
-
-**Integration Requirements (IR)**:
-
-- IR-1: Coordinate with **ADR-012** background task management patterns
-- IR-2: Support **ADR-013** database synchronization requirements
-- IR-3: Interface with **ADR-009** AI processing configurations
+- **Solution Leverage**: Maximize use of proven Streamlit library capabilities vs custom implementations
+- **Application Value**: Enable effective local development workflow for job scraper functionality  
+- **Maintenance & Cognitive Load**: Minimize complexity through library-first patterns
+- **Architectural Adaptability**: Support future scaling and deployment options
 
 ## Alternatives
 
-### Alternative A: Complex Multi-Framework Approach
+- **A: Complex Multi-Framework Approach** — Maximum theoretical flexibility with different UI frameworks, advanced background processing capabilities / High maintenance overhead with multiple frameworks, complex setup and debugging, over-engineering for local development needs
+- **B: Minimal Single-File Approach** — Extremely simple setup and debugging, no framework dependencies, fast startup and iteration / Limited UI capabilities for job management interface, no built-in state management or navigation, difficult to scale beyond basic functionality  
+- **C: Streamlit-Native Development Architecture** — Native Python integration with existing codebase, built-in navigation, state management, and components, library-first approach with `st.fragment()` for background tasks, proven patterns for AI/ML applications / Single framework dependency (acceptable for development), browser-based interface only (acceptable for development use)
+- **D: FastAPI + React Development Stack** — Modern web development patterns, separation of frontend and backend concerns, high performance capabilities / Two-language development stack (Python + JavaScript), complex setup and build process, over-engineering for local development needs
 
-**Pros:**
+### Decision Framework
 
-- Maximum theoretical flexibility with different UI frameworks
-- Advanced background processing capabilities
-- Multiple deployment options
-
-**Cons:**
-
-- High maintenance overhead with multiple frameworks
-- Complex setup and debugging
-- Over-engineering for local development needs
-
-**Technical Assessment:** Adds unnecessary complexity for development workflow
-
-### Alternative B: Minimal Single-File Approach
-
-**Pros:**
-
-- Extremely simple setup and debugging
-- No framework dependencies
-- Fast startup and iteration
-
-**Cons:**
-
-- Limited UI capabilities for job management interface
-- No built-in state management or navigation
-- Difficult to scale beyond basic functionality
-
-**Technical Assessment:** Too limited for comprehensive job scraper requirements
-
-### Alternative C: Streamlit-Native Development Architecture
-
-**Pros:**
-
-- Native Python integration with existing codebase
-- Built-in navigation, state management, and components
-- Library-first approach with `st.fragment()` for background tasks
-- Proven patterns for AI/ML applications
-
-**Cons:**
-
-- Single framework dependency (acceptable for development)
-- Browser-based interface only (acceptable for development use)
-
-**Technical Assessment:** Optimal balance of simplicity and functionality
-
-### Alternative D: FastAPI + React Development Stack
-
-**Pros:**
-
-- Modern web development patterns
-- Separation of frontend and backend concerns
-- High performance capabilities
-
-**Cons:**
-
-- Two-language development stack (Python + JavaScript)
-- Complex setup and build process
-- Over-engineering for local development needs
-
-**Technical Assessment:** Excessive complexity for development workflow
-
-## Decision Framework
-
-| Criteria | Weight | Alt A | Alt B | Alt C | Alt D |
-|----------|--------|-------|-------|-------|-------|
-| Solution Leverage | 35% | 6 | 3 | 9 | 7 |
-| Application Value | 30% | 7 | 4 | 9 | 8 |
-| Maintenance & Cognitive Load | 25% | 4 | 9 | 8 | 5 |
-| Architectural Adaptability | 10% | 8 | 3 | 7 | 9 |
-| **Weighted Score** | **100%** | **5.9** | **4.7** | **8.6** | **6.9** |
+| Model / Option | Solution Leverage (Weight: 35%) | Application Value (Weight: 30%) | Maintenance & Cognitive Load (Weight: 25%) | Architectural Adaptability (Weight: 10%) | Total Score | Decision |
+|---|---|---|---|---|---|---|
+| A: Complex Multi-Framework | 6.0 | 7.0 | 4.0 | 8.0 | 5.9 | ❌ Rejected |
+| B: Minimal Single-File | 3.0 | 4.0 | 9.0 | 3.0 | 4.7 | ❌ Rejected |
+| **C: Streamlit-Native** | **9.0** | **9.0** | **8.0** | **7.0** | **8.6** | **✅ Selected** |
+| D: FastAPI + React | 7.0 | 8.0 | 5.0 | 9.0 | 6.9 | ❌ Rejected |
 
 ## Decision
 
-> **Selected: Streamlit-Native Development Architecture**
+We will adopt **Streamlit-Native Development Architecture** to address local development architecture requirements by implementing Streamlit framework with SQLite database, emphasizing rapid iteration and maintainable patterns.
 
-Implement local development architecture using Streamlit framework with SQLite database, emphasizing rapid iteration and maintainable patterns based on current implementation patterns.
-
-## Related Decisions
-
-- **ADR-012**: Background Task Management - provides Streamlit-native background processing patterns
-- **ADR-013**: Database Synchronization - defines SQLModel + SQLite integration approach  
-- **ADR-009**: LLM Selection Strategy - establishes AI processing configuration patterns
-- **ADR-021**: Local Development Performance - complements with performance optimization patterns
-- **ADR-022**: Docker Containerization - provides containerized development environment setup
-
-## Design
-
-### Architecture Overview
+## High-Level Architecture
 
 ```mermaid
 graph TB
@@ -220,104 +104,84 @@ graph TB
     ROUTER --> CLOUD
 ```
 
-### Core Implementation Patterns
+## Related Requirements
 
-#### 1. Streamlit Application Structure
+### Functional Requirements
 
-```python
-# src/main.py - Main application entry point
-import streamlit as st
-from src.ui.pages import jobs, companies, scraping, settings
+- FR-1: Support job scraping workflow with UI feedback
+- FR-2: Enable job data display and management through Streamlit interface
+- FR-3: Provide background task monitoring using `st.fragment()` patterns
+- FR-4: Support both local AI and cloud processing configurations
 
-def main():
-    """Main application entry point with st.navigation routing."""
-    st.set_page_config(
-        page_title="AI Job Scraper",
-        layout="wide",
-        initial_sidebar_state="expanded"
-    )
-    
-    # Define pages using st.navigation()
-    pages = [
-        st.Page("ui/pages/jobs.py", title="Jobs", icon="📋", default=True),
-        st.Page("ui/pages/companies.py", title="Companies", icon="🏢"),
-        st.Page("ui/pages/scraping.py", title="Scraping", icon="🔍"),
-        st.Page("ui/pages/settings.py", title="Settings", icon="⚙️"),
-    ]
-    
-    # Streamlit handles navigation automatically
-    pg = st.navigation(pages)
-    pg.run()
+### Non-Functional Requirements
 
-if __name__ == "__main__":
-    main()
-```
+- NFR-1: Single command startup for development environment
+- NFR-2: Hot reload functionality for rapid iteration cycles
+- NFR-3: Simple debugging through direct log and database access
+- NFR-4: Minimal setup complexity for new developers
 
-#### 2. Background Task Management with Fragments
+### Performance Requirements
 
-```python
-# src/ui/utils/background_helpers.py - Streamlit-native background tasks
-import streamlit as st
+- PR-1: UI responsiveness under 500ms for typical development operations
+- PR-2: Background task updates with 2-second refresh cycle via fragments
+- PR-3: Database queries optimized for development data volumes (100-1000 jobs)
 
-@st.fragment(run_every="2s")
-def background_task_status_fragment():
-    """Fragment for displaying background task status with auto-refresh."""
-    if not is_scraping_active():
-        return
-    
-    st.markdown("### ⚙️ Background Tasks")
-    
-    # Display current task progress
-    scraping_status = st.session_state.get("scraping_status", "Unknown")
-    task_progress = get_scraping_progress()
-    
-    if task_progress:
-        st.progress(
-            task_progress.get("progress", 0.0),
-            text=f"{task_progress.get('message', 'Processing...')}"
-        )
-    else:
-        st.info(f"Status: {scraping_status}")
+### Integration Requirements
 
-def start_background_scraping():
-    """Start background scraping using Streamlit session state."""
-    st.session_state.scraping_active = True
-    st.session_state.scraping_status = "Starting scraping..."
-    # Trigger rerun to update UI
-    st.rerun()
-```
+- IR-1: Coordinate with **ADR-012** background task management patterns
+- IR-2: Support **ADR-013** database synchronization requirements
+- IR-3: Interface with **ADR-009** AI processing configurations
 
-#### 3. Modal System with st.dialog
+## Related Decisions
+
+- **ADR-012** (Background Task Management): Provides Streamlit-native background processing patterns
+- **ADR-013** (Database Synchronization): Defines SQLModel + SQLite integration approach  
+- **ADR-009** (LLM Selection Strategy): Establishes AI processing configuration patterns
+- **ADR-021** (Local Development Performance): Complements with performance optimization patterns
+- **ADR-022** (Docker Containerization): Provides containerized development environment setup
+
+## Design
+
+### Architecture Overview
+
+The Streamlit-native development architecture implements a single-framework approach with clear separation of concerns through pages, state management, and service layers. The architecture leverages Streamlit's built-in navigation, fragment-based background processing, and session state management.
+
+### Implementation Details
+
+**Streamlit Application Structure**: Main entry point uses `st.navigation()` for page routing with configuration for wide layout and expanded sidebar state. Pages are defined as separate modules with icons and default selection.
+
+**Background Task Management**: Implements `st.fragment()` decorators with `run_every="2s"` parameter for auto-refreshing background task status displays. Session state manages scraping status and progress tracking with `st.rerun()` for UI updates.
+
+**Modal System**: Uses `st.dialog()` decorator for job details modals with configurable width and structured content display using columns and markdown formatting.
+
+### Configuration
 
 ```python
-# src/ui/pages/jobs.py - Job details modal using st.dialog
-import streamlit as st
+# src/main.py - Application configuration
+st.set_page_config(
+    page_title="AI Job Scraper",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-@st.dialog("Job Details", width="large")
-def show_job_details_modal(job):
-    """Show job details in a modal dialog."""
-    st.header(job.title)
-    st.subheader(job.company)
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        st.write(f"**Location:** {job.location or 'Remote'}")
-    with col2:
-        st.write(f"**Posted:** {job.posted_date}")
-    
-    st.markdown("**Description:**")
-    st.write(job.description)
-    
-    # Action buttons
-    if st.button("Mark as Applied"):
-        # Update job status logic
-        st.success("Job marked as applied!")
-        st.rerun()
+# Pages configuration with st.navigation()
+pages = [
+    st.Page("ui/pages/jobs.py", title="Jobs", icon="📋", default=True),
+    st.Page("ui/pages/companies.py", title="Companies", icon="🏢"),
+    st.Page("ui/pages/scraping.py", title="Scraping", icon="🔍"),
+    st.Page("ui/pages/settings.py", title="Settings", icon="⚙️"),
+]
 ```
 
 ## Testing
 
-### Testing Strategy
+**Testing Strategy**: Implement pytest-based testing with mocked Streamlit context for component-level validation, page rendering and navigation flow integration tests, fragment auto-refresh verification, and session state management testing.
+
+**Unit Tests**: Component-level testing with mocked Streamlit context using `pytest.fixture` for session state setup and fragment execution validation without exceptions.
+
+**Integration Tests**: Page rendering and navigation flow validation ensuring all pages are importable and contain required render methods.
+
+**Fragment Testing**: Background task and auto-refresh component verification with session state consistency checks.
 
 ```python
 # tests/ui/test_streamlit_components.py
@@ -327,35 +191,15 @@ from src.ui.utils.background_helpers import background_task_status_fragment
 
 def test_background_task_fragment():
     """Test background task status fragment rendering."""
-    # Mock session state
     st.session_state.scraping_active = True
     st.session_state.scraping_status = "Testing"
-    
-    # Test fragment execution (no exceptions)
     background_task_status_fragment()
-    
-    # Verify session state remains consistent
     assert st.session_state.scraping_active is True
-
-def test_navigation_pages():
-    """Test that all navigation pages are importable."""
-    from src.ui.pages import jobs, companies, scraping, settings
-    
-    # Verify pages have required components
-    assert hasattr(jobs, 'render_jobs_page')
-    assert hasattr(companies, 'render_companies_page')
 ```
-
-### Development Testing Patterns
-
-- **Unit Tests**: Component-level testing with mocked Streamlit context
-- **Integration Tests**: Page rendering and navigation flow validation
-- **Fragment Testing**: Background task and auto-refresh component verification
-- **Session State Tests**: State management and persistence validation
 
 ## Consequences
 
-### Positive
+### Positive Outcomes
 
 - **Rapid Development**: Single command startup with `streamlit run src/main.py`
 - **Library-First Implementation**: Maximum leverage of Streamlit capabilities
@@ -363,28 +207,19 @@ def test_navigation_pages():
 - **Framework Consistency**: All UI components use proven Streamlit patterns
 - **Hot Reload**: Native Streamlit hot reload for fast iteration cycles
 
-### Negative
+### Negative Consequences / Trade-offs
 
 - **Browser Dependency**: Requires web browser for all development interaction
 - **Session State Limitations**: Browser refresh clears application state
 - **Single-User Development**: Streamlit optimized for single developer workflow
 
-### Maintenance
+### Ongoing Maintenance & Considerations
 
-**Required Monitoring**:
+**Required Monitoring**: Page load performance and responsiveness, fragment auto-refresh functionality and resource usage, session state management and memory consumption, background task execution and completion tracking.
 
-- Page load performance and responsiveness
-- Fragment auto-refresh functionality and resource usage
-- Session state management and memory consumption
-- Background task execution and completion tracking
+**Update Triggers**: Streamlit framework updates affecting navigation or fragment behavior, new Streamlit features that could simplify existing patterns, changes in background task requirements affecting fragment design.
 
-**Update Triggers**:
-
-- Streamlit framework updates affecting navigation or fragment behavior
-- New Streamlit features that could simplify existing patterns
-- Changes in background task requirements affecting fragment design
-
-**Dependencies**:
+### Dependencies
 
 - Streamlit framework for core UI functionality
 - SQLModel and SQLite for data persistence
@@ -392,26 +227,14 @@ def test_navigation_pages():
 
 ## References
 
-- [Streamlit Documentation](https://docs.streamlit.io/)
-- [Streamlit Navigation Guide](https://docs.streamlit.io/library/api-reference/navigation)
-- [Streamlit Fragments Documentation](https://docs.streamlit.io/library/api-reference/execution-flow/st.fragment)
-- [SQLModel Documentation](https://sqlmodel.tiangolo.com/)
-- [SQLite Optimization Guide](https://www.sqlite.org/optoverview.html)
+- [Streamlit Documentation](https://docs.streamlit.io/) - Official documentation for Streamlit framework and API reference
+- [Streamlit Navigation Guide](https://docs.streamlit.io/library/api-reference/navigation) - Guide for implementing `st.navigation()` page routing
+- [Streamlit Fragments Documentation](https://docs.streamlit.io/library/api-reference/execution-flow/st.fragment) - Documentation for background task fragments with auto-refresh
+- [SQLModel Documentation](https://sqlmodel.tiangolo.com/) - SQLModel library for Python SQL database interactions
+- [SQLite Optimization Guide](https://www.sqlite.org/optoverview.html) - Performance optimization techniques for SQLite database
 
 ## Changelog
 
-### v4.0 - August 20, 2025
-
-- **BREAKING**: Corrected framework references from Reflex to accurate Streamlit implementation
-- Added complete 13-section template structure with decision framework
-- Removed over-complex Docker configurations inappropriate for local development
-- Added accurate Streamlit implementation patterns based on actual codebase
-- Simplified architecture to focus on local development requirements
-
-### v3.0 - August 19, 2025
-
-- Previous version with incorrect Reflex framework references
-
-### v2.0 - August 18, 2025
-
-- Initial local development architecture concepts
+- **v4.0 (2025-08-20)**: Applied official ADR template structure with 13 sections, corrected framework references from Reflex to accurate Streamlit implementation, added decision framework with weighted scoring, simplified architecture to focus on local development requirements
+- **v3.0 (2025-08-19)**: Previous version with incorrect Reflex framework references
+- **v2.0 (2025-08-18)**: Initial local development architecture concepts
