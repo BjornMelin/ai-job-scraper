@@ -91,7 +91,7 @@ graph LR
 
 - **FR-019:** The system must support local model inference on RTX 4090 Laptop GPU hardware with automatic optimization
 - **FR-020:** The system must provide automatic memory and hardware management without manual configuration
-- **FR-021:** The system must support multiple model sizes (4B, 8B, 32B) and types (base, instruct) with seamless switching
+- **FR-021:** The system must support single model (Qwen3-4B-Instruct-2507-FP8) with optimized FP8 quantization
 
 ### Non-Functional Requirements
 
@@ -103,7 +103,7 @@ graph LR
 
 - **PR-019:** Inference latency must be optimal for RTX 4090 Laptop GPU hardware with automatic Flash Attention 2 utilization
 - **PR-020:** Memory utilization must not exceed 90% VRAM on RTX 4090 Laptop GPU (14.4GB of 16GB) with FP8 quantization and automatic CPU swap capabilities
-- **PR-021:** Model switching must complete under 60 seconds with automatic memory cleanup
+- **PR-021:** Single model initialization must complete under 60 seconds with automatic memory management
 
 ### Integration Requirements
 
@@ -263,13 +263,13 @@ from src.inference.simple_stack import SimpleInferenceStack
 @pytest.mark.asyncio
 async def test_vllm_initialization():
     """Verify that vLLM engine initializes with minimal configuration."""
-    stack = SimpleInferenceStack("/models/qwen3-4b-instruct")
+    stack = SimpleInferenceStack("/models/qwen3-4b-instruct-2507-fp8")
     
     # Verify health check passes
     assert stack.health_check() is True
     
     # Verify configuration matches expectations
-    assert stack.llm.llm_engine.model_config.model == "/models/qwen3-4b-instruct"
+    assert stack.llm.llm_engine.model_config.model == "/models/qwen3-4b-instruct-2507-fp8"
 
 @pytest.mark.asyncio
 async def test_inference_performance():
@@ -289,7 +289,7 @@ async def test_inference_performance():
 @pytest.mark.asyncio
 async def test_memory_management():
     """Verify automatic memory management with swap_space."""
-    stack = SimpleInferenceStack("/models/qwen3-8b-instruct")
+    stack = SimpleInferenceStack("/models/qwen3-4b-instruct-2507-fp8")
     
     # Test multiple concurrent requests to verify memory handling
     tasks = []
@@ -313,19 +313,19 @@ def test_configuration_validation():
     # swap_space and gpu_memory_utilization are internal - test via behavior
 
 @pytest.mark.integration
-async def test_model_switching():
-    """Test model switching capabilities with memory cleanup."""
-    # Test switching between models
-    stack_4b = SimpleInferenceStack("/models/qwen3-4b-instruct")
-    result_4b = await stack_4b.generate("Test", max_tokens=10)
+async def test_single_model_reliability():
+    """Test single model reliability and memory management."""
+    # Test single model performance
+    stack = SimpleInferenceStack("/models/qwen3-4b-instruct-2507-fp8")
     
-    # Cleanup and switch to different model
-    del stack_4b
-    stack_8b = SimpleInferenceStack("/models/qwen3-8b-instruct")
-    result_8b = await stack_8b.generate("Test", max_tokens=10)
+    # Multiple requests to test stability
+    results = []
+    for i in range(5):
+        result = await stack.generate(f"Test {i}", max_tokens=10)
+        results.append(result)
     
-    assert result_4b is not None
-    assert result_8b is not None
+    assert len(results) == 5
+    assert all(result is not None for result in results)
 ```
 
 ## Consequences

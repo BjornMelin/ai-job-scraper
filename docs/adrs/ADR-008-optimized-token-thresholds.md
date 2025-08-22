@@ -72,13 +72,16 @@ flowchart TD
     H --> I
     I --> J[Unified JSON Output]
     
-    subgraph "Local Models"
-        K[Qwen3-4B: 8K context]
-        L[Qwen3-8B: 8K context]
+    subgraph "Local Model"
+        K[Qwen3-4B-Instruct-2507-FP8]
+    end
+    
+    subgraph "Cloud Model"
+        L[gpt-4o-mini]
     end
     
     D -.-> K
-    D -.-> L
+    E -.-> L
 ```
 
 ## Related Requirements
@@ -129,15 +132,16 @@ graph LR
     F --> H[Unified Output]
     G --> H
     
-    subgraph "Local Models"
-        I[Qwen3-4B: 8K context]
-        J[Qwen3-8B: 8K context]
-        K[Qwen3-14B: 8K context]
+    subgraph "Local Model"
+        I[Qwen3-4B-Instruct-2507-FP8]
+    end
+    
+    subgraph "Cloud Model"
+        J[gpt-4o-mini]
     end
     
     D -.-> I
-    D -.-> J
-    D -.-> K
+    E -.-> J
 ```
 
 ### Implementation Details
@@ -157,9 +161,7 @@ class ThresholdConfig:
     local_threshold: int = 8000
     safety_margin: float = 0.8  # Use 80% of max context for safety
     model_contexts: dict[str, int] = field(default_factory=lambda: {
-        "qwen3-4b": 8_192,  # Optimal context for job postings (98% coverage)
-        "qwen3-8b": 8_192,   # Job-optimized context length
-        "qwen3-14b": 8_192,  # Job-optimized context length
+        "qwen3-4b-instruct-2507-fp8": 8_192,  # Optimal context for job postings (98% coverage)
     })
     encoding_name: str = "cl100k_base"  # OpenAI-compatible encoding
 
@@ -194,7 +196,7 @@ class TokenThresholdRouter:
             estimated = len(content.split()) * 1.3  # Conservative word-to-token ratio
             return int(estimated)
     
-    def should_process_locally(self, content: str, model: str = "qwen3-4b") -> bool:
+    def should_process_locally(self, content: str, model: str = "qwen3-4b-instruct-2507-fp8") -> bool:
         """Determine if content should be processed locally."""
         token_count = self.count_tokens(content)
         
@@ -208,7 +210,7 @@ class TokenThresholdRouter:
         
         return token_count <= capacity_limit
     
-    def get_routing_decision(self, content: str, model: str = "qwen3-4b") -> dict:
+    def get_routing_decision(self, content: str, model: str = "qwen3-4b-instruct-2507-fp8") -> dict:
         """Get detailed routing decision with metrics."""
         token_count = self.count_tokens(content)
         local_decision = self.should_process_locally(content, model)
@@ -298,8 +300,8 @@ class ThresholdValidator:
     
     def estimate_cloud_cost(self, tokens: int) -> float:
         """Estimate cloud API cost for token count."""
-        # GPT-4 pricing: ~$0.01 per 1K tokens (input + output)
-        return (tokens / 1000) * 0.015  # Conservative estimate with output tokens
+        # gpt-4o-mini pricing: ~$0.00015 per 1K input tokens, ~$0.0006 per 1K output tokens
+        return (tokens / 1000) * 0.0015  # Conservative estimate with output tokens
 ```
 
 ### Integration with Hybrid Strategy
@@ -318,7 +320,7 @@ class HybridProcessingStrategy:
         self.local_processor = None  # Initialize with local model
         self.cloud_processor = None  # Initialize with cloud API
     
-    async def process_content(self, content: str, model: str = "qwen3-4b") -> dict:
+    async def process_content(self, content: str, model: str = "qwen3-4b-instruct-2507-fp8") -> dict:
         """Process content with automatic routing."""
         # Get routing decision
         decision = self.router.get_routing_decision(content, model)
@@ -340,14 +342,14 @@ class HybridProcessingStrategy:
         }
     
     async def process_locally(self, content: str, model: str) -> dict:
-        """Process using local model."""
-        # Implementation depends on ADR-009 local model setup
-        return await self.local_processor.process(content, model)
+        """Process using local Qwen3-4B-FP8 model."""
+        # Single local model processing
+        return await self.local_processor.process(content)
     
     async def process_via_cloud(self, content: str) -> dict:
-        """Process using cloud API."""
-        # Fallback to cloud processing for large content
-        return await self.cloud_processor.process(content)
+        """Process using gpt-4o-mini cloud API."""
+        # Fallback to gpt-4o-mini for large content
+        return await self.cloud_processor.process(content, model="gpt-4o-mini")
     
     def evaluate_result_quality(self, result: dict) -> float:
         """Evaluate processing result quality (0.0-1.0)."""

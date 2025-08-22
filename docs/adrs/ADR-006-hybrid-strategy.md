@@ -11,7 +11,7 @@ Hybrid LLM Strategy with Local Models and Cloud Fallback
 
 ## Description
 
-Simple threshold-based hybrid strategy using local models for tasks under 8000 tokens with cloud fallback, leveraging vLLM and tenacity for complexity management.
+Simple binary hybrid strategy using single local model (Qwen/Qwen3-4B-Instruct-2507-FP8) for tasks under 8000 tokens with single cloud fallback (gpt-4o-mini), leveraging vLLM and tenacity for complexity management.
 
 ## Context
 
@@ -83,8 +83,8 @@ Research revealed the original 1000 token threshold was massively suboptimal:
 
 **Use Simple Threshold-Based Hybrid Strategy:**
 
-1. **Local First:** Tasks under 8000 tokens use local models
-2. **Cloud Fallback:** Tasks over 8000 tokens or local failures use GPT-5
+1. **Local First:** Tasks under 8000 tokens use Qwen/Qwen3-4B-Instruct-2507-FP8
+2. **Cloud Fallback:** Tasks over 8000 tokens or local failures use gpt-4o-mini
 3. **Let Libraries Handle:** vLLM for local, tenacity for cloud retries
 
 ### Functional Requirements
@@ -123,24 +123,16 @@ graph LR
     F -->|Retry Failed| D
     D -->|Success/Failure| E
     
-    subgraph "Local Models (vLLM)"
-        G[Qwen3-8B - General Tasks]
-        H[Qwen3-4B-Thinking - Complex Reasoning]
-        I[Qwen3-14B - Maximum Capability]
+    subgraph "Local Model (vLLM)"
+        G[Qwen3-4B-Instruct-2507-FP8]
     end
     
-    subgraph "Cloud Models"
-        J[GPT-5-nano - Standard]
-        K[GPT-5-mini - Medium]
-        L[GPT-5 - Large]
+    subgraph "Cloud Model (OpenAI)"
+        H[gpt-4o-mini]
     end
     
     C -.-> G
-    C -.-> H  
-    C -.-> I
-    D -.-> J
-    D -.-> K
-    D -.-> L
+    D -.-> H
 ```
 
 ## Related Requirements
@@ -172,28 +164,19 @@ graph TB
     I -->|Retry Success| H
     I -->|All Retries Failed| E
     
-    E --> J[Cloud Model Selection]
-    J --> K[OpenAI API Call]
-    K -->|Success/Failure| H
+    E --> J[OpenAI API Call]
+    J -->|Success/Failure| H
     
-    subgraph "Local Models (vLLM)"
-        L[Qwen3-8B: General Tasks]
-        M[Qwen3-4B-Thinking: Complex Reasoning]
-        N[Qwen3-14B: Maximum Capability]
+    subgraph "Local Model (vLLM)"
+        K[Qwen3-4B-Instruct-2507-FP8]
     end
     
-    subgraph "Cloud Models (OpenAI)"
-        O[GPT-5-nano: < 50K input, < 2K output]
-        P[GPT-5-mini: < 200K input, < 8K output]
-        Q[GPT-5: Large input/output]
+    subgraph "Cloud Model (OpenAI)"
+        L[gpt-4o-mini]
     end
     
-    F -.-> L
-    F -.-> M
-    F -.-> N
-    J -.-> O
-    J -.-> P
-    J -.-> Q
+    F -.-> K
+    E -.-> L
 ```
 
 ### Implementation Details
@@ -226,9 +209,8 @@ class SimpleHybridStrategy:
         # Simple threshold decision
         if token_count < self.threshold:
             try:
-                # Try local first
-                model = self.local_manager.get_model(task_complexity=0.5)
-                result = model.generate(prompt, max_tokens=max_tokens)
+                # Try local Qwen3-4B-FP8 first
+                result = self.local_manager.generate(prompt, max_tokens=max_tokens)
                 return result[0].outputs[0].text
             except Exception as e:
                 print(f"Local failed: {e}, falling back to cloud")
@@ -239,15 +221,10 @@ class SimpleHybridStrategy:
             return self.cloud_fallback(prompt, max_tokens)
     
     def cloud_fallback(self, prompt: str, max_tokens: int) -> str:
-        """Cloud processing with automatic model selection."""
+        """Cloud processing with single model."""
         
-        # Simple model selection for cloud
-        if max_tokens > 2000:
-            model = "gpt-5"  # Large output
-        elif self.count_tokens(prompt) > 50000:
-            model = "gpt-5-mini"  # Large input
-        else:
-            model = "gpt-5-nano"  # Standard task
+        # Single cloud model for all tasks
+        model = "gpt-4o-mini"  # Only cloud model option
         
         return self.cloud_client.generate(prompt, model=model, max_tokens=max_tokens)
 ```
@@ -261,13 +238,11 @@ hybrid:
   threshold_tokens: 8000  # Local if under this, cloud if over (optimized for Qwen3-4B capabilities)
   
   local:
-    default_model: "general"  # From ADR-004
+    model: "Qwen/Qwen3-4B-Instruct-2507-FP8"  # Only local model
     fallback_to_cloud: true
     
   cloud:
-    small_tasks: "gpt-5-nano"    # < 50K input, < 2K output
-    medium_tasks: "gpt-5-mini"   # < 200K input, < 8K output  
-    large_tasks: "gpt-5"         # Large input/output
+    model: "gpt-4o-mini"  # Only cloud model
     
   retry:
     max_attempts: 3
@@ -320,8 +295,8 @@ hybrid:
 
 ### Dependencies
 
-- **Local Models:** vLLM model manager from ADR-004
-- **Cloud API:** OpenAI GPT-5 API client with tenacity retry handling
+- **Local Model:** Qwen/Qwen3-4B-Instruct-2507-FP8 via vLLM from ADR-004
+- **Cloud API:** OpenAI gpt-4o-mini API client with tenacity retry handling
 - **Retry Logic:** Tenacity library for fallback and error recovery
 - **Tokenization:** tiktoken for accurate token counting and routing decisions
 
@@ -329,7 +304,7 @@ hybrid:
 
 - [vLLM Documentation](https://docs.vllm.ai/)
 - [Tenacity Retry Patterns](https://tenacity.readthedocs.io/)
-- [OpenAI GPT-5 API Documentation](https://platform.openai.com/docs/api-reference)
+- [OpenAI API Documentation](https://platform.openai.com/docs/api-reference)
 - [tiktoken Token Counting](https://github.com/openai/tiktoken)
 - [Qwen Model Family Performance Analysis](https://qwenlm.github.io/blog/qwen-2-5/)
 

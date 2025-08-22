@@ -111,7 +111,7 @@ flowchart TD
 
 ## Related Decisions
 
-- **ADR-004** (Local AI Integration): Provides Qwen3-8B-Instruct model configurations and quantization settings (GPTQ-8bit) used by Outlines for structured generation
+- **ADR-004** (Local AI Integration): Provides Qwen3-4B-Instruct-2507-FP8 model configurations and FP8 quantization settings used by Outlines for structured generation
 - **ADR-005** (Inference Stack): Establishes vLLM infrastructure that Outlines integrates with natively, including GPU memory utilization and context window settings
 - **ADR-006** (Hybrid Strategy): Defines hybrid LLM approach that structured output generation supports for both local and cloud models
 - **ADR-014** (Hybrid Scraping Strategy): Consumes guaranteed structured JSON output from this decision to eliminate parsing errors in the scraping pipeline
@@ -191,12 +191,12 @@ class StructuredJobExtractor:
     """Robust job extraction with Outlines + vLLM integration"""
     
     def __init__(self):
-        # Initialize vLLM with Outlines - configurations per ADR-004 and ADR-005
+        # Initialize vLLM with Outlines - using simplified single model per ADR-009
         self.model = models.vllm(
-            "Qwen/Qwen3-8B-Instruct",
-            max_model_len=131072,  # Qwen3-8B supports 131K context
-            gpu_memory_utilization=0.85,
-            quantization="gptq",  # GPTQ-8bit for optimal performance
+            "Qwen/Qwen3-4B-Instruct-2507-FP8",
+            max_model_len=8192,  # Qwen3-4B optimized 8K context
+            gpu_memory_utilization=0.9,
+            quantization="fp8",  # FP8 quantization for RTX 4090 Laptop GPU
             trust_remote_code=True
         )
         
@@ -231,10 +231,10 @@ Return a JSON object with all job details."""
 
 ```env
 # Outlines + vLLM Configuration
-STRUCTURED_MODEL_NAME="Qwen/Qwen3-8B-Instruct"
-STRUCTURED_MAX_CONTEXT=131072
-STRUCTURED_GPU_MEMORY=0.85
-STRUCTURED_QUANTIZATION="gptq"
+STRUCTURED_MODEL_NAME="Qwen/Qwen3-4B-Instruct-2507-FP8"
+STRUCTURED_MAX_CONTEXT=8192
+STRUCTURED_GPU_MEMORY=0.9
+STRUCTURED_QUANTIZATION="fp8"
 STRUCTURED_MAX_TOKENS=2048
 STRUCTURED_RETRY_ATTEMPTS=3
 
@@ -371,7 +371,7 @@ class TestStructuredExtraction:
 
 - **Python**: `outlines>=0.1.0`, `pydantic>=2.0.0`, `vllm>=0.5.0`, `tenacity>=8.2.0`
 - **System**: GPU with VRAM support per **ADR-005** requirements, CUDA toolkit for vLLM
-- **Models**: Qwen3-8B-Instruct with GPTQ quantization per **ADR-004** configurations
+- **Models**: Qwen3-4B-Instruct-2507-FP8 with FP8 quantization per **ADR-004** configurations
 - **Removed**: Custom JSON parsing utilities, retry-based validation logic, manual schema validation functions
 
 ## References
@@ -387,10 +387,10 @@ class TestStructuredExtraction:
 
 ### v2.0 - August 18, 2025
 
-- Updated to use Qwen3-8B-Instruct-2507 model for optimal performance
-- Added Qwen3-14B-Instruct-2507 as backup model
+- Updated to use Qwen3-4B-Instruct-2507-FP8 as single model for simplified strategy
+- Removed multi-model selection complexity in favor of binary local/cloud routing
 - Enhanced error handling with retry mechanisms
-- Added streaming support for real-time processing
+- Optimized for 8K context and FP8 quantization
 - Improved schema caching for performance optimization
 
 ### v1.0 - August 18, 2025

@@ -141,9 +141,9 @@ graph TB
 ### Functional Requirements
 
 - **FR-034-01**: Process job descriptions up to 8K tokens with stable performance
-- **FR-034-02**: Use proven AWQ quantization for 4x memory reduction
+- **FR-034-02**: Use proven FP8 quantization for 8x memory reduction
 - **FR-034-03**: Simple LRU caching for repeated job processing
-- **FR-034-04**: Conservative GPU utilization for system stability
+- **FR-034-04**: Optimal GPU utilization (90%) enabled by FP8 memory savings for system stability
 
 ### Non-Functional Requirements
 
@@ -297,7 +297,7 @@ def test_cache_efficiency():
 
 - ❌ **Not theoretically optimal**: Could be faster with complex optimizations
 - ❌ **Simple cache only**: No semantic similarity detection
-- ❌ **Conservative GPU usage**: Only 50% utilization vs 95% possible
+- ❌ **Conservative approach**: Could theoretically achieve even higher performance with complex optimizations
 - ❌ **Fixed context**: No dynamic context sizing
 
 ### Risk Mitigation
@@ -318,8 +318,8 @@ def test_cache_efficiency():
 
 - [001-llm-optimization-critical-assessment.md](../reports/001-llm-optimization-critical-assessment.md) - Comprehensive research findings
 - [rejected-optimizations.md](../reference/rejected-optimizations.md) - Evidence for rejection decisions
-- [vLLM AWQ Documentation](https://docs.vllm.ai/en/latest/quantization/awq.html) - Quantization configuration
-- [Qwen2.5 Model Documentation](https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-AWQ) - Model specifications
+- [vLLM FP8 Documentation](https://docs.vllm.ai/en/latest/quantization/fp8.html) - FP8 quantization configuration
+- [Qwen3 Model Documentation](https://huggingface.co/Qwen/Qwen3-4B-Instruct-2507-FP8) - FP8 model specifications
 - [Python LRU Cache](https://docs.python.org/3/library/functools.html#functools.lru_cache) - Simple caching implementation
 
 ## Changelog
@@ -334,6 +334,6 @@ def test_cache_efficiency():
 
 ### v1.0 - August 22, 2025 (SUPERSEDED)
 
-- **Initial simplified LLM configuration**: Previously used AWQ quantization
+- **Initial simplified LLM configuration**: Previously used AWQ quantization, now optimized with FP8
 - **Conservative approach**: Previously used 50% GPU utilization
 - **Evidence-based research**: Comprehensive rejection of over-engineering optimizations

@@ -74,14 +74,14 @@ We will adopt **Qwen3-4B-Instruct-2507** as the primary local LLM for job extrac
 ```mermaid
 graph LR
     A[Job Content] --> B[Token Router]
-    B -->|≤8K tokens| C[Qwen3-4B Local]
-    B -->|>8K tokens| D[Cloud API]
+    B -->|≤8K tokens| C[Qwen3-4B-FP8 Local]
+    B -->|>8K tokens| D[gpt-4o-mini Cloud]
     
     C --> E[vLLM Server]
     E --> F[FP8 Quantized Model]
     F --> G[Structured Output]
     
-    D --> H[Cloud Processing]
+    D --> H[OpenAI API]
     H --> G
     
     subgraph "Local Infrastructure"
@@ -138,14 +138,14 @@ graph LR
 ```mermaid
 graph LR
     A[Job Content] --> B[Token Router]
-    B -->|≤8K tokens| C[Qwen3-4B Local]
-    B -->|>8K tokens| D[Cloud API]
+    B -->|≤8K tokens| C[Qwen3-4B-FP8 Local]
+    B -->|>8K tokens| D[gpt-4o-mini Cloud]
     
     C --> E[vLLM Server]
     E --> F[FP8 Quantized Model]
     F --> G[Structured Output]
     
-    D --> H[Cloud Processing]
+    D --> H[OpenAI API]
     H --> G
     
     subgraph "Local Infrastructure"
