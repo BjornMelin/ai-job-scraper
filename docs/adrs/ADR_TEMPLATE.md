@@ -2,8 +2,8 @@
 
 ## Metadata
 
-- Status: [Proposed | Accepted | Rejected | Deprecated | Superseded by ADR-XXXX]
-- Version/Date: [vX.Y / YYYY-MM-DD]
+**Status:** [Proposed | Accepted | Rejected | Deprecated | Superseded by ADR-XXXX]
+**Version/Date:** vX.Y / YYYY-MM-DD
 
 ## Title
 
@@ -102,14 +102,6 @@ This is the "how" section. Provide enough detail for another engineer to underst
 ### Architecture Overview
 
 <!-- Use a Mermaid diagram to visualize the new architecture, data flow, or component interaction. -->
-```mermaid
-graph TD
-    A[Start] --> B{Decision Point};
-    B -->|Yes| C[New Component];
-    B -->|No| D[Existing Path];
-    C --> E[End];
-    D --> E;
-```
 
 ### Implementation Details
 

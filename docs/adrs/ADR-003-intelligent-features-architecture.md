@@ -2,10 +2,8 @@
 
 ## Metadata
 
-**Status:** Accepted  
-**Version:** 3.0  
-**Date:** August 20, 2025  
-**Authors:** Bjorn Melin
+**Status:** Accepted
+**Version/Date:** v3.0 / 2025-08-20
 
 ## Title
 

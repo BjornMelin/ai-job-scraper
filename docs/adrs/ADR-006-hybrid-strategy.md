@@ -2,10 +2,8 @@
 
 ## Metadata
 
-**Status:** Accepted  
-**Version:** 3.0  
-**Date:** August 20, 2025  
-**Authors:** Bjorn Melin
+**Status:** Accepted
+**Version/Date:** v3.1 / 2025-08-21
 
 ## Title
 
@@ -13,7 +11,7 @@ Hybrid LLM Strategy with Local Models and Cloud Fallback
 
 ## Description
 
-Simple threshold-based hybrid strategy: use local models for tasks under 8000 tokens, cloud for larger tasks. Let vLLM and tenacity handle all complexity.
+Simple threshold-based hybrid strategy using local models for tasks under 8000 tokens with cloud fallback, leveraging vLLM and tenacity for complexity management.
 
 ## Context
 
@@ -53,32 +51,6 @@ Research revealed the original 1000 token threshold was massively suboptimal:
 - Provide simple, maintainable hybrid strategy
 - Enable privacy-first approach using local models when possible
 
-## Related Requirements
-
-### Functional Requirements
-
-- FR-016: Balance cost and performance automatically
-- FR-017: Graceful fallback to cloud when local fails
-- FR-018: Privacy-first approach (local when possible)
-
-### Non-Functional Requirements
-
-- NFR-016: Simple threshold-based routing
-- NFR-017: No complex decision algorithms
-- NFR-018: Library-handled error recovery
-
-### Performance Requirements
-
-- PR-016: Sub-second routing decisions
-- PR-017: Automatic failover under 10 seconds
-- PR-018: 98%+ local processing rate (with 8000 token threshold)
-
-### Integration Requirements
-
-- IR-016: Works with simplified model manager (ADR-004)
-- IR-017: Uses tenacity for cloud fallback
-- IR-018: Unified configuration approach
-
 ## Alternatives
 
 ### Alternative 1: Keep Complex v1.0 Routing
@@ -99,15 +71,13 @@ Research revealed the original 1000 token threshold was massively suboptimal:
 **Cons:** Less optimal than complex routing
 **Score:** 9/10
 
-## Decision Framework
+### Decision Framework
 
-| Criteria | Weight | Complex v1.0 | Local-Only | Simple Threshold |
-|----------|--------|-------------|------------|------------------|
-| Simplicity | 40% | 2 | 10 | 9 |
-| Coverage | 25% | 10 | 6 | 8 |
-| Maintainability | 20% | 3 | 8 | 10 |
-| Performance | 15% | 9 | 7 | 8 |
-| **Weighted Score** | **100%** | **5.0** | **7.75** | **8.85** |
+| Model / Option | Solution Leverage (Weight: 35%) | Application Value (Weight: 30%) | Maintenance & Cognitive Load (Weight: 25%) | Architectural Adaptability (Weight: 10%) | Total Score | Decision |
+|----------------|--------------------------------|--------------------------------|-------------------------------------------|------------------------------------------|-------------|----------|
+| **Simple Threshold Strategy** | 9.0 | 8.5 | 9.5 | 8.0 | **8.875** | ✅ **Selected** |
+| Complex v1.0 Routing | 6.0 | 9.5 | 3.0 | 9.0 | 6.725 | Rejected |
+| Local-Only Strategy | 8.0 | 6.0 | 9.0 | 6.0 | 7.100 | Rejected |
 
 ## Decision
 
@@ -117,43 +87,113 @@ Research revealed the original 1000 token threshold was massively suboptimal:
 2. **Cloud Fallback:** Tasks over 8000 tokens or local failures use GPT-5
 3. **Let Libraries Handle:** vLLM for local, tenacity for cloud retries
 
+### Functional Requirements
+
+- **FR-016:** Balance cost and performance automatically through threshold-based routing
+- **FR-017:** Graceful fallback to cloud when local processing fails
+- **FR-018:** Privacy-first approach using local models when possible
+
+### Non-Functional Requirements
+
+- **NFR-016:** **(Maintainability)** Simple threshold-based routing reduces complexity by 85% compared to v1.0
+- **NFR-017:** **(Reliability)** Library-handled error recovery using tenacity patterns
+- **NFR-018:** **(Performance)** Sub-second routing decisions with automatic failover under 10 seconds
+
+### Performance Requirements
+
+- **PR-016:** Token counting and routing decisions must complete in under 100ms
+- **PR-017:** Automatic failover to cloud must occur within 10 seconds of local failure
+- **PR-018:** Achieve 98%+ local processing rate with optimized 8000 token threshold
+
+### Integration Requirements
+
+- **IR-016:** Integration with vLLM model manager from ADR-004 for local processing
+- **IR-017:** Uses tenacity library for standardized retry logic and cloud fallback
+- **IR-018:** Unified configuration through central settings management
+
+## High-Level Architecture
+
+```mermaid
+graph LR
+    A[Task Input] --> B{Token Count Check}
+    B -->|< 8000 tokens| C[Local vLLM Processing]
+    B -->|≥ 8000 tokens| D[Cloud API Processing]
+    C -->|Success| E[Return Result]
+    C -->|Failure| F[Tenacity Retry Logic]
+    F -->|Retry Failed| D
+    D -->|Success/Failure| E
+    
+    subgraph "Local Models (vLLM)"
+        G[Qwen3-8B - General Tasks]
+        H[Qwen3-4B-Thinking - Complex Reasoning]
+        I[Qwen3-14B - Maximum Capability]
+    end
+    
+    subgraph "Cloud Models"
+        J[GPT-5-nano - Standard]
+        K[GPT-5-mini - Medium]
+        L[GPT-5 - Large]
+    end
+    
+    C -.-> G
+    C -.-> H  
+    C -.-> I
+    D -.-> J
+    D -.-> K
+    D -.-> L
+```
+
+## Related Requirements
+
 ## Related Decisions
 
-- **ADR-001** (Library-First Architecture): Foundation for library-handled complexity approach
-- **ADR-004** (Local AI Integration): Provides local model management using vLLM
-- **ADR-005** (Inference Stack): Supplies vLLM integration for local processing
-- **ADR-010** (Scraping Strategy): Consumes hybrid AI extraction capabilities
+- **ADR-001** (Library-First Architecture): Foundation for library-handled complexity approach eliminating custom routing logic
+- **ADR-004** (Local AI Integration): Provides vLLM-based model management for local processing capabilities
+- **ADR-005** (Inference Stack): Supplies vLLM integration patterns and local inference infrastructure
+- **ADR-008** (Optimized Token Thresholds): Defines the 8000 token threshold optimization that drives routing decisions
+- **ADR-010** (Scraping Strategy): Consumes hybrid AI extraction capabilities for job data processing
+- **ADR-031** (Tenacity Retry Strategy): Provides standardized error recovery patterns for cloud fallback
 
 ## Design
 
 ### Architecture Overview
 
 ```mermaid
-graph LR
-    A[Task] --> B{Token Count}
-    B -->|< 8000 tokens| C[Local vLLM]
-    B -->|≥ 8000 tokens| D[Cloud GPT-5]
-    C -->|Failure| E[Tenacity Retry]
-    E -->|Still Fails| D
+graph TB
+    A[Task Input] --> B[Token Counter]
+    B --> C{Threshold Check}
+    C -->|< 8000 tokens| D[Local Processing Path]
+    C -->|≥ 8000 tokens| E[Cloud Processing Path]
     
-    subgraph "Local Models"
-        F[Qwen3-8B base - 95% of tasks]
-        G[Qwen3-4B-Thinking-2507 - complex reasoning]
-        H[Qwen3-14B base - maximum capability]
+    D --> F[vLLM Model Manager]
+    F --> G[Local Model Inference]
+    G -->|Success| H[Return Result]
+    G -->|Failure| I[Tenacity Retry Handler]
+    I -->|Retry Success| H
+    I -->|All Retries Failed| E
+    
+    E --> J[Cloud Model Selection]
+    J --> K[OpenAI API Call]
+    K -->|Success/Failure| H
+    
+    subgraph "Local Models (vLLM)"
+        L[Qwen3-8B: General Tasks]
+        M[Qwen3-4B-Thinking: Complex Reasoning]
+        N[Qwen3-14B: Maximum Capability]
     end
     
-    subgraph "Cloud Models"  
-        H[GPT-5-nano]
-        I[GPT-5-mini]
-        J[GPT-5]
+    subgraph "Cloud Models (OpenAI)"
+        O[GPT-5-nano: < 50K input, < 2K output]
+        P[GPT-5-mini: < 200K input, < 8K output]
+        Q[GPT-5: Large input/output]
     end
     
-    C -.-> F
-    C -.-> G
-    C -.-> H
-    D -.-> H
-    D -.-> I
-    D -.-> J
+    F -.-> L
+    F -.-> M
+    F -.-> N
+    J -.-> O
+    J -.-> P
+    J -.-> Q
 ```
 
 ### Implementation Details
@@ -294,6 +334,15 @@ hybrid:
 - [Qwen Model Family Performance Analysis](https://qwenlm.github.io/blog/qwen-2-5/)
 
 ## Changelog
+
+### v3.1 - August 21, 2025
+
+- Restructured to match exact ADR template format with all 16 required sections
+- Added separate High-Level Architecture section with comprehensive flow diagram  
+- Updated Decision Framework table with project-specific weights: Solution Leverage (35%), Application Value (30%), Maintenance & Cognitive Load (25%), Architectural Adaptability (10%)
+- Enhanced Related Decisions with comprehensive cross-references including ADR-008 and ADR-031
+- Standardized Requirements sections with proper formatting and categorization
+- Improved Architecture Overview with detailed component relationships
 
 ### v3.0 - August 20, 2025
 
