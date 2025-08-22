@@ -270,9 +270,9 @@ class UnifiedScrapingService:
         """Load ScrapeGraphAI configuration with ADR-009 model."""
         return {
             "llm": {
-                "model": "ollama/qwen2.5:4b",  # ADR-009 local model
-                "temperature": 0.7,
-                "base_url": "http://localhost:11434"
+                "model": "Qwen/Qwen3-4B-Instruct-2507-FP8",  # ADR-009 local model with FP8
+                "quantization": "fp8",
+                "temperature": 0.7
             }
         }
     
@@ -299,7 +299,7 @@ class ScrapingConfig:
     jobspy_results_limit: int = 50
     
     # ScrapeGraphAI Tier Settings
-    ai_model: str = "ollama/qwen2.5:4b"  # Per ADR-009
+    ai_model: str = "Qwen/Qwen3-4B-Instruct-2507-FP8"  # Per ADR-009 with FP8
     ai_temperature: float = 0.7
     ai_timeout: int = 60
     

@@ -26,7 +26,7 @@ The AI job scraper requires a local LLM that balances processing quality, memory
 
 **Resource Constraints**:
 
-- RTX 4090 GPU with 24GB VRAM available
+- RTX 4090 Laptop GPU with 16GB VRAM available
 - Target monthly operating cost under $30 total
 - Memory efficiency for concurrent processing
 - Deployment simplicity for 1-week timeline
@@ -106,7 +106,7 @@ graph LR
 
 ### Non-Functional Requirements
 
-- **NFR-1:** **(Performance)** Memory usage must not exceed 8GB VRAM for primary operations on RTX 4090 Laptop GPU
+- **NFR-1:** **(Performance)** Memory usage must not exceed 8GB VRAM for primary operations on RTX 4090 Laptop GPU (16GB total)
 - **NFR-2:** **(Performance)** Inference speed must achieve 30+ tokens/second for typical job documents
 - **NFR-3:** **(Maintainability)** Deployment time must be under 2 hours for complete setup including model download
 - **NFR-4:** **(Adaptability)** Model swap capability must be available for A/B testing and upgrades
@@ -286,7 +286,7 @@ class ModelOptimizer:
             "context_memory_gb": context_memory,
             "batch_memory_gb": batch_memory,
             "total_memory_gb": total_memory,
-            "rtx4090_utilization": (total_memory / 24.0) * 100
+            "rtx4090_utilization": (total_memory / 16.0) * 100
         }
 ```
 

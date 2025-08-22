@@ -194,11 +194,8 @@ uv add pydantic
 ### Step 3: Download Models (30 minutes)
 
 ```bash
-# Download primary model
-huggingface-cli download Qwen/Qwen3-8B --local-dir ./models/qwen3-8b
-
-# Download fallback model  
-huggingface-cli download Qwen/Qwen3-4B-Instruct-2507 --local-dir ./models/qwen3-4b
+# Download primary model (only model needed per canonical standards)
+huggingface-cli download Qwen/Qwen3-4B-Instruct-2507-FP8 --local-dir ./models/qwen3-4b-instruct-2507-fp8
 ```
 
 ### Step 4: Start Redis (5 minutes)
@@ -249,7 +246,7 @@ class AIService:
     def __init__(self):
         self.llm = None
         
-    def load_model(self, model_path: str = "./models/qwen3-8b"):
+    def load_model(self, model_path: str = "./models/qwen3-4b-instruct-2507-fp8"):
         """Load model with vLLM native features."""
         if self.llm:
             del self.llm
@@ -258,7 +255,8 @@ class AIService:
         self.llm = LLM(
             model=model_path,
             swap_space=4,  # vLLM handles CPU offload
-            gpu_memory_utilization=0.85  # vLLM handles VRAM
+            gpu_memory_utilization=0.9,  # Aggressive with FP8 memory savings
+            quantization="fp8"  # FP8 quantization for RTX 4090 Laptop GPU
         )
     
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=10))
@@ -402,12 +400,12 @@ if __name__ == "__main__":
 ```yaml
 # AI Job Scraper - Library-First Configuration
 models:
-  primary: "./models/qwen3-8b"
-  fallback: "./models/qwen3-4b"
+  primary: "./models/qwen3-4b-instruct-2507-fp8"  # Single model per canonical standards
   
 vllm:
   swap_space: 4
-  gpu_memory_utilization: 0.85
+  gpu_memory_utilization: 0.9  # Aggressive with FP8 memory savings
+  quantization: "fp8"  # FP8 quantization for RTX 4090 Laptop GPU
   max_model_len: 8192
 
 scraping:

@@ -31,7 +31,7 @@ Analysis revealed massive over-engineering across the system:
 **vLLM Native Features:**
 
 - `swap_space=4` - Automatic CPU offload and memory management
-- `gpu_memory_utilization=0.85` - Intelligent VRAM management
+- `gpu_memory_utilization=0.9` - Aggressive VRAM management with FP8 memory savings
 - Built-in error handling and retries
 - Automatic batch optimization
 
@@ -187,7 +187,8 @@ class SimpleModelManager:
         self.current_model = LLM(
             model=model_name,
             swap_space=4,  # Automatic CPU offload
-            gpu_memory_utilization=0.85  # Intelligent VRAM use
+            gpu_memory_utilization=0.9,  # Aggressive VRAM usage with FP8 savings
+            quantization="fp8"  # FP8 quantization for memory efficiency
         )
 ```
 
@@ -256,12 +257,12 @@ async def scrape_jobs(url: str):
 ```yaml
 # Library-first configuration - mostly defaults
 models:
-  primary: "Qwen/Qwen3-8B"
-  fallback: "Qwen/Qwen3-4B-Instruct-2507"
+  primary: "Qwen/Qwen3-4B-Instruct-2507-FP8"  # Single model per canonical standards
 
 vllm:
   swap_space: 4
-  gpu_memory_utilization: 0.85
+  gpu_memory_utilization: 0.9  # Aggressive with FP8 memory savings
+  quantization: "fp8"  # FP8 quantization for RTX 4090 Laptop GPU
   
 scraping:
   primary: "crawl4ai"  # 90% of cases
