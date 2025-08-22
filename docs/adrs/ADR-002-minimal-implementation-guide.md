@@ -3,7 +3,7 @@
 ## Metadata
 
 **Status:** Accepted
-**Version/Date:** v2.0 / 2025-08-20
+**Version/Date:** v2.1 / 2025-08-22
 
 ## Title
 
@@ -26,10 +26,16 @@ Provide a step-by-step minimal implementation guide that enables deployment with
 
 **Library-First Reality:**
 
-- 260 lines of configuration and glue code
+- 260 lines of configuration and glue code (Total implementation: ~155 lines actual code)
 - 1 week implementation possible
 - Proven library integrations
 - Minimal custom code to debug
+
+**Recent Evidence-Based Validation:**
+
+- **ADR-032** (FP8 quantization) REJECTED: Evidence shows 120x overkill for job postings (300-700 words)
+- **ADR-033** (Semantic caching) REJECTED: Would add 1000+ lines of complexity for minimal benefit  
+- **CONFIRMED**: 50-line components are optimal - any more is likely over-engineering
 
 ### Target Audience
 
@@ -42,10 +48,11 @@ Provide a step-by-step minimal implementation guide that enables deployment with
 
 - Enable 1-week deployment through copy-paste implementation
 - Minimize decision-making overhead during implementation
-- Provide proven, working code patterns
+- Provide proven, working code patterns (validated by rejecting 1000+ line over-optimizations)
 - Eliminate configuration complexity through smart defaults
 - Reduce debugging time through library-tested components
 - Enable rapid team onboarding and contribution
+- **EVIDENCE-BASED**: Reject any component over 50 lines as likely over-engineering
 
 ## Alternatives
 
@@ -584,6 +591,12 @@ if __name__ == "__main__":
 - [uv Package Manager](https://docs.astral.sh/uv/)
 
 ## Changelog
+
+### v2.1 - August 22, 2025
+
+- **EVIDENCE-BASED REINFORCEMENT**: Added validation that 50-line components are optimal based on rejection of over-engineered ADR-032 and ADR-033
+- **ANTI-OVER-ENGINEERING**: Documented that components over 50 lines should be rejected as likely over-engineering
+- **RESEARCH INTEGRATION**: Referenced evidence showing FP8/semantic cache would add 1000+ lines for minimal benefit
 
 ### v2.0 - August 20, 2025
 

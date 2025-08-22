@@ -30,8 +30,8 @@ Simple threshold-based hybrid strategy using local models for tasks under 8000 t
 
 Research revealed the original 1000 token threshold was massively suboptimal:
 
-- **Qwen3-4B Context:** 262K tokens (not 32K assumed)
-- **Qwen3-8B Context:** 131K tokens - can handle full job pages
+- **Qwen3-4B Context:** 8K tokens optimized for job postings (98% coverage)
+- **Simple Context:** 8K tokens - handles typical job descriptions efficiently
 - **Cost Impact:** 8000 token threshold achieves 98% local processing vs 60% at 1000 tokens
 - **Monthly Savings:** $50/month → $2.50/month (95% cost reduction)
 
@@ -211,7 +211,7 @@ class SimpleHybridStrategy:
         self.local_manager = local_manager
         self.cloud_client = cloud_client
         self.tokenizer = tiktoken.get_encoding("cl100k_base")
-        self.threshold = 8000  # Token threshold (optimized based on Qwen3-4B 262K context capability)
+        self.threshold = 8000  # Token threshold (optimized based on 8K context covering 98% of job postings)
         
     def count_tokens(self, text: str) -> int:
         """Count tokens in text."""

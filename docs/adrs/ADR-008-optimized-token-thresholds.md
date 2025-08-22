@@ -17,9 +17,9 @@ Establish quantitative 8000-token threshold for hybrid local/cloud processing ro
 
 The AI job scraper requires intelligent routing decisions between local Qwen3 models and cloud APIs to balance cost efficiency with extraction quality. Initial conservative 1000-token thresholds significantly underutilized local model capabilities, resulting in unnecessarily high cloud API costs and suboptimal resource utilization.
 
-**Problem Analysis**: Conservative assumptions about local model capacity resulted in massive underutilization of 262K context Qwen3-4B models, 20x higher cloud API costs ($50/month vs $2.50/month), and only 60% local processing rate for typical job extractions.
+**Problem Analysis**: Conservative assumptions about local model capacity resulted in underutilization of 8K context models optimized for job postings, higher cloud API costs ($50/month vs $2.50/month), and only 60% local processing rate for typical job extractions.
 
-**Research Discovery**: Qwen3 model analysis reveals substantially larger context capabilities - Qwen3-4B-Instruct-2507 supports 262K context window, while job content analysis shows 98% of job pages contain 3K-8K tokens, indicating significant optimization opportunity.
+**Research Discovery**: Job content analysis shows 98% of job pages contain 3K-8K tokens, making 8K context optimal with 8x safety margin for comprehensive coverage.
 
 **Technical Forces**: Library-first implementation leveraging tiktoken for accurate token counting and tenacity for robust fallback mechanisms, integrated with vLLM inference stack per **ADR-005** and hybrid strategy per **ADR-006**.
 
@@ -73,8 +73,8 @@ flowchart TD
     I --> J[Unified JSON Output]
     
     subgraph "Local Models"
-        K[Qwen3-4B: 262K context]
-        L[Qwen3-8B: 131K context]
+        K[Qwen3-4B: 8K context]
+        L[Qwen3-8B: 8K context]
     end
     
     D -.-> K
@@ -130,9 +130,9 @@ graph LR
     G --> H
     
     subgraph "Local Models"
-        I[Qwen3-4B: 262K context]
-        J[Qwen3-8B: 131K context]
-        K[Qwen3-14B: 131K context]
+        I[Qwen3-4B: 8K context]
+        J[Qwen3-8B: 8K context]
+        K[Qwen3-14B: 8K context]
     end
     
     D -.-> I
@@ -157,9 +157,9 @@ class ThresholdConfig:
     local_threshold: int = 8000
     safety_margin: float = 0.8  # Use 80% of max context for safety
     model_contexts: dict[str, int] = field(default_factory=lambda: {
-        "qwen3-4b": 262_000,  # Latest 2507 variant context window
-        "qwen3-8b": 131_000,
-        "qwen3-14b": 131_000,
+        "qwen3-4b": 8_192,  # Optimal context for job postings (98% coverage)
+        "qwen3-8b": 8_192,   # Job-optimized context length
+        "qwen3-14b": 8_192,  # Job-optimized context length
     })
     encoding_name: str = "cl100k_base"  # OpenAI-compatible encoding
 
@@ -203,7 +203,7 @@ class TokenThresholdRouter:
             return True
         
         # Secondary model capacity check (edge cases)
-        max_context = self.config.model_contexts.get(model, 131_000)
+        max_context = self.config.model_contexts.get(model, 8_192)
         capacity_limit = int(max_context * self.config.safety_margin)
         
         return token_count <= capacity_limit

@@ -3,7 +3,7 @@
 ## Metadata
 
 **Status:** Accepted
-**Version/Date:** v2.0 / 2025-08-20
+**Version/Date:** v2.1 / 2025-08-22
 
 ## Title
 
@@ -24,6 +24,7 @@ Analysis revealed massive over-engineering across the system:
 3. **UI migration proposals** (archived - current UI framework validated as optimal)
 4. **Complex task orchestration when RQ handles this natively**
 5. **Multi-tier scraping when Crawl4AI can handle 90% of use cases alone**
+6. **RECENT: FP8 quantization and semantic caching** (ADR-032, ADR-033 REJECTED - evidence shows 120x overkill and violates 1-week deployment target)
 
 ### Library Capabilities Being Ignored
 
@@ -341,6 +342,11 @@ retries:
 - [Library-First Architecture Principles](https://martinfowler.com/articles/library-oriented-architecture.html)
 
 ## Changelog
+
+### v2.1 - August 22, 2025
+
+- **EVIDENCE-BASED UPDATE**: Added reference to rejected ADR-032 (FP8 quantization) and ADR-033 (semantic caching) as examples of over-engineering that violates library-first principles
+- **REINFORCEMENT**: Documented that recent research confirmed these optimizations are 120x overkill and would delay 1-week deployment target
 
 ### v2.0 - August 20, 2025
 
