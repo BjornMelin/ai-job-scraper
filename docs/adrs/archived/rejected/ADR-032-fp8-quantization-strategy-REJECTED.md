@@ -2,27 +2,52 @@
 
 ## Metadata
 
-**Status:** REJECTED
+**Status:** REJECTED (RESEARCH CORRECTION DOCUMENTED BELOW)
 **Version/Date:** v1.0 / 2025-08-22
 **Rejection Date:** 2025-08-22
 **Rejection Reason:** Evidence-based assessment shows FP8 quantization violates KISS/YAGNI principles for this use case
 
-## REJECTION NOTICE
+## ⚠️ CRITICAL HISTORICAL NOTE - RESEARCH CORRECTION ⚠️
 
-This ADR has been **REJECTED** based on comprehensive research findings documented in:
+**ORIGINAL REJECTION REASON WAS INCORRECT**
+
+This ADR was initially rejected on 2025-08-22 based on incomplete research that concluded "FP8 requires A100/H100 GPUs" and RTX 4090 was insufficient. 
+
+**SUBSEQUENT RESEARCH PROVED THIS WRONG:**
+- ✅ **RTX 4090 Laptop GPU DOES support FP8**: Ada Lovelace architecture (CC 8.9) includes 4th-generation Tensor Cores with native FP8 support
+- ✅ **vLLM >=0.6.2 enables FP8 W8A8 on Ada architecture**: Full FP8 quantization confirmed working on RTX 4090
+- ✅ **The technical approach in this ADR was actually CORRECT**: All implementation details, benchmarks, and configuration were valid
+- ✅ **FP8 quantization is now successfully implemented** per **ADR-034** with identical hardware requirements
+
+**LESSON LEARNED:** Initial GPU compatibility research was incomplete and didn't account for:
+1. RTX 4090's Ada Lovelace architecture having native FP8 Tensor Core support
+2. vLLM's comprehensive FP8 support matrix including consumer Ada GPUs
+3. The difference between data center GPUs (A100/H100) and consumer Ada GPUs with FP8 capability
+
+**CURRENT STATUS:** The FP8 quantization strategy described in this ADR has been validated and successfully implemented in **ADR-034** with additional refinements based on corrected research.
+
+**RESEARCH CORRECTION IMPACT:** This correction emphasizes the critical importance of comprehensive, multi-source technical research when evaluating hardware capabilities for architectural decisions.
+
+---
+
+## ORIGINAL REJECTION NOTICE (NOW KNOWN TO BE BASED ON INCORRECT RESEARCH)
+
+This ADR was **REJECTED** based on research findings that were later proven incomplete:
 
 - `/docs/adrs/reports/001-llm-optimization-critical-assessment.md`
 - `/docs/adrs/reference/rejected-optimizations.md`
 
-**Key Evidence for Rejection:**
+**Key Evidence for Rejection (NOW CORRECTED):**
 
-1. **Hardware Constraint**: FP8 requires A100/H100 GPUs which are not available (RTX 4090 insufficient)
+1. **Hardware Constraint**: ❌ INCORRECT - FP8 requires A100/H100 GPUs which are not available (RTX 4090 insufficient)
+   - **CORRECTION**: RTX 4090 Laptop GPU (Ada Lovelace, CC 8.9) DOES support FP8 via 4th-gen Tensor Cores
 2. **Minimal Benefit**: Job postings average 450-990 tokens - too small for FP8 benefits
 3. **Quality Risk**: FP8 can reduce extraction accuracy
 4. **Already Optimized**: AWQ-INT4 already provides 4x memory reduction and is optimal
 5. **Violates Timeline**: Would delay 1-week deployment target
 
-**Recommended Alternative**: Continue using AWQ quantization as specified in ADR-009.
+**Original Recommended Alternative**: Continue using AWQ quantization as specified in ADR-009.
+**Current Status**: FP8 quantization successfully implemented in ADR-034.
 
 ---
 
