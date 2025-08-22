@@ -179,16 +179,15 @@ uv sync
 ### Step 2: Install Dependencies (15 minutes)
 
 ```bash
-# Core dependencies - all we need
+# Core dependencies - all we need per canonical decisions
 uv add vllm
 uv add tenacity
-uv add reflex
+uv add streamlit
 uv add crawl4ai
 uv add jobspy
-uv add rq
-uv add redis
 uv add sqlmodel
 uv add pydantic
+uv add pandas
 ```
 
 ### Step 3: Download Models (30 minutes)
@@ -198,15 +197,14 @@ uv add pydantic
 huggingface-cli download Qwen/Qwen3-4B-Instruct-2507-FP8 --local-dir ./models/qwen3-4b-instruct-2507-fp8
 ```
 
-### Step 4: Start Redis (5 minutes)
+### Step 4: Verify Installation (5 minutes)
 
 ```bash
-# Using Docker
-docker run -d -p 6379:6379 redis:alpine
+# Verify Streamlit installation
+streamlit --version
 
-# Or using system package manager
-# sudo apt install redis-server
-# sudo systemctl start redis
+# Verify other key dependencies
+python -c "import vllm, streamlit, pandas; print('All dependencies installed successfully')"
 ```
 
 ## Phase 2: Copy-Paste Core Components
@@ -308,86 +306,111 @@ class ScrapingService:
         return [JobPosting(**job.dict()) for job in jobs]
 ```
 
-### ui.py (Reflex UI - 40 lines)
+### app.py (Streamlit UI - 40 lines)
 
 ```python
-import reflex as rx
-from models import JobPosting
+import streamlit as st
+import threading
+from streamlit.runtime.scriptrunner import add_script_run_ctx
+from models import JobPosting, engine
+from sqlmodel import Session
+from scraper import ScrapingService
 
-class State(rx.State):
-    jobs: list[JobPosting] = []
-    scraping: bool = False
-    
-    async def start_scraping(self, company_url: str):
-        """Start scraping with real-time updates."""
-        self.scraping = True
-        yield  # UI updates immediately
+def start_background_scraping(company_url: str):
+    """Start background scraping with threading per ADR-012."""
+    if st.session_state.get('scraping_active', False):
+        st.warning("Scraping already in progress")
+        return
         
-        scraper = ScrapingService()
+    def scraping_worker():
         try:
-            new_jobs = await scraper.scrape_company(company_url)
-            self.jobs.extend(new_jobs)
+            st.session_state.scraping_active = True
             
-            # Save to database
-            with Session(engine) as session:
-                session.add_all(new_jobs)
-                session.commit()
+            with st.status("🔍 Scraping jobs from company...", expanded=True) as status:
+                scraper = ScrapingService()
+                new_jobs = scraper.scrape_company(company_url)
+                
+                # Save to database
+                with Session(engine) as session:
+                    for job in new_jobs:
+                        session.add(JobPosting(**job))
+                    session.commit()
+                
+                # Update session state
+                if 'jobs' not in st.session_state:
+                    st.session_state.jobs = []
+                st.session_state.jobs.extend(new_jobs)
+                
+                status.update(label=f"✅ Found {len(new_jobs)} jobs!", state="complete")
+                st.rerun()  # Trigger UI update
                 
         except Exception as e:
-            print(f"Scraping failed: {e}")
+            st.error(f"Scraping failed: {str(e)}")
         finally:
-            self.scraping = False
-            yield  # Final update
+            st.session_state.scraping_active = False
+            st.rerun()
+    
+    # Create thread with Streamlit context
+    thread = threading.Thread(target=scraping_worker, daemon=True)
+    add_script_run_ctx(thread)
+    thread.start()
 
-def index():
-    """Main page with real-time scraping."""
-    return rx.vstack(
-        rx.heading("AI Job Scraper"),
-        rx.input(placeholder="Company URL", id="company_url"),
-        rx.button(
-            "Start Scraping", 
-            on_click=State.start_scraping,
-            loading=State.scraping
-        ),
-        rx.foreach(State.jobs, job_card),
-        spacing="4"
-    )
+def main():
+    """Main Streamlit app."""
+    st.title("🔍 AI Job Scraper")
+    st.write("Enter a company careers page URL to scrape job listings")
+    
+    # Input for company URL
+    company_url = st.text_input("Company URL", placeholder="https://company.com/careers")
+    
+    # Scraping controls
+    col1, col2 = st.columns([1, 3])
+    with col1:
+        if st.button("Start Scraping", disabled=st.session_state.get('scraping_active', False)):
+            if company_url:
+                start_background_scraping(company_url)
+            else:
+                st.error("Please enter a company URL")
+    
+    # Display jobs
+    if 'jobs' in st.session_state and st.session_state.jobs:
+        st.subheader(f"Found {len(st.session_state.jobs)} jobs")
+        for job in st.session_state.jobs:
+            with st.card():
+                st.write(f"**{job.get('title', 'Unknown Title')}**")
+                st.write(f"Company: {job.get('company', 'Unknown')}")
+                st.write(f"Location: {job.get('location', 'Unknown')}")
 
-def job_card(job):
-    return rx.card(
-        rx.vstack(
-            rx.text(job.title, weight="bold"),
-            rx.text(job.company),
-            rx.text(job.location),
-            spacing="2"
-        )
-    )
-
-app = rx.App()
-app.add_page(index)
+if __name__ == "__main__":
+    main()
 ```
 
 ### main.py (Application Entry - 15 lines)
 
 ```python
-import asyncio
-from rq import Worker, Queue
-from redis import Redis
+import streamlit as st
 from ai_service import AIService
-from scraper import ScrapingService
 
-def main():
-    # Load AI model
+# Initialize AI service (global for session)
+@st.cache_resource
+def initialize_ai_service():
+    """Initialize AI service with caching."""
     ai = AIService()
     ai.load_model()
+    return ai
+
+def main():
+    """Entry point for Streamlit app."""
+    # Initialize AI service
+    ai_service = initialize_ai_service()
     
-    # Start RQ worker for background tasks
-    redis_conn = Redis()
-    queue = Queue(connection=redis_conn)
-    worker = Worker([queue], connection=redis_conn)
+    # Store in session state for access across app
+    if 'ai_service' not in st.session_state:
+        st.session_state.ai_service = ai_service
     
-    # Start Reflex UI
-    worker.work()
+    # Import and run the main app
+    from app import main as run_app
+    run_app()
 
 if __name__ == "__main__":
     main()
@@ -398,7 +421,7 @@ if __name__ == "__main__":
 ### config.yaml (Complete Configuration - 25 lines)
 
 ```yaml
-# AI Job Scraper - Library-First Configuration
+# AI Job Scraper - Streamlit + Threading Configuration
 models:
   primary: "./models/qwen3-4b-instruct-2507-fp8"  # Single model per canonical standards
   
@@ -411,19 +434,26 @@ vllm:
 scraping:
   primary: "crawl4ai"
   anti_bot: true
-  caching: true
   timeout: 30
 
 database:
   url: "sqlite:///jobs.db"
   
-redis:
-  host: "localhost"
-  port: 6379
+# Threading configuration per ADR-012
+threading:
+  max_background_tasks: 1  # Single task limitation
+  timeout_seconds: 1800    # 30 minutes
   
-ui:
-  host: "0.0.0.0"
-  port: 3000
+# Streamlit configuration
+streamlit:
+  cache_ttl_seconds: 600   # 10 minutes default
+  status_updates: true     # Real-time progress
+  session_management: true # Enable session state
+  
+# Data processing (current stack per ADR-019)
+data:
+  processor: "pandas"      # Current foundation
+  scaling_path: "polars"   # Future when >5K jobs
   
 logging:
   level: "INFO"
@@ -482,7 +512,7 @@ CMD ["python", "main.py"]
 ### Deploy (1 command)
 
 ```bash
-docker-compose up -d
+streamlit run main.py
 ```
 
 ### Health Check Script (health_check.py)
@@ -494,8 +524,8 @@ import time
 def validate_deployment():
     """Quick health checks."""
     checks = [
-        ("Redis", "redis://localhost:6379", check_redis),
-        ("UI", "http://localhost:3000", check_ui),
+        ("Database", "sqlite:///jobs.db", check_database),
+        ("UI", "http://localhost:8501", check_streamlit_ui),
         ("AI Model", None, check_model),
     ]
     
@@ -506,12 +536,13 @@ def validate_deployment():
         except Exception as e:
             print(f"❌ {name}: {e}")
 
-def check_redis(url):
-    import redis
-    r = redis.from_url(url)
-    r.ping()
+def check_database(url):
+    import sqlite3
+    conn = sqlite3.connect("jobs.db")
+    conn.execute("SELECT 1")
+    conn.close()
 
-def check_ui(url):
+def check_streamlit_ui(url):
     response = requests.get(url, timeout=10)
     response.raise_for_status()
 
@@ -575,18 +606,20 @@ if __name__ == "__main__":
 
 ### Dependencies
 
-- **Core Libraries:** vLLM, Reflex, Crawl4AI, JobSpy, Tenacity, RQ
-- **Infrastructure:** Docker, Redis, NVIDIA GPU drivers
+- **Core Libraries:** vLLM, Streamlit, Crawl4AI, JobSpy, Tenacity, Pandas
+- **Infrastructure:** NVIDIA GPU drivers for local LLM (RTX 4090 Laptop GPU)
 - **Development:** uv, Git, Python 3.11+
 
 ## References
 
 - [vLLM Quick Start Guide](https://docs.vllm.ai/en/latest/getting_started/quickstart.html)
-- [Reflex Tutorial](https://reflex.dev/docs/getting-started/introduction/)
+- [Streamlit Documentation](https://docs.streamlit.io/)
+- [Streamlit Threading Guide](https://docs.streamlit.io/library/advanced-features/threading)
 - [Crawl4AI Documentation](https://crawl4ai.com/docs/first-steps/)
 - [JobSpy Usage Examples](https://github.com/Bunsly/JobSpy)
-- [Docker Compose Guide](https://docs.docker.com/compose/)
+- [Pandas User Guide](https://pandas.pydata.org/docs/user_guide/)
 - [uv Package Manager](https://docs.astral.sh/uv/)
+- [ADR-012: Background Task Management](ADR-012-background-task-management-streamlit.md)
 
 ## Changelog
 

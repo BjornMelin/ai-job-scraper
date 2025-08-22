@@ -23,12 +23,14 @@ Proposed - Supporting ADR-011 and ADR-014
 ## Related Requirements
 
 ### Functional Requirements
+
 - FR-027-01: Achieve 95%+ scraping success rate through proxy rotation
 - FR-027-02: Support JobSpy native proxy integration format
 - FR-027-03: Enable ScrapeGraphAI proxy configuration for career pages
 - FR-027-04: Implement cost monitoring and budget controls
 
 ### Non-Functional Requirements
+
 - NFR-027-01: Maintain proxy rotation health monitoring
 - NFR-027-02: Ensure cost stays within $15-25/month budget
 - NFR-027-03: Provide automatic failover for proxy failures
@@ -292,11 +294,13 @@ class ProxyMonitoringService:
 ## Related ADRs
 
 ### Integration Points
+
 - **ADR-011**: Primary proxy and anti-bot integration strategy (parent ADR)
 - **ADR-014**: 2-tier scraping strategy with JobSpy and ScrapeGraphAI integration
 - **ADR-012**: Background task management (threading.Thread handles I/O-bound proxy operations)
 
 ### Dependencies
+
 - **Environment Configuration**: Requires IPRoyal credentials and budget settings
 - **Database Schema**: Adds proxy usage tracking table
 - **Monitoring Integration**: Cost alerts and usage dashboard
@@ -304,18 +308,21 @@ class ProxyMonitoringService:
 ## Success Metrics
 
 ### Cost Targets
+
 - [ ] Monthly proxy cost stays within $15-25 budget
 - [ ] Average cost per company scrape <$0.05
 - [ ] Budget alerts trigger at 80% threshold
 - [ ] Zero cost overruns beyond monthly limit
 
 ### Performance Targets
+
 - [ ] 95%+ success rate for proxy-enabled scraping
 - [ ] <5 second proxy rotation time on failures
 - [ ] Health monitoring detects failed proxies within 1 minute
 - [ ] Cost tracking accuracy within $0.50/month
 
 ### Operational Targets  
+
 - [ ] Proxy usage dashboard available in Streamlit UI
 - [ ] Monthly usage reports generated automatically
 - [ ] High-priority companies always get proxy allocation
@@ -324,6 +331,7 @@ class ProxyMonitoringService:
 ## Consequences
 
 ### Positive Outcomes
+
 - **Cost-Controlled Scaling**: Strategic proxy usage keeps costs within budget
 - **High Success Rates**: Residential IPs bypass modern anti-bot detection
 - **Library-First Integration**: Native JobSpy and ScrapeGraphAI proxy support
@@ -331,6 +339,7 @@ class ProxyMonitoringService:
 - **Automatic Optimization**: Budget-aware proxy allocation decisions
 
 ### Risk Mitigation
+
 - **Budget Controls**: Hard limits prevent cost overruns
 - **Health Monitoring**: Automatic proxy rotation on failures  
 - **Usage Tracking**: Complete audit trail for optimization

@@ -35,9 +35,9 @@ This document outlines the product requirements for the **AI Job Scraper**, a lo
 
 * **FR-SCR-01: Hybrid Scraping:** The system must use `JobSpy` for structured job boards and `ScrapeGraphAI` for unstructured company career pages.
 
-* **FR-SCR-02: Background Execution:** All scraping operations must run in a non-blocking background task, allowing the user to continue interacting with the UI.
+* **FR-SCR-02: Background Execution:** All scraping operations must run via threading.Thread with st.status for real-time progress display, allowing the user to continue interacting with the UI.
 
-* **FR-SCR-03: Real-Time Progress:** The UI must display real-time, multi-level progress of scraping operations, including overall progress, per-company status, and jobs found.
+* **FR-SCR-03: Real-Time Progress:** The UI must display real-time progress using st.rerun() + session_state for non-blocking updates, including overall progress, per-company status, and jobs found.
 
 * **FR-SCR-04: Bot Evasion:** The system must employ bot evasion strategies, including proxy rotation and user-agent randomization.
 
@@ -74,9 +74,9 @@ This document outlines the product requirements for the **AI Job Scraper**, a lo
 
 ## 4. Non-Functional Requirements
 
-* **NFR-PERF-01: Responsiveness:** UI filter and search operations must complete in under 100ms.
+* **NFR-PERF-01: Responsiveness:** UI filter and search operations must complete in under 100ms via st.cache_data (Streamlit native caching).
 
-* **NFR-PERF-02: Scalability:** The application must perform efficiently with a database of over 5,000 job records.
+* **NFR-PERF-02: Scalability:** The application must perform efficiently with a database of over 5,000 job records using the current Pandas + SQLModel + SQLite stack.
 
 * **NFR-SEC-01: Privacy:** All user data must be stored locally. No personal data should be transmitted to external services.
 
@@ -88,16 +88,34 @@ This document outlines the product requirements for the **AI Job Scraper**, a lo
 
 ## 5. Technical Stack
 
-* **Backend/Scraping:** Python 3.12+, ScrapeGraphAI, JobSpy, LangGraph, SQLModel, Groq/OpenAI SDKs
+### **Core Architecture**
+* **Local LLM:** Qwen/Qwen3-4B-Instruct-2507-FP8 with FP8 quantization
+* **Cloud LLM:** gpt-4o-mini for complex tasks (>8K tokens or high complexity)
+* **Inference Engine:** vLLM >=0.6.2 with FP8 support on RTX 4090 Laptop GPU
+* **Context Window:** 8192 tokens (optimal for job posts)
+* **GPU Utilization:** 90% with aggressive memory optimization
 
-* **UI Framework:** Streamlit (latest stable) - Python web framework with built-in components for data applications
+### **Backend/Processing**
+* **Language:** Python 3.12+ with uv package management  
+* **Background Tasks:** threading.Thread with st.status for real-time progress display
+* **Database:** SQLModel + SQLite (current), Polars + DuckDB (scaling path)
+* **Caching:** st.cache_data (Streamlit native, session-based with TTL)
+* **Scraping:** ScrapeGraphAI, JobSpy, LangGraph for hybrid approaches
 
-* **State Management:** Streamlit native session state (`st.session_state`) with auto-refresh fragments for real-time updates
+### **UI Framework**
+* **Primary:** Streamlit (latest stable) with built-in components
+* **State Management:** st.session_state with auto-refresh fragments
+* **Real-time Updates:** st.rerun() + threading for non-blocking UI
+* **Caching Strategy:** st.cache_data for <100ms filter operations
+* **Deployment:** Docker + Docker Compose
 
-* **Component Library:** Streamlit built-in components with custom UI elements
+### **Hardware Requirements**
+* **GPU:** RTX 4090 Laptop GPU with 16GB VRAM
+* **Software:** CUDA >=12.1, vLLM >=0.6.2 for FP8 support
+* **Memory:** Optimized for FP8 quantization efficiency
 
-* **Database:** SQLite (default), compatible with PostgreSQL
-
-* **Deployment:** Docker, Docker Compose
-
-* **Development:** `uv` for package management, `ruff` for linting/formatting, `pytest` for testing
+### **Development Tools**
+* **Package Management:** uv (not pip)
+* **Linting/Formatting:** ruff for Python
+* **Testing:** pytest with >80% coverage target
+* **Timeline:** 1-week deployment target achieved

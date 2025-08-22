@@ -98,7 +98,7 @@ Analysis revealed massive over-engineering across the system:
 3. **Error Handling:** Tenacity async patterns integrate with HTTPX and LangGraph workflows
 4. **UI Framework:** Use Streamlit (proven for data applications)
 5. **Scraping:** Crawl4AI primary with JobSpy fallback
-6. **Task Management:** Pure RQ with Tenacity retry capabilities
+6. **Task Management:** Python threading with Streamlit integration per ADR-012
 
 ## Related Requirements
 
@@ -146,7 +146,7 @@ Analysis revealed massive over-engineering across the system:
 ```mermaid
 graph LR
     A[User] --> B[Streamlit UI]
-    B --> C[RQ Tasks]
+    B --> C[Threading Tasks]
     C --> D[Crawl4AI/JobSpy]
     C --> E[vLLM]
     E --> F[SQLite]
@@ -154,9 +154,9 @@ graph LR
     
     subgraph "Library Features"
         G[vLLM swap_space]
-        H[Streamlit Fragments]
+        H[Streamlit st.status]
         I[Tenacity Retries]
-        J[RQ Job Queue]
+        J[Threading + add_script_run_ctx]
         K[Crawl4AI AI Extraction]
     end
     
@@ -217,21 +217,36 @@ async def inference_with_fallback(prompt: str):
         return await cloud_api.agenerate(prompt)
 ```
 
-**Real-time UI (Streamlit fragments vs complex WebSocket management):**
+**Real-time UI (Streamlit threading with st.status):**
 
 ```python
 import streamlit as st
+import threading
+from streamlit.runtime.scriptrunner import add_script_run_ctx
 
-@st.fragment(run_every="2s")
-def background_task_status_fragment():
-    """Real-time updates using Streamlit's built-in fragments."""
-    if not st.session_state.get("scraping_active", False):
+def start_background_scraping():
+    """Start background scraping with real-time updates per ADR-012."""
+    if st.session_state.get('scraping_active', False):
+        st.warning("Scraping already in progress")
         return
     
-    # Progress tracking with automatic updates
-    progress_info = st.session_state.get("task_progress", {})
-    st.progress(progress_info.get("progress", 0.0))
-    st.info(f"🔄 {progress_info.get('message', 'Processing...')}")
+    def scraping_worker():
+        try:
+            st.session_state.scraping_active = True
+            
+            with st.status("🔍 Scraping jobs...", expanded=True) as status:
+                companies = st.session_state.get('selected_companies', [])
+                for i, company in enumerate(companies):
+                    status.write(f"Processing {company} ({i+1}/{len(companies)})")
+                    # Scraping logic here
+                status.update(label="✅ Scraping completed!", state="complete")
+                    
+        finally:
+            st.session_state.scraping_active = False
+    
+    thread = threading.Thread(target=scraping_worker, daemon=True)
+    add_script_run_ctx(thread)
+    thread.start()
 ```
 
 **Scraping (20 lines vs 400):**
@@ -267,6 +282,14 @@ vllm:
 scraping:
   primary: "crawl4ai"  # 90% of cases
   fallback: "jobspy"   # Job boards only
+  
+threading:
+  max_background_tasks: 1  # Single task per ADR-012
+  timeout_seconds: 1800    # 30 minutes
+  
+streamlit:
+  cache_ttl_seconds: 600   # 10 minutes default
+  status_updates: true     # Real-time progress
   
 tenacity:
   max_attempts: 3
@@ -325,10 +348,11 @@ retries:
 
 ### Dependencies
 
-- **vLLM:** Model inference and memory management
+- **vLLM:** Model inference and memory management with FP8 quantization
 - **Tenacity (v9.0.0+):** Comprehensive retry logic with async support, jitter, and integration patterns
 - **HTTPX:** Async HTTP client with Tenacity transport integration
-- **Streamlit:** UI framework with built-in real-time fragments and session state
+- **Streamlit:** UI framework with built-in st.status, st.cache_data, and session state management
+- **Python threading:** Native background task processing with add_script_run_ctx
 - **Crawl4AI:** AI-powered web scraping
 - **SQLModel:** Database ORM with built-in validation
 - **JobSpy:** Job board scraping fallback library
@@ -339,7 +363,9 @@ retries:
 - [vLLM Documentation](https://docs.vllm.ai/)
 - [Tenacity Documentation](https://tenacity.readthedocs.io/)
 - [Crawl4AI Documentation](https://crawl4ai.com/docs/)
-- [RQ Documentation](https://rq.readthedocs.io/)
+- [Streamlit Threading Guide](https://docs.streamlit.io/library/advanced-features/threading)
+- [Python Threading Documentation](https://docs.python.org/3/library/threading.html)
+- [ADR-012: Background Task Management](ADR-012-background-task-management-streamlit.md)
 - [Library-First Architecture Principles](https://martinfowler.com/articles/library-oriented-architecture.html)
 
 ## Changelog

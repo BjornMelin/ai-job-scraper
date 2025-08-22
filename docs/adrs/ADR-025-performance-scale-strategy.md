@@ -3,7 +3,7 @@
 ## Metadata
 
 **Status:** Accepted  
-**Version/Date:** v1.1 / 2025-08-22
+**Version/Date:** v1.2 / 2025-08-22
 
 ## Title
 
@@ -11,7 +11,7 @@ Performance & Scale Strategy
 
 ## Description
 
-Implement simple performance optimization strategy to achieve sub-500ms UI response times and efficient handling of 5,000+ jobs through modern async patterns, simple caching with Redis, background task processing, and database optimizations.
+Implement simple performance optimization strategy to achieve sub-500ms UI response times and efficient handling of 5,000+ jobs through threading background tasks (per ADR-012), Streamlit native st.cache_data caching, and database optimizations with Pandas+SQLite foundation.
 
 ## Context
 
@@ -30,10 +30,10 @@ Our job scraper faces significant performance bottlenecks that prevent scalabili
 
 - Sub-500ms UI response times for cached operations
 - Handle 5,000+ jobs efficiently with conservative memory usage
-- Support concurrent scraping operations with rate limiting
-- Non-blocking user interface with real-time progress updates
-- Simple Redis caching for repeated operations
-- Scalable to 10+ concurrent users with basic resource management
+- Support concurrent scraping operations via threading (ADR-012)
+- Non-blocking user interface with real-time progress updates via st.status
+- Streamlit native st.cache_data for repeated operations
+- Efficient Pandas+SQLite foundation with DuckDB+Polars scaling path
 
 ### Technical Constraints
 
@@ -87,43 +87,49 @@ Our job scraper faces significant performance bottlenecks that prevent scalabili
 
 ## Decision
 
-We will adopt **Simple Background Tasks with Basic Caching** to address performance bottlenecks and scalability limitations. This involves using **RQ (Redis Queue)** for background task processing, **Redis** for simple caching, **FP8-optimized vLLM models**, and **asyncio + HTTPX** for concurrent operations. This decision enables sub-500ms response times, efficient handling of 5,000+ jobs while maintaining local-first architecture and KISS principles.
+We will adopt **Threading Background Tasks with Streamlit Native Caching** to address performance bottlenecks and scalability limitations. This involves using **Threading (per ADR-012)** for background task processing, **Streamlit native st.cache_data** for caching, **FP8-optimized vLLM models (per ADR-034)**, and **Pandas+SQLite** foundation with **DuckDB+Polars** scaling path. This decision enables sub-500ms response times, efficient handling of 5,000+ jobs while maintaining local-first architecture and KISS principles.
 
 ## High-Level Architecture
 
 ```mermaid
 graph TB
-    UI[Streamlit UI] --> API[FastAPI Service Layer]
-    API --> Cache[Simple Redis Cache<br/>LRU + TTL]
-    API --> DB[(SQLite<br/>Optimized)]
-    API --> Queue[RQ Task Queue]
+    UI[Streamlit UI] --> API[Streamlit Service Layer]
+    API --> Cache[st.cache_data<br/>Native Caching]
+    API --> DB[(SQLite Database<br/>Pandas Integration)]
+    API --> BG[Threading Background<br/>per ADR-012]
     
-    Queue --> Worker1[Worker 1<br/>AWQ Optimized]
-    Queue --> Worker2[Worker 2<br/>AWQ Optimized] 
+    BG --> Thread1[Background Thread<br/>st.status Progress]
+    BG --> Progress[Real-time Updates<br/>st.session_state]
     
-    Worker1 --> AIModels[vLLM FP8 Models<br/>8K Context]
-    Worker2 --> AIModels
+    Thread1 --> AIModels[vLLM FP8 Models<br/>8K Context per ADR-034]
+    Thread1 --> Scraper[Scraping Operations<br/>JobSpy/Crawl4AI]
     
-    Worker1 --> Scraper[Async Scraper<br/>HTTPX + Semaphore]
-    Worker2 --> Scraper
+    Scraper --> External[External Job APIs<br/>Company Career Pages]
     
-    Scraper --> External[External APIs<br/>JobSpy/ScrapegraphAI]
+    Progress --> UI
+    Thread1 --> Progress
     
-    Redis[(Redis<br/>Cache + Queue)] --> Cache
-    Redis --> Queue
-    
-    Progress[Progress Stream<br/>SSE] --> UI
-    Worker1 --> Progress
-    
-    subgraph "Simple Caching"
-        L1[Redis Cache<br/>10min TTL]
-        L2[Database<br/>Indexed Queries]
+    subgraph "Current Stack"
+        S1[Pandas DataFrames<br/>Data Processing]
+        S2[SQLite Database<br/>Local Storage]
+        S3[st.cache_data<br/>Session Caching]
     end
     
-    Cache --> L1
-    DB --> L2
+    DB --> S1
+    DB --> S2
+    Cache --> S3
     
-    subgraph "FP8 Optimization"
+    subgraph "Scaling Path"
+        P1[Polars DataFrames<br/>Future Performance]
+        P2[DuckDB Database<br/>Future Analytics]
+        P3[Advanced Caching<br/>Future Scale]
+    end
+    
+    S1 -.-> P1
+    S2 -.-> P2
+    S3 -.-> P3
+    
+    subgraph "FP8 Optimization per ADR-034"
         M1[Model Weights<br/>8x Memory Reduction]
         M2[Optimized GPU<br/>90% Utilization]
         M3[Optimal Context<br/>8K Tokens]
@@ -175,8 +181,8 @@ graph TB
 ## Related Decisions
 
 - **ADR-018** (Local Database Setup): Provides SQLite foundation that this decision optimizes with performance pragmas and strategic indexing
-- **ADR-022** (Docker Containerization): Enables Redis deployment infrastructure required for caching and task queue components
-- **ADR-023** (Background Job Processing): Establishes task queue patterns that this decision implements using RQ for optimal performance
+- **ADR-022** (Docker Containerization): Enables container infrastructure for Streamlit deployment with optimized resource allocation
+- **ADR-012** (Background Task Management): Establishes threading patterns that this decision coordinates with for background processing performance
 - **ADR-021** (Local Development Performance): This decision directly addresses performance requirements identified in local development optimization needs
 - **ADR-004** (Local AI Integration): AI model optimization with FP8 quantization that this decision integrates for performance scaling
 - **ADR-008** (Optimized Token Thresholds): Validates that 8K context optimization aligns with performance requirements
@@ -188,126 +194,176 @@ graph TB
 
 The performance optimization strategy implements a simple architecture with:
 
-- **Basic caching**: Redis with LRU eviction and TTL management for repeated operations
-- **FP8 quantization**: vLLM models with 8x memory reduction for stable performance
-- **RQ over Celery**: Simpler setup, sufficient for our scale, lower maintenance overhead
-- **Redis only**: Single cache layer with reasonable TTL for simplicity
-- **SQLite optimization**: Sufficient for 100k jobs with proper indexing and performance pragmas
-- **asyncio**: Native Python async without external async frameworks for concurrent operations
+- **Streamlit native caching**: st.cache_data with TTL management for repeated operations
+- **FP8 quantization**: vLLM models with 8x memory reduction per ADR-034
+- **Threading**: Simple Python threading per ADR-012, sufficient for our scale
+- **Session-based caching**: Streamlit native session state management
+- **Pandas+SQLite foundation**: Current efficient stack with DuckDB+Polars scaling path
+- **Concurrent operations**: Threading with proper Streamlit context management
 
 ### Implementation Details
 
-### 1. Simple Task Manager
+### 1. Threading Task Manager
 
-RQ-based task management with basic caching and real-time progress tracking:
+Threading-based task management with Streamlit integration per ADR-012:
 
 ```python
-class SimpleTaskManager:
-    """Simple background tasks with basic caching and AWQ optimization."""
+import threading
+import streamlit as st
+from streamlit.runtime.scriptrunner import add_script_run_ctx
+from typing import List, Dict, Any
+
+class ThreadingTaskManager:
+    """Simple background tasks with threading and st.cache_data integration."""
     
     def __init__(self):
-        self.redis = Redis(host='localhost', port=6379, decode_responses=True)
-        self.high_queue = Queue('high', connection=self.redis)
-        self.default_queue = Queue('default', connection=self.redis)
-        
-        # Simple FP8 model manager integration
-        from fp8_models import SimpleModelManager
-        self.model_manager = SimpleModelManager()
+        # Integration with ADR-034 LLM configuration
+        from src.ai.model_manager import SimpleLLMManager
+        self.model_manager = SimpleLLMManager()
     
-    def enqueue_scraping(self, companies: list, priority='default'):
-        """Enqueue scraping with simple caching and AWQ optimization."""
-        job_id = self._generate_job_id(companies)
+    def start_scraping(self, companies: List[str]) -> str:
+        """Start background scraping with real-time progress."""
+        if st.session_state.get('scraping_active', False):
+            st.warning("Scraping already in progress")
+            return None
+            
+        def scraping_worker():
+            """Background thread worker with Streamlit context."""
+            try:
+                st.session_state.scraping_active = True
+                st.session_state.scraping_progress = {'completed': 0, 'total': len(companies)}
+                
+                with st.status("🔍 Scraping jobs...", expanded=True) as status:
+                    for i, company in enumerate(companies):
+                        status.write(f"Processing {company} ({i+1}/{len(companies)})")
+                        
+                        # Use cached data when available
+                        jobs = self._scrape_company_cached(company)
+                        self._sync_jobs_to_database(jobs)
+                        
+                        # Update progress in session state
+                        st.session_state.scraping_progress['completed'] = i + 1
+                        st.rerun()  # Trigger UI update
+                        
+                    status.update(label="✅ Scraping completed!", state="complete")
+                    
+            except Exception as e:
+                st.error(f"Scraping failed: {str(e)}")
+            finally:
+                st.session_state.scraping_active = False
+                st.rerun()
         
-        # Store basic metadata
-        self.redis.hset(f"job:{job_id}", mapping={
-            'status': 'queued', 
-            'total': len(companies), 
-            'completed': 0,
-            'fp8_optimized': True
-        })
-        
-        # Enqueue with simple batching
-        job = getattr(self, f'{priority}_queue').enqueue(
-            'workers.scraping.scrape_companies_simple',
-            companies=companies, job_id=job_id,
-            model_manager=self.model_manager,
-            result_ttl=3600, timeout='30m'
-        )
-        return job_id
+        # Create thread with Streamlit context
+        thread = threading.Thread(target=scraping_worker, daemon=True)
+        add_script_run_ctx(thread)  # Essential for Streamlit compatibility
+        thread.start()
+        return "thread_started"
     
-    def get_progress(self, job_id: str) -> Dict[str, Any]:
-        """Real-time progress tracking."""
-        data = self.redis.hgetall(f"job:{job_id}")
+    @st.cache_data(ttl=600)  # 10-minute cache per canonical decisions
+    def _scrape_company_cached(self, company: str) -> List[Dict]:
+        """Scrape company jobs with Streamlit native caching."""
+        from src.scraping.scraper import ScrapingService
+        scraper = ScrapingService()
+        return scraper.scrape_company_jobs(company)
+    
+    def get_progress(self) -> Dict[str, Any]:
+        """Get current progress from session state."""
+        progress = st.session_state.get('scraping_progress', {'completed': 0, 'total': 0})
         return {
-            'status': data.get('status', 'not_found'),
-            'progress': int(data.get('completed', 0)) / int(data.get('total', 1)),
-            'completed': int(data.get('completed', 0)),
-            'total': int(data.get('total', 0))
+            'status': 'running' if st.session_state.get('scraping_active', False) else 'idle',
+            'progress': progress['completed'] / max(progress['total'], 1),
+            'completed': progress['completed'],
+            'total': progress['total']
         }
 ```
 
-### 2. Simple Redis Caching Strategy
+### 2. Streamlit Native Caching Strategy
 
-Basic Redis cache with LRU eviction and TTL management:
+Streamlit st.cache_data for efficient session-based caching:
 
 ```python
-class SimpleRedisCache:
-    """Simple Redis caching for job extraction with LRU eviction."""
+import streamlit as st
+import hashlib
+from typing import Optional, Any, Dict
+from functools import wraps
+
+class StreamlitCacheService:
+    """Streamlit native caching with session state integration."""
     
     def __init__(self):
-        self.redis = Redis(host='localhost', port=6379, decode_responses=False)
+        # Initialize cache metrics in session state
+        if 'cache_metrics' not in st.session_state:
+            st.session_state.cache_metrics = {
+                'cache_hits': 0,
+                'cache_misses': 0,
+                'total_requests': 0
+            }
+    
+    @st.cache_data(ttl=600)  # 10-minute cache per canonical decisions
+    def get_job_analysis(_self, job_content: str) -> Dict[str, Any]:
+        """Cache AI job analysis results."""
+        st.session_state.cache_metrics['total_requests'] += 1
         
-        # Performance tracking
-        self.metrics = {
+        try:
+            # Use cached LLM analysis
+            from src.ai.model_manager import SimpleLLMManager
+            llm = SimpleLLMManager()
+            result = llm.extract_job_cached(job_content)
+            st.session_state.cache_metrics['cache_hits'] += 1
+            return result
+        except Exception as e:
+            st.session_state.cache_metrics['cache_misses'] += 1
+            return {'error': str(e)}
+    
+    @st.cache_data(ttl=300)  # 5-minute cache for analytics
+    def get_company_stats(_self, company_name: str) -> Dict[str, Any]:
+        """Cache company statistics and analytics."""
+        from src.database.data_service import DataService
+        data_service = DataService()
+        return data_service.get_company_analytics(company_name)
+    
+    @st.cache_data(ttl=60)  # 1-minute cache for dashboard
+    def get_dashboard_metrics(_self) -> Dict[str, Any]:
+        """Cache dashboard metrics for real-time display."""
+        from src.database.data_service import DataService
+        data_service = DataService()
+        return {
+            'total_jobs': data_service.count_active_jobs(),
+            'companies_tracked': data_service.count_companies(),
+            'recent_jobs': data_service.get_recent_jobs_count(days=7)
+        }
+    
+    def cache_data_with_ttl(self, ttl: int = 600):
+        """Decorator for caching expensive operations."""
+        def decorator(func):
+            @st.cache_data(ttl=ttl)
+            @wraps(func)
+            def wrapper(*args, **kwargs):
+                return func(*args, **kwargs)
+            return wrapper
+        return decorator
+    
+    def get_cache_metrics(self) -> Dict[str, int]:
+        """Get current cache performance metrics."""
+        return st.session_state.get('cache_metrics', {
+            'cache_hits': 0,
+            'cache_misses': 0,
+            'total_requests': 0
+        })
+    
+    def clear_cache(self):
+        """Clear Streamlit cache and reset metrics."""
+        st.cache_data.clear()
+        st.session_state.cache_metrics = {
             'cache_hits': 0,
             'cache_misses': 0,
             'total_requests': 0
         }
-    
-    async def get_or_compute(self, content: str, extraction_func=None) -> Optional[Any]:
-        """Simple cache get with exact key matching."""
-        self.metrics['total_requests'] += 1
-        
-        # Create simple hash key
-        key = hashlib.sha256(content.encode()).hexdigest()
-        
-        # Check Redis cache
-        if cached_value := self.redis.get(key):
-            self.metrics['cache_hits'] += 1
-            return pickle.loads(cached_value)
-        
-        # Cache miss - compute if function provided
-        if extraction_func:
-            result = await extraction_func(content)
-            if result:
-                # Store with TTL (1 hour)
-                self.redis.setex(key, 3600, pickle.dumps(result))
-            return result
-            
-        self.metrics['cache_misses'] += 1
-        return None
-    
-    def set(self, key: str, value: Any, ttl: int = 3600):
-        """Store value with TTL."""
-        pickled = pickle.dumps(value)
-        self.redis.setex(key, ttl, pickled)
-    
-    def cache_result(self, ttl: int = 3600):
-        """Function result caching decorator."""
-        def decorator(func):
-            @wraps(func)
-            async def wrapper(*args, **kwargs):
-                key = hashlib.sha256(f"{func.__name__}:{args}:{kwargs}".encode()).hexdigest()
-                if cached_result := self.redis.get(key):
-                    return pickle.loads(cached_result)
-                
-                result = await func(*args, **kwargs) if asyncio.iscoroutinefunction(func) else func(*args, **kwargs)
-                self.set(key, result, ttl)
-                return result
-            return wrapper
-        return decorator
 
-# Usage: @cache.cache_result(ttl=300) for expensive operations
+# Usage examples with Streamlit integration:
+# @st.cache_data(ttl=300)
+# def expensive_analytics_operation(data):
+#     return process_large_dataset(data)
 ```
 
 ### 3. Database Optimization
@@ -476,42 +532,62 @@ class ProgressStreamer:
 
 ### Configuration
 
-**In `docker-compose.yml`:**
+**In `config.yaml`:**
 
 ```yaml
-# Minimal Local Setup for Redis and RQ Workers
-version: '3.8'
-services:
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    command: redis-server --appendonly yes
+# Performance & Scale Strategy Configuration
+performance:
+  # Threading configuration per ADR-012
+  max_background_threads: 1  # Single task limitation
+  thread_timeout_seconds: 1800  # 30 minutes for long scraping
+  
+  # Streamlit caching configuration
+  cache:
+    default_ttl_seconds: 600  # 10 minutes default
+    analytics_ttl_seconds: 300  # 5 minutes for analytics
+    dashboard_ttl_seconds: 60   # 1 minute for dashboard
     
-  worker:
-    build: .
-    command: rq worker --with-scheduler
-    depends_on:
-      - redis
-    environment:
-      - REDIS_URL=redis://redis:6379
-    volumes:
-      - ./data:/app/data
+  # Database optimization per current stack
+  database:
+    sqlite_cache_size_mb: 64
+    enable_wal_mode: true
+    connection_pool_size: 10
+    query_timeout_seconds: 30
+    
+  # Current stack: Pandas + SQLite
+  data_processing:
+    pandas_chunk_size: 1000
+    memory_limit_mb: 512
+    enable_lazy_loading: true
+    
+  # Future scaling path: Polars + DuckDB
+  scaling_path:
+    enable_polars_migration: false  # When ready to scale
+    enable_duckdb_analytics: false  # For advanced analytics
+    performance_threshold_jobs: 10000  # Trigger scaling
 
-volumes:
-  redis_data:
+# LLM configuration per ADR-034
+llm:
+  model: "Qwen/Qwen3-4B-Instruct-2507-FP8"
+  quantization: "fp8"
+  gpu_memory_utilization: 0.9
+  max_model_len: 8192
 ```
 
-**In `.env`:**
+**In `streamlit_config.toml`:**
 
-```env
-# Performance Configuration
-REDIS_URL=redis://localhost:6379
-RQ_WORKER_CONCURRENCY=4
-CACHE_TTL_SECONDS=3600
-DATABASE_CACHE_SIZE_MB=64
+```toml
+[server]
+maxUploadSize = 200
+enableCORS = false
+enableXsrfProtection = true
+
+[global]
+disableWatchdogWarning = true
+
+# Performance optimizations
+[theme]
+base = "light"
 ```
 
 ## Testing
@@ -523,15 +599,15 @@ DATABASE_CACHE_SIZE_MB=64
 | Metric | v1.0 Performance | v2.0 Target | v2.0 Achieved |
 |--------|-----------------|-------------|---------------|
 | Job load time | 6-11 seconds | <100ms (cached), <500ms (cold) | <100ms cached, <500ms cold |
-| Scraping 100 jobs | 5 minutes | <30 seconds | <30 seconds (AWQ + cache) |
-| LLM inference cost | 100% | Reasonable | Reasonable reduction through caching |
-| UI responsiveness | Blocking | Non-blocking | Non-blocking |
-| Memory usage | 500MB+ | <300MB | <300MB (AWQ optimization) |
-| Concurrent users | 1 | 50+ | 50+ |
+| Scraping 100 jobs | 5 minutes | <30 seconds | <30 seconds (FP8 + threading) |
+| LLM inference cost | 100% | Reasonable | Reduction through st.cache_data |
+| UI responsiveness | Blocking | Non-blocking | Non-blocking via threading |
+| Memory usage | 500MB+ | <300MB | <300MB (FP8 optimization) |
+| Concurrent operations | 1 | Limited threading | Single task per ADR-012 |
 | Database query time | 500-2000ms | <10ms (indexed) | <10ms |
-| Simple cache hit rate | 0% | Reasonable | For exact matches |
-| Redis performance | N/A | <10ms | <10ms lookup |
-| Overall stability | Unstable | Stable | Stable with conservative targets |
+| Streamlit cache hit rate | 0% | Session-based | For repeated operations |
+| Session state performance | N/A | <50ms | <50ms updates |
+| Overall stability | Unstable | Stable | Stable with threading approach |
 
 ### Load Testing Framework
 
@@ -635,22 +711,25 @@ async def performance_middleware(request: Request, call_next):
 
 ### Dependencies
 
-- **Redis 7+** - Core dependency for caching and task queuing
-- **vLLM 0.6.2+** - FP8-optimized inference engine for AI models
-- **RQ 1.15+** - Background task processing framework
-- **HTTPX 0.25+** - Async HTTP client for concurrent scraping
-- **asyncio** - Native Python async runtime
-- **SQLite 3.38+** - Optimized database with performance pragmas
+- **Streamlit 1.28+** - Core UI framework with native caching (st.cache_data)
+- **vLLM 0.6.2+** - FP8-optimized inference engine per ADR-034
+- **Python threading** - Native background task processing per ADR-012
+- **Pandas 2.0+** - Current data processing foundation
+- **SQLite 3.38+** - Current database with performance pragmas
+- **Polars/DuckDB** - Future scaling path when needed
 
 ## References
 
-- [RQ Documentation](https://python-rq.org/) - Comprehensive guide to Redis Queue background task processing, chosen over Celery for simplicity and sufficient scale
-- [SQLite Optimization Pragmas](https://sqlite.org/pragma.html) - Database performance tuning guide for WAL mode, cache sizing, and indexing strategies  
-- [HTTPX Async Patterns](https://www.python-httpx.org/async/) - Concurrent HTTP client patterns used for semaphore-controlled scraping operations
-- [Redis Performance Tuning](https://redis.io/docs/management/optimization/) - Cache optimization strategies for memory management and TTL configuration
-- [FastAPI Background Tasks](https://fastapi.tiangolo.com/tutorial/background-tasks/) - Integration patterns for async background processing with Streamlit UI
+- [Streamlit Caching Documentation](https://docs.streamlit.io/library/advanced-features/caching) - Comprehensive guide to st.cache_data and session state management
+- [Python Threading Documentation](https://docs.python.org/3/library/threading.html) - Native threading patterns and add_script_run_ctx() integration  
+- [SQLite Optimization Pragmas](https://sqlite.org/pragma.html) - Database performance tuning guide for WAL mode, cache sizing, and indexing strategies
+- [Pandas Performance Guide](https://pandas.pydata.org/docs/user_guide/enhancingperf.html) - Current stack optimization for data processing
+- [Polars Performance](https://docs.pola.rs/user-guide/concepts/performance/) - Future scaling path documentation
+- [ADR-012: Background Task Management](ADR-012-background-task-management-streamlit.md) - Threading patterns and Streamlit integration
+- [ADR-034: Simplified LLM Configuration](ADR-034-simplified-llm-configuration.md) - FP8 optimization and model configuration
 
 ## Changelog
 
+- **v1.3 (2025-08-22)**: **CANONICAL INTEGRATION** - Comprehensive update to align with canonical architecture decisions. REPLACED all RQ/Redis patterns with Threading (ADR-012) + st.cache_data caching. Updated architecture diagrams, implementation details, configuration, dependencies, and references. Positioned Pandas+SQLite as current stack with Polars+DuckDB scaling path. Achieved full alignment with threading background tasks and Streamlit native caching strategies.
 - **v1.1 (2025-08-22)**: **FP8 INTEGRATION** - Updated all references from AWQ to FP8 quantization following confirmation of FP8 support on RTX 4090 Laptop GPU. Improved memory savings from 4x to 8x reduction. Updated GPU utilization from conservative 50% to optimized 90%. Maintained basic Redis caching and realistic 8K context. Updated cross-references to align with current FP8 strategy.
 - **v1.0 (2025-01-20)**: Initial performance strategy definition with comprehensive benchmarking framework and multi-layer architecture design

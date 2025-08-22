@@ -7,71 +7,88 @@
 
 ## Title
 
-Simple Data Management with Polars DataFrame Processing
+Simple Data Management with Pandas Foundation and Polars Scaling Path
 
 ## Description
 
-Implement enhanced data management combining SQLModel's transactional capabilities with Polars DataFrame processing for analytical workloads, delivering 3-80x performance improvements while maintaining simplicity.
+Implement simple data management using Pandas DataFrame processing as the current foundation, with a clear scaling path to Polars when performance requirements exceed current capabilities (5,000+ jobs).
 
 ## Context
 
-The AI Job Scraper requires enhanced data management capabilities beyond basic SQLModel CRUD operations. Current system limitations include inefficient batch processing, lack of analytical capabilities, and performance bottlenecks when processing large job datasets (1000+ records).
+The AI Job Scraper requires efficient data management for current development-scale workloads while providing a clear path to performance scaling when needed.
 
-Current challenges:
+**Current Requirements (up to 5,000 jobs)**:
 
-- SQLModel handles basic CRUD but lacks analytical processing capabilities
-- Large dataset operations cause UI blocking and memory issues  
-- No efficient way to perform complex data transformations and aggregations
-- Missing integration with background processing systems for analytics
-- Performance degradation with increasing job data volume
+- SQLModel handles transactional operations efficiently
+- Pandas provides familiar, mature DataFrame processing for analytics
+- Streamlit native integration with Pandas enables responsive dashboards
+- Simple data transformations and aggregations for job insights
+- Efficient memory usage for development-scale datasets
 
-The system needs to preserve existing SQLModel functionality while adding high-performance DataFrame processing for analytical workloads. Integration with **ADR-025** (Performance & Scale Strategy) provides the foundation for analytical workflows, while **ADR-023** (Background Job Processing) enables async processing coordination.
+**Future Scaling Path (when >5,000 jobs)**:
+
+- Polars provides 3-80x performance improvements for large datasets  
+- DuckDB enables advanced analytical queries and columnar processing
+- Maintains familiar DataFrame API while dramatically improving performance
+
+The system preserves existing SQLModel functionality while adding Pandas DataFrame processing for current needs, with Polars+DuckDB available when scaling becomes necessary. Integration with **ADR-025** (Performance & Scale Strategy) coordinates background processing, and threading per **ADR-012** enables async operations.
 
 ## Decision Drivers
 
-- **Performance Requirements**: Need 3-80x improvement in analytical processing for large datasets
-- **Analytical Capabilities**: Require complex data transformations beyond basic SQL
-- **Streamlit Integration**: Must maintain UI responsiveness with enhanced insights  
+- **Current Scale Efficiency**: Handle development-scale workloads (up to 5,000 jobs) with familiar, proven tools
+- **Streamlit Integration**: Leverage native Pandas-Streamlit integration for responsive dashboards
+- **Library-First Approach**: Use mature, battle-tested Pandas ecosystem for current needs
 - **Backward Compatibility**: Preserve all existing SQLModel functionality
-- **Local Development**: Maintain simplicity while adding analytical capabilities
-- **Zero Dependencies**: Library-first approach minimizing infrastructure complexity
+- **Scaling Readiness**: Clear migration path to Polars+DuckDB when performance demands increase
+- **Simplicity First**: Start simple with Pandas, scale complexity only when necessary
 
 ## Alternatives
 
-- **A: Pure SQLModel + Raw SQL** — Simple, familiar / Limited analytical capabilities, poor performance on large datasets
-- **B: Replace SQLModel with Polars Only** — High performance, unified interface / Breaks existing code, complex CRUD operations  
-- **C: SQLModel + Polars Integration** — Best of both worlds, performance gains, backward compatible / Additional complexity, memory overhead
+- **A: Pure SQLModel + Raw SQL** — Simple, familiar / Limited analytical capabilities, poor performance scaling
+- **B: Start with Polars Immediately** — High performance from start / Over-engineering for current scale, higher complexity, steeper learning curve  
+- **C: Pandas Foundation with Polars Scaling Path** — Right-sized for current needs, familiar tools, clear upgrade path / Need migration planning when scaling
 
 ### Decision Framework
 
 | Model / Option | Solution Leverage (Weight: 35%) | Application Value (Weight: 30%) | Maintenance & Cognitive Load (Weight: 25%) | Architectural Adaptability (Weight: 10%) | Total Score | Decision |
 | -------------- | ------------------------------- | ------------------------------- | ------------------------------------------ | ---------------------------------------- | ----------- | -------- |
-| **SQLModel + Polars Integration** | 9.2 | 9.5 | 8.0 | 9.0 | **8.95** | ✅ **Selected** |
+| **Pandas Foundation with Polars Scaling Path** | 9.0 | 8.5 | 9.0 | 9.5 | **8.93** | ✅ **Selected** |
 | Pure SQLModel + Raw SQL | 6.0 | 5.5 | 9.0 | 7.0 | 6.53 | Rejected |
-| Replace with Polars Only | 8.5 | 7.0 | 4.0 | 6.0 | 6.58 | Rejected |
+| Start with Polars Immediately | 8.5 | 7.0 | 4.0 | 6.0 | 6.58 | Rejected |
 
 ## Decision
 
-We will adopt **SQLModel + Polars Integration** to address analytical processing limitations. This involves using **Polars DataFrames** for high-performance analytics configured with **Apache Arrow** zero-copy data exchange and coordination with **ADR-025's** performance strategy.
+We will adopt **Pandas Foundation with Polars Scaling Path** to address current analytical needs while providing clear performance scaling when required. This involves using **Pandas DataFrames** for current data processing (up to 5,000 jobs) with **Polars+DuckDB** available as the scaling path when performance demands exceed current capabilities.
 
 ## High-Level Architecture
 
 ```mermaid
 graph TB
-    subgraph "Data Management Layer"
+    subgraph "Current Data Stack (up to 5K jobs)"
         A[Streamlit UI] --> B[Data Service]
         B --> C[SQLModel Layer]
-        B --> D[Polars Analytics Layer]
+        B --> D[Pandas Analytics Layer]
         C --> E[SQLite Database]
-        D --> F[Apache Arrow Bridge]
-        D --> G[Background Processing]
+        D --> F[Streamlit Integration]
+        D --> G[Threading Background per ADR-012]
+    end
+    
+    subgraph "Future Scaling Path (>5K jobs)"
+        H[Polars Analytics Layer] -.-> I[DuckDB Database]
+        H -.-> J[Apache Arrow Bridge]
+        H -.-> K[Advanced Performance]
     end
     
     subgraph "Data Flow"
-        H[Job Scrapers] --> B
-        B --> I[Real-time UI Updates]
-        B --> J[Analytics Processing]
+        L[Job Scrapers] --> B
+        B --> M[Real-time UI Updates]
+        D --> M
+        D -.-> H
     end
+    
+    style D fill:#90EE90
+    style H fill:#FFB6C1,stroke-dasharray: 5 5
+    style I fill:#FFB6C1,stroke-dasharray: 5 5
 ```
 
 ## Related Requirements
@@ -110,51 +127,67 @@ graph TB
 
 ### Architecture Overview
 
-The data management system operates on a dual-layer architecture: SQLModel handles transactional operations while Polars processes analytical workloads. Apache Arrow provides zero-copy data exchange between layers, coordinated through performance optimization patterns.
+The data management system uses Pandas as the current foundation for analytical processing, with SQLModel handling transactional operations. When scaling needs arise (>5,000 jobs), the system provides a clear migration path to Polars+DuckDB for advanced performance.
 
 ### Implementation Details
 
 **In `src/services/data_service.py`:**
 
 ```python
-import polars as pl
+import pandas as pd
+import streamlit as st
 from sqlmodel import Session, select
 from src.models.database import engine, JobModel
 from typing import List, Dict, Any, Optional
 
 class DataService:
-    """Data management with Polars DataFrame processing."""
+    """Data management with Pandas DataFrame processing and Streamlit integration."""
     
     def __init__(self):
         self.session_factory = lambda: Session(engine)
     
-    async def save_jobs_batch_with_analytics(self, jobs_data: List[dict]) -> Dict[str, Any]:
-        """Batch processing with analytics integration."""
+    @st.cache_data(ttl=300)  # 5-minute cache for analytics
+    def save_jobs_batch_with_analytics(_self, jobs_data: List[dict]) -> Dict[str, Any]:
+        """Batch processing with analytics integration and caching."""
         # Step 1: Traditional SQLModel save (preserved)
-        saved_jobs = self.save_jobs_batch(jobs_data)
+        saved_jobs = _self.save_jobs_batch(jobs_data)
         
-        # Step 2: Polars DataFrame processing
-        df = pl.DataFrame(jobs_data)
-        insights = self._generate_insights(df)
+        # Step 2: Pandas DataFrame processing (current foundation)
+        df = pd.DataFrame(jobs_data)
+        insights = _self._generate_insights(df)
         
         return {
             "saved_jobs_count": len(saved_jobs),
             "insights": insights,
             "performance_metrics": {
                 "dataframe_rows": len(df),
-                "memory_usage_mb": df.estimated_size() / (1024 * 1024)
+                "memory_usage_mb": df.memory_usage(deep=True).sum() / (1024 * 1024)
             }
         }
     
-    def get_analytical_dataframe(self, filters: Optional[Dict] = None) -> pl.DataFrame:
-        """Get jobs data as Polars DataFrame for processing."""
-        with self.session_factory() as session:
+    @st.cache_data(ttl=600)  # 10-minute cache for data retrieval
+    def get_analytical_dataframe(_self, filters: Optional[Dict] = None) -> pd.DataFrame:
+        """Get jobs data as Pandas DataFrame for processing with Streamlit caching."""
+        with _self.session_factory() as session:
             query = select(JobModel)
             if filters:
-                # Apply filters
+                # Apply basic filters for current implementation
                 pass
             jobs = session.exec(query).all()
-            return pl.DataFrame([job.dict() for job in jobs])
+            return pd.DataFrame([job.dict() for job in jobs])
+    
+    def get_scaling_recommendations(self, current_job_count: int) -> Dict[str, Any]:
+        """Recommend when to migrate to Polars+DuckDB scaling path."""
+        if current_job_count > 5000:
+            return {
+                "should_migrate": True,
+                "reason": "Job count exceeds 5,000 - consider Polars+DuckDB migration",
+                "migration_benefits": "3-80x performance improvement for analytics"
+            }
+        return {
+            "should_migrate": False,
+            "current_efficiency": "Pandas handles current scale efficiently"
+        }
 
 # Global service instance
 data_service = DataService()

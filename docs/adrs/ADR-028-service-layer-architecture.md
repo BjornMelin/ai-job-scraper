@@ -17,6 +17,7 @@ Proposed - Supporting Local-First Architecture
 **Current State**: The application has grown from simple Streamlit pages to complex business logic requiring clean separation of concerns. Direct database access from UI components creates tight coupling and testing difficulties.
 
 **Research Findings**: Streamlit applications benefit from service layer patterns that provide:
+
 - Clear separation between UI logic and business logic
 - Testable service interfaces independent of Streamlit context
 - Consistent error handling and transaction management
@@ -27,12 +28,14 @@ Proposed - Supporting Local-First Architecture
 ## Related Requirements
 
 ### Functional Requirements
+
 - FR-028-01: Separate business logic from UI rendering concerns
 - FR-028-02: Provide testable service interfaces for all major operations
 - FR-028-03: Support dependency injection for different database configurations
 - FR-028-04: Handle transactional operations with proper rollback support
 
 ### Non-Functional Requirements  
+
 - NFR-028-01: Maintain Streamlit performance with efficient session management
 - NFR-028-02: Enable unit testing without Streamlit dependencies
 - NFR-028-03: Provide clear error handling and user feedback patterns
@@ -525,11 +528,13 @@ class TestJobService:
 ## Related ADRs
 
 ### Integration Points
+
 - **ADR-012**: Background task management (threading.Thread integrates with service layer)
 - **ADR-019**: Simple data management (service layer provides abstraction)
 - **ADR-014**: 2-tier scraping strategy (ScrapingService orchestrates both tiers)
 
 ### Dependencies
+
 - **SQLModel**: Database ORM and model definitions
 - **Streamlit**: UI framework with caching and session state
 - **Repository Pattern**: Data access layer abstraction
@@ -537,18 +542,21 @@ class TestJobService:
 ## Success Metrics
 
 ### Code Quality Targets
+
 - [ ] 90%+ test coverage for all service classes
 - [ ] Zero direct database access from Streamlit pages
 - [ ] All business logic testable without Streamlit context
 - [ ] Consistent error handling across all services
 
 ### Performance Targets
+
 - [ ] Service method response times <100ms for cached operations
 - [ ] Database connection pooling efficiency >95%
 - [ ] Streamlit cache hit rate >80% for common operations
 - [ ] Memory usage stable across session boundaries
 
 ### Maintainability Targets
+
 - [ ] Clear separation between UI, service, and data layers
 - [ ] New features require minimal cross-layer changes
 - [ ] Service interfaces documented with examples
@@ -557,6 +565,7 @@ class TestJobService:
 ## Consequences
 
 ### Positive Outcomes
+
 - **Clean Architecture**: Clear separation of concerns between layers
 - **Testability**: Business logic isolated from Streamlit dependencies  
 - **Consistency**: Standardized patterns for error handling and caching
@@ -564,6 +573,7 @@ class TestJobService:
 - **Maintainability**: Service interfaces make changes predictable and contained
 
 ### Risk Mitigation
+
 - **Session Management**: Proper cleanup of database connections
 - **Error Handling**: Consistent user feedback without exposing internals
 - **Testing Strategy**: Comprehensive unit tests for business logic
