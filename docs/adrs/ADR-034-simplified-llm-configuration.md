@@ -39,12 +39,14 @@ Based on evidence, the following were rejected:
 **CRITICAL CORRECTION:** ADR-032 was initially rejected due to incomplete GPU compatibility research, but the technical approach was actually correct and has been validated and incorporated into this ADR.
 
 **Historical Timeline:**
+
 1. **Initial Research (2025-08-22)**: Incorrectly concluded "FP8 requires A100/H100 GPUs" and RTX 4090 was insufficient → Rejected ADR-032
 2. **User Challenge & Deeper Research**: Led to comprehensive investigation of RTX 4090 FP8 capabilities
 3. **Research Correction**: Discovered RTX 4090 Laptop GPU (Ada Lovelace, CC 8.9) DOES support FP8 quantization
 4. **Integration**: ADR-032's validated FP8 approach incorporated into this simplified configuration
 
 **Key Research Corrections:**
+
 - ✅ **RTX 4090 FP8 Support Confirmed**: Ada Lovelace architecture includes 4th-generation Tensor Cores with native FP8 support
 - ✅ **vLLM Compatibility Verified**: Version 0.6.2+ provides full FP8 W8A8 support on Ada GPUs  
 - ✅ **Performance Benefits Validated**: 8x memory reduction enables 90% GPU utilization without quality loss
@@ -295,18 +297,21 @@ environment:
 ### FP8 Quantization Benefits Confirmed
 
 **Memory Optimization (Validated on RTX 4090 Laptop GPU):**
+
 - ✅ **Model weights**: 2.9GB → 1.2GB (58% reduction) - *Confirmed in production testing*
 - ✅ **KV cache**: 50% reduction vs FP16 through fp8_e5m2 dtype - *Benchmarked with 8K contexts*  
 - ✅ **Total VRAM usage**: ~8-10GB vs 13-14GB (AWQ baseline) - *Measured during job processing*
 - ✅ **GPU utilization**: 90% safely achieved with FP8 memory savings - *Sustained operation validated*
 
 **Inference Performance (Benchmarked):**
+
 - ✅ **Throughput**: 30-50% improvement over FP16 - *Measured: 85 tokens/sec vs 65 tokens/sec*
 - ✅ **Latency**: <1.5s target maintained for job processing - *Average: 1.2s for 600-token jobs*
 - ✅ **Batch processing**: Improved performance with reduced memory pressure
 - ✅ **Context handling**: 8K context processes 98% of jobs with 8x safety margin
 
 **Hardware Validation Method:**
+
 - ✅ **Ada architecture FP8 support**: Confirmed via NVIDIA RTX 4090 specification (CC 8.9, 4th-gen Tensor Cores)
 - ✅ **vLLM FP8 compatibility**: Verified through vLLM v0.6.2+ release notes and GitHub issue tracking
 - ✅ **Real-world testing**: Stable operation confirmed on RTX 4090 Laptop with 16GB VRAM
@@ -315,12 +320,14 @@ environment:
 ### Quality Assurance
 
 **Extraction Accuracy (Maintained):**
+
 - ✅ **Quality retention**: <2% accuracy loss compared to FP16 baseline (*within acceptable threshold*)
 - ✅ **Structured output**: JSON parsing reliability maintained across FP8 quantization
 - ✅ **Complex extraction**: Multi-field job data extraction quality preserved
 - ✅ **Edge case handling**: Robust performance on varied job posting formats
 
 **Benchmarking Configuration Used:**
+
 ```python
 # Validation test configuration from ADR-032
 BENCHMARK_CONFIG = {
@@ -409,23 +416,27 @@ def test_cache_efficiency():
 ### v1.2 - August 22, 2025 - RESEARCH CORRECTION & ADR-032 INTEGRATION
 
 **🔧 CRITICAL RESEARCH CORRECTION:**
+
 - **ADR-032 VINDICATION**: Documented research correction - ADR-032 was incorrectly rejected based on incomplete GPU compatibility research
 - **HISTORICAL CONTEXT**: Added comprehensive timeline showing how initial "FP8 requires A100/H100" research was proven wrong
 - **TECHNICAL INTEGRATION**: Enhanced configuration with validated FP8 details from ADR-032 research
 
 **🚀 ENHANCED FP8 CONFIGURATION:**
+
 - **COMPREHENSIVE CONFIG**: Added FP8-specific optimizations (`enable_chunked_prefill`, `calculate_kv_scales`, `swap_space`)
 - **PERFORMANCE METRICS**: Integrated detailed benchmarking data from ADR-032 (58% memory reduction, 30-50% throughput improvement)
 - **HARDWARE VALIDATION**: Added complete hardware requirements validation including Tensor Cores specification
 - **QUALITY ASSURANCE**: Documented <2% accuracy loss maintenance with comprehensive testing methodology
 
 **📊 PERFORMANCE VALIDATION SECTION:**
+
 - **BENCHMARKED METRICS**: Real-world performance data from RTX 4090 testing
 - **PRODUCTION VALIDATION**: 48-hour sustained operation testing results  
 - **QUALITY RETENTION**: Comprehensive accuracy preservation analysis
 - **HARDWARE COMPATIBILITY**: Complete Ada Lovelace FP8 support verification
 
 **🔗 CROSS-REFERENCE UPDATES:**
+
 - **ADR-032 HISTORICAL REFERENCE**: Added proper reference to ADR-032 as validated source for FP8 approach
 - **RESEARCH LESSON**: Documented importance of comprehensive multi-source technical research
 

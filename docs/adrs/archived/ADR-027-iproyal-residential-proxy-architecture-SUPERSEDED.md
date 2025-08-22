@@ -1,8 +1,8 @@
-# ADR-027: IPRoyal Residential Proxy Architecture
+# ADR-027: IPRoyal Residential Proxy Architecture [SUPERSEDED]
 
 ## Title
 
-IPRoyal Residential Proxy Integration with JobSpy and ScrapeGraphAI
+IPRoyal Residential Proxy Integration with JobSpy and ScrapeGraphAI [SUPERSEDED BY ADR-011]
 
 ## Version/Date
 
@@ -10,9 +10,19 @@ IPRoyal Residential Proxy Integration with JobSpy and ScrapeGraphAI
 
 ## Status
 
-Proposed - Supporting ADR-011 and ADR-014
+**SUPERSEDED BY ADR-011** - All operational monitoring capabilities integrated into ADR-011 v2.1 (2025-08-22)
 
 ## Context
+
+**SUPERSESSION NOTICE**: This ADR has been superseded by **ADR-011 v2.1** (2025-08-22). All operational monitoring capabilities, including ProxyUsageTracker, ProxyMonitoringService, cost optimization logic, and database schema, have been integrated into the main proxy integration ADR.
+
+**Integration Rationale**: The architectural components defined in this ADR were determined to be core operational features rather than supplementary architecture. To eliminate duplication and ensure single-source-of-truth for proxy management, all capabilities were consolidated into ADR-011.
+
+**Migration Path**: Use ADR-011 v2.1 for all proxy implementation requirements. This ADR remains for historical reference only.
+
+---
+
+**ORIGINAL CONTEXT** (preserved for reference):
 
 **Research Validation**: IPRoyal residential proxies provide optimal integration with our 2-tier scraping strategy (ADR-014). JobSpy natively supports the IPRoyal proxy format, and ScrapeGraphAI can be configured with proxy headers for career page scraping.
 
