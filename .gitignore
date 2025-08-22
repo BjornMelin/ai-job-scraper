@@ -291,6 +291,7 @@ adrs-and-docs.md
 ruff_full_report.json
 reports/adrs/
 ai-research/
+docs/adrs/reports/
 
 # Temporary files
 temp/

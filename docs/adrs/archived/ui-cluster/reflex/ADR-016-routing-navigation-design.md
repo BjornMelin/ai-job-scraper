@@ -484,6 +484,19 @@ The hybrid approach provides:
 6. **Future-Proof**: Can add authentication/authorization
 
 ## Consequences
+### Dependencies
+
+- No specific external dependencies for this architectural decision
+
+### References
+
+- No additional references beyond those in context
+
+### Changelog
+
+#### Current Version
+- Initial documentation and architectural specification
+
 
 ### Positive
 
