@@ -87,7 +87,7 @@ Our job scraper faces significant performance bottlenecks that prevent scalabili
 
 ## Decision
 
-We will adopt **Threading Background Tasks with Streamlit Native Caching** to address performance bottlenecks and scalability limitations. This involves using **Threading (per ADR-012)** for background task processing, **Streamlit native st.cache_data** for caching, **FP8-optimized vLLM models (per ADR-034)**, and **Pandas+SQLite** foundation with **DuckDB+Polars** scaling path. This decision enables sub-500ms response times, efficient handling of 5,000+ jobs while maintaining local-first architecture and KISS principles.
+We will adopt **Threading Background Tasks with Streamlit Native Caching** to address performance bottlenecks and scalability limitations. This involves using **Threading (per ADR-012)** for background task processing, **Streamlit native st.cache_data** for caching, **FP8-optimized vLLM models (per ADR-004)**, and **Pandas+SQLite** foundation with **DuckDB+Polars** scaling path. This decision enables sub-500ms response times, efficient handling of 5,000+ jobs while maintaining local-first architecture and KISS principles.
 
 ## High-Level Architecture
 
@@ -101,7 +101,7 @@ graph TB
     BG --> Thread1[Background Thread<br/>st.status Progress]
     BG --> Progress[Real-time Updates<br/>st.session_state]
     
-    Thread1 --> AIModels[vLLM FP8 Models<br/>8K Context per ADR-034]
+    Thread1 --> AIModels[vLLM FP8 Models<br/>8K Context per ADR-004]
     Thread1 --> Scraper[Scraping Operations<br/>JobSpy/Crawl4AI]
     
     Scraper --> External[External Job APIs<br/>Company Career Pages]
@@ -129,7 +129,7 @@ graph TB
     S2 -.-> P2
     S3 -.-> P3
     
-    subgraph "FP8 Optimization per ADR-034"
+    subgraph "FP8 Optimization per ADR-004"
         M1[Model Weights<br/>8x Memory Reduction]
         M2[Optimized GPU<br/>90% Utilization]
         M3[Optimal Context<br/>8K Tokens]
@@ -186,7 +186,7 @@ graph TB
 - **ADR-021** (Local Development Performance): This decision directly addresses performance requirements identified in local development optimization needs
 - **ADR-004** (Local AI Integration): AI model optimization with FP8 quantization that this decision integrates for performance scaling
 - **ADR-008** (Optimized Token Thresholds): Validates that 8K context optimization aligns with performance requirements
-- **ADR-034** (Simplified LLM Configuration): Provides the canonical FP8 configuration that this performance strategy leverages
+- **ADR-004** (Local AI Processing Architecture): Provides the consolidated FP8 configuration that this performance strategy leverages
 
 ## Design
 
@@ -195,7 +195,7 @@ graph TB
 The performance optimization strategy implements a simple architecture with:
 
 - **Streamlit native caching**: st.cache_data with TTL management for repeated operations
-- **FP8 quantization**: vLLM models with 8x memory reduction per ADR-034
+- **FP8 quantization**: vLLM models with 8x memory reduction per ADR-004
 - **Threading**: Simple Python threading per ADR-012, sufficient for our scale
 - **Session-based caching**: Streamlit native session state management
 - **Pandas+SQLite foundation**: Current efficient stack with DuckDB+Polars scaling path
@@ -217,7 +217,7 @@ class ThreadingTaskManager:
     """Simple background tasks with threading and st.cache_data integration."""
     
     def __init__(self):
-        # Integration with ADR-034 LLM configuration
+        # Integration with ADR-004 LLM configuration
         from src.ai.model_manager import SimpleLLMManager
         self.model_manager = SimpleLLMManager()
     
@@ -566,7 +566,7 @@ performance:
     enable_duckdb_analytics: false  # For advanced analytics
     performance_threshold_jobs: 10000  # Trigger scaling
 
-# LLM configuration per ADR-034
+# LLM configuration per ADR-004
 llm:
   model: "Qwen/Qwen3-4B-Instruct-2507-FP8"
   quantization: "fp8"
@@ -712,7 +712,7 @@ async def performance_middleware(request: Request, call_next):
 ### Dependencies
 
 - **Streamlit 1.28+** - Core UI framework with native caching (st.cache_data)
-- **vLLM 0.6.2+** - FP8-optimized inference engine per ADR-034
+- **vLLM 0.6.2+** - FP8-optimized inference engine per ADR-004
 - **Python threading** - Native background task processing per ADR-012
 - **Pandas 2.0+** - Current data processing foundation
 - **SQLite 3.38+** - Current database with performance pragmas
@@ -726,7 +726,7 @@ async def performance_middleware(request: Request, call_next):
 - [Pandas Performance Guide](https://pandas.pydata.org/docs/user_guide/enhancingperf.html) - Current stack optimization for data processing
 - [Polars Performance](https://docs.pola.rs/user-guide/concepts/performance/) - Future scaling path documentation
 - [ADR-012: Background Task Management](ADR-012-background-task-management-streamlit.md) - Threading patterns and Streamlit integration
-- [ADR-034: Simplified LLM Configuration](ADR-034-simplified-llm-configuration.md) - FP8 optimization and model configuration
+- **ADR-004** (Local AI Processing Architecture): FP8 optimization and model configuration (consolidated from ADR-034)
 
 ## Changelog
 

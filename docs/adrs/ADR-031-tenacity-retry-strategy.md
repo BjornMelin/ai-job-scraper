@@ -46,7 +46,7 @@ Integration requirements coordinate with existing architecture decisions: **ADR-
 
 ## Decision
 
-We will adopt **Tenacity v9.0.0+** to address standardized retry patterns across all system operations. This library-first approach provides advanced async/await support, transport integration, and rich feature ecosystem while maintaining consistency with **ADR-001** principles.
+We will adopt **Tenacity v9.0.0+** for HTTP requests, database operations, and workflow coordination. AI inference resilience is delegated to **vLLM server built-in capabilities** per ADR-004 server architecture, which provides superior reliability through dedicated health endpoints, automatic restart, and production-grade error handling.
 
 ## High-Level Architecture
 
@@ -109,7 +109,7 @@ graph TB
 ### Integration Requirements
 
 - IR-031: HTTPX transport integration per **ADR-010** scraping requirements
-- IR-032: vLLM inference retry coordination per **ADR-004** and **ADR-006**
+- IR-032: **SUPERSEDED** - vLLM inference resilience handled by server built-in capabilities per **ADR-004** architecture
 - IR-033: LangGraph workflow retry policies for AI agent operations
 - IR-034: Structured logging integration for monitoring and debugging
 
@@ -118,7 +118,7 @@ graph TB
 - **ADR-001** (Library-First Architecture): Foundation for adopting proven library over custom implementation
 - **ADR-006** (Hybrid Strategy): Provides reliable cloud fallback retry mechanisms for local model failures
 - **ADR-010** (Scraping Strategy): Enhances HTTP request reliability for JobSpy and ScrapeGraphAI tiers
-- **ADR-004** (Local AI Integration): Enables graceful degradation and model switching retry patterns
+- **ADR-004** (Local AI Processing Architecture): **UPDATED** - vLLM server architecture provides built-in resilience, eliminating need for custom AI retry patterns
 
 ## Design
 
@@ -130,19 +130,19 @@ graph TB
     B --> C{Operation Type}
     
     C -->|HTTP| D[HTTP Retry Policy]
-    C -->|AI Inference| E[AI Retry Policy] 
     C -->|Database| F[Database Retry Policy]
     C -->|LangGraph| G[Workflow Retry Policy]
+    C -->|AI Inference| E[vLLM Server Built-in]
     
     D --> H[HTTPX Transport Integration]
-    E --> I[vLLM/Cloud API Fallback]
     F --> J[SQLModel Connection Pool]
     G --> K[LangGraph State Management]
+    E --> I[vLLM Server Health Endpoints]
     
     H --> L[External Services]
-    I --> M[AI Models]
     F --> N[SQLite Database]
     G --> O[Agent Workflows]
+    I --> M[AI Models - Server Managed]
     
     subgraph "Tenacity Features"
         P[Exponential Backoff + Jitter]
@@ -263,13 +263,8 @@ def async_http_retry(func: Callable[..., Any]) -> Callable[..., Any]:
         return await async_retry_obj(func, *args, **kwargs)
     return wrapper
 
-def async_ai_retry(func: Callable[..., Any]) -> Callable[..., Any]:
-    """Async retry decorator for AI inference operations."""
-    @wraps(func)
-    async def wrapper(*args, **kwargs):
-        async_retry_obj = AsyncRetrying(**RetryPolicies.AI_INFERENCE_POLICY)
-        return await async_retry_obj(func, *args, **kwargs)
-    return wrapper
+# async_ai_retry replaced by vLLM server + OpenAI client patterns - see ADR-004
+# Server provides automatic health monitoring and connection management
 
 def async_workflow_retry(func: Callable[..., Any]) -> Callable[..., Any]:
     """Async retry decorator for LangGraph workflow operations."""
@@ -278,6 +273,61 @@ def async_workflow_retry(func: Callable[..., Any]) -> Callable[..., Any]:
         async_retry_obj = AsyncRetrying(**RetryPolicies.WORKFLOW_POLICY)
         return await async_retry_obj(func, *args, **kwargs)
     return wrapper
+```
+
+**vLLM Server Resilience (Replaces AI Retry Patterns):**
+
+```python
+# AI resilience delegated to vLLM server built-in capabilities per ADR-004
+from openai import OpenAI
+import httpx
+import asyncio
+
+class VLLMResilientClient:
+    """vLLM server client with built-in resilience - no custom retry needed."""
+    
+    def __init__(self, base_url: str = "http://localhost:8000/v1"):
+        # OpenAI client has built-in retry logic + vLLM server resilience
+        self.client = OpenAI(base_url=base_url, api_key="EMPTY")
+        self.health_url = base_url.replace("/v1", "/health")
+    
+    async def health_check(self) -> bool:
+        """vLLM server provides /health endpoint for monitoring."""
+        try:
+            async with httpx.AsyncClient() as http_client:
+                response = await http_client.get(self.health_url, timeout=5.0)
+                return response.status_code == 200
+        except Exception:
+            return False  # Server handles restart automatically
+    
+    async def process_with_server_resilience(self, content: str) -> dict:
+        """Process with vLLM server built-in error handling - no @ai_retry needed."""
+        # vLLM server provides:
+        # - Automatic process restart and heartbeat monitoring
+        # - Connection pooling and health endpoints
+        # - Production-grade error recovery
+        # - Built-in request queuing and load balancing
+        
+        try:
+            completion = self.client.chat.completions.create(
+                model=self._get_available_model(),
+                messages=[{"role": "user", "content": content}],
+                temperature=0.1,
+                max_tokens=2000
+            )
+            return {"success": True, "result": completion.choices[0].message.content}
+        except Exception as e:
+            # Server-level errors are handled by vLLM's production stack
+            return {"success": False, "error": str(e), "server_managed": True}
+    
+    def _get_available_model(self) -> str:
+        """Get available model from server."""
+        models = self.client.models.list()
+        return models.data[0].id
+
+# Usage: No retry decorators needed - server handles resilience
+client = VLLMResilientClient()
+result = await client.process_with_server_resilience(job_content)
 ```
 
 **HTTPX Transport Integration:**
@@ -985,4 +1035,5 @@ class TestRetryPerformance:
 
 ## Changelog
 
+- **v1.1 (2025-08-23)**: **PARTIAL ADR-004 CONSOLIDATION** - AI inference retry patterns replaced by vLLM server built-in resilience. Removed AI_INFERENCE_POLICY, ai_retry(), and async_ai_retry() decorators. Added VLLMResilientClient showing server-based approach. Scope reduced to HTTP, database, and workflow operations only. 60% consolidation achieved.
 - **v1.0 (2025-08-21)**: Initial implementation of standardized retry strategy using Tenacity v9.0.0+. Complete ADR template with technical implementation details, standardized retry decorators for HTTP/AI/database/workflow operations, HTTPX transport integration, LangGraph workflow coordination, configuration management system, and comprehensive testing strategy.

@@ -34,7 +34,7 @@ Job data exists across two distinct source types requiring different extraction 
 - **ScrapeGraphAI Capability**: AI-powered extraction for unstructured content with schema-based output
 - **Maintenance Reality**: Multi-tier architectures require exponential maintenance overhead as site structures evolve
 - **Performance Data**: 2-tier architecture covers 80% of use cases with optimal resource utilization
-- **Integration Requirements**: Must coordinate with proxy system (**ADR-011**), structured output (**ADR-007**), and comprehensive local AI processing (**ADR-004**)
+- **Integration Requirements**: Must coordinate with proxy system (**ADR-011**), structured output (**ADR-004**), and comprehensive local AI processing (**ADR-004**)
 
 ## Decision Drivers
 
@@ -105,7 +105,7 @@ graph LR
 
 - **FR-1:** The system must extract job postings from structured job boards (LinkedIn, Indeed, Glassdoor)
 - **FR-2:** Users must have the ability to extract job data from unstructured company career pages
-- **FR-3:** The system must generate structured output per **ADR-007** specifications
+- **FR-3:** The system must generate structured output per **ADR-004** structured output specifications
 - **FR-4:** The system must handle JavaScript-rendered and dynamic content
 
 ### Non-Functional Requirements
@@ -124,14 +124,14 @@ graph LR
 
 - **IR-1:** The solution must integrate with the 2-tier architecture defined in **ADR-014**
 - **IR-2:** The component must be callable via the proxy system established in **ADR-011**
-- **IR-3:** The solution must coordinate with structured output framework from **ADR-007**
+- **IR-3:** The solution must coordinate with structured output framework from **ADR-004**
 - **IR-4:** The component must interface with comprehensive local AI processing per **ADR-004** specifications
 
 ## Related Decisions
 
 - **ADR-014** (Hybrid Scraping Strategy): This decision implements the 2-tier architecture strategy validated and recommended in ADR-014
 - **ADR-011** (Proxy Anti-Bot Integration): The scraping implementation integrates with the IPRoyal proxy system established in ADR-011 for both tiers
-- **ADR-007** (Structured Output Strategy): The unified output interface coordinates with the structured output framework defined in ADR-007
+- **ADR-004** (Local AI Processing Architecture): The unified output interface coordinates with the structured output framework consolidated in ADR-004
 - **ADR-004** (Comprehensive Local AI Processing Architecture): The ScrapeGraphAI tier leverages local AI models selected in ADR-004 for enhanced extraction
 
 ## Design
@@ -193,7 +193,7 @@ class SourceType(Enum):
     COMPANY_PAGE = "company_page"
 
 class JobPosting(BaseModel):
-    """Standardized job posting structure per ADR-007."""
+    """Standardized job posting structure per ADR-004."""
     title: str
     company: str
     location: Optional[str] = None

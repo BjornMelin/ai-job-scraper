@@ -111,7 +111,7 @@ flowchart TD
 ## Related Decisions
 
 - **ADR-006** (Hybrid LLM Strategy): This decision implements the core threshold-based routing mechanism for the hybrid strategy architecture
-- **ADR-007** (Structured Output Strategy): The token threshold coordinates with structured output generation to ensure consistent quality across routing paths
+- **ADR-004** (Local AI Processing Architecture): The token threshold coordinates with consolidated structured output generation to ensure consistent quality across routing paths
 - **ADR-004** (Comprehensive Local AI Processing Architecture): The 8000-token threshold leverages Qwen3 model capacity analysis and performance characteristics
 - **ADR-004** (Local AI Integration): This threshold optimization maximizes local model utilization while maintaining extraction quality standards
 
