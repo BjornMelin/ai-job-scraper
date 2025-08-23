@@ -529,17 +529,20 @@ exec vllm serve \
     --api-key "$VLLM_API_KEY"
 ```
 
-**Simplified Environment Variables:**
+**Environment Variables (inherited from ADR-006):**
 
 ```env
-# Minimal configuration - most handled by YAML
-VLLM_BASE_URL="http://localhost:8000/v1"
-VLLM_API_KEY="EMPTY"
-VLLM_CONFIG_FILE="config/vllm_production.yaml"
+# Configuration managed by canonical ADR-006 LiteLLM implementation
+OPENAI_API_KEY=your_openai_api_key_here
+AI_TOKEN_THRESHOLD=8000
+LITELLM_CONFIG_PATH=config/litellm.yaml
 
-# Performance targets (now achievable with structured outputs)
-EXTRACTION_ACCURACY_THRESHOLD=1.0  # 100% valid JSON guaranteed
-JSON_PARSING_RELIABILITY=1.0      # No parsing errors possible
+# vLLM server still runs locally for hosted_vllm/ model
+VLLM_BASE_URL="http://localhost:8000/v1"  # Used by LiteLLM config
+
+# Performance targets achieved through LiteLLM integration
+EXTRACTION_ACCURACY_THRESHOLD=0.95  # High reliability through library-first approach
+JSON_PARSING_RELIABILITY=1.0       # Structured outputs via response_format
 ```
 
 **Structured Output Benefits:**
@@ -722,6 +725,7 @@ SERVER_BENCHMARK_CONFIG = {
 
 ## Changelog
 
+- **v4.0 (2025-08-23)**: **LITELLM INTEGRATION** - Updated local AI integration to use canonical LiteLLM client from **ADR-006**. Replaced custom LocalAIProcessor with library-first approach. Updated configuration to reference config/litellm.yaml. Maintained vLLM server deployment while delegating client complexity to LiteLLM hosted_vllm/ pattern. Enhanced cross-references to canonical implementation.
 - **v3.2 (2025-08-23)**: **MAJOR CONSOLIDATION** - Integrated ADR-007 structured output functionality using vLLM native guided_json, eliminated Outlines dependency with 97% code reduction while maintaining 100% JSON reliability, added comprehensive schema examples and advanced nested structure support
 - **v3.1 (2025-08-23)**: Applied official ADR template, restored critical implementation details (environment variables, YAML config, production settings), enhanced testing framework, maintained essential technical content while improving template compliance
 - **v3.0 (2025-08-22)**: Consolidated ADR-004, ADR-005, and ADR-009 into unified local AI processing architecture, superseded inference stack and model selection decisions

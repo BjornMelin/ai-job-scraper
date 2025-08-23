@@ -172,6 +172,10 @@ class TokenThresholdRouter:
         self.config = config or ThresholdConfig()
         self.tokenizer = tiktoken.get_encoding(self.config.encoding_name)
         self._token_cache: dict[str, int] = {}  # LRU cache for performance
+        
+        # Use canonical LiteLLM client from ADR-006
+        from src.ai.client import ai_client
+        self.ai_client = ai_client
     
     @retry(
         stop=stop_after_attempt(3),
@@ -210,7 +214,7 @@ class TokenThresholdRouter:
         
         return token_count <= capacity_limit
     
-    def get_routing_decision(self, content: str, model: str = "qwen3-4b-instruct-2507-fp8") -> dict:
+    def get_routing_decision(self, content: str) -> dict:
         """Get detailed routing decision with metrics."""
         token_count = self.count_tokens(content)
         local_decision = self.should_process_locally(content, model)
@@ -312,24 +316,28 @@ from typing import Union
 import asyncio
 
 class HybridProcessingStrategy:
-    """Hybrid processing with token-based routing."""
+    """Hybrid processing with token-based routing using canonical LiteLLM client."""
     
     def __init__(self):
         self.router = TokenThresholdRouter()
         self.validator = ThresholdValidator()
-        self.local_processor = None  # Initialize with local model
-        self.cloud_processor = None  # Initialize with cloud API
+        # Use canonical LiteLLM client from ADR-006 - no separate processors needed
+        from src.ai.client import ai_client
+        self.ai_client = ai_client
     
-    async def process_content(self, content: str, model: str = "qwen3-4b-instruct-2507-fp8") -> dict:
-        """Process content with automatic routing."""
-        # Get routing decision
-        decision = self.router.get_routing_decision(content, model)
+    async def process_content(self, content: str) -> dict:
+        """Process content with LiteLLM automatic routing - no manual routing needed."""
+        # Get routing decision for tracking purposes
+        decision = self.router.get_routing_decision(content)
         
-        # Process based on routing decision
-        if decision["route_to"] == "local":
-            result = await self.process_locally(content, model)
-        else:
-            result = await self.process_via_cloud(content)
+        # LiteLLM handles all routing automatically based on token count
+        response = self.ai_client(
+            messages=[{"role": "user", "content": content}],
+            temperature=0.1,
+            max_tokens=2000
+        )
+        
+        result = {"content": response.choices[0].message.content}
         
         # Track the routing decision and quality
         quality_score = self.evaluate_result_quality(result)
@@ -341,15 +349,7 @@ class HybridProcessingStrategy:
             "quality_score": quality_score
         }
     
-    async def process_locally(self, content: str, model: str) -> dict:
-        """Process using local Qwen3-4B-FP8 model."""
-        # Single local model processing
-        return await self.local_processor.process(content)
-    
-    async def process_via_cloud(self, content: str) -> dict:
-        """Process using gpt-4o-mini cloud API."""
-        # Fallback to gpt-4o-mini for large content
-        return await self.cloud_processor.process(content, model="gpt-4o-mini")
+    # No separate processing methods needed - LiteLLM handles all routing automatically
     
     def evaluate_result_quality(self, result: dict) -> float:
         """Evaluate processing result quality (0.0-1.0)."""
@@ -503,6 +503,7 @@ class TestThresholdIntegration:
 
 ## Changelog
 
+- **v3.0 (2025-08-23)**: **LITELLM ROUTER INTEGRATION** - Updated TokenThresholdRouter to use canonical LiteLLM client from **ADR-006**. Simplified HybridProcessingStrategy by eliminating custom routing logic - LiteLLM automatically handles token-based routing, retries, and fallbacks. Maintained 8000-token threshold analysis while delegating execution to library-first approach. Enhanced cross-references to ADR-006 canonical implementation.
 - **v2.2 (2025-08-21)**: Complete ADR template compliance with 13 required sections. Updated implementation details with modern tiktoken v0.8+ and tenacity v9.1+ patterns. Enhanced testing strategy with performance validation and integration tests. Restructured decision framework with quantitative scoring matrix. Aligned cross-references with related ADR architecture decisions.
 - **v2.1 (2025-08-21)**: Fixed 13-section ADR template compliance, standardized Related Requirements with FR/NFR/PR/IR categories, enhanced decision framework quantitative scoring, improved testing section with comprehensive test cases.
 - **v2.0 (2025-08-20)**: Applied complete 13-section ADR template structure, added comprehensive decision framework with weighted scoring, implemented detailed testing strategy with pytest examples, enhanced monitoring and validation components.

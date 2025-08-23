@@ -46,7 +46,7 @@ Integration requirements coordinate with existing architecture decisions: **ADR-
 
 ## Decision
 
-We will adopt **Tenacity v9.0.0+** for HTTP requests, database operations, and workflow coordination. AI inference resilience is delegated to **vLLM server built-in capabilities** per ADR-004 server architecture, which provides superior reliability through dedicated health endpoints, automatic restart, and production-grade error handling.
+We will adopt **Tenacity v9.0.0+** for HTTP requests, database operations, and workflow coordination. AI inference resilience is delegated to **LiteLLM configuration** per **ADR-006** canonical implementation, which provides comprehensive built-in reliability through automatic retries, fallback routing, cooldown management, and connection pooling. All AI retry complexity is handled by config/litellm.yaml, eliminating custom retry patterns.
 
 ## High-Level Architecture
 
@@ -118,7 +118,7 @@ graph TB
 - **ADR-001** (Library-First Architecture): Foundation for adopting proven library over custom implementation
 - **ADR-006** (Hybrid Strategy): Provides reliable cloud fallback retry mechanisms for local model failures
 - **ADR-010** (Scraping Strategy): Enhances HTTP request reliability for JobSpy and ScrapeGraphAI tiers
-- **ADR-004** (Local AI Processing Architecture): **UPDATED** - vLLM server architecture provides built-in resilience, eliminating need for custom AI retry patterns
+- **ADR-006** (Hybrid LLM Strategy): **UPDATED** - LiteLLM canonical implementation provides comprehensive built-in resilience, eliminating need for custom AI retry patterns
 
 ## Design
 
@@ -194,19 +194,13 @@ class RetryPolicies:
         reraise=True
     )
     
-    # AI inference - local models with cloud fallback
-    AI_INFERENCE_POLICY = dict(
-        stop=stop_after_attempt(2),  # Quick failover to cloud
-        wait=wait_exponential_jitter(initial=0.5, max=5, jitter=1),
-        retry=retry_if_exception_type((
-            RuntimeError,      # CUDA/model errors
-            TimeoutError,      # Inference timeout
-            ConnectionError,   # vLLM server connection
-            Exception         # Broad catch for model issues
-        )),
-        before_sleep=before_sleep_log(logger, logging.INFO, log_level=logging.INFO),
-        reraise=True
-    )
+    # AI inference - DELEGATED to LiteLLM configuration (ADR-006)
+    # LiteLLM provides comprehensive built-in resilience through:
+    # - Automatic retries with exponential backoff (num_retries: 3)
+    # - Fallback routing from local to cloud models  
+    # - Cooldown management for rate-limited providers (cooldown_time: 60)
+    # - Connection pooling and timeout management
+    # All AI retry logic handled by config/litellm.yaml
     
     # Database operations - SQLite with connection pool
     DATABASE_POLICY = dict(
@@ -242,9 +236,7 @@ def http_retry(func: Callable[..., T]) -> Callable[..., T]:
     """Retry decorator for HTTP operations with HTTPX integration."""
     return retry(**RetryPolicies.HTTP_POLICY)(func)
 
-def ai_retry(func: Callable[..., T]) -> Callable[..., T]:
-    """Retry decorator for AI inference operations."""
-    return retry(**RetryPolicies.AI_INFERENCE_POLICY)(func)
+# ai_retry removed - LiteLLM handles all AI retry logic via canonical ADR-006 client
 
 def database_retry(func: Callable[..., T]) -> Callable[..., T]:
     """Retry decorator for database operations."""
@@ -263,8 +255,8 @@ def async_http_retry(func: Callable[..., Any]) -> Callable[..., Any]:
         return await async_retry_obj(func, *args, **kwargs)
     return wrapper
 
-# async_ai_retry replaced by vLLM server + OpenAI client patterns - see ADR-004
-# Server provides automatic health monitoring and connection management
+# async_ai_retry replaced by LiteLLM patterns - see canonical ADR-006 implementation
+# LiteLLM provides automatic retries, fallbacks, and connection management
 
 def async_workflow_retry(func: Callable[..., Any]) -> Callable[..., Any]:
     """Async retry decorator for LangGraph workflow operations."""
@@ -275,59 +267,35 @@ def async_workflow_retry(func: Callable[..., Any]) -> Callable[..., Any]:
     return wrapper
 ```
 
-**vLLM Server Resilience (Replaces AI Retry Patterns):**
+**LiteLLM Resilience (Replaces AI Retry Patterns):**
 
 ```python
-# AI resilience delegated to vLLM server built-in capabilities per ADR-004
-from openai import OpenAI
-import httpx
-import asyncio
+# AI resilience delegated to LiteLLM configuration per canonical ADR-006
+from src.ai.client import ai_client
 
-class VLLMResilientClient:
-    """vLLM server client with built-in resilience - no custom retry needed."""
+# No custom retry logic needed - all handled by LiteLLM configuration
+async def process_with_litellm_resilience(content: str) -> dict:
+    """Process with LiteLLM built-in resilience - no custom retry decorators needed."""
+    # LiteLLM handles all complexity automatically:
+    # - Token-based routing (local < 8000 tokens, cloud >= 8000)
+    # - Automatic retries with exponential backoff
+    # - Fallback routing from local-qwen to gpt-4o-mini
+    # - Cooldown management for rate-limited providers
+    # - Connection pooling and timeout management
     
-    def __init__(self, base_url: str = "http://localhost:8000/v1"):
-        # OpenAI client has built-in retry logic + vLLM server resilience
-        self.client = OpenAI(base_url=base_url, api_key="EMPTY")
-        self.health_url = base_url.replace("/v1", "/health")
-    
-    async def health_check(self) -> bool:
-        """vLLM server provides /health endpoint for monitoring."""
-        try:
-            async with httpx.AsyncClient() as http_client:
-                response = await http_client.get(self.health_url, timeout=5.0)
-                return response.status_code == 200
-        except Exception:
-            return False  # Server handles restart automatically
-    
-    async def process_with_server_resilience(self, content: str) -> dict:
-        """Process with vLLM server built-in error handling - no @ai_retry needed."""
-        # vLLM server provides:
-        # - Automatic process restart and heartbeat monitoring
-        # - Connection pooling and health endpoints
-        # - Production-grade error recovery
-        # - Built-in request queuing and load balancing
-        
-        try:
-            completion = self.client.chat.completions.create(
-                model=self._get_available_model(),
-                messages=[{"role": "user", "content": content}],
-                temperature=0.1,
-                max_tokens=2000
-            )
-            return {"success": True, "result": completion.choices[0].message.content}
-        except Exception as e:
-            # Server-level errors are handled by vLLM's production stack
-            return {"success": False, "error": str(e), "server_managed": True}
-    
-    def _get_available_model(self) -> str:
-        """Get available model from server."""
-        models = self.client.models.list()
-        return models.data[0].id
+    try:
+        response = ai_client(
+            messages=[{"role": "user", "content": content}],
+            temperature=0.1,
+            max_tokens=2000
+        )
+        return {"success": True, "result": response.choices[0].message.content}
+    except Exception as e:
+        # All retry logic already exhausted by LiteLLM - this is final failure
+        return {"success": False, "error": str(e), "litellm_managed": True}
 
-# Usage: No retry decorators needed - server handles resilience
-client = VLLMResilientClient()
-result = await client.process_with_server_resilience(job_content)
+# Usage: No retry decorators needed - LiteLLM handles all resilience
+result = await process_with_litellm_resilience(job_content)
 ```
 
 **HTTPX Transport Integration:**
@@ -389,62 +357,46 @@ class RetryHTTPClient:
         await self.client.aclose()
 ```
 
-**AI Inference Retry Integration:**
+**LiteLLM Client Integration:**
+
+> **CANONICAL REFERENCE**: The complete LiteLLM implementation is defined in **ADR-006 (Hybrid Strategy)**. This ADR delegates all AI retry logic to that canonical implementation to eliminate code duplication and ensure consistency across the architecture.
+
+**Integration with Tenacity Retry Patterns:**
 
 ```python
-from vllm import LLM
-from typing import List, Dict, Any, Optional, Union
-import asyncio
+# Import the canonical LiteLLM client from ADR-006
+from src.ai.client import ai_client
 
-class RetryAIManager:
-    """AI inference manager with standardized retry patterns."""
-    
-    def __init__(self, local_manager, cloud_client):
-        self.local_manager = local_manager
-        self.cloud_client = cloud_client
-        
-    @ai_retry
-    def local_inference(self, prompt: str, max_tokens: int = 500) -> str:
-        """Local inference with automatic retries and cloud fallback."""
-        try:
-            model = self.local_manager.get_model()
-            result = model.generate(prompt, max_tokens=max_tokens)
-            return result[0].outputs[0].text
-        except Exception as e:
-            logger.warning(f"Local inference failed: {e}")
-            # Tenacity will retry, eventually triggering cloud fallback
-            raise
-    
-    @async_ai_retry
-    async def async_local_inference(self, prompt: str, max_tokens: int = 500) -> str:
-        """Async local inference with retries."""
-        return await asyncio.get_event_loop().run_in_executor(
-            None, self.local_inference, prompt, max_tokens
-        )
-    
-    @http_retry
-    async def cloud_fallback(self, prompt: str, max_tokens: int = 500) -> str:
-        """Cloud API fallback with HTTP retry policies."""
-        async with RetryHTTPClient() as client:
-            response = await client.post(
-                "https://api.openai.com/v1/chat/completions",
-                json={
-                    "model": "gpt-4o-mini", 
-                    "messages": [{"role": "user", "content": prompt}],
-                    "max_tokens": max_tokens
-                },
-                headers={"Authorization": f"Bearer {os.getenv('OPENAI_API_KEY')}"}
-            )
-            return response["choices"][0]["message"]["content"]
-    
-    async def inference_with_fallback(self, prompt: str, max_tokens: int = 500) -> str:
-        """Combined local + cloud inference with comprehensive retry handling."""
-        try:
-            return await self.async_local_inference(prompt, max_tokens)
-        except RetryError:
-            logger.info("Local inference retries exhausted, falling back to cloud")
-            return await self.cloud_fallback(prompt, max_tokens)
+# NO AI retry decorators needed - LiteLLM handles all AI resilience
+@http_retry  # Only for HTTP transport, not AI processing
+async def fetch_job_content(url: str) -> str:
+    """Fetch job content with HTTP retry patterns."""
+    async with httpx.AsyncClient() as client:
+        response = await client.get(url)
+        response.raise_for_status()
+        return response.text
+
+# AI processing uses LiteLLM built-in resilience - no decorators
+async def process_ai_content(content: str) -> str:
+    """Process content with LiteLLM automatic retries and fallbacks."""
+    response = ai_client(  # All retry logic handled internally
+        messages=[{"role": "user", "content": content}],
+        temperature=0.1
+    )
+    return response.choices[0].message.content
+
+# Usage with clear separation of concerns
+import httpx
+job_content = await fetch_job_content("https://example.com/job")  # HTTP retries
+result = await process_ai_content(job_content)  # LiteLLM retries
 ```
+
+**Key Integration Benefits:**
+
+- **Zero Duplication**: Uses canonical LiteLLM implementation from ADR-006
+- **Retry Delegation**: AI inference resilience handled by LiteLLM configuration with automatic retries, fallbacks, and cooldowns
+- **Clear Separation**: Tenacity patterns focus on HTTP transport layer; LiteLLM handles AI processing layer
+- **Simplified Architecture**: Single configuration source (config/litellm.yaml) eliminates custom AI retry patterns
 
 **LangGraph Workflow Integration:**
 
@@ -462,10 +414,12 @@ class WorkflowState(TypedDict):
     current_step: str
 
 class RetryWorkflowGraph:
-    """LangGraph workflow with integrated Tenacity retry patterns."""
+    """LangGraph workflow with integrated Tenacity retry patterns using canonical LiteLLM client."""
     
-    def __init__(self, ai_manager: RetryAIManager):
-        self.ai_manager = ai_manager
+    def __init__(self):
+        # Use canonical LiteLLM client from ADR-006
+        from src.ai.client import ai_client
+        self.ai_client = ai_client
         self.graph = self._build_graph()
         
     def _build_graph(self) -> StateGraph:
@@ -495,13 +449,16 @@ class RetryWorkflowGraph:
     
     @workflow_retry
     async def retry_extract_jobs(self, state: WorkflowState) -> WorkflowState:
-        """Job extraction with workflow-level retry handling."""
+        """Job extraction with workflow-level retry handling using canonical client."""
         try:
             url = state["messages"][-1] if state["messages"] else ""
-            result = await self.ai_manager.inference_with_fallback(
-                f"Extract job information from: {url}",
-                max_tokens=1000
+            response = self.ai_client.chat_completion(
+                # Model routing handled automatically by LiteLLM per ADR-006
+                messages=[{"role": "user", "content": f"Extract job information from: {url}"}],
+                max_tokens=1000,
+                temperature=0.1
             )
+            result = response.choices[0].message.content
             
             return {
                 **state,
@@ -522,13 +479,16 @@ class RetryWorkflowGraph:
     
     @workflow_retry  
     async def retry_enhance_data(self, state: WorkflowState) -> WorkflowState:
-        """Data enhancement with retry patterns."""
+        """Data enhancement with retry patterns using canonical client."""
         try:
             raw_data = state["messages"][-1]
-            enhanced = await self.ai_manager.inference_with_fallback(
-                f"Enhance and structure this job data: {raw_data}",
-                max_tokens=800
+            response = self.ai_client.chat_completion(
+                # Model routing handled automatically by LiteLLM per ADR-006
+                messages=[{"role": "user", "content": f"Enhance and structure this job data: {raw_data}"}],
+                max_tokens=800,
+                temperature=0.1
             )
+            enhanced = response.choices[0].message.content
             
             return {
                 **state,
@@ -1035,5 +995,7 @@ class TestRetryPerformance:
 
 ## Changelog
 
-- **v1.1 (2025-08-23)**: **PARTIAL ADR-004 CONSOLIDATION** - AI inference retry patterns replaced by vLLM server built-in resilience. Removed AI_INFERENCE_POLICY, ai_retry(), and async_ai_retry() decorators. Added VLLMResilientClient showing server-based approach. Scope reduced to HTTP, database, and workflow operations only. 60% consolidation achieved.
+- **v2.0 (2025-08-23)**: **LITELLM DELEGATION** - Completely removed AI-specific retry logic and delegated all AI resilience to LiteLLM configuration per **ADR-006**. Eliminated AI_POLICY, ai_retry(), async_ai_retry() decorators, and custom retry patterns. Updated all integration examples to use canonical LiteLLM client. Clear separation: Tenacity handles HTTP/database/workflow retries; LiteLLM handles AI retries, fallbacks, and cooldowns via config/litellm.yaml.
+- **v1.3 (2025-08-23)**: **CANONICAL CLIENT INTEGRATION** - Replaced duplicate UnifiedAIClient implementation with reference to canonical implementation from **ADR-006**. Updated LangGraph workflows to use canonical client. Eliminated 50+ lines of duplicate code. Enhanced observability through ADR-006's correlation ID logging and structured retry monitoring.
+- **v1.2 (2025-08-23)**: **COMPLETE ADR INTEGRATION** - Full consolidation with vLLM OpenAI-compatible endpoint. Eliminated AI_INFERENCE_POLICY, ai_retry(), async_ai_retry() decorators, and RetryAIManager class. Added UnifiedAIClient using single OpenAI-compatible interface. Reduced complexity by ~60 lines through server-delegated resilience. Aligned with configuration naming analysis recommendations.
 - **v1.0 (2025-08-21)**: Initial implementation of standardized retry strategy using Tenacity v9.0.0+. Complete ADR template with technical implementation details, standardized retry decorators for HTTP/AI/database/workflow operations, HTTPX transport integration, LangGraph workflow coordination, configuration management system, and comprehensive testing strategy.

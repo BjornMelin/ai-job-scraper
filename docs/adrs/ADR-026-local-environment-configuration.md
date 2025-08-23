@@ -101,6 +101,7 @@ graph TB
 
 ## Related Decisions
 
+- **ADR-006** (Hybrid LLM Strategy): This configuration system provides the environment variables and type-safe settings consumed by the canonical UnifiedAIClient implementation
 - **ADR-018** (Local Database Setup): This configuration management supports the SQLite database connection established in ADR-018
 - **ADR-012** (Background Task Management Streamlit): Provides configuration foundation for Streamlit-based task management
 - **ADR-022** (Local Development Docker Containerization): Environment configuration supports containerized development setup
@@ -126,13 +127,20 @@ class DatabaseConfig(BaseSettings):
     echo: bool = Field(default=False)
 
 class AIConfig(BaseSettings):
-    """AI processing configuration."""
-    provider: Literal["local", "openai"] = Field(default="local")
-    local_base_url: str = Field(default="http://localhost:8080/v1")
-    openai_api_key: Optional[str] = Field(default=None)
-    model_name: str = Field(default="Qwen/Qwen2.5-1.5B-Instruct")
-    max_tokens: int = Field(default=4096)
-    temperature: float = Field(default=0.1)
+    """AI processing configuration aligned with canonical UnifiedAIClient from ADR-006."""
+    # Core UnifiedAIClient settings
+    vllm_base_url: str = Field(default="http://localhost:8000/v1", description="vLLM OpenAI-compatible endpoint")
+    token_threshold: int = Field(default=8000, description="Token threshold for local vs cloud routing")
+    enable_cloud_fallback: bool = Field(default=True, description="Enable automatic cloud fallback")
+    log_routing_decisions: bool = Field(default=True, description="Log AI routing decisions")
+    
+    # OpenAI API settings (for cloud fallback)
+    openai_api_key: Optional[str] = Field(default=None, description="OpenAI API key for cloud fallback")
+    
+    # Connection settings
+    local_timeout: float = Field(default=15.0, description="Local model request timeout")
+    cloud_timeout: float = Field(default=30.0, description="Cloud model request timeout")
+    max_connections: int = Field(default=10, description="Maximum HTTP connections per client")
 
 class StreamlitConfig(BaseSettings):
     """Streamlit framework configuration."""
@@ -179,11 +187,15 @@ DEBUG=true
 DATABASE__URL=sqlite:///./data/jobs.db
 DATABASE__ECHO=false
 
-# AI Configuration
-AI__PROVIDER=local
-AI__LOCAL_BASE_URL=http://localhost:8080/v1
+# AI Configuration (aligned with canonical UnifiedAIClient from ADR-006)
+AI__VLLM_BASE_URL=http://localhost:8000/v1
+AI__TOKEN_THRESHOLD=8000
+AI__ENABLE_CLOUD_FALLBACK=true
+AI__LOG_ROUTING_DECISIONS=true
 AI__OPENAI_API_KEY=your_openai_api_key_here
-AI__MODEL_NAME=Qwen/Qwen2.5-1.5B-Instruct
+AI__LOCAL_TIMEOUT=15.0
+AI__CLOUD_TIMEOUT=30.0
+AI__MAX_CONNECTIONS=10
 
 # Streamlit Configuration
 STREAMLIT__PORT=8501
@@ -212,6 +224,31 @@ if __name__ == "__main__":
         layout="wide"
     )
 ```
+
+**Using Canonical UnifiedAIClient with Configuration:**
+
+```python
+# src/config.py provides configuration for the canonical client
+from src.config import config
+from src.ai.client import ai_client
+
+# Initialize with configuration from this ADR
+ai_client = UnifiedAIClient({
+    "local_base_url": config.ai.vllm_base_url,
+    "token_threshold": config.ai.token_threshold,
+    "enable_cloud_fallback": config.ai.enable_cloud_fallback,
+    "log_routing_decisions": config.ai.log_routing_decisions
+})
+
+# Usage example
+response = ai_client.chat_completion(
+    model="Qwen3-4B-Instruct-2507-FP8",
+    messages=[{"role": "user", "content": "Extract job information..."}],
+    temperature=0.1
+)
+```
+
+> **INTEGRATION NOTE**: This configuration system provides the environment variables and type-safe settings consumed by the canonical UnifiedAIClient from **ADR-006**. All AI processing across the application uses this unified configuration approach.
 
 ## Testing
 
@@ -287,4 +324,5 @@ def test_configuration_validation():
 
 ## Changelog
 
+- **v1.1 (2025-08-23)**: **CANONICAL AI CLIENT INTEGRATION** - Updated AIConfig to align with canonical UnifiedAIClient from **ADR-006**. Replaced provider-specific settings with unified configuration (vLLM base URL, token threshold, cloud fallback). Added connection management settings (timeouts, max connections). Updated environment variables to match canonical client expectations. Added integration examples showing how configuration feeds into the UnifiedAIClient.
 - **v1.0 (2025-08-21)**: Initial accepted version with Pydantic BaseSettings implementation for local environment configuration management
