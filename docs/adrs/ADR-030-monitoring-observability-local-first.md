@@ -3,9 +3,7 @@
 ## Metadata
 
 **Status:** Proposed - Supporting Operational Excellence  
-**Version/Date:** 1.0 / August 22, 2025  
-**Author(s):** Project Team  
-**Deciders:** Architecture Team
+**Version/Date:** 1.0 / 2025-08-22  
 
 ## Title
 

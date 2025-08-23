@@ -1,19 +1,17 @@
-# ADR-004: Comprehensive Local AI Processing Architecture
+# ADR-004: Local AI Integration Architecture
 
 ## Metadata
 
 **Status:** Accepted  
-**Version/Date:** v3.0 / 2025-08-22
+**Version/Date:** v4.0 / 2025-08-23
 
 ## Title
 
-Comprehensive Local AI Processing Architecture for Job Data Extraction
+Local AI Integration Architecture for Job Data Extraction
 
 ## Description
 
-Comprehensive local AI processing architecture combining model selection strategy, inference stack configuration, and deployment optimization. Implements Qwen3-4B-Instruct-2507-FP8 as the primary local LLM with vLLM inference engine, achieving superior benchmark performance (69.6 MMLU-Pro, 62.0 GPQA) while utilizing 8x memory reduction through FP8 quantization on RTX 4090 Laptop GPU (Ada Lovelace, CC 8.9).
-
-This architecture consolidates model selection rationale, inference stack configuration, and deployment strategies into a unified local AI processing solution that handles 95%+ of job extractions locally with production-tested reliability.
+Local AI integration architecture defining HOW Qwen3-4B-Instruct-2507-FP8 integrates with vLLM inference engine for job data extraction. Focuses on architectural patterns, integration points, and deployment configuration while strategic decision rationale is maintained in **ADR-034**. Implements vLLM-based processing architecture that handles 95%+ of job extractions locally with FP8 quantization optimization on RTX 4090 Laptop GPU.
 
 ## Context
 
@@ -28,19 +26,9 @@ The AI job scraper requires a local LLM that balances processing quality, memory
 - Target monthly operating cost under $30 total
 - Deploy within 1-week timeline with minimal maintenance
 
-### Model Selection Benchmark Analysis
+### Strategic Decision Reference
 
-**Quality Benchmarks** - Comprehensive model evaluation using industry-standard benchmarks:
-
-| Model | MMLU-Pro | GPQA | Context | VRAM (FP8) | Performance |
-|-------|----------|------|---------|------------|-------------|
-| **Qwen3-4B-Instruct-2507** | **69.6** | **62.0** | **8K** | **1.2GB** | **Excellent** |
-| Qwen3-8B | 56.73 | 44.44 | 8K | 2.1GB | Good |
-| Qwen3-14B | 61.03 | 39.90 | 8K | 3.8GB | Good |
-| Llama-3.1-8B | 48.2 | 41.5 | 8K | 2.4GB | Fair |
-| Mistral-7B | 45.1 | 38.2 | 32K | 2.1GB | Fair |
-
-**Key Finding:** Qwen3-4B-Instruct-2507 achieves superior benchmark performance while using significantly less memory than larger models, making it optimal for RTX 4090 Laptop GPU deployment.
+**Model Selection:** Based on comprehensive evaluation in **ADR-034** (Strategic LLM Configuration Decisions), Qwen3-4B-Instruct-2507-FP8 was selected for optimal benchmark performance (69.6 MMLU-Pro, 62.0 GPQA) with 8x memory reduction through FP8 quantization.
 
 ### Previous Over-Engineering Problems
 
@@ -104,158 +92,25 @@ The AI job scraper requires a local LLM that balances processing quality, memory
 
 ## Alternatives
 
-### Alternative 1: Qwen3-8B Base Model
+**Note:** Comprehensive model selection and alternatives evaluation is now maintained in **ADR-034** (Strategic LLM Configuration Decisions). This ADR focuses on implementation architecture patterns.
 
-**Pros:**
+**Selected Architecture:** Qwen3-4B-Instruct-2507-FP8 with vLLM integration based on strategic analysis in **ADR-034**:
 
-- Larger parameter count for potentially better reasoning
-- Strong general performance across diverse tasks
-- Well-documented deployment patterns
-- Good community support and examples
+- Superior benchmark performance (69.6 MMLU-Pro, 62.0 GPQA) validated through comprehensive evaluation
+- 8x memory reduction through FP8 quantization on RTX 4090 Laptop GPU
+- 92% code reduction through vLLM library utilization
+- Optimal 8K context handles 98% of job postings
+- Aligns with **ADR-001** library-first architecture principles
 
-**Cons:**
+## Decision Rationale
 
-- Higher memory usage (2.1GB vs 1.2GB FP8)
-- Inferior benchmark scores vs 4B-Instruct (56.73 MMLU-Pro vs 69.6)
-- Additional complexity without performance benefits
-- Slower inference due to larger size
+**Strategic Authority:** Comprehensive decision analysis and alternatives evaluation is maintained in **ADR-034** (Strategic LLM Configuration Decisions). This architecture implements the strategic decisions through technical integration patterns.
 
-**Technical Assessment:** Performance degradation with higher resource costs makes this suboptimal
-
-### Alternative 2: Llama-3.1-8B-Instruct
-
-**Pros:**
-
-- Meta ecosystem backing and support
-- Proven deployment patterns in production
-- Good community support and tooling
-- Established optimization strategies
-
-**Cons:**
-
-- Significantly lower benchmark scores (48.2 MMLU-Pro vs 69.6)
-- Higher memory requirements (2.4GB vs 1.2GB FP8) 
-- Inferior structured output capabilities for job extraction
-- Less optimized instruction following
-
-**Technical Assessment:** Benchmark performance gap makes this unsuitable for quality requirements
-
-### Alternative 3: Multi-Model Ensemble Strategy
-
-**Pros:**
-
-- Could combine model strengths for better accuracy
-- Redundancy for quality assurance
-- Flexible routing based on task complexity
-- Fallback capabilities for different content types
-
-**Cons:**
-
-- Complex deployment and management overhead
-- Increased memory requirements (multiple models)
-- Over-engineering for current job extraction needs
-- Violates simplicity principles from **ADR-001**
-
-**Technical Assessment:** Unnecessary complexity without demonstrated benefit for job extraction use case
-
-### Alternative 4: Keep Complex v1.0 Implementation
-
-**Pros:**
-
-- Complete control over hardware management
-- Custom optimization opportunities  
-- Fine-grained performance monitoring
-- Maximum theoretical control over inference parameters
-
-**Cons:**
-
-- 570+ lines vs 50 lines implementation overhead
-- Reimplements proven vLLM features
-- High maintenance burden
-- Violates **ADR-001** library-first principles
-- Custom code reliability risks
-
-**Technical Assessment:** Custom implementation duplicates vLLM's battle-tested capabilities while adding significant complexity
-
-### Alternative 5: Cloud-Only Models
-
-**Pros:**
-
-- No local infrastructure complexity
-- Always available without hardware constraints
-- Access to latest model versions
-- No local hardware requirements
-
-**Cons:**
-
-- Ongoing API costs for inference operations
-- Privacy concerns with external data processing
-- Network latency impacting user experience
-- Dependency on external service availability
-- Cost scaling with usage
-
-**Technical Assessment:** Eliminates local capabilities required for privacy-sensitive job data processing
-
-### Alternative 6: Qwen3-4B-Instruct-2507-FP8 with Simple vLLM (SELECTED)
-
-**Pros:**
-
-- Superior benchmark performance (69.6 MMLU-Pro, 62.0 GPQA)
-- 8x memory reduction through FP8 quantization
-- 92% code reduction through library utilization
-- Battle-tested memory management via vLLM
-- Optimal 8K context for 98% of job postings
-- Automatic optimization with proven performance
-- Aligns with **ADR-001** library-first architecture
-
-**Cons:**
-
-- Less fine-grained control over hardware parameters
-- Dependency on vLLM library maintenance and updates
-- Newer model with less deployment history
-- Version requirements (vLLM 0.6.2+, CUDA 12.1+)
-
-**Technical Assessment:** Optimal balance of performance, capability, maintainability, and alignment with architectural principles
-
-## Decision Framework
-
-### Scoring Criteria
-
-| Criterion | Weight | Description |
-|-----------|--------|--------------|
-| Solution Leverage | 35% | Ability to use proven vLLM library capabilities and benchmark-validated model performance |
-| Application Value | 30% | AI extraction quality, model performance benchmarks, and job processing effectiveness |
-| Maintenance & Cognitive Load | 25% | Code simplicity, deployment complexity, and long-term maintenance requirements |
-| Architectural Adaptability | 10% | Flexibility for future model upgrades, hardware configurations, and scaling |
-
-### Comprehensive Alternatives Evaluation
-
-| Alternative | Solution Leverage (35%) | Application Value (30%) | Maintenance & Cognitive Load (25%) | Architectural Adaptability (10%) | **Weighted Score** |
-|------------|------------------------|------------------------|-----------------------------------|----------------------------------|-------------------|
-| **Qwen3-4B-Instruct-2507-FP8** | **10/10** | **10/10** | **9/10** | **9/10** | **9.65/10** |
-| Qwen3-8B Base Model | 8/10 | 7/10 | 8/10 | 8/10 | 7.6/10 |
-| Llama-3.1-8B-Instruct | 7/10 | 6/10 | 9/10 | 8/10 | 7.1/10 |
-| Multi-Model Ensemble | 6/10 | 8/10 | 4/10 | 7/10 | 6.4/10 |
-| Complex v1.0 | 1/10 | 7/10 | 2/10 | 7/10 | 3.4/10 |
-| Cloud-Only | 8/10 | 6/10 | 6/10 | 5/10 | 6.75/10 |
-
-### Model Performance Comparison
-
-**Benchmark Performance vs Resource Efficiency:**
-
-| Model | MMLU-Pro Score | GPQA Score | Memory (FP8) | Tokens/Sec | Quality/Memory Ratio |
-|-------|---------------|------------|-------------|-------------|---------------------|
-| **Qwen3-4B-Instruct-2507** | **69.6** | **62.0** | **1.2GB** | **45+** | **58.0** |
-| Qwen3-8B | 56.73 | 44.44 | 2.1GB | 35+ | 27.0 |
-| Llama-3.1-8B | 48.2 | 41.5 | 2.4GB | 32+ | 20.1 |
-| Mistral-7B | 45.1 | 38.2 | 2.1GB | 38+ | 21.5 |
-
-**Key Decision Factors:**
-
-1. **Performance Excellence:** Qwen3-4B achieves highest benchmark scores despite smallest size
-2. **Memory Efficiency:** FP8 quantization provides 8x reduction with quality preservation  
-3. **Deployment Simplicity:** Single model eliminates complexity of ensemble approaches
-4. **Cost Optimization:** 95%+ local processing reduces cloud API dependency and costs
+**Architecture Selection:** Qwen3-4B-Instruct-2507-FP8 with vLLM integration provides optimal balance of:
+- Performance: Superior benchmark scores (69.6 MMLU-Pro, 62.0 GPQA) 
+- Efficiency: 8x memory reduction through FP8 quantization
+- Simplicity: Library-first approach with proven vLLM capabilities
+- Cost: 95%+ local processing minimizes cloud API dependency
 
 ## Decision
 
@@ -343,577 +198,114 @@ graph TD
 4. **Automatic Management**: vLLM handles memory, quantization, and hardware optimization
 5. **Structured Output**: Validated JSON extraction per **ADR-007** requirements
 
-### Implementation Details
+### Architecture Implementation
 
-**Comprehensive Local AI Processing Service:**
+**Core Integration Pattern:**
+
+The architecture implements a streamlined local AI processing service that integrates vLLM inference engine with job extraction workflows. Full implementation details are available in `/docs/implementation-guides/local-ai-setup.md`.
+
+**Key Integration Components:**
 
 ```python
-from vllm import LLM, SamplingParams
-from typing import Dict, Any, Optional, List
-import json
-import logging
-
-class ComprehensiveLocalAIProcessor:
-    """
-    Unified local AI processing service combining model management,
-    inference stack, and extraction capabilities.
-    
-    Consolidates functionality from SimpleFP8ModelManager, SimpleInferenceStack,
-    and Qwen3InferenceService into a single comprehensive implementation.
-    """
-    
+# Simplified architecture overview - see implementation guide for complete code
+class LocalAIProcessor:
     def __init__(self):
-        """Initialize with optimal vLLM configuration for RTX 4090 Laptop GPU."""
-        
-        self.model_name = "Qwen/Qwen3-4B-Instruct-2507-FP8"
-        
-        # Single model configuration with FP8 quantization
-        # Combines configuration approaches from all superseded ADRs
+        # vLLM configuration per ADR-034 strategic decisions
         self.llm = LLM(
-            model=self.model_name,
-            quantization="fp8",  # 8x memory reduction (confirmed CC 8.9)
-            kv_cache_dtype="fp8",  # Additional memory savings
-            max_model_len=8192,  # Optimal 8K context for 98% of job postings
-            swap_space=4,  # Automatic CPU offload and memory management
-            gpu_memory_utilization=0.9,  # Aggressive with FP8 memory savings
-            enable_prefix_caching=True,  # Performance optimization
-            max_num_seqs=128,  # Batch processing capability
-            trust_remote_code=True
+            model="Qwen/Qwen3-4B-Instruct-2507-FP8",
+            quantization="fp8",  # 8x memory reduction
+            max_model_len=8192,  # 8K context for 98% coverage
+            gpu_memory_utilization=0.9,  # Aggressive with FP8 savings
+            swap_space=4  # Automatic memory management
         )
-        
-        # Optimized sampling parameters for job extraction
-        self.sampling_params = SamplingParams(
-            temperature=0.1,  # Low for consistent extraction
-            top_p=0.9,
-            max_tokens=2000,
-            frequency_penalty=0.1  # Reduce repetition
-        )
-        
-        logging.info(f"Initialized comprehensive local AI processor: {self.model_name}")
     
     async def extract_jobs(self, content: str, schema: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Extract structured job data with comprehensive optimization.
-        
-        Combines extraction logic from all superseded implementations with
-        enhanced error handling and validation.
-        """
-        
-        # Optimize content length for 8K context window
-        max_content_tokens = 6000  # Reserve 2K for output generation
-        optimized_content = content[:max_content_tokens * 4]
-        
-        # Build extraction prompt with schema constraints
-        prompt = self._build_extraction_prompt(optimized_content, schema)
-        
-        try:
-            # Generate with structured constraints
-            outputs = self.llm.generate([prompt], self.sampling_params)
-            response_text = outputs[0].outputs[0].text.strip()
-            
-            return self._parse_structured_output(response_text)
-            
-        except Exception as e:
-            logging.error(f"Extraction failed: {e}")
-            return {"error": f"Extraction failed: {str(e)}", "content_preview": content[:200]}
-    
-    async def generate(self, prompt: str, max_tokens: int = 500, temperature: float = 0.1) -> str:
-        """Generate response with vLLM defaults and async support."""
-        
-        sampling_params = SamplingParams(
-            temperature=temperature,
-            max_tokens=max_tokens,
-            top_p=0.9,
-            frequency_penalty=0.1
-        )
-        
-        outputs = self.llm.generate([prompt], sampling_params)
-        return outputs[0].outputs[0].text.strip()
-    
-    def health_check(self) -> bool:
-        """Verify engine is ready for inference with comprehensive validation."""
-        try:
-            test_output = self.llm.generate(["Test health check"], SamplingParams(max_tokens=5))
-            return len(test_output) > 0 and test_output[0].outputs[0].text.strip()
-        except Exception as e:
-            logging.error(f"Health check failed: {e}")
-            return False
-    
-    def _build_extraction_prompt(self, content: str, schema: Dict[str, Any]) -> str:
-        """Build extraction prompt with schema constraints and optimization."""
-        
-        return f"""Extract comprehensive job information from this job posting and return ONLY valid JSON matching the schema:
-
-Schema Requirements:
-{json.dumps(schema, indent=2)}
-
-Job Content:
-{content}
-
-Instructions:
-- Return ONLY the JSON object, no additional text
-- Ensure all required fields are populated
-- Use "null" for missing optional fields
-- Follow the exact schema structure
-
-JSON Response:"""
-    
-    def _parse_structured_output(self, response: str) -> Dict[str, Any]:
-        """Parse JSON response with comprehensive error handling."""
-        
-        # Clean response text
-        response = response.strip()
-        
-        # Find JSON block if wrapped in text
-        start_idx = response.find('{')
-        end_idx = response.rfind('}')
-        
-        if start_idx != -1 and end_idx != -1:
-            json_text = response[start_idx:end_idx + 1]
-            try:
-                return json.loads(json_text)
-            except json.JSONDecodeError as e:
-                logging.warning(f"JSON decode error: {e}")
-        
-        # Fallback error response
-        return {
-            "error": "Failed to parse structured output",
-            "raw_response": response[:500],  # Truncate for logging
-            "extraction_failed": True
-        }
-    
-    def get_memory_stats(self) -> Dict[str, Any]:
-        """Get memory utilization statistics for monitoring."""
-        try:
-            # This would integrate with actual vLLM memory reporting
-            return {
-                "model_memory_gb": 1.2,  # FP8 quantized
-                "peak_memory_gb": 3.5,   # Including context and batch
-                "gpu_utilization_percent": 90,
-                "swap_usage_gb": 0.5,
-                "status": "optimal"
-            }
-        except Exception:
-            return {"status": "unavailable", "error": "Memory stats not available"}
-
-# Production deployment configuration
-PRODUCTION_CONFIG = {
-    "model": "Qwen/Qwen3-4B-Instruct-2507-FP8",
-    "quantization": "fp8",  # 8x memory reduction
-    "kv_cache_dtype": "fp8",  # Additional memory savings  
-    "max_context": 8192,  # Optimal for job postings
-    "gpu_memory": 0.9,  # Aggressive with FP8 efficiency
-    "swap_space": 4,  # Reduced with FP8 efficiency
-    "max_concurrent": 128,  # Batch processing capability
-    "requirements": {
-        "vllm": ">=0.6.2",
-        "cuda": ">=12.1",  
-        "hardware": "RTX 4090 Laptop GPU (Ada Lovelace, CC 8.9)"
-    },
-    "performance_targets": {
-        "extraction_accuracy": 0.95,
-        "tokens_per_second": 45,
-        "memory_efficiency": "8x reduction via FP8",
-        "uptime": 0.95
-    }
-}
+        # Structured extraction with vLLM integration
+        # Implementation details in separate guide
+        pass
 ```
 
-### Configuration
-
-**Comprehensive Production Configuration:**
+**Production Deployment Configuration:**
 
 ```yaml
-# Unified local AI processing configuration
-# Consolidates settings from ADR-004, ADR-005, and ADR-009
-
+# Core configuration structure - detailed settings in implementation guide
 model:
-  name: "Qwen/Qwen3-4B-Instruct-2507-FP8"  # Selected based on superior benchmarks
-  type: "instruct"  # Instruction-tuned for direct prompting
-  benchmark_scores:
-    mmlu_pro: 69.6  # Superior performance
-    gpqa: 62.0      # Highest reasoning capability
-    memory_fp8: "1.2GB"  # 8x reduction vs full precision
+  name: "Qwen/Qwen3-4B-Instruct-2507-FP8"
+  quantization: "fp8"
+  context_length: 8192
+  gpu_utilization: 0.9
 
-# vLLM inference engine configuration  
-vllm:
-  quantization: "fp8"  # Confirmed working on RTX 4090 Laptop GPU (CC 8.9)
-  kv_cache_dtype: "fp8"  # Additional memory savings
-  max_model_len: 8192  # Optimal for 98% of job postings
-  swap_space: 4  # Automatic CPU offload and memory management
-  gpu_memory_utilization: 0.9  # Aggressive with FP8 memory savings
-  enable_prefix_caching: true  # Performance optimization
-  max_num_seqs: 128  # Batch processing capability
-  trust_remote_code: true
+performance_targets:
+  extraction_accuracy: 0.95
+  inference_speed: "45+ tokens/sec"
+  memory_efficiency: "8x reduction via FP8"
+  uptime: 0.95
 
-# Performance and sampling configuration
-sampling:
-  temperature: 0.1  # Low temperature for consistent extraction
-  top_p: 0.9
-  max_tokens: 2000
-  frequency_penalty: 0.1  # Reduce repetition
-
-# Hardware and system requirements
 requirements:
-  vllm_version: ">=0.6.2"  # Required for FP8 support
-  cuda_version: ">=12.1"   # Required for FP8 tensor operations
-  pytorch_version: ">=2.1" # Backend tensor operations
+  vllm: ">=0.6.2"
+  cuda: ">=12.1"
   hardware: "RTX 4090 Laptop GPU (Ada Lovelace, CC 8.9)"
-  memory_requirements:
-    vram_minimum: "4GB"    # Conservative estimate
-    vram_optimal: "16GB"   # RTX 4090 Laptop GPU capacity
-    system_ram: "16GB"     # For swap operations
-
-# Performance targets and monitoring
-performance:
-  extraction_accuracy: 0.95      # 95%+ accuracy requirement
-  inference_speed: "45+ tokens/sec"  # Target throughput
-  memory_efficiency: "8x reduction"  # FP8 quantization benefit
-  uptime_target: 0.95            # 95%+ system availability
-  context_optimization: "8K tokens covers 98% of job postings"
-
-# Integration settings
-integration:
-  structured_output: true        # ADR-007 compliance
-  token_routing_threshold: 8192  # ADR-008 threshold strategy
-  hybrid_fallback: true         # ADR-006 cloud fallback
-  retry_strategy: "tenacity"     # ADR-031 retry patterns
 ```
 
-**Environment Configuration:**
+### Configuration Structure
 
-```env
-# Model and quantization settings
-MODEL_NAME="Qwen/Qwen3-4B-Instruct-2507-FP8"
-MODEL_QUANTIZATION="fp8"
-KV_CACHE_DTYPE="fp8"
-MAX_MODEL_LENGTH=8192
-GPU_MEMORY_UTILIZATION=0.9
-SWAP_SPACE=4
-MAX_NUM_SEQS=128
+**Architecture Configuration Overview:**
 
-# vLLM server configuration
-VLLM_HOST="0.0.0.0"
-VLLM_PORT=8000
-VLLM_ENABLE_PREFIX_CACHING=true
-VLLM_TRUST_REMOTE_CODE=true
+Configuration is organized into logical layers supporting the integration architecture. Complete configuration files and environment setup are available in `/docs/implementation-guides/local-ai-setup.md`.
 
-# Performance and monitoring
-DEFAULT_TEMPERATURE=0.1
-DEFAULT_MAX_TOKENS=2000
-EXTRACTION_ACCURACY_THRESHOLD=0.95
-MEMORY_MONITORING_ENABLED=true
+**Configuration Layers:**
 
-# Version requirements
-REQUIRED_VLLM_VERSION=0.6.2
-REQUIRED_CUDA_VERSION=12.1
-REQUIRED_PYTORCH_VERSION=2.1
+1. **Model Configuration**: FP8 quantization settings and model parameters
+2. **vLLM Integration**: Inference engine configuration and optimization
+3. **Hardware Requirements**: GPU validation and memory management
+4. **Performance Monitoring**: Metrics collection and validation thresholds
+5. **Service Integration**: Connection points with job processing workflows
 
-# Hardware validation
-EXPECTED_GPU="RTX 4090 Laptop GPU"
-EXPECTED_VRAM_GB=16
-EXPECTED_COMPUTE_CAPABILITY=8.9
+**Key Configuration Elements:**
+
+```yaml
+# Architecture configuration structure
+model_layer:
+  selection: "Qwen/Qwen3-4B-Instruct-2507-FP8"  # Per ADR-034
+  quantization: "fp8"  # 8x memory reduction
+  context: 8192  # Optimal for job processing
+
+integration_layer:
+  vllm_engine: ">=0.6.2"  # FP8 support requirement
+  structured_output: true  # ADR-007 compliance
+  hybrid_fallback: true   # ADR-006 cloud fallback
+
+hardware_layer:
+  gpu: "RTX 4090 Laptop GPU (Ada Lovelace, CC 8.9)"
+  memory_utilization: 0.9  # Aggressive with FP8 efficiency
+  requirements: ["CUDA >=12.1", "PyTorch >=2.1"]
 ```
 
 ## Testing
 
-### Comprehensive Testing Strategy
+### Testing Strategy Overview
 
-**Integration Testing Framework combining test approaches from all superseded ADRs:**
+**Quality Assurance Authority:** Comprehensive testing methodology, test suites, and performance benchmarking are maintained in **ADR-035** (AI Processing Quality Assurance). This section provides integration testing context.
 
-```python
-import pytest
-import time
-import asyncio
-import logging
-from unittest.mock import Mock, patch
-from typing import Dict, List, Any
+**Architecture Testing Focus:**
 
-class TestComprehensiveLocalAIProcessor:
-    """
-    Comprehensive test suite combining validation approaches from:
-    - ADR-004: Model integration and switching tests
-    - ADR-005: vLLM configuration and performance tests  
-    - ADR-009: Benchmark validation and accuracy tests
-    """
-    
-    def setup_method(self):
-        """Setup test environment with comprehensive processor."""
-        self.processor = ComprehensiveLocalAIProcessor()
-        self.test_job_schema = self._get_job_extraction_schema()
-        self.benchmark_jobs = self._load_benchmark_job_data()
-    
-    # Model Integration Tests (from ADR-004)
-    def test_vllm_initialization_comprehensive(self):
-        """Verify vLLM engine initializes with consolidated configuration."""
-        
-        # Verify health check passes
-        assert self.processor.health_check() is True
-        
-        # Verify configuration matches comprehensive expectations
-        assert self.processor.llm.llm_engine.model_config.model.endswith("2507-FP8")
-        
-        # Verify memory optimization settings
-        memory_stats = self.processor.get_memory_stats()
-        assert memory_stats["model_memory_gb"] <= 1.5  # FP8 efficiency target
-        assert memory_stats["status"] == "optimal"
-    
-    # Performance Validation Tests (from ADR-009)
-    @pytest.mark.asyncio
-    async def test_extraction_accuracy_benchmarks(self):
-        """Test job extraction accuracy against benchmark requirements."""
-        
-        accuracy_scores = []
-        
-        for job_data in self.benchmark_jobs[:20]:  # Test on subset
-            content = job_data["raw_content"]
-            expected = job_data["ground_truth"]
-            
-            extracted = await self.processor.extract_jobs(content, self.test_job_schema)
-            
-            if "error" not in extracted:
-                accuracy = self._calculate_extraction_accuracy(extracted, expected)
-                accuracy_scores.append(accuracy)
-        
-        if accuracy_scores:
-            avg_accuracy = sum(accuracy_scores) / len(accuracy_scores)
-            assert avg_accuracy > 0.95, f"Accuracy {avg_accuracy:.3f} below 95% threshold"
-    
-    @pytest.mark.asyncio
-    async def test_inference_performance_comprehensive(self):
-        """Verify inference meets comprehensive performance requirements."""
-        
-        test_prompt = "Extract job details from: Senior Software Engineer at TechCorp"
-        
-        start_time = time.monotonic()
-        result = await self.processor.generate(test_prompt, max_tokens=100)
-        duration = time.monotonic() - start_time
-        
-        # Performance assertions from consolidated requirements
-        assert result is not None
-        assert len(result.strip()) > 0
-        assert duration < 1.0  # Sub-1s inference with FP8 optimization
-    
-    # Memory Management Tests (from ADR-005)  
-    @pytest.mark.asyncio
-    async def test_memory_management_with_fp8(self):
-        """Verify automatic memory management with FP8 quantization."""
-        
-        # Test multiple concurrent requests
-        tasks = []
-        for i in range(8):  # Increased load for FP8 testing
-            content = f"Test job posting {i} with various requirements..."
-            task = self.processor.extract_jobs(content, self.test_job_schema)
-            tasks.append(task)
-        
-        results = await asyncio.gather(*tasks)
-        
-        # All requests should complete without memory errors
-        assert len(results) == 8
-        valid_results = [r for r in results if "error" not in r]
-        assert len(valid_results) >= 6  # Allow for some extraction challenges
-        
-        # Verify memory stats remain optimal
-        memory_stats = self.processor.get_memory_stats()
-        assert memory_stats["gpu_utilization_percent"] <= 95
-    
-    # Configuration Validation Tests
-    def test_configuration_validation_comprehensive(self):
-        """Verify comprehensive configuration parameters are applied."""
-        
-        # Verify model selection matches benchmark winner
-        assert "Qwen3-4B-Instruct-2507" in self.processor.model_name
-        assert "FP8" in self.processor.model_name
-        
-        # Verify sampling parameters for extraction consistency
-        assert self.processor.sampling_params.temperature == 0.1  # Low for consistency
-        assert self.processor.sampling_params.max_tokens == 2000   # Sufficient for job data
-        assert self.processor.sampling_params.top_p == 0.9
-    
-    # Context Length Handling Tests (from ADR-009)
-    @pytest.mark.asyncio
-    async def test_context_length_handling_comprehensive(self):
-        """Test handling of various context lengths with 8K optimization."""
-        
-        test_cases = [
-            ("short", "Brief job posting" * 20),         # ~300 tokens
-            ("medium", "Detailed job requirements" * 200), # ~3K tokens
-            ("optimal", "Comprehensive job posting" * 400), # ~6K tokens  
-            ("maximum", "Extensive job description" * 600), # ~9K tokens (over limit)
-        ]
-        
-        for case_name, content in test_cases:
-            result = await self.processor.extract_jobs(content, self.test_job_schema)
-            
-            # Should handle all lengths gracefully
-            assert isinstance(result, dict), f"Failed to process {case_name} content"
-            
-            # Should extract key information even from truncated content
-            if "error" not in result:
-                assert any(key in result for key in ["title", "company", "description"])
-    
-    # Throughput and Reliability Tests
-    @pytest.mark.asyncio
-    async def test_throughput_performance_targets(self):
-        """Test throughput meets consolidated performance targets."""
-        
-        test_jobs = ["Software Engineer position..." for _ in range(5)]
-        
-        start_time = time.time()
-        
-        # Process jobs sequentially for timing accuracy
-        results = []
-        for job_content in test_jobs:
-            result = await self.processor.extract_jobs(job_content, self.test_job_schema)
-            results.append(result)
-        
-        end_time = time.time()
-        elapsed = end_time - start_time
-        
-        # Should process 5 jobs efficiently with FP8 acceleration
-        jobs_per_second = len(test_jobs) / elapsed
-        assert jobs_per_second > 3, f"Throughput {jobs_per_second:.2f} jobs/sec too slow"
-        
-        # Verify extraction success rate
-        successful_extractions = [r for r in results if "error" not in r]
-        success_rate = len(successful_extractions) / len(results)
-        assert success_rate >= 0.8  # 80%+ success rate for test data
-    
-    @pytest.mark.integration
-    async def test_production_reliability_simulation(self):
-        """Simulate production load for reliability validation."""
-        
-        # Extended reliability test simulating production usage
-        test_iterations = 10
-        success_count = 0
-        
-        for i in range(test_iterations):
-            test_content = f"Test job {i}: Python Developer at StartupCorp with ML experience..."
-            
-            try:
-                result = await self.processor.extract_jobs(test_content, self.test_job_schema)
-                if "error" not in result:
-                    success_count += 1
-            except Exception as e:
-                logging.warning(f"Test iteration {i} failed: {e}")
-        
-        # Require 95%+ reliability
-        reliability = success_count / test_iterations
-        assert reliability >= 0.95, f"Reliability {reliability:.2f} below 95% target"
-    
-    # Helper methods
-    def _get_job_extraction_schema(self) -> Dict[str, Any]:
-        """Get comprehensive job extraction schema."""
-        return {
-            "type": "object",
-            "properties": {
-                "title": {"type": "string"},
-                "company": {"type": "string"},
-                "location": {"type": "string"},
-                "salary_min": {"type": ["integer", "null"]},
-                "salary_max": {"type": ["integer", "null"]},
-                "skills": {"type": "array", "items": {"type": "string"}},
-                "description": {"type": "string"},
-                "requirements": {"type": "array", "items": {"type": "string"}},
-                "benefits": {"type": ["string", "null"]},
-                "employment_type": {"type": ["string", "null"]}
-            },
-            "required": ["title", "company", "description"]
-        }
-    
-    def _calculate_extraction_accuracy(self, extracted: Dict, expected: Dict) -> float:
-        """Calculate comprehensive extraction accuracy score."""
-        
-        required_fields = ["title", "company", "description"]
-        optional_fields = ["location", "skills", "requirements"]
-        
-        correct_required = 0
-        correct_optional = 0
-        
-        # Score required fields (higher weight)
-        for field in required_fields:
-            if field in extracted and field in expected:
-                if self._fields_match(extracted[field], expected[field]):
-                    correct_required += 1
-        
-        # Score optional fields (lower weight)
-        for field in optional_fields:
-            if field in extracted and field in expected:
-                if self._fields_match(extracted[field], expected[field]):
-                    correct_optional += 1
-        
-        # Weighted accuracy calculation
-        required_score = (correct_required / len(required_fields)) * 0.7
-        optional_score = (correct_optional / len(optional_fields)) * 0.3
-        
-        return required_score + optional_score
-    
-    def _fields_match(self, field1: Any, field2: Any, threshold: float = 0.7) -> bool:
-        """Check if extracted fields match expected values."""
-        
-        if isinstance(field1, str) and isinstance(field2, str):
-            return self._strings_similar(field1, field2, threshold)
-        elif isinstance(field1, list) and isinstance(field2, list):
-            # Check for overlap in lists (skills, requirements)
-            if not field1 or not field2:
-                return False
-            set1, set2 = set(str(x).lower() for x in field1), set(str(x).lower() for x in field2)
-            overlap = len(set1 & set2) / len(set1 | set2)
-            return overlap >= threshold
-        else:
-            return str(field1).lower() == str(field2).lower()
-    
-    def _strings_similar(self, s1: str, s2: str, threshold: float = 0.7) -> bool:
-        """Check if strings are similar enough for accuracy calculation."""
-        
-        if not s1 or not s2:
-            return False
-        
-        # Normalize strings
-        s1_words = set(s1.lower().split())
-        s2_words = set(s2.lower().split())
-        
-        if not s1_words or not s2_words:
-            return False
-        
-        # Calculate Jaccard similarity
-        intersection = len(s1_words & s2_words)
-        union = len(s1_words | s2_words)
-        
-        similarity = intersection / union if union > 0 else 0
-        return similarity >= threshold
-    
-    def _load_benchmark_job_data(self) -> List[Dict]:
-        """Load test job data for benchmarking."""
-        
-        # Mock benchmark data - in production this would load from test dataset
-        return [
-            {
-                "raw_content": "Software Engineer - Remote\nTechCorp Inc.\nPython, React, AWS\n$120k-150k",
-                "ground_truth": {
-                    "title": "Software Engineer",
-                    "company": "TechCorp Inc.",
-                    "location": "Remote",
-                    "skills": ["Python", "React", "AWS"],
-                    "description": "Software Engineer position at TechCorp"
-                }
-            }
-            # Additional test cases would be loaded here
-        ]
-```
+1. **Integration Testing**: vLLM engine initialization and configuration validation
+2. **Performance Testing**: Memory utilization and throughput verification under FP8 quantization
+3. **Reliability Testing**: Sustained operation and error handling validation
+4. **Configuration Testing**: Hardware requirements and environment validation
 
-### Performance Benchmarking
+**Key Testing Requirements:**
 
-**Consolidated Performance Requirements:**
+| Test Category | Requirement | Validation Method |
+|--------------|-------------|-------------------|
+| Model Integration | vLLM FP8 initialization | Health check and configuration verification |
+| Memory Management | <4GB VRAM usage | FP8 quantization memory monitoring |
+| Inference Performance | <1.0s per extraction | Timing validation with 8K context |
+| Architecture Reliability | 95%+ uptime | Extended stability testing per ADR-035 |
 
-| Metric | Target | Measurement Method |
-|--------|--------|--------------------|
-| Extraction Accuracy | 95%+ | Benchmark against ground truth data |
-| Inference Speed | <1.0s per job | Time extraction with 8K context |
-| Memory Usage | <4GB VRAM | Monitor FP8 quantized model |
-| Throughput | 45+ tokens/sec | Sustained generation rate |
-| Reliability | 95%+ uptime | Extended stability testing |
-| Context Handling | 8K tokens optimal | Test various content lengths |
+**Implementation Testing:**
+
+Testing implementation details, comprehensive test suites, and benchmarking frameworks are available in `/docs/implementation-guides/ai-quality-testing.md` and **ADR-035**.
 
 ## Consequences
 
@@ -1006,6 +398,32 @@ class TestComprehensiveLocalAIProcessor:
 - [PyTorch CUDA Memory Management](https://pytorch.org/docs/stable/notes/cuda.html) - Backend memory operations
 
 ## Changelog
+
+### v4.0 - August 23, 2025 - ARCHITECTURE FOCUS RESTRUCTURING
+
+**🏗️ ARCHITECTURAL FOCUS TRANSFORMATION:**
+
+- **TITLE REFINEMENT**: "Comprehensive Local AI Processing Architecture" → "Local AI Integration Architecture" - Now focuses on HOW integration is implemented
+- **SCOPE RESTRUCTURING**: Reduced from 1,049 to 441 lines (58% reduction) by extracting strategic decisions and testing methodology
+- **STRATEGIC DELEGATION**: Model selection rationale and alternatives evaluation moved to **ADR-034** (Strategic LLM Configuration Decisions)
+- **TESTING DELEGATION**: Comprehensive testing methodology and quality assurance moved to **ADR-035** (AI Processing Quality Assurance)
+- **IMPLEMENTATION DELEGATION**: Detailed Python code and configuration moved to implementation guides
+- **ARCHITECTURAL FOCUS**: Enhanced focus on integration patterns, configuration structure, and deployment architecture
+
+**🎯 CLEAR SEPARATION OF CONCERNS:**
+
+- **HOW Authority**: Defines HOW the local AI integration architecture is implemented
+- **Strategic Deference**: References **ADR-034** for WHY decisions (model selection, alternatives evaluation)
+- **Quality Deference**: References **ADR-035** for PROOF (testing methodology, quality assurance)
+- **Implementation Guides**: Points to `/docs/implementation-guides/` for detailed code and configuration
+- **Architecture Patterns**: Maintains focus on vLLM integration, configuration layers, and deployment patterns
+
+**📁 CONTENT EXTRACTION:**
+
+- **Removed**: 172 lines of Python implementation code → `/docs/implementation-guides/local-ai-setup.md`
+- **Removed**: 284 lines of comprehensive testing framework → `/docs/implementation-guides/ai-quality-testing.md` and **ADR-035**
+- **Removed**: 135 lines of alternatives evaluation → **ADR-034** strategic authority
+- **Retained**: Architecture diagrams, configuration structure, integration patterns, consequences
 
 ### v3.0 - August 22, 2025 (ARCHITECTURE CONSOLIDATION)
 
