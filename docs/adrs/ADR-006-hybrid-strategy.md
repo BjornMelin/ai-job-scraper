@@ -141,7 +141,7 @@ graph LR
 
 - **ADR-001** (Library-First Architecture): Foundation for library-handled complexity approach eliminating custom routing logic
 - **ADR-004** (Local AI Integration): Provides vLLM-based model management for local processing capabilities
-- **ADR-005** (Inference Stack): Supplies vLLM integration patterns and local inference infrastructure
+- **ADR-004** (Comprehensive Local AI Processing Architecture): Supplies vLLM integration patterns and local inference infrastructure (supersedes ADR-005)
 - **ADR-008** (Optimized Token Thresholds): Defines the 8000 token threshold optimization that drives routing decisions
 - **ADR-010** (Scraping Strategy): Consumes hybrid AI extraction capabilities for job data processing
 - **ADR-031** (Tenacity Retry Strategy): Provides standardized error recovery patterns for cloud fallback

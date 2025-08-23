@@ -205,7 +205,7 @@ graph TB
 - **ADR-002** (Minimal Implementation): Validates 50-line component goal (this achieves ~30 lines)
 - **ADR-004** (Local AI Integration): Updated to use this simplified configuration
 - **ADR-008** (Optimized Token Thresholds): Validates 8K context as optimal for job processing
-- **ADR-009** (LLM Selection Strategy): Defines model selection aligned with this configuration
+- **ADR-004** (Comprehensive Local AI Processing Architecture): Defines comprehensive model selection and configuration aligned with this simplified approach (supersedes ADR-009)
 - **ADR-032** (Historical): Original FP8 quantization proposal - initially rejected due to incomplete GPU compatibility research, later validated and incorporated into this ADR with simplified approach
 
 ## Design

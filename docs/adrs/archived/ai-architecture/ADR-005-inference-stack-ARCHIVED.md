@@ -2,12 +2,31 @@
 
 ## Metadata
 
-**Status:** Accepted
+**Status:** Superseded by ADR-004
 **Version/Date:** v2.1 / 2025-08-22
+**Superseded:** 2025-08-22 by ADR-004 (Comprehensive Local AI Processing Architecture)
 
 ## Title
 
 Simple vLLM Inference Stack with Native Features
+
+---
+
+> **⚠️ SUPERSEDED NOTICE**
+>
+> This ADR has been **superseded by ADR-004 (Comprehensive Local AI Processing Architecture)** as of August 22, 2025.
+>
+> **Reason for Supersession:** Content consolidation to eliminate 85% duplication across ADR-004, ADR-005, and ADR-009. All inference stack configuration, model selection rationale, and deployment strategies are now consolidated into ADR-004 as the single authoritative source.
+>
+> **Migration Path:** Refer to ADR-004 for:
+> - Complete vLLM configuration (Section: Implementation Details)
+> - Production deployment settings (Section: Configuration)  
+> - Comprehensive testing strategies (Section: Testing)
+> - Performance optimization guidelines (Section: Architecture Overview)
+>
+> This document is preserved for historical reference only.
+
+---
 
 ## Description
 

@@ -21,7 +21,7 @@ The AI job scraper requires intelligent routing decisions between local Qwen3 mo
 
 **Research Discovery**: Job content analysis shows 98% of job pages contain 3K-8K tokens, making 8K context optimal with 8x safety margin for comprehensive coverage.
 
-**Technical Forces**: Library-first implementation leveraging tiktoken for accurate token counting and tenacity for robust fallback mechanisms, integrated with vLLM inference stack per **ADR-005** and hybrid strategy per **ADR-006**.
+**Technical Forces**: Library-first implementation leveraging tiktoken for accurate token counting and tenacity for robust fallback mechanisms, integrated with comprehensive local AI processing architecture per **ADR-004** and hybrid strategy per **ADR-006**.
 
 **Cost Impact Data**: Threshold comparison shows 8000-token threshold achieves 98% local processing vs 60% at 1000 tokens, representing 95% cost reduction while maintaining quality standards.
 
@@ -105,14 +105,14 @@ flowchart TD
 
 ### Integration Requirements
 
-- **IR-1:** The solution must integrate with vLLM inference stack from **ADR-005** specifications
+- **IR-1:** The solution must integrate with comprehensive local AI processing architecture from **ADR-004** specifications
 - **IR-2:** The component must coordinate with hybrid strategy routing from **ADR-006** architecture
 
 ## Related Decisions
 
 - **ADR-006** (Hybrid LLM Strategy): This decision implements the core threshold-based routing mechanism for the hybrid strategy architecture
 - **ADR-007** (Structured Output Strategy): The token threshold coordinates with structured output generation to ensure consistent quality across routing paths
-- **ADR-009** (LLM Selection Strategy): The 8000-token threshold leverages Qwen3 model capacity analysis and performance characteristics
+- **ADR-004** (Comprehensive Local AI Processing Architecture): The 8000-token threshold leverages Qwen3 model capacity analysis and performance characteristics
 - **ADR-004** (Local AI Integration): This threshold optimization maximizes local model utilization while maintaining extraction quality standards
 
 ## Design
@@ -489,7 +489,7 @@ class TestThresholdIntegration:
 
 - **Python**: `tiktoken>=0.8.0` for accurate token counting with OpenAI-compatible encodings
 - **Python**: `tenacity>=9.1.0` for robust retry patterns in cloud fallback scenarios
-- **System**: Local Qwen3 models per **ADR-009** specifications with vLLM inference stack integration
+- **System**: Local Qwen3 models per **ADR-004** specifications with vLLM inference stack integration
 - **Removed**: Custom token estimation logic (replaced by tiktoken library-first implementation)
 
 ## References

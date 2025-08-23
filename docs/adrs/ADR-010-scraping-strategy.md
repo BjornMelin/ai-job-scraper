@@ -34,7 +34,7 @@ Job data exists across two distinct source types requiring different extraction 
 - **ScrapeGraphAI Capability**: AI-powered extraction for unstructured content with schema-based output
 - **Maintenance Reality**: Multi-tier architectures require exponential maintenance overhead as site structures evolve
 - **Performance Data**: 2-tier architecture covers 80% of use cases with optimal resource utilization
-- **Integration Requirements**: Must coordinate with proxy system (**ADR-011**), structured output (**ADR-007**), and local AI models (**ADR-009**)
+- **Integration Requirements**: Must coordinate with proxy system (**ADR-011**), structured output (**ADR-007**), and comprehensive local AI processing (**ADR-004**)
 
 ## Decision Drivers
 
@@ -125,14 +125,14 @@ graph LR
 - **IR-1:** The solution must integrate with the 2-tier architecture defined in **ADR-014**
 - **IR-2:** The component must be callable via the proxy system established in **ADR-011**
 - **IR-3:** The solution must coordinate with structured output framework from **ADR-007**
-- **IR-4:** The component must interface with local AI models per **ADR-009** specifications
+- **IR-4:** The component must interface with comprehensive local AI processing per **ADR-004** specifications
 
 ## Related Decisions
 
 - **ADR-014** (Hybrid Scraping Strategy): This decision implements the 2-tier architecture strategy validated and recommended in ADR-014
 - **ADR-011** (Proxy Anti-Bot Integration): The scraping implementation integrates with the IPRoyal proxy system established in ADR-011 for both tiers
 - **ADR-007** (Structured Output Strategy): The unified output interface coordinates with the structured output framework defined in ADR-007
-- **ADR-009** (LLM Selection Strategy): The ScrapeGraphAI tier leverages local AI models selected in ADR-009 for enhanced extraction
+- **ADR-004** (Comprehensive Local AI Processing Architecture): The ScrapeGraphAI tier leverages local AI models selected in ADR-004 for enhanced extraction
 
 ## Design
 
@@ -267,10 +267,10 @@ class UnifiedScrapingService:
         return {"country_indeed": "USA"}  # Proxy config per ADR-011
     
     def _load_ai_config(self) -> Dict[str, Any]:
-        """Load ScrapeGraphAI configuration with ADR-009 model."""
+        """Load ScrapeGraphAI configuration with ADR-004 model."""
         return {
             "llm": {
-                "model": "Qwen/Qwen3-4B-Instruct-2507-FP8",  # ADR-009 local model with FP8
+                "model": "Qwen/Qwen3-4B-Instruct-2507-FP8",  # ADR-004 local model with FP8
                 "quantization": "fp8",
                 "temperature": 0.7
             }
@@ -299,7 +299,7 @@ class ScrapingConfig:
     jobspy_results_limit: int = 50
     
     # ScrapeGraphAI Tier Settings
-    ai_model: str = "Qwen/Qwen3-4B-Instruct-2507-FP8"  # Per ADR-009 with FP8
+    ai_model: str = "Qwen/Qwen3-4B-Instruct-2507-FP8"  # Per ADR-004 with FP8
     ai_temperature: float = 0.7
     ai_timeout: int = 60
     
@@ -402,7 +402,7 @@ class TestScrapingIntegration:
 
 - **Monitor tier performance metrics** including success rates, response times, and classification accuracy on monthly basis
 - **Track JobSpy library updates** for breaking changes to job board integrations and proxy compatibility
-- **Review ScrapeGraphAI model performance** quarterly and update local model configurations per ADR-009
+- **Review ScrapeGraphAI model performance** quarterly and update local model configurations per ADR-004
 - **Validate extraction quality** across different company website structures and update extraction schemas as needed
 - **Cost monitoring** for AI extraction usage to optimize between performance and operational expenses
 - **Rate limiting compliance** to ensure both tiers respect job board and company website policies

@@ -17,14 +17,14 @@ Implement guaranteed structured JSON output generation using Outlines library wi
 
 The AI job scraper requires guaranteed structured JSON output generation for reliable job data extraction from scraped content. Traditional LLM output parsing suffers from JSON formatting errors, incomplete responses, and schema validation failures, leading to 10-15% extraction pipeline failures.
 
-Raw LLM outputs often produce malformed JSON with missing brackets, incorrect field types, or invalid enum values. Manual parsing and validation creates fragile extraction pipelines that require extensive error handling and retry logic. The system must integrate with the vLLM inference stack established in **ADR-005** and support Qwen3 model configurations from **ADR-004**, while handling complex job schemas with 15+ fields and nested relationships.
+Raw LLM outputs often produce malformed JSON with missing brackets, incorrect field types, or invalid enum values. Manual parsing and validation creates fragile extraction pipelines that require extensive error handling and retry logic. The system must integrate with the comprehensive local AI processing architecture established in **ADR-004**, including vLLM inference stack and Qwen3 model configurations, while handling complex job schemas with 15+ fields and nested relationships.
 
 Key constraints include maintaining sub-second generation times for real-time extraction, supporting complex nested job objects and enumerated fields, and ensuring 100% JSON validity to eliminate downstream parsing errors.
 
 ## Decision Drivers
 
 - Output Reliability: Guarantee 100% valid JSON output with schema compliance
-- vLLM Integration: Native compatibility with local inference infrastructure established in **ADR-005**
+- vLLM Integration: Native compatibility with local inference infrastructure established in **ADR-004**
 - Performance Efficiency: Minimal generation overhead compared to retry-based validation approaches
 - Schema Complexity: Support for nested objects, arrays, and complex validation constraints
 - Type Safety: Pydantic integration for automatic validation and type conversion
@@ -46,7 +46,7 @@ Key constraints include maintaining sub-second generation times for real-time ex
 
 ## Decision
 
-We will adopt **Outlines library v0.1.0+** with **vLLM integration** for guaranteed structured JSON output generation. This involves using **Outlines' Finite State Machine (FSM) approach** configured with **Pydantic models** and integrated with the **vLLM inference stack** from **ADR-005**. This decision supersedes any previous ad-hoc JSON parsing approaches.
+We will adopt **Outlines library v0.1.0+** with **vLLM integration** for guaranteed structured JSON output generation. This involves using **Outlines' Finite State Machine (FSM) approach** configured with **Pydantic models** and integrated with the **comprehensive local AI processing architecture** from **ADR-004**. This decision supersedes any previous ad-hoc JSON parsing approaches.
 
 ## High-Level Architecture
 
@@ -70,7 +70,7 @@ flowchart TD
         F
     end
     
-    subgraph "vLLM Stack (ADR-005)"
+    subgraph "Local AI Stack (ADR-004)"
         C
         E
     end
@@ -105,14 +105,14 @@ flowchart TD
 
 ### Integration Requirements
 
-- **IR-1:** The solution must integrate natively with vLLM inference stack per **ADR-005**
+- **IR-1:** The solution must integrate natively with comprehensive local AI processing architecture per **ADR-004**
 - **IR-2:** The component must be compatible with Qwen3 model configurations per **ADR-004**
 - **IR-3:** The system must integrate with scraping pipeline per **ADR-014**
 
 ## Related Decisions
 
 - **ADR-004** (Local AI Integration): Provides Qwen3-4B-Instruct-2507-FP8 model configurations and FP8 quantization settings used by Outlines for structured generation
-- **ADR-005** (Inference Stack): Establishes vLLM infrastructure that Outlines integrates with natively, including GPU memory utilization and context window settings
+- **ADR-004** (Comprehensive Local AI Processing Architecture): Establishes vLLM infrastructure that Outlines integrates with natively, including GPU memory utilization and context window settings
 - **ADR-006** (Hybrid Strategy): Defines hybrid LLM approach that structured output generation supports for both local and cloud models
 - **ADR-014** (Hybrid Scraping Strategy): Consumes guaranteed structured JSON output from this decision to eliminate parsing errors in the scraping pipeline
 
@@ -191,7 +191,7 @@ class StructuredJobExtractor:
     """Robust job extraction with Outlines + vLLM integration"""
     
     def __init__(self):
-        # Initialize vLLM with Outlines - using simplified single model per ADR-009
+        # Initialize vLLM with Outlines - using simplified single model per ADR-004
         self.model = models.vllm(
             "Qwen/Qwen3-4B-Instruct-2507-FP8",
             max_model_len=8192,  # Qwen3-4B optimized 8K context
@@ -348,7 +348,7 @@ class TestStructuredExtraction:
 - Unlocks complex nested schema extraction with automatic validation, supporting 15+ job fields including enumerated types, arrays, and optional fields
 - Reduces extraction pipeline complexity by eliminating retry logic, error handling, and manual JSON parsing, decreasing code maintenance by ~40%
 - Standardizes structured output generation across all job extraction modules, providing consistent Pydantic model instances throughout the system
-- Integrates natively with vLLM infrastructure from **ADR-005**, leveraging existing GPU memory optimization and context window management
+- Integrates natively with vLLM infrastructure from **ADR-004**, leveraging existing GPU memory optimization and context window management
 
 ### Negative Consequences / Trade-offs
 
@@ -370,7 +370,7 @@ class TestStructuredExtraction:
 ### Dependencies
 
 - **Python**: `outlines>=0.1.0`, `pydantic>=2.0.0`, `vllm>=0.5.0`, `tenacity>=8.2.0`
-- **System**: GPU with VRAM support per **ADR-005** requirements, CUDA toolkit for vLLM
+- **System**: GPU with VRAM support per **ADR-004** requirements, CUDA toolkit for vLLM
 - **Models**: Qwen3-4B-Instruct-2507-FP8 with FP8 quantization per **ADR-004** configurations
 - **Removed**: Custom JSON parsing utilities, retry-based validation logic, manual schema validation functions
 

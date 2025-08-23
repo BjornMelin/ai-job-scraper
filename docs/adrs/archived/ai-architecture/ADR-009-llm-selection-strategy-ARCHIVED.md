@@ -2,12 +2,31 @@
 
 ## Metadata
 
-**Status:** Accepted
+**Status:** Superseded by ADR-004  
 **Version/Date:** v3.0 / 2025-08-21
+**Superseded:** 2025-08-22 by ADR-004 (Comprehensive Local AI Processing Architecture)
 
 ## Title
 
 LLM Selection Strategy for Local AI Processing
+
+---
+
+> **⚠️ SUPERSEDED NOTICE**
+>
+> This ADR has been **superseded by ADR-004 (Comprehensive Local AI Processing Architecture)** as of August 22, 2025.
+>
+> **Reason for Supersession:** Content consolidation to eliminate 85% duplication across ADR-004, ADR-005, and ADR-009. All model selection rationale, benchmark analysis, performance validation, and deployment strategies are now consolidated into ADR-004 as the single authoritative source.
+>
+> **Migration Path:** Refer to ADR-004 for:
+> - Model selection benchmarks and analysis (Section: Context > Model Selection Benchmark Analysis)
+> - Comprehensive alternatives evaluation (Section: Decision Framework)
+> - Performance validation requirements (Section: Testing)
+> - Production deployment configuration (Section: Configuration)
+>
+> This document is preserved for historical reference only.
+
+---
 
 ## Description
 
