@@ -11,7 +11,6 @@ from typing import Any
 
 import streamlit as st
 
-from groq import Groq
 from openai import OpenAI
 
 from src.ui.utils import is_streamlit_context
@@ -19,15 +18,14 @@ from src.ui.utils import is_streamlit_context
 logger = logging.getLogger(__name__)
 
 
-def test_api_connection(provider: str, api_key: str) -> tuple[bool, str]:
-    """Test API connection for the specified provider.
+def test_openai_connection(api_key: str) -> tuple[bool, str]:
+    """Test OpenAI API connection for cloud fallback.
 
     Makes actual API calls to validate connectivity and authentication.
     Uses lightweight endpoints to minimize cost and latency.
 
     Args:
-        provider: The LLM provider ("OpenAI" or "Groq").
-        api_key: The API key to test.
+        api_key: The OpenAI API key to test.
 
     Returns:
         Tuple of (success: bool, message: str).
@@ -39,38 +37,19 @@ def test_api_connection(provider: str, api_key: str) -> tuple[bool, str]:
     message = ""
 
     try:
-        if provider == "OpenAI":
-            # Basic format validation first
-            if not api_key.startswith("sk-"):
-                message = "Invalid OpenAI API key format (should start with 'sk-')"
-            else:
-                # Test actual API connectivity using lightweight models.list() endpoint
-                client = OpenAI(api_key=api_key)
-                models = client.models.list()
-                model_count = len(models.data) if models.data else 0
-                success = True
-                message = f"✅ Connected successfully. {model_count} models available"
-
-        elif provider == "Groq":
-            # Basic format validation first
-            if len(api_key) < 20:
-                message = "Groq API key appears to be too short"
-            else:
-                # Test actual API connectivity using minimal chat completion
-                client = Groq(api_key=api_key)
-                completion = client.chat.completions.create(
-                    model="llama3-8b-8192",
-                    messages=[{"role": "user", "content": "ping"}],
-                    max_tokens=1,
-                )
-                completion_id = completion.id[:8] if completion.id else "unknown"
-                success = True
-                message = f"✅ Connected successfully. Response ID: {completion_id}"
+        # Basic format validation first
+        if not api_key.startswith("sk-"):
+            message = "Invalid OpenAI API key format (should start with 'sk-')"
         else:
-            message = f"Unknown provider: {provider}"
+            # Test actual API connectivity using lightweight models.list() endpoint
+            client = OpenAI(api_key=api_key)
+            models = client.models.list()
+            model_count = len(models.data) if models.data else 0
+            success = True
+            message = f"✅ Connected successfully. {model_count} models available"
 
     except Exception as e:
-        logger.exception("API connection test failed for %s", provider)
+        logger.exception("API connection test failed for OpenAI")
 
         # Provide more specific error messages based on exception type
         error_msg = str(e).lower()
@@ -106,81 +85,74 @@ def load_settings() -> dict[str, "Any"]:
     """
     return {
         "openai_api_key": os.getenv("OPENAI_API_KEY", ""),
-        "groq_api_key": os.getenv("GROQ_API_KEY", ""),
-        "llm_provider": st.session_state.get("llm_provider", "OpenAI"),
+        "ai_token_threshold": st.session_state.get("ai_token_threshold", 8000),
         "max_jobs_per_company": st.session_state.get("max_jobs_per_company", 50),
     }
 
 
 def save_settings(settings: dict[str, "Any"]) -> None:
-    """Save settings to session state and environment variables.
+    """Save settings to session state.
 
     Args:
         settings: Dictionary containing settings to save.
     """
     # Save to session state with defaults
-    st.session_state["llm_provider"] = settings.get("llm_provider", "OpenAI")
+    st.session_state["ai_token_threshold"] = settings.get("ai_token_threshold", 8000)
     st.session_state["max_jobs_per_company"] = settings.get("max_jobs_per_company", 50)
 
-    # Note: In a production app, you would save API keys securely
-    # For now, we'll just note that they should be set as environment variables
     logger.info(
-        "Settings updated: LLM Provider=%s, Max Jobs=%s",
-        st.session_state["llm_provider"],
+        "Settings updated: Token Threshold=%s, Max Jobs=%s",
+        st.session_state["ai_token_threshold"],
         st.session_state["max_jobs_per_company"],
     )
 
 
 def show_settings_page() -> None:
-    """Display the settings management page.
+    """Display the simplified settings management page.
 
     Provides functionality to:
-    - Configure API keys for OpenAI and Groq
-    - Switch between LLM providers
+    - Configure OpenAI API key for cloud fallback
+    - Set token threshold for local/cloud routing
     - Set maximum jobs per company limit
-    - Test API connections
     """
     st.title("Settings")
-    st.markdown("Configure your AI Job Scraper settings")
+    st.markdown("Configure your AI Job Scraper settings - Phase 1 (Simplified)")
 
     # Load current settings
     settings = load_settings()
 
-    # API Configuration Section
-    st.markdown("### 🔑 API Configuration")
+    # AI Configuration Section
+    st.markdown("### 🤖 AI Configuration")
 
     with st.container(border=True):
-        # LLM Provider Selection
-        col1, col2 = st.columns([2, 1])
+        st.markdown("**Local + Cloud Hybrid Routing**")
+        st.info(
+            "🏠 **Local Model**: Qwen3-4B-Instruct (primary) | "
+            "☁️ **Cloud Fallback**: OpenAI GPT-4o-mini"
+        )
 
-        with col1:
-            provider = st.radio(
-                "LLM Provider",
-                options=["OpenAI", "Groq"],
-                index=0 if settings["llm_provider"] == "OpenAI" else 1,
-                horizontal=True,
-                help="Choose your preferred Large Language Model provider",
-            )
-
-        with col2:
-            st.markdown("**Current Provider**")
-            if provider == "OpenAI":
-                st.markdown("🤖 OpenAI GPT")
-            else:
-                st.markdown("⚡ Groq (Ultra-fast)")
+        # Token threshold slider
+        token_threshold = st.slider(
+            "Token Threshold for Cloud Fallback",
+            min_value=4000,
+            max_value=16000,
+            value=settings["ai_token_threshold"],
+            step=500,
+            help="Requests above this token count will use cloud fallback (OpenAI)",
+        )
 
         # API Key Configuration
-        st.markdown("#### API Keys")
+        st.markdown("#### Cloud Fallback Configuration")
 
         # OpenAI API Key
         openai_col1, openai_col2 = st.columns([3, 1])
         with openai_col1:
             openai_key = st.text_input(
-                "OpenAI API Key",
+                "OpenAI API Key (for cloud fallback)",
                 type="password",
                 value=settings["openai_api_key"],
                 placeholder="sk-...",
-                help="Your OpenAI API key (starts with 'sk-')",
+                help="Required for cloud fallback when local model context is exceeded",
             )
 
         with openai_col2:
@@ -192,33 +164,7 @@ def show_settings_page() -> None:
             )
 
         if test_openai and openai_key:
-            success, message = test_api_connection("OpenAI", openai_key)
-            if success:
-                st.success(f"✅ {message}")
-            else:
-                st.error(f"❌ {message}")
-
-        # Groq API Key
-        groq_col1, groq_col2 = st.columns([3, 1])
-        with groq_col1:
-            groq_key = st.text_input(
-                "Groq API Key",
-                type="password",
-                value=settings["groq_api_key"],
-                placeholder="gsk_...",
-                help="Your Groq API key",
-            )
-
-        with groq_col2:
-            test_groq = st.button(
-                "Test Connection",
-                key="test_groq",
-                disabled=not groq_key,
-                help="Test your Groq API key",
-            )
-
-        if test_groq and groq_key:
-            success, message = test_api_connection("Groq", groq_key)
+            success, message = test_openai_connection(openai_key)
             if success:
                 st.success(f"✅ {message}")
             else:
@@ -263,8 +209,7 @@ def show_settings_page() -> None:
                 settings.update(
                     {
                         "openai_api_key": openai_key,
-                        "groq_api_key": groq_key,
-                        "llm_provider": provider,
+                        "ai_token_threshold": token_threshold,
                         "max_jobs_per_company": max_jobs,
                     },
                 )
@@ -276,10 +221,10 @@ def show_settings_page() -> None:
                 logger.info("User saved application settings")
 
                 # Show reminder about API keys
-                if openai_key or groq_key:
+                if openai_key:
                     st.info(
-                        "💡 **Note:** API keys should be set as environment variables "
-                        "(OPENAI_API_KEY, GROQ_API_KEY) for security in production.",
+                        "💡 **Note:** Set OPENAI_API_KEY as environment variable "
+                        "for production security."
                     )
 
             except Exception:
@@ -293,27 +238,24 @@ def show_settings_page() -> None:
         col1, col2 = st.columns(2)
 
         with col1:
-            st.markdown("**LLM Provider**")
-            if settings["llm_provider"] == "OpenAI":
-                st.markdown("🤖 OpenAI")
-            else:
-                st.markdown("⚡ Groq")
-
-            st.markdown("**API Keys Status**")
-            openai_status = "✅ Set" if settings["openai_api_key"] else "❌ Not Set"
-            groq_status = "✅ Set" if settings["groq_api_key"] else "❌ Not Set"
-            st.markdown(f"OpenAI: {openai_status}")
-            st.markdown(f"Groq: {groq_status}")
+            st.markdown("**AI Configuration**")
+            st.markdown(f"🤖 Token Threshold: **{settings['ai_token_threshold']:,}**")
+            st.markdown("🏠 Primary: **Local Qwen3-4B**")
+            st.markdown("☁️ Fallback: **OpenAI GPT-4o-mini**")
 
         with col2:
-            st.markdown("**Scraping Limits**")
-            st.markdown(f"Max jobs per company: **{settings['max_jobs_per_company']}**")
+            st.markdown("**Status & Limits**")
+            st.markdown(
+                f"📊 Max jobs per company: **{settings['max_jobs_per_company']}**"
+            )
 
-            st.markdown("**Environment Variables**")
+            # API Key status
+            openai_status = "✅ Set" if settings["openai_api_key"] else "❌ Not Set"
+            st.markdown(f"🔑 OpenAI Key: {openai_status}")
+
+            # Environment variable status
             env_openai = "✅ Set" if os.getenv("OPENAI_API_KEY") else "❌ Not Set"
-            env_groq = "✅ Set" if os.getenv("GROQ_API_KEY") else "❌ Not Set"
-            st.markdown(f"OPENAI_API_KEY: {env_openai}")
-            st.markdown(f"GROQ_API_KEY: {env_groq}")
+            st.markdown(f"🌍 ENV Variable: {env_openai}")
 
 
 # Execute page when loaded by st.navigation()

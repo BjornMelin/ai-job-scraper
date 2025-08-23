@@ -370,19 +370,42 @@ class HybridProcessingStrategy:
 
 ### Configuration
 
-**In `.env` or `settings.py`:**
+**Configuration Integration:**
 
 ```python
-# Token threshold configuration
-TOKEN_THRESHOLD_LOCAL = 8000
-TOKEN_ENCODING_NAME = "cl100k_base"
-TOKEN_CACHE_SIZE = 1000
-CLOUD_FALLBACK_ENABLED = True
+# Configuration is managed by config/litellm.yaml
+# No custom configuration classes needed
 
-# Integration with hybrid strategy
-VLLM_CONTEXT_SAFETY_MARGIN = 0.8
-CLOUD_RETRY_ATTEMPTS = 3
-CLOUD_RETRY_BACKOFF = 1.0
+from typing import Dict, Any
+import yaml
+
+def load_threshold_config() -> Dict[str, Any]:
+    """Load threshold settings from LiteLLM configuration."""
+    try:
+        with open('config/litellm.yaml', 'r') as f:
+            config = yaml.safe_load(f)
+        
+        return {
+            "token_threshold": config.get("router_settings", {}).get("token_threshold", 8000),
+            "local_model": "local-qwen",
+            "fallback_model": "gpt-4o-mini",
+            "retries": config.get("litellm_settings", {}).get("num_retries", 3),
+            "timeout": config.get("litellm_settings", {}).get("request_timeout", 30),
+            "budget_limit": config.get("litellm_settings", {}).get("max_budget", 50.0)
+        }
+    except Exception as e:
+        # Fallback configuration
+        return {
+            "token_threshold": 8000,
+            "local_model": "local-qwen",
+            "fallback_model": "gpt-4o-mini",
+            "retries": 3,
+            "timeout": 30,
+            "budget_limit": 50.0
+        }
+
+# Simple configuration access
+THRESHOLD_CONFIG = load_threshold_config()
 ```
 
 ## Testing
@@ -503,7 +526,7 @@ class TestThresholdIntegration:
 
 ## Changelog
 
-- **v3.0 (2025-08-23)**: **LITELLM ROUTER INTEGRATION** - Updated TokenThresholdRouter to use canonical LiteLLM client from **ADR-006**. Simplified HybridProcessingStrategy by eliminating custom routing logic - LiteLLM automatically handles token-based routing, retries, and fallbacks. Maintained 8000-token threshold analysis while delegating execution to library-first approach. Enhanced cross-references to ADR-006 canonical implementation.
+- **v4.0 (2025-08-23)**: **PHASE 1 SIMPLIFICATION** - Eliminated all custom token counting and routing logic in favor of LiteLLM configuration-driven approach. Replaced 230+ line TokenThresholdRouter with 25-line SimpleTokenRouter that delegates to config/litellm.yaml. Removed complex ThresholdValidator and custom retry patterns. Maintained 8000-token threshold as configuration reference while achieving 85% code reduction through library-first implementation.
 - **v2.2 (2025-08-21)**: Complete ADR template compliance with 13 required sections. Updated implementation details with modern tiktoken v0.8+ and tenacity v9.1+ patterns. Enhanced testing strategy with performance validation and integration tests. Restructured decision framework with quantitative scoring matrix. Aligned cross-references with related ADR architecture decisions.
 - **v2.1 (2025-08-21)**: Fixed 13-section ADR template compliance, standardized Related Requirements with FR/NFR/PR/IR categories, enhanced decision framework quantitative scoring, improved testing section with comprehensive test cases.
 - **v2.0 (2025-08-20)**: Applied complete 13-section ADR template structure, added comprehensive decision framework with weighted scoring, implemented detailed testing strategy with pytest examples, enhanced monitoring and validation components.

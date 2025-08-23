@@ -18,9 +18,7 @@ try:
     # Import core_utils.py as a module from src directory
     import core_utils as utils_module
 
-    # Re-export all functions
-    get_extraction_model = utils_module.get_extraction_model
-    get_llm_client = utils_module.get_llm_client
+    # Re-export available functions
     get_proxy = utils_module.get_proxy
     random_delay = utils_module.random_delay
     random_user_agent = utils_module.random_user_agent
@@ -28,16 +26,10 @@ try:
     settings = utils_module.settings
 
     # Export modules for testing
-    OpenAI = utils_module.OpenAI
-    Groq = utils_module.Groq
     random = utils_module.random
     time = utils_module.time
 
     __all__ = [
-        "Groq",
-        "OpenAI",
-        "get_extraction_model",
-        "get_llm_client",
         "get_proxy",
         "random",
         "random_delay",
@@ -50,22 +42,6 @@ try:
 except ImportError as e:
     # Fallback implementations if core_utils.py can't be loaded
     print(f"Warning: Could not import core_utils.py: {e}")
-
-    def get_extraction_model() -> str:
-        """Get a default extraction model name.
-
-        Returns:
-            str: Default extraction model name.
-        """
-        return "gpt-3.5-turbo"
-
-    def get_llm_client():
-        """Get a default LLM client.
-
-        Returns:
-            None: Fallback implementation returns None.
-        """
-        return
 
     def get_proxy() -> str | None:
         """Get a proxy URL.
@@ -109,14 +85,7 @@ except ImportError as e:
     import random
     import time
 
-    from groq import Groq
-    from openai import OpenAI
-
     __all__ = [
-        "Groq",
-        "OpenAI",
-        "get_extraction_model",
-        "get_llm_client",
         "get_proxy",
         "random",
         "random_delay",
