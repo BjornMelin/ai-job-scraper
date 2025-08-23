@@ -29,6 +29,8 @@ classifiers = [
 ]
 dependencies = [
     # AI and LLM
+    "litellm>=1.63.0,<2.0.0",
+    "instructor>=1.8.0,<2.0.0",
     "groq>=0.30.0,<1.0.0",
     "langchain-groq>=0.3.6,<1.0.0",
     "langgraph>=0.6.2,<1.0.0",

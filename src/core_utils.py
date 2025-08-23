@@ -1,17 +1,15 @@
 """Utility module for the AI Job Scraper application.
 
-This module provides helper functions to manage LLM clients (OpenAI or Groq),
-select extraction models, handle proxy rotation for scraping evasion, generate
-random user agents to mimic browser behavior, and introduce random delays to
-simulate human-like interactions. These utilities support hybrid LLM usage for
-optimization and enhance scraping reliability by avoiding detection.
+This module provides helper functions for web scraping evasion, random user
+agent generation, delays, and proxy management. The AI client functionality
+has been moved to src.ai_client for better separation of concerns.
 
 Functions:
-    get_llm_client: Returns the appropriate LLM client based on settings.
-    get_extraction_model: Returns the model name for extraction tasks.
     get_proxy: Returns a random proxy if enabled.
     random_user_agent: Generates a random browser user agent string.
     random_delay: Pauses execution for a random duration.
+    resolve_jobspy_proxies: Resolves proxy configuration for JobSpy.
+    ensure_timezone_aware: Ensures datetime objects are timezone-aware.
 """
 
 from __future__ import annotations
@@ -24,9 +22,6 @@ import time
 from datetime import UTC, datetime
 from pathlib import Path
 
-from groq import Groq
-from openai import OpenAI
-
 from src.config import Settings
 
 # Add src directory to path if not already there
@@ -35,36 +30,6 @@ if str(src_dir) not in sys.path:
     sys.path.insert(0, str(src_dir))
 
 settings = Settings()
-
-
-def get_llm_client() -> OpenAI | Groq:
-    """Get the LLM client based on the application configuration.
-
-    This function checks the settings to determine whether to use the Groq
-    or OpenAI provider and returns the corresponding client instance
-    initialized with the appropriate API key.
-
-    Returns:
-        Union[OpenAI, Groq]: The API client instance for the selected LLM provider.
-    """
-    if settings.use_groq:
-        return Groq(api_key=settings.groq_api_key)
-    return OpenAI(api_key=settings.openai_api_key)
-
-
-def get_extraction_model() -> str:
-    """Get the model name for extraction tasks based on the provider.
-
-    This function selects the appropriate model name depending on whether
-    Groq or OpenAI is being used, ensuring compatibility with the chosen
-    LLM provider for tasks like data extraction.
-
-    Returns:
-        str: The name of the model suitable for extraction tasks.
-    """
-    if settings.use_groq:
-        return "llama-3.3-70b-versatile"
-    return settings.extraction_model
 
 
 def get_proxy() -> str | None:

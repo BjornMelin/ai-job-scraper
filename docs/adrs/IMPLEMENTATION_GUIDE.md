@@ -47,7 +47,7 @@ uv run python src/main.py
 ```text
 ai-job-scraper/
 ├── src/
-│   ├── main.py                 # FastAPI + Reflex entry point
+│   ├── main.py                 # Streamlit application entry point
 │   ├── models/                 # SQLModel database models
 │   ├── scraping/               # Scraping implementations
 │   │   ├── jobspy_scraper.py  # Multi-board scraping
@@ -56,7 +56,7 @@ ai-job-scraper/
 │   ├── inference/              # Local LLM integration
 │   │   ├── vllm_client.py     # vLLM client wrapper
 │   │   └── structured.py      # Outlines structured output
-│   ├── ui/                    # Reflex UI components
+│   ├── ui/                    # Streamlit UI components
 │   │   ├── state.py           # Global state management
 │   │   ├── pages/             # Page components
 │   │   └── components/        # Reusable components
@@ -183,63 +183,52 @@ class InferenceClient:
         return self.llm.generate(texts, params)
 ```
 
-### 4. Reflex UI with Real-time Updates
+### 4. Streamlit UI with Real-time Updates
+
+> **Note:** Complete Streamlit implementation details available in ADR-017 (Local Development Architecture) and ADR-020 (Streamlit Local Development). See `src/ui/` for production implementation.
 
 ```python
-import reflex as rx
-from typing import list
+import streamlit as st
+from typing import List
 
-class AppState(rx.State):
-    """Global application state"""
-    jobs: list[Job] = []
-    is_scraping: bool = False
-    scraping_progress: int = 0
+def main():
+    """Main Streamlit application with real-time updates."""
+    st.title("AI Job Scraper")
     
-    @rx.event(background=True)
-    async def start_scraping(self, search_term: str):
-        """Background scraping with real-time updates"""
-        async with self:
-            self.is_scraping = True
-            self.scraping_progress = 0
-        
-        # Stream updates via WebSocket
-        async for job in scrape_jobs_stream(search_term):
-            async with self:
-                self.jobs.append(job)
-                self.scraping_progress += 1
-        
-        async with self:
-            self.is_scraping = False
+    # Initialize session state
+    if 'jobs' not in st.session_state:
+        st.session_state.jobs = []
+    if 'scraping' not in st.session_state:
+        st.session_state.scraping = False
+    
+    # Search interface
+    search_term = st.text_input("Search jobs...")
+    
+    if st.button("Start Scraping", disabled=st.session_state.scraping):
+        st.session_state.scraping = True
+        with st.spinner("Scraping jobs..."):
+            # Background scraping with progress updates
+            progress_bar = st.progress(0)
+            for i, job in enumerate(scrape_jobs_stream(search_term)):
+                st.session_state.jobs.append(job)
+                progress_bar.progress((i + 1) / 10)  # Estimated total
+        st.session_state.scraping = False
+        st.rerun()
+    
+    # Display jobs with real-time updates
+    if st.session_state.jobs:
+        st.subheader(f"Found {len(st.session_state.jobs)} jobs")
+        for job in st.session_state.jobs:
+            with st.expander(f"{job.title} - {job.company}"):
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.write(f"**Salary:** ${job.salary_min}-${job.salary_max}")
+                with col2:
+                    if st.button("Apply", key=f"apply_{job.id}"):
+                        st.success("Application submitted!")
 
-def job_card(job: Job):
-    """Reusable job card component"""
-    return rx.card(
-        rx.heading(job.title),
-        rx.text(job.company),
-        rx.badge(f"${job.salary_min}-${job.salary_max}"),
-        rx.button(
-            "Apply",
-            on_click=lambda: AppState.apply_to_job(job.id)
-        )
-    )
-
-def index():
-    """Main page"""
-    return rx.container(
-        rx.heading("AI Job Scraper"),
-        rx.input(
-            placeholder="Search jobs...",
-            on_submit=AppState.start_scraping
-        ),
-        rx.cond(
-            AppState.is_scraping,
-            rx.progress(value=AppState.scraping_progress),
-            rx.foreach(AppState.jobs, job_card)
-        )
-    )
-
-app = rx.App()
-app.add_page(index)
+if __name__ == "__main__":
+    main()
 ```
 
 ### 5. Background Tasks with RQ
@@ -363,16 +352,16 @@ uv run pytest tests/test_scraping.py::test_jobspy_integration
 
 ```bash
 # Start with hot reload
-uv run reflex run --env dev
+uv run streamlit run src/main.py
 
-# Access at http://localhost:3000
+# Access at http://localhost:8501
 ```
 
 ### Production
 
 ```bash
 # Build optimized frontend
-uv run reflex export --frontend-only
+uv run streamlit run src/main.py --server.port=8501
 
 # Run with gunicorn
 uv run gunicorn -w 4 -k uvicorn.workers.UvicornWorker src.main:app
@@ -396,7 +385,7 @@ docker-compose up --build
 1. **Use vLLM's built-in features** - Don't implement custom memory management
 2. **Leverage Crawl4AI caching** - Set bypass_cache=False for repeated URLs
 3. **Batch database operations** - Use bulk_insert_mappings()
-4. **Enable Reflex production mode** - reflex run --env prod
+4. **Configure Streamlit for production** - set STREAMLIT_SERVER_HEADLESS=true
 5. **Use Redis for session caching** - Reduce database load
 
 ## Troubleshooting
@@ -412,7 +401,7 @@ docker-compose up --build
    - Use Crawl4AI's incremental mode
 
 3. **WebSocket disconnections**
-   - Solution: Implement reconnection logic in Reflex
+   - Solution: Use st.fragment() with error handling for real-time updates
    - Check nginx/proxy timeouts
 
 4. **Model switching delays**
@@ -422,14 +411,14 @@ docker-compose up --build
 ## Next Steps
 
 1. **Week 1**: Core scraping and database
-2. **Week 2**: UI implementation with Reflex
+2. **Week 2**: UI implementation with Streamlit
 3. **Week 3**: Local LLM integration
 4. **Week 4**: Testing and optimization
 5. **Week 5**: Deployment and monitoring
 
 ## Resources
 
-- [Reflex Documentation](https://reflex.dev/docs/)
+- [Streamlit Documentation](https://docs.streamlit.io/)
 - [vLLM Documentation](https://docs.vllm.ai/)
 - [JobSpy GitHub](https://github.com/Bunsly/JobSpy)
 - [Crawl4AI Documentation](https://crawl4ai.com/mkdocs/)

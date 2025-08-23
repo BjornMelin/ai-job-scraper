@@ -10,7 +10,9 @@ Reflex Component Architecture for Local Development
 
 ## Status
 
-**Accepted** - *Scope: Local development only*
+**Accepted** - *Implementation in progress*
+
+**Current Reality**: Active migration from Streamlit to Reflex UI framework. Local development environment being configured for Reflex component-based architecture as defined in this ADR.
 
 ## Description
 
@@ -429,6 +431,19 @@ def live_job_counter(count: int) -> rx.Component:
 ```
 
 ## Consequences
+### Dependencies
+
+- No specific external dependencies for this architectural decision
+
+### References
+
+- No additional references beyond those in context
+
+### Changelog
+
+#### Current Version
+- Initial documentation and architectural specification
+
 
 ### Positive Outcomes
 
@@ -477,10 +492,10 @@ def live_job_counter(count: int) -> rx.Component:
 
 ## Related ADRs
 
-- **Supports ADR-017**: Local Development Architecture (UI component)
-- **Uses ADR-025**: Local Database Setup (data integration)
-- **Uses ADR-027**: Local Task Management (real-time updates)
-- **Replaces Old ADR-020**: UI Component Architecture (production-focused)
+- **Would Support ADR-017**: Local Development Architecture (UI component integration)
+- **Would Use ADR-018**: Local Database Setup (data integration)
+- **Would Use ADR-023**: Background Job Processing with RQ/Redis (real-time updates)
+- **Future Migration From**: Current Streamlit implementation
 
 ## Success Criteria
 

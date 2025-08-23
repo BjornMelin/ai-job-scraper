@@ -12,10 +12,7 @@ from src.constants import AI_REGEX, RELEVANT_PHRASES, SEARCH_KEYWORDS, SEARCH_LO
 # Seed module - import removed to prevent double model imports in Streamlit
 # Import seed function directly when needed
 # Utilities
-# Import the missing function separately to avoid linter issues
 from src.core_utils import (
-    get_extraction_model,
-    get_llm_client,
     get_proxy,
     random_delay,
     random_user_agent,
@@ -52,8 +49,6 @@ __all__ = [
     "db_session",
     "engine",
     # Utilities
-    "get_extraction_model",
-    "get_llm_client",
     "get_proxy",
     "get_session",
     "random_delay",

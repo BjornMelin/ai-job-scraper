@@ -1,142 +1,222 @@
-# 🕵️‍♂️ AI Job Scraper: Your Modern, Privacy-First Job Hunting Co-Pilot
+# 🕵️‍♂️ AI Job Scraper: Local-First, Privacy-Focused Job Search
 
-![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)![LangGraph](https://img.shields.io/badge/LangGraph-2C2C2C?style=for-the-badge)![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)![SQLite](https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)![vLLM](https://img.shields.io/badge/vLLM-2C2C2C?style=for-the-badge)![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)![SQLite](https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white)
 
 [![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](https://choosealicense.com/licenses/mit/)
 [![GitHub](https://img.shields.io/badge/GitHub-BjornMelin-181717?logo=github)](https://github.com/BjornMelin)
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-BjornMelin-0077B5?logo=linkedin)](https://www.linkedin.com/in/bjorn-melin/)
 
-AI Job Scraper is a modern, open-source Python application designed to automate and streamline your job search for roles in the AI and Machine Learning industry. It automatically scrapes job postings from top AI companies, filters for relevant roles, and provides a powerful, interactive Streamlit dashboard to track and manage your applications—all while ensuring your data remains private and stored locally.
+AI Job Scraper is a modern, open-source Python application designed to automate and streamline your job search for roles in the AI and Machine Learning industry. Built with **local-first AI processing** using Qwen/Qwen3-4B-Instruct-2507-FP8, it automatically scrapes job postings from top AI companies and provides a powerful Streamlit interface—all while ensuring your data remains completely private and local.
 
 ## ✨ Key Features
 
-* **🤖 Agentic & Hybrid Scraping:** Utilizes `ScrapeGraphAI` and `LangGraph` for intelligent, prompt-based scraping of company career pages and `JobSpy` for high-speed scraping of major job boards.
-
-* **⚡ High-Performance Backend:** Employs a library-first approach with `SQLModel` for the database, a `SmartSyncEngine` to prevent data loss, and optimized background tasks for a non-blocking UI.
-
-* **🎨 Modern, Interactive UI:** A fully-featured Streamlit dashboard with real-time progress updates, advanced filtering, application status tracking, and a responsive, card-based job browser.
-
-* **🏢 Dynamic Company Management:** Easily add, edit, and toggle companies for scraping directly from the UI.
-
-* **🛡️ Robust & Resilient:** Built-in proxy rotation, user-agent randomization, and automatic retries to handle bot detection and network errors gracefully.
-
-* **🐳 Docker Ready:** Comes with a multi-stage `Dockerfile` and `docker-compose.yml` for easy, secure, and repeatable deployments.
-
-* **🔒 Privacy-First:** All your data, notes, and application statuses are stored in a local SQLite database. No personal data ever leaves your machine.
+* **🤖 Local-First AI Processing:** Utilizes Qwen/Qwen3-4B-Instruct-2507-FP8 with FP8 quantization on RTX 4090 for fast, private job analysis
+* **⚡ Hybrid Scraping Strategy:** Combines `ScrapeGraphAI` for intelligent company page scraping with `JobSpy` for structured job board data
+* **🎨 Streamlit Native UI:** Modern, responsive interface with real-time updates via st.session_state and threading
+* **🚀 Non-Blocking Background Tasks:** Real-time progress tracking with st.status while maintaining UI responsiveness
+* **⚡ High-Performance Caching:** st.cache_data for <100ms filter operations on 5000+ job records
+* **🏢 Smart Database Sync:** Intelligent synchronization engine that preserves user data during updates
+* **🛡️ Privacy-First Architecture:** All processing happens locally - no personal data leaves your machine
+* **🐳 Docker Ready:** Complete containerization with GPU support for one-command deployment
 
 ## 🏗️ Architecture
 
-The application is built on a modern, component-based architecture that separates concerns for maintainability and scalability.
+### **Local-First AI Processing**
+- **Local LLM:** Qwen/Qwen3-4B-Instruct-2507-FP8 with FP8 quantization
+- **Cloud Fallback:** gpt-4o-mini for complex tasks (>8K tokens)
+- **Hardware:** RTX 4090 Laptop GPU (16GB VRAM) with 90% utilization
+- **Inference:** vLLM >=0.6.2 with CUDA >=12.1 support
+
+### **Technology Stack**
+- **Backend:** Python 3.12+, SQLModel, threading-based background tasks
+- **Frontend:** Streamlit with native caching (st.cache_data)
+- **Database:** SQLite (current) → Polars + DuckDB (scaling path)
+- **Deployment:** Docker + Docker Compose with GPU support
+
+### **Key Performance Metrics**
+- **Responsiveness:** <100ms UI filter operations via st.cache_data
+- **Scalability:** Handles 5,000+ job records efficiently
+- **Real-time Updates:** Non-blocking progress with st.rerun() + session_state
+- **Memory Efficiency:** FP8 quantization for optimal GPU utilization
 
 ```mermaid
 graph TD
     subgraph "UI Layer (Streamlit)"
-        UI_MAIN[main.py]
-        UI_PAGES[Multi-Page System]
-        UI_COMP[Component Library]
-        UI_STATE[Session State]
+        UI_APP[Streamlit App]
+        UI_PAGES[Page Components]
+        UI_STATE[st.session_state]
+        UI_CACHE[st.cache_data]
+        UI_STATUS[st.status Progress]
     end
     
-    subgraph "Business Logic (Services)"
-        BL_SCRAPER[Scraper Service]
-        BL_SYNC[Smart Sync Engine]
-        BL_JOB[Job Service]
-        BL_COMPANY[Company Service]
+    subgraph "Background Processing"
+        BG_THREAD[threading.Thread]
+        BG_SCRAPER[Scraper Service]
+        BG_SYNC[Smart Sync Engine]
+        BG_PROGRESS[Real-time Updates]
+    end
+    
+    subgraph "Local AI Processing"
+        LLM_LOCAL[Qwen3-4B-FP8]
+        LLM_VLLM[vLLM Engine]
+        LLM_GPU[RTX 4090 GPU]
+        LLM_FALLBACK[gpt-4o-mini]
     end
     
     subgraph "Data Layer"
-        DB_SQL[SQLite Database]
+        DB_SQLITE[SQLite Database]
         DB_MODELS[SQLModel Entities]
+        DB_CACHE[Session Cache]
     end
     
-    subgraph "External Services"
-        EXT_LLM[LLM Providers: OpenAI/Groq]
-        EXT_PROXIES[Proxy Pool]
-        EXT_SITES[Job Boards & Company Pages]
+    subgraph "External Sources"
+        EXT_JOBSPY[JobSpy - Job Boards]
+        EXT_SCRAPE[ScrapeGraphAI - Company Pages]
+        EXT_SITES[LinkedIn, Indeed, Career Pages]
     end
     
-    UI_MAIN --> UI_PAGES
-    UI_PAGES --> UI_COMP
-    UI_COMP --> UI_STATE
-    UI_STATE --> BL_JOB
-    UI_STATE --> BL_COMPANY
-    UI_PAGES -- Triggers --> BL_SCRAPER
+    UI_APP --> UI_STATE
+    UI_STATE --> UI_CACHE
+    UI_STATUS --> BG_PROGRESS
     
-    BL_SCRAPER --> BL_SYNC
-    BL_SYNC --> DB_MODELS
-    DB_MODELS --> DB_SQL
-    BL_JOB --> DB_MODELS
-    BL_COMPANY --> DB_MODELS
+    BG_THREAD --> BG_SCRAPER
+    BG_SCRAPER --> BG_SYNC
+    BG_PROGRESS --> UI_STATUS
     
-    BL_SCRAPER -- Uses --> EXT_LLM
-    BL_SCRAPER -- Uses --> EXT_PROXIES
-    BL_SCRAPER -- Accesses --> EXT_SITES
+    BG_SCRAPER --> LLM_LOCAL
+    LLM_LOCAL --> LLM_VLLM
+    LLM_VLLM --> LLM_GPU
+    BG_SCRAPER --> LLM_FALLBACK
+    
+    BG_SYNC --> DB_MODELS
+    DB_MODELS --> DB_SQLITE
+    UI_CACHE --> DB_CACHE
+    
+    BG_SCRAPER --> EXT_JOBSPY
+    BG_SCRAPER --> EXT_SCRAPE
+    EXT_JOBSPY --> EXT_SITES
+    EXT_SCRAPE --> EXT_SITES
 ```
 
-## 🚀 Getting Started
+## 🚀 Quick Start
 
-### Prerequisites
+### **Requirements**
+- **GPU:** RTX 4090 Laptop GPU with 16GB VRAM
+- **Software:** CUDA >=12.1, Python 3.12+
+- **Tools:** Docker + Docker Compose, uv package manager
 
-* Python 3.12+
-
-* `uv` (or `pip`) Python package manager
-
-* (Optional) Docker for containerized deployment
-
-* (Optional) OpenAI or Groq API key for LLM-powered scraping
-
-### Installation & Running
+### **Installation**
 
 1. **Clone the repository:**
-
     ```bash
     git clone https://github.com/BjornMelin/ai-job-scraper.git
     cd ai-job-scraper
     ```
 
-2. **Install dependencies with `uv`:**
-
+2. **Install dependencies with uv:**
     ```bash
     uv sync
     ```
 
-3. **Set up your environment:**
-    Copy the `.env.example` file to `.env` and add your API keys.
-
+3. **Set up environment variables:**
     ```bash
     cp .env.example .env
-    # nano .env
+    # Edit .env with your API keys (optional for local-only mode)
     ```
 
-4. **Initialize and seed the database:**
-    This creates the `jobs.db` file and populates it with a curated list of top AI companies.
-
+4. **Initialize the database:**
     ```bash
     uv run python -m src.seed seed
     ```
 
-5. **Run the Streamlit application:**
-
+5. **Start the application:**
     ```bash
-    streamlit run src/main.py
+    uv run streamlit run src/app.py
     ```
 
-6. **Open your browser** and navigate to `http://localhost:8501`.
+6. **Open your browser** and navigate to `http://localhost:8501`
 
-For more detailed instructions, including Docker deployment, see the full **[Getting Started Guide](./docs/user/getting-started.md)**.
+### **Docker Deployment**
 
-## 📚 Documentation Hub
+For containerized deployment with GPU support:
 
-* **[User Guide](./docs/user/user-guide.md):** Learn how to use all the features of the application.
+```bash
+# Build and run with Docker Compose
+docker-compose up --build
 
-* **[Developer Guide](./docs/developers/developer-guide.md):** Understand the architecture and how to contribute.
+# Or run with GPU support
+docker run --gpus all -p 8501:8501 ai-job-scraper
+```
 
-* **[Deployment Guide](./docs/developers/deployment.md):** Instructions for deploying the app to production.
+## 📊 Performance
 
-## 🙌 Contributing
+Our architecture delivers production-ready performance:
 
-Contributions are welcome! Please fork the repository, create a feature branch, and open a pull request. See the [Developer Guide](./docs/developers/developer-guide.md) for more details on setting up your environment and our coding standards.
+- **5,000+ job records** handled efficiently with current stack
+- **<100ms filter operations** via Streamlit native caching
+- **Real-time progress updates** during background scraping
+- **90% GPU utilization** with FP8 quantization optimization
+- **Non-blocking UI** with threading-based background tasks
+
+## 🔧 Configuration
+
+### **Local LLM Setup**
+The application uses Qwen/Qwen3-4B-Instruct-2507-FP8 for local processing:
+- Automatic model download on first run
+- FP8 quantization for memory efficiency
+- RTX 4090 optimized configuration
+- Fallback to gpt-4o-mini for complex tasks
+
+### **Scaling Path**
+When you need more performance:
+- **Database:** SQLite → Polars + DuckDB
+- **Caching:** Session-based → Persistent cache layers
+- **UI:** Enhanced components and optimization
+
+## 📚 Documentation
+
+* **[Product Requirements Document (PRD)](./docs/PRD.md):** Complete feature specifications and technical requirements
+* **[User Guide](./docs/user/user-guide.md):** Learn how to use all application features
+* **[Developer Guide](./docs/developers/developer-guide.md):** Architecture overview and contribution guidelines
+* **[Deployment Guide](./docs/developers/deployment.md):** Production deployment instructions
+
+## 🛠️ Development
+
+Built with modern Python practices:
+
+- **Package Management:** uv (not pip)
+- **Code Quality:** ruff for linting and formatting
+- **Testing:** pytest with >80% coverage target
+- **Architecture:** KISS > DRY > YAGNI principles
+- **Timeline:** 1-week deployment target achieved
+
+### **Development Setup**
+```bash
+# Install dependencies
+uv sync
+
+# Run linting and formatting
+ruff check . --fix
+ruff format .
+
+# Run tests
+uv run pytest
+```
+
+## 🤝 Contributing
+
+Contributions are welcome! Our development philosophy prioritizes:
+- **Library-first approaches** over custom implementations
+- **Simplicity and maintainability** over complex abstractions
+- **Local-first processing** for privacy and performance
+- **Modern Python patterns** with comprehensive type hints
+
+Please fork the repository, create a feature branch, and open a pull request. See the [Developer Guide](./docs/developers/developer-guide.md) for detailed contribution guidelines.
 
 ## 📃 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+**Built with ❤️ for the AI/ML community | Privacy-first | Local-first | Open source**

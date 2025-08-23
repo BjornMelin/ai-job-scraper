@@ -1,0 +1,54 @@
+# AI Job Scraper - vLLM Configuration
+# Simplified configuration aligned with ADR-001 (Library-First) & ADR-002 (Minimal Implementation)
+
+# Single Local Model (per ADR-004 canonical standards)
+models:
+  primary: "Qwen/Qwen3-4B-Instruct-2507-FP8"
+
+# vLLM Server Configuration (essential settings only)
+vllm:
+  # Memory management (let vLLM handle the rest)
+  swap_space: 4                    # CPU offload buffer
+  gpu_memory_utilization: 0.9      # Aggressive with FP8 memory savings
+  quantization: "fp8"              # FP8 quantization for RTX 4090
+  
+  # OpenAI-Compatible API (ADR-006/ADR-031 consolidation)
+  openai_compatibility:
+    enabled: true
+    port: 8000
+    base_url: "http://localhost:8000/v1"
+
+# AI Service Configuration (unified client approach)
+ai_service:
+  # Threshold optimization (ADR-008: 98% local processing)
+  threshold_tokens: 8000
+  
+  # Cloud fallback configuration
+  cloud_fallback:
+    model: "gpt-4o-mini"
+    api_key: "${OPENAI_API_KEY}"
+  
+  # Default generation parameters
+  generation:
+    temperature: 0.1
+    max_tokens: 2000
+    timeout_seconds: 30
+
+# Monitoring & Cost Tracking (ADR-030)
+monitoring:
+  cost_tracking: true
+  monthly_budget_limit: 50.0     # $50 total
+  ai_budget_limit: 15.0          # $15 AI services
+  
+# Scraping Integration (ADR-014: Hybrid Scraping Strategy)
+scraping:
+  ai_enhanced_extraction: true
+  
+# Database Configuration (ADR-026: Local Environment Configuration)
+database:
+  url: "sqlite:///jobs.db"
+  
+# Retry Configuration (ADR-031: Tenacity Strategy - simplified)
+retry:
+  http_max_attempts: 3
+  database_max_attempts: 5

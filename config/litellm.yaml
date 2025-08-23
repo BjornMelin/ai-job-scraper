@@ -1,0 +1,57 @@
+# LiteLLM Configuration for AI Job Scraper
+# Consolidated configuration aligned with Phase 1 implementation
+# Replaces custom routing and provides native fallback capabilities
+
+model_list:
+  # Local vLLM instance (primary for cost efficiency)
+  - model_name: local-qwen
+    litellm_params:
+      model: hosted_vllm/Qwen3-4B-Instruct-2507-FP8
+      api_base: http://localhost:8000/v1
+      api_key: EMPTY
+      timeout: 30
+      max_tokens: 8000
+      temperature: 0.1
+
+  # Cloud fallback (for larger contexts)
+  - model_name: gpt-4o-mini
+    litellm_params:
+      model: gpt-4o-mini
+      timeout: 30
+      max_tokens: 16000
+      temperature: 0.1
+
+# Global LiteLLM settings
+litellm_settings:
+  # Request handling
+  num_retries: 3
+  timeout: 30
+  
+  # Fallback configuration (native LiteLLM feature)
+  fallbacks: 
+    - "local-qwen": ["gpt-4o-mini"]
+  
+  # Performance optimizations
+  drop_params: true
+  set_verbose: false
+  
+  # Basic observability (optional)
+  success_callback: ["langfuse"]  # Only if LANGFUSE_PUBLIC_KEY is set
+  failure_callback: []
+
+# Router configuration
+router_settings:
+  routing_strategy: "simple-shuffle"  # Round-robin with fallback
+  model_group_alias: 
+    "job_extraction": ["local-qwen", "gpt-4o-mini"]
+    "company_analysis": ["local-qwen", "gpt-4o-mini"]
+  
+  # Context window management
+  context_window_fallbacks:
+    "local-qwen": "gpt-4o-mini"  # Auto-fallback when context exceeds 8k
+
+# Environment variable mappings
+environment:
+  OPENAI_API_KEY: required_for_fallback
+  LANGFUSE_PUBLIC_KEY: optional_for_observability
+  LANGFUSE_SECRET_KEY: optional_for_observability
