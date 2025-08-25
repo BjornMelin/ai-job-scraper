@@ -35,7 +35,7 @@ Simplified hybrid AI strategy using LiteLLM configuration-driven routing with na
 
 - Optimize for 8000 token threshold achieving 98% local processing
 - Eliminate complex routing matrix and decision algorithms
-- Leverage library-handled error recovery (tenacity for cloud fallback)
+- Leverage library-handled error recovery (LiteLLM for cloud fallback)
 - Minimize cloud API costs while maintaining capability coverage
 - Provide simple, maintainable hybrid strategy
 - Enable privacy-first approach using local models when possible
@@ -85,7 +85,7 @@ Simplified hybrid AI strategy using LiteLLM configuration-driven routing with na
 ### Non-Functional Requirements
 
 - **NFR-016:** **(Maintainability)** Simple threshold-based routing reduces complexity by 85% compared to v1.0
-- **NFR-017:** **(Reliability)** Library-handled error recovery using tenacity patterns
+- **NFR-017:** **(Reliability)** Library-handled error recovery using LiteLLM native patterns
 - **NFR-018:** **(Performance)** Sub-second routing decisions with automatic failover under 10 seconds
 
 ### Performance Requirements
@@ -97,7 +97,7 @@ Simplified hybrid AI strategy using LiteLLM configuration-driven routing with na
 ### Integration Requirements
 
 - **IR-016:** Integration with vLLM model manager from ADR-004 for local processing
-- **IR-017:** Uses tenacity library for standardized retry logic and cloud fallback
+- **IR-017:** Uses LiteLLM native retry and fallback logic per configuration
 - **IR-018:** Unified configuration through central settings management
 
 ## High-Level Architecture
@@ -108,7 +108,7 @@ graph LR
     B -->|< 8000 tokens| C[Local vLLM Processing]
     B -->|≥ 8000 tokens| D[Cloud API Processing]
     C -->|Success| E[Return Result]
-    C -->|Failure| F[Tenacity Retry Logic]
+    C -->|Failure| F[LiteLLM Retry Logic]
     F -->|Retry Failed| D
     D -->|Success/Failure| E
     
@@ -132,7 +132,7 @@ graph LR
 - **ADR-004** (Local AI Integration): Provides Instructor + LiteLLM integration patterns for structured outputs
 - **ADR-008** (Token Thresholds): Implements 8K threshold routing through LiteLLM configuration
 - **ADR-010** (Scraping Strategy): Consumes canonical AI client for extraction processing
-- **ADR-031** (Retry Strategy): AI retry logic completely delegated to LiteLLM native capabilities
+- **ADR-031** (Native HTTPX Resilience Strategy): AI retry logic completely delegated to LiteLLM native capabilities (canonical implementation)
 
 ## Design
 
@@ -148,7 +148,7 @@ graph TB
     D --> F[vLLM Model Manager]
     F --> G[Local Model Inference]
     G -->|Success| H[Return Result]
-    G -->|Failure| I[Tenacity Retry Handler]
+    G -->|Failure| I[LiteLLM Retry Handler]
     I -->|Retry Success| H
     I -->|All Retries Failed| E
     
@@ -198,11 +198,31 @@ litellm_settings:
   fallbacks: [{"local-qwen": ["gpt-4o-mini"]}]
   context_window_fallbacks: [{"local-qwen": ["gpt-4o-mini"]}]
   
+  # Advanced retry policies per error type
+  retry_policy: {
+    "ContentPolicyViolationErrorRetries": 3,
+    "AuthenticationErrorRetries": 0,
+    "BadRequestErrorRetries": 1,
+    "TimeoutErrorRetries": 2,
+    "RateLimitErrorRetries": 5
+  }
+  
+  # Cooldown management for failing models
+  allowed_fails_policy: {
+    "ContentPolicyViolationErrorAllowedFails": 1000,
+    "RateLimitErrorAllowedFails": 100
+  }
+  
   # Cost and performance management
   cooldown_time: 60
   drop_params: true
   max_budget: 50.0
   budget_duration: "1mo"
+  
+  # Built-in observability
+  enable_metrics: true
+  metrics_port: 8001
+  log_level: "INFO"
 ```
 
 **Minimal Client Implementation (`src/ai/client.py`):**
@@ -325,14 +345,14 @@ response = client.chat.completions.create(
 ### Dependencies
 
 - **Local Model:** Qwen/Qwen3-4B-Instruct-2507-FP8 via vLLM from ADR-004
-- **Cloud API:** OpenAI gpt-4o-mini API client with tenacity retry handling
-- **Retry Logic:** Tenacity library for fallback and error recovery
+- **Cloud API:** OpenAI gpt-4o-mini API client with LiteLLM native retry handling
+- **Retry Logic:** LiteLLM configuration for fallback and error recovery
 - **Tokenization:** tiktoken for accurate token counting and routing decisions
 
 ## References
 
 - [vLLM Documentation](https://docs.vllm.ai/)
-- [Tenacity Retry Patterns](https://tenacity.readthedocs.io/)
+- [LiteLLM Retry Configuration](https://docs.litellm.ai/docs/completion/retry)
 - [OpenAI API Documentation](https://platform.openai.com/docs/api-reference)
 - [tiktoken Token Counting](https://github.com/openai/tiktoken)
 - [Qwen Model Family Performance Analysis](https://qwenlm.github.io/blog/qwen-2-5/)
@@ -362,7 +382,7 @@ response = client.chat.completions.create(
 - **95% Code Reduction** - Simplified from 200+ line hybrid routing to 15-line unified client
 - **Single Interface** - Eliminated separate local/cloud client management through OpenAI compatibility
 - **Configuration Simplification** - Unified config eliminating hybrid routing complexity  
-- **Integration Alignment** - Coordinated with **ADR-031** retry strategy consolidation
+- **Integration Alignment** - Coordinated with **ADR-031** hybrid resilience strategy integration
 
 ### v3.1 - August 21, 2025
 
@@ -387,7 +407,7 @@ response = client.chat.completions.create(
 - Complete simplification based on ADR-001 library-first principles
 - Removed complex routing matrix (200+ lines to 40 lines)
 - Simple threshold-based decision (8000 tokens optimized from research)
-- Leveraged tenacity for all retry logic and error handling
+- Leveraged LiteLLM for all retry logic and error handling
 - Eliminated custom capacity management and load balancing
 
 ### v1.0 - August 18, 2025 (Archived)

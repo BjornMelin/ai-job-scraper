@@ -42,7 +42,7 @@ Analysis revealed massive over-engineering across the system:
 - Background tasks with async handlers
 - Mobile responsive with modern CSS
 
-**Tenacity Library (v9.0.0+):**
+**HTTPX Native Retries:**
 
 - Complete retry logic with exponential backoff and jitter
 - Circuit breaker patterns with async/await support  
@@ -94,8 +94,8 @@ Analysis revealed massive over-engineering across the system:
 **Adopt Full Library-First Architecture** using native library features for all major components:
 
 1. **Model Management:** vLLM with `swap_space=4` replaces 570 lines of custom code
-2. **Retry Logic:** Tenacity library (v9.0.0+) replaces all custom retry implementations
-3. **Error Handling:** Tenacity async patterns integrate with HTTPX and LangGraph workflows
+2. **Retry Logic:** HTTPX native transport retries replace all custom retry implementations
+3. **Error Handling:** HTTPX native patterns integrate with application workflows
 4. **UI Framework:** Use Streamlit (proven for data applications)
 5. **Scraping:** Crawl4AI primary with JobSpy fallback
 6. **Task Management:** Python threading with Streamlit integration per ADR-012
@@ -155,7 +155,7 @@ graph LR
     subgraph "Library Features"
         G[vLLM swap_space]
         H[Streamlit st.status]
-        I[Tenacity Retries]
+        I[HTTPX Transport Retries]
         J[Threading + add_script_run_ctx]
         K[Crawl4AI AI Extraction]
     end
@@ -192,10 +192,11 @@ class SimpleModelManager:
         )
 ```
 
-**Retry Logic with Tenacity (20 lines vs 700):**
+**Retry Logic with HTTPX Native (2 lines vs 700):**
 
 ```python
-from tenacity import retry, stop_after_attempt, wait_exponential_jitter
+# Native HTTPX transport retries for connection failures
+transport = httpx.HTTPTransport(retries=3)
 import httpx
 
 # Async HTTP requests with built-in retries
@@ -291,12 +292,6 @@ streamlit:
   cache_ttl_seconds: 600   # 10 minutes default
   status_updates: true     # Real-time progress
   
-tenacity:
-  max_attempts: 3
-  min_wait: 1
-  max_wait: 10
-  jitter: true
-  
 retries:
   http_codes: [500, 502, 503, 504, 429]
   exceptions: ["httpx.ConnectError", "httpx.TimeoutException"]
@@ -307,7 +302,7 @@ retries:
 ### Library Feature Testing
 
 1. **vLLM Integration Tests:** Verify swap_space functionality
-2. **Tenacity Retry Tests:** Confirm error handling patterns  
+2. **HTTPX Retry Tests:** Confirm native transport retry patterns  
 3. **Streamlit Fragment Tests:** Validate real-time updates
 4. **Crawl4AI Extraction Tests:** Test AI-powered scraping
 
@@ -349,8 +344,8 @@ retries:
 ### Dependencies
 
 - **vLLM:** Model inference and memory management with FP8 quantization
-- **Tenacity (v9.0.0+):** Comprehensive retry logic with async support, jitter, and integration patterns
-- **HTTPX:** Async HTTP client with Tenacity transport integration
+- **HTTPX Native:** Transport-level retry logic with built-in exponential backoff
+- **HTTPX:** Async HTTP client with native transport retry capabilities
 - **Streamlit:** UI framework with built-in st.status, st.cache_data, and session state management
 - **Python threading:** Native background task processing with add_script_run_ctx
 - **Crawl4AI:** AI-powered web scraping
@@ -361,7 +356,7 @@ retries:
 ## References
 
 - [vLLM Documentation](https://docs.vllm.ai/)
-- [Tenacity Documentation](https://tenacity.readthedocs.io/)
+- [HTTPX Retry Documentation](https://www.python-httpx.org/api/#transports)
 - [Crawl4AI Documentation](https://crawl4ai.com/docs/)
 - [Streamlit Threading Guide](https://docs.streamlit.io/library/advanced-features/threading)
 - [Python Threading Documentation](https://docs.python.org/3/library/threading.html)

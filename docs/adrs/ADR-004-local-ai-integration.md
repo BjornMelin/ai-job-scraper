@@ -267,7 +267,7 @@ graph TD
 - **ADR-001** (Library-First Architecture): Provides foundation for vLLM native feature utilization
 - **ADR-006** (Hybrid Strategy): Uses canonical LiteLLM configuration for local-cloud routing
 - **ADR-008** (Token Thresholds): Leverages 8K threshold for 98% local processing optimization
-- **ADR-031** (Retry Strategy): Delegates all AI retry logic to LiteLLM native capabilities
+- **ADR-031** (Native HTTPX Resilience Strategy): Delegates all AI retry logic to LiteLLM native capabilities (zero custom AI retry patterns)
 
 ## Design
 
@@ -327,9 +327,10 @@ services:
 **Simplified Instructor Integration (`src/ai/local_processor.py`):**
 
 ```python
-from pydantic import BaseModel, Field
-from typing import List, Optional
+from pydantic import BaseModel, Field, BeforeValidator
+from typing import List, Optional, Annotated
 import instructor
+from instructor import llm_validator
 from litellm import completion
 
 class JobExtraction(BaseModel):
@@ -349,23 +350,46 @@ class LocalAIProcessor:
         self.client = instructor.from_litellm(completion)
     
     async def extract_jobs(self, content: str, schema_model=JobExtraction) -> JobExtraction:
-        """Extract structured job data using Instructor - guaranteed valid schema."""
+        """Extract structured job data using Instructor with advanced features.
+        
+        Retry strategy: Delegated to LiteLLM configuration (ADR-031).
+        No Tenacity needed - LiteLLM handles all retry logic natively.
+        """
+        # Enhanced schema with semantic validation
+        class ValidatedJobExtraction(schema_model):
+            description: Annotated[
+                str,
+                BeforeValidator(llm_validator(
+                    "ensure professional job description without discriminatory language",
+                    self.client
+                ))
+            ]
+        
         # LiteLLM + Instructor handles all complexity:
         # - Token-based routing (local vs cloud)
-        # - Automatic retries and fallbacks
+        # - Automatic retries via LiteLLM config
+        # - Semantic validation via LLM validators
+        # - Streaming partial results for real-time UI
         # - Schema validation and conversion
-        # - Error handling and recovery
         
-        response = self.client.chat.completions.create(
+        # Use streaming for real-time UI updates
+        response = await self.client.chat.completions.create_partial(
             model="local-qwen",  # Routes via LiteLLM config
-            response_model=schema_model,
+            response_model=ValidatedJobExtraction,
             messages=[
                 {"role": "system", "content": "Extract job information accurately."},
                 {"role": "user", "content": content}
             ],
             temperature=0.1,
-            max_tokens=2000
+            max_tokens=2000,
+            # No max_retries parameter - LiteLLM config handles this
+            stream=True  # Enable streaming
         )
+        
+        # Stream partial results to UI if available
+        async for partial in response:
+            if hasattr(st, 'session_state'):
+                st.session_state.current_extraction = partial
         
         return response  # Already validated JobExtraction instance
 ```

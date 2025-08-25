@@ -181,7 +181,6 @@ uv sync
 ```bash
 # Core dependencies - all we need per canonical decisions
 uv add vllm
-uv add tenacity
 uv add streamlit
 uv add crawl4ai
 uv add jobspy
@@ -237,7 +236,7 @@ SQLModel.metadata.create_all(engine)
 
 ```python
 from vllm import LLM
-from tenacity import retry, stop_after_attempt, wait_exponential
+import httpx
 import torch
 
 class AIService:
@@ -606,7 +605,7 @@ if __name__ == "__main__":
 
 ### Dependencies
 
-- **Core Libraries:** vLLM, Streamlit, Crawl4AI, JobSpy, Tenacity, Pandas
+- **Core Libraries:** vLLM, Streamlit, Crawl4AI, JobSpy, HTTPX (native retries), Pandas
 - **Infrastructure:** NVIDIA GPU drivers for local LLM (RTX 4090 Laptop GPU)
 - **Development:** uv, Git, Python 3.11+
 

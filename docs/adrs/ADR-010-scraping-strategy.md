@@ -132,7 +132,7 @@ graph LR
 - **ADR-006** (Hybrid Strategy): Uses canonical LiteLLM configuration for Tier 2 AI extraction with automatic routing and fallbacks
 - **ADR-004** (Local AI Integration): Leverages Instructor structured outputs for guaranteed validation and schema compliance
 - **ADR-008** (Token Thresholds): Integrates with 8K threshold routing for optimal local vs cloud processing decisions
-- **ADR-031** (Retry Strategy): AI retry logic delegated to LiteLLM; HTTP retries handled by library patterns
+- **ADR-031** (Native HTTPX Resilience Strategy): AI retry logic delegated to LiteLLM; HTTP retries via native HTTPX transport retries + minimal status code handling
 
 ## Design
 
@@ -231,12 +231,19 @@ class UnifiedScrapingService:
             return await self._scrape_company_page(url_or_query)
     
     async def _scrape_job_boards(self, query: str, **kwargs) -> List[JobPosting]:
-        """Tier 1: JobSpy for structured job boards."""
+        """Tier 1: JobSpy for structured job boards with advanced features."""
         jobs = scrape_jobs(
             site_name=["linkedin", "indeed", "glassdoor"],
             search_term=query,
             location=kwargs.get("location", "remote"),
             results_wanted=kwargs.get("results_wanted", 50),
+            # Advanced JobSpy features for better data extraction
+            linkedin_fetch_description=True,  # Full job descriptions
+            hours_old=kwargs.get("hours_old", 72),  # Freshness filtering
+            offset=kwargs.get("offset", 0),  # Pagination support
+            description_format="markdown",  # Better formatting
+            linkedin_company_ids=kwargs.get("company_ids"),  # Direct targeting
+            verbose=2,  # Detailed logging for debugging
             **self.jobspy_config
         )
         
@@ -253,13 +260,49 @@ class UnifiedScrapingService:
             for job in jobs
         ]
     
+    def _should_use_scrapegraph(self, url: str) -> bool:
+        """Determine if ScrapeGraphAI should be used for complex pages."""
+        complex_sites = ['greenhouse.io', 'lever.co', 'workday.com', 'taleo.net']
+        return any(site in url for site in complex_sites)
+    
+    async def _scrape_with_scrapegraph(self, url: str) -> List[JobPosting]:
+        """Use ScrapeGraphAI for complex dynamic pages with caching."""
+        from scrapegraphai.graphs import SmartScraperGraph
+        
+        graph_config = {
+            "llm": {"provider": "litellm", "model": "local-qwen"},
+            "verbose": True,
+            "headless": True,
+            "use_cache": True,  # Enable caching for efficiency
+            "schema": JobPosting.model_json_schema(),  # Direct Pydantic validation
+            "max_results": 100,
+            "timeout": 30
+        }
+        
+        scraper = SmartScraperGraph(
+            prompt="Extract all job postings with title, company, location, description",
+            source=url,
+            config=graph_config
+        )
+        
+        results = scraper.run()
+        return self._validate_scrapegraph_results(results)
+    
     async def _scrape_company_page(self, url: str) -> List[JobPosting]:
-        """Tier 2: Instructor-validated AI extraction with automatic retries."""
+        """Tier 2: Instructor-validated AI extraction with ScrapeGraphAI option.
+        
+        Can use either direct HTTP + Instructor OR ScrapeGraphAI for complex pages.
+        """
+        # Option 1: Try ScrapeGraphAI for complex dynamic pages
+        if self._should_use_scrapegraph(url):
+            return await self._scrape_with_scrapegraph(url)
+        
+        # Option 2: Standard HTTP + Instructor extraction
         try:
-            # Fetch page content
-            import httpx
-            async with httpx.AsyncClient() as client:
-                response = await client.get(url, timeout=30.0)
+            # Use resilient HTTP client per ADR-031
+            from src.services.http_client import AsyncResilientHTTPClient
+            async with AsyncResilientHTTPClient() as client:
+                response = await client.get(url)
                 response.raise_for_status()
                 page_content = response.text[:8000]  # Automatic token management
             

@@ -21,7 +21,7 @@ The AI job scraper requires intelligent routing decisions between local Qwen3 mo
 
 **Research Discovery**: Job content analysis shows 98% of job pages contain 3K-8K tokens, making 8K context optimal with 8x safety margin for comprehensive coverage.
 
-**Technical Forces**: Library-first implementation leveraging tiktoken for accurate token counting and tenacity for robust fallback mechanisms, integrated with comprehensive local AI processing architecture per **ADR-004** and hybrid strategy per **ADR-006**.
+**Technical Forces**: Library-first implementation leveraging tiktoken for accurate token counting and LiteLLM for robust fallback mechanisms, integrated with comprehensive local AI processing architecture per **ADR-004** and hybrid strategy per **ADR-006**.
 
 **Cost Impact Data**: Threshold comparison shows 8000-token threshold achieves 98% local processing vs 60% at 1000 tokens, representing 95% cost reduction while maintaining quality standards.
 
@@ -31,7 +31,7 @@ The AI job scraper requires intelligent routing decisions between local Qwen3 mo
 - **Local Resource Utilization**: Maximize available local model capacity within safe operating parameters
 - **Processing Quality**: Maintain consistent extraction accuracy across all threshold ranges
 - **Implementation Simplicity**: Simple threshold logic with minimal overhead and maintenance
-- **Library Integration**: Seamless integration with tiktoken, tenacity, and vLLM stack
+- **Library Integration**: Seamless integration with tiktoken, LiteLLM, and vLLM stack
 
 ## Alternatives
 
@@ -51,7 +51,7 @@ The AI job scraper requires intelligent routing decisions between local Qwen3 mo
 
 ## Decision
 
-We will adopt **Fixed 8000 Token Threshold** to address hybrid local/cloud processing routing. This involves using **tiktoken** for accurate token counting configured with **cl100k_base encoding** and **tenacity retry patterns** for robust cloud fallback. This decision supersedes any conservative threshold assumptions from initial architecture.
+We will adopt **Fixed 8000 Token Threshold** to address hybrid local/cloud processing routing. This involves using **tiktoken** for accurate token counting configured with **cl100k_base encoding** and **LiteLLM retry patterns** for robust cloud fallback. This decision supersedes any conservative threshold assumptions from initial architecture.
 
 **Rationale**: The 8000-token threshold achieves optimal balance with 95% cost reduction ($50 → $2.50/month), 98% local processing rate, and simple single-parameter configuration while staying well within Qwen3 model capabilities and maintaining extraction quality.
 
@@ -65,7 +65,7 @@ flowchart TD
     C -->|No| E[Cloud API Processing]
     
     D --> F[Structured Output]
-    E --> G[tenacity Retry Logic]
+    E --> G[LiteLLM Retry Logic]
     G --> H[Cloud Result]
     
     F --> I[Quality Validation]
@@ -96,7 +96,7 @@ flowchart TD
 
 - **NFR-1:** **(Cost Efficiency)** The solution must achieve 95% cost reduction versus conservative thresholds ($50 → $2.50/month)
 - **NFR-2:** **(Performance)** The solution must process threshold decisions under 50ms response time using tiktoken
-- **NFR-3:** **(Reliability)** The component must handle token counting failures gracefully with tenacity retry patterns
+- **NFR-3:** **(Reliability)** The component must handle token counting failures gracefully with LiteLLM retry patterns
 
 ### Performance Requirements
 
@@ -153,7 +153,6 @@ graph LR
 import tiktoken
 from typing import Optional
 from dataclasses import dataclass, field
-from tenacity import retry, stop_after_attempt, wait_exponential
 
 @dataclass
 class ThresholdConfig:
@@ -182,7 +181,7 @@ class TokenThresholdRouter:
         wait=wait_exponential(multiplier=1, min=0.1, max=2.0)
     )
     def count_tokens(self, content: str) -> int:
-        """Count tokens with caching and tenacity retry for robustness."""
+        """Count tokens with caching and LiteLLM retry for robustness."""
         if not content.strip():
             return 0
             
@@ -464,14 +463,14 @@ class TestTokenThresholdRouter:
 
 @pytest.mark.asyncio
 class TestThresholdIntegration:
-    """Test integration with tenacity retry patterns and hybrid strategy."""
+    """Test integration with LiteLLM retry patterns and hybrid strategy."""
     
     def setup_method(self):
         """Setup integration test environment."""
         self.router = TokenThresholdRouter()
     
-    async def test_tenacity_retry_on_token_counting_failure(self):
-        """Verify tenacity retry patterns handle tiktoken failures gracefully."""
+    async def test_litellm_retry_on_token_counting_failure(self):
+        """Verify LiteLLM retry patterns handle tiktoken failures gracefully."""
         # Mock tiktoken failure and recovery
         with patch.object(self.router.tokenizer, 'encode') as mock_encode:
             mock_encode.side_effect = [Exception("tiktoken error"), [1, 2, 3]]  # Fail then succeed
@@ -489,7 +488,7 @@ class TestThresholdIntegration:
 - **Enables 95% cost reduction** from $50/month to $2.50/month through optimized threshold routing, directly supporting production deployment economics
 - **Achieves 98% local processing rate** for typical job extractions, reducing cloud API dependency and improving response consistency
 - **Implements simple single-parameter configuration** using modern tiktoken patterns, reducing maintenance complexity from 8 configuration points to 1
-- **Leverages proven library capabilities** with tiktoken v0.8+ efficiency and tenacity v9.1+ retry patterns, eliminating custom token counting implementations
+- **Leverages proven library capabilities** with tiktoken v0.8+ efficiency and LiteLLM retry patterns, eliminating custom token counting implementations
 - **Provides predictable routing decisions** with clear 8000-token boundary, enabling reliable debugging and performance optimization
 
 ### Negative Consequences / Trade-offs
@@ -511,7 +510,7 @@ class TestThresholdIntegration:
 ### Dependencies
 
 - **Python**: `tiktoken>=0.8.0` for accurate token counting with OpenAI-compatible encodings
-- **Python**: `tenacity>=9.1.0` for robust retry patterns in cloud fallback scenarios
+- **Python**: LiteLLM for robust retry patterns in cloud fallback scenarios
 - **System**: Local Qwen3 models per **ADR-004** specifications with vLLM inference stack integration
 - **Removed**: Custom token estimation logic (replaced by tiktoken library-first implementation)
 
@@ -519,15 +518,15 @@ class TestThresholdIntegration:
 
 - [tiktoken GitHub Repository](https://github.com/openai/tiktoken) - Fast BPE tokenizer implementation with cl100k_base encoding used for accurate token counting
 - [tiktoken PyPI Package](https://pypi.org/project/tiktoken/) - Version history and installation requirements for production deployment
-- [tenacity Documentation](https://tenacity.readthedocs.io/) - Retry library patterns for robust cloud fallback integration
-- [tenacity GitHub Repository](https://github.com/jd/tenacity) - Modern retry decorator patterns used in cloud API error handling
+- [LiteLLM Documentation](https://docs.litellm.ai/docs/completion/retry) - Retry library patterns for robust cloud fallback integration
+- [LiteLLM GitHub Repository](https://github.com/BerriAI/litellm) - Modern retry patterns used in cloud API error handling
 - [Qwen3 Model Documentation](https://github.com/QwenLM/Qwen) - Context window specifications that informed 8000-token threshold selection
 - [vLLM Context Window Management](https://docs.vllm.ai/en/latest/) - Local model integration patterns supporting threshold-based routing
 
 ## Changelog
 
 - **v4.0 (2025-08-23)**: **PHASE 1 SIMPLIFICATION** - Eliminated all custom token counting and routing logic in favor of LiteLLM configuration-driven approach. Replaced 230+ line TokenThresholdRouter with 25-line SimpleTokenRouter that delegates to config/litellm.yaml. Removed complex ThresholdValidator and custom retry patterns. Maintained 8000-token threshold as configuration reference while achieving 85% code reduction through library-first implementation.
-- **v2.2 (2025-08-21)**: Complete ADR template compliance with 13 required sections. Updated implementation details with modern tiktoken v0.8+ and tenacity v9.1+ patterns. Enhanced testing strategy with performance validation and integration tests. Restructured decision framework with quantitative scoring matrix. Aligned cross-references with related ADR architecture decisions.
+- **v2.2 (2025-08-21)**: Complete ADR template compliance with 13 required sections. Updated implementation details with modern tiktoken v0.8+ and LiteLLM retry patterns. Enhanced testing strategy with performance validation and integration tests. Restructured decision framework with quantitative scoring matrix. Aligned cross-references with related ADR architecture decisions.
 - **v2.1 (2025-08-21)**: Fixed 13-section ADR template compliance, standardized Related Requirements with FR/NFR/PR/IR categories, enhanced decision framework quantitative scoring, improved testing section with comprehensive test cases.
 - **v2.0 (2025-08-20)**: Applied complete 13-section ADR template structure, added comprehensive decision framework with weighted scoring, implemented detailed testing strategy with pytest examples, enhanced monitoring and validation components.
 - **v1.0 (2025-08-18)**: Initial threshold research and analysis, established 8000 token threshold based on Qwen3 capabilities, calculated 95% cost reduction potential, basic integration with hybrid strategy.

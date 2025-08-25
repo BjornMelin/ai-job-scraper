@@ -3,7 +3,7 @@
 ## Metadata
 
 **Status:** Proposed - Supporting Operational Excellence  
-**Version/Date:** 1.0 / 2025-08-22  
+**Version/Date:** v1.0 / 2025-08-22  
 
 ## Title
 
@@ -178,6 +178,7 @@ graph TB
 - **ADR-014** (Hybrid Scraping Strategy): Monitoring tracks both JobSpy and ScrapeGraphAI performance
 - **ADR-028** (Service Layer Architecture): Monitoring integrates with service patterns
 - **ADR-012** (Background Task Management): Background processing workflow monitoring
+- **ADR-031** (Native HTTPX Resilience Strategy): Monitoring tracks HTTPX native transport retries + minimal status code handling for comprehensive resilience observability
 
 ## Design
 

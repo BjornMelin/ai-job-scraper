@@ -117,6 +117,7 @@ graph TD
 - **ADR-001** (Library-First Architecture): This decision builds upon the library-first principles by using Python's standard threading library
 - **ADR-013** (Smart Database Synchronization Engine): Background tasks coordinate with database sync operations defined in this ADR  
 - **ADR-014** (Hybrid Scraping Strategy): The threading implementation enables non-blocking execution of scraping operations
+- **ADR-031** (Native HTTPX Resilience Strategy): Background scraping tasks leverage HTTPX native transport retries + minimal status code handling for comprehensive error recovery
 
 ## Design
 
