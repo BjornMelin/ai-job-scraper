@@ -3,15 +3,15 @@
 ## Metadata
 
 **Status:** Accepted  
-**Version/Date:** v1.2 / 2025-08-22
+**Version/Date:** v2.0 / 2025-08-25
 
 ## Title
 
-Performance & Scale Strategy
+Simplified Performance Strategy with Incremental DuckDB Evolution
 
 ## Description
 
-Implement simple performance optimization strategy to achieve sub-500ms UI response times and efficient handling of 5,000+ jobs through threading background tasks (per ADR-012), Streamlit native st.cache_data caching, and database optimizations with Pandas+SQLite foundation.
+Implement simplified performance optimization strategy achieving sub-500ms UI response times through proven SQLModel+SQLite foundation, Streamlit native st.cache_data caching, and threading background tasks (per ADR-012). Incremental DuckDB direct sqlite_scanner adoption triggered by simple performance metrics rather than complex monitoring infrastructure.
 
 ## Context
 
@@ -33,7 +33,7 @@ Our job scraper faces significant performance bottlenecks that prevent scalabili
 - Support concurrent scraping operations via threading (ADR-012)
 - Non-blocking user interface with real-time progress updates via st.status
 - Streamlit native st.cache_data for repeated operations
-- Efficient Pandas+SQLite foundation with DuckDB+Polars scaling path
+- Proven SQLModel+SQLite foundation with incremental DuckDB analytics when metrics-driven
 
 ### Technical Constraints
 
@@ -87,7 +87,7 @@ Our job scraper faces significant performance bottlenecks that prevent scalabili
 
 ## Decision
 
-We will adopt **Threading Background Tasks with Streamlit Native Caching** to address performance bottlenecks and scalability limitations. This involves using **Threading (per ADR-012)** for background task processing, **Streamlit native st.cache_data** for caching, **FP8-optimized vLLM models (per ADR-004)**, and **Pandas+SQLite** foundation with **DuckDB+Polars** scaling path. This decision enables sub-500ms response times, efficient handling of 5,000+ jobs while maintaining local-first architecture and KISS principles.
+We will adopt **Simplified Performance Strategy with Streamlit Native Patterns** to address performance bottlenecks while maintaining architectural discipline. This involves **Threading (per ADR-012)** for background task processing, **Streamlit native st.cache_data** for caching, **FP8-optimized vLLM models (per ADR-004)**, and **SQLModel+SQLite** foundation with **incremental DuckDB analytics** when triggered by performance metrics. This decision enables sub-500ms response times while preserving 89% code reduction achievements and KISS principles.
 
 ## High-Level Architecture
 
@@ -95,39 +95,41 @@ We will adopt **Threading Background Tasks with Streamlit Native Caching** to ad
 graph TB
     UI[Streamlit UI] --> API[Streamlit Service Layer]
     API --> Cache[st.cache_data<br/>Native Caching]
-    API --> DB[(SQLite Database<br/>Pandas Integration)]
+    API --> DB[(SQLite Database<br/>SQLModel Foundation)]
     API --> BG[Threading Background<br/>per ADR-012]
     
     BG --> Thread1[Background Thread<br/>st.status Progress]
     BG --> Progress[Real-time Updates<br/>st.session_state]
     
     Thread1 --> AIModels[vLLM FP8 Models<br/>8K Context per ADR-004]
-    Thread1 --> Scraper[Scraping Operations<br/>JobSpy/Crawl4AI]
+    Thread1 --> Scraper[Scraping Operations<br/>JobSpy/ScrapeGraphAI]
     
     Scraper --> External[External Job APIs<br/>Company Career Pages]
     
     Progress --> UI
     Thread1 --> Progress
     
-    subgraph "Current Stack"
-        S1[Pandas DataFrames<br/>Data Processing]
-        S2[SQLite Database<br/>Local Storage]
+    subgraph "Proven Foundation (89% Code Reduction)"
+        S1[SQLModel ORM<br/>Type-Safe Queries]
+        S2[SQLite Database<br/>WAL Mode Optimized]
         S3[st.cache_data<br/>Session Caching]
+        S4[Pandas Analytics<br/>Current Processing]
     end
     
     DB --> S1
     DB --> S2
     Cache --> S3
+    API --> S4
     
-    subgraph "Scaling Path"
-        P1[Polars DataFrames<br/>Future Performance]
-        P2[DuckDB Database<br/>Future Analytics]
-        P3[Advanced Caching<br/>Future Scale]
+    subgraph "Incremental Analytics (Metrics-Driven)"
+        P1[DuckDB Sidecar<br/>sqlite_scanner]
+        P2[Performance Triggers<br/>p95 >500ms, Lock >5%]
+        P3[Advanced Analytics<br/>When Justified]
     end
     
-    S1 -.-> P1
-    S2 -.-> P2
-    S3 -.-> P3
+    S2 -.-> P1
+    S4 -.-> P2
+    P2 -.-> P3
     
     subgraph "FP8 Optimization per ADR-004"
         M1[Model Weights<br/>8x Memory Reduction]
@@ -138,6 +140,12 @@ graph TB
     AIModels --> M1
     AIModels --> M2
     AIModels --> M3
+    
+    style S1 fill:#90EE90
+    style S2 fill:#90EE90
+    style S3 fill:#90EE90
+    style P1 fill:#FFE4B5,stroke-dasharray: 5 5
+    style P2 fill:#FFF0F5
 ```
 
 ## Related Requirements
@@ -180,13 +188,13 @@ graph TB
 
 ## Related Decisions
 
-- **ADR-018** (Local Database Setup): Provides SQLite foundation that this decision optimizes with performance pragmas and strategic indexing
+- **ADR-018** (Incremental DuckDB Evolution Architecture): Provides database foundation that this strategy optimizes with performance monitoring and evolution triggers
+- **ADR-033** (Metrics-Driven Architecture Evolution): Establishes the framework for performance-based architectural decision making that this strategy implements
+- **ADR-034** (DuckDB Direct SQLite Scanning): Documents direct sqlite_scanner implementation that this strategy's performance monitoring can trigger
+- **ADR-019** (Simple Data Management): Coordinates with SQLModel+SQLite foundation patterns for performance measurement
+- **ADR-012** (Background Task Management): Establishes threading patterns that this strategy coordinates with for background processing performance
+- **ADR-004** (Local AI Integration): AI model optimization with FP8 quantization that this strategy integrates for performance scaling
 - **ADR-022** (Docker Containerization): Enables container infrastructure for Streamlit deployment with optimized resource allocation
-- **ADR-012** (Background Task Management): Establishes threading patterns that this decision coordinates with for background processing performance
-- **ADR-021** (Local Development Performance): This decision directly addresses performance requirements identified in local development optimization needs
-- **ADR-004** (Local AI Integration): AI model optimization with FP8 quantization that this decision integrates for performance scaling
-- **ADR-008** (Optimized Token Thresholds): Validates that 8K context optimization aligns with performance requirements
-- **ADR-004** (Local AI Processing Architecture): Provides the consolidated FP8 configuration that this performance strategy leverages
 
 ## Design
 
@@ -198,7 +206,8 @@ The performance optimization strategy implements a simple architecture with:
 - **FP8 quantization**: vLLM models with 8x memory reduction per ADR-004
 - **Threading**: Simple Python threading per ADR-012, sufficient for our scale
 - **Session-based caching**: Streamlit native session state management
-- **Pandas+SQLite foundation**: Current efficient stack with DuckDB+Polars scaling path
+- **SQLModel+SQLite foundation**: Proven efficient stack achieving 89% code reduction
+- **Incremental DuckDB analytics**: Performance-triggered evolution when metrics justify complexity
 - **Concurrent operations**: Threading with proper Streamlit context management
 
 ### Implementation Details
@@ -277,93 +286,110 @@ class ThreadingTaskManager:
         }
 ```
 
-### 2. Streamlit Native Caching Strategy
+### 2. Simplified Streamlit Caching Strategy
 
-Streamlit st.cache_data for efficient session-based caching:
+Streamlit st.cache_data for efficient session-based caching with minimal complexity:
 
 ```python
 import streamlit as st
-import hashlib
-from typing import Optional, Any, Dict
-from functools import wraps
+import time
+from typing import Dict, Any
+from sqlmodel import Session, select
+from src.models.database import engine, JobModel
 
-class StreamlitCacheService:
-    """Streamlit native caching with session state integration."""
+class SimplifiedCacheService:
+    """Streamlit native caching with performance monitoring integration."""
     
     def __init__(self):
-        # Initialize cache metrics in session state
-        if 'cache_metrics' not in st.session_state:
-            st.session_state.cache_metrics = {
-                'cache_hits': 0,
-                'cache_misses': 0,
-                'total_requests': 0
-            }
-    
-    @st.cache_data(ttl=600)  # 10-minute cache per canonical decisions
-    def get_job_analysis(_self, job_content: str) -> Dict[str, Any]:
-        """Cache AI job analysis results."""
-        st.session_state.cache_metrics['total_requests'] += 1
-        
-        try:
-            # Use cached LLM analysis
-            from src.ai.model_manager import SimpleLLMManager
-            llm = SimpleLLMManager()
-            result = llm.extract_job_cached(job_content)
-            st.session_state.cache_metrics['cache_hits'] += 1
-            return result
-        except Exception as e:
-            st.session_state.cache_metrics['cache_misses'] += 1
-            return {'error': str(e)}
+        # Simple performance tracking in session state
+        if 'performance_metrics' not in st.session_state:
+            st.session_state.performance_metrics = {'query_times': []}
     
     @st.cache_data(ttl=300)  # 5-minute cache for analytics
+    def get_job_analytics(_self) -> Dict[str, Any]:
+        """Cache job analytics with performance monitoring."""
+        start_time = time.perf_counter()
+        
+        with Session(engine) as session:
+            # Simple SQLModel query - proven foundation
+            jobs = session.exec(select(JobModel).where(JobModel.is_active == True)).all()
+            
+            # Basic analytics using proven patterns
+            analytics = {
+                'total_jobs': len(jobs),
+                'unique_companies': len(set(job.company for job in jobs)),
+                'average_salary': sum(job.salary_min for job in jobs if job.salary_min) / len([j for j in jobs if j.salary_min]) if any(job.salary_min for job in jobs) else None
+            }
+        
+        query_time = time.perf_counter() - start_time
+        _self._track_performance(query_time)
+        
+        return analytics
+    
+    @st.cache_data(ttl=600)  # 10-minute cache for expensive operations
     def get_company_stats(_self, company_name: str) -> Dict[str, Any]:
-        """Cache company statistics and analytics."""
-        from src.database.data_service import DataService
-        data_service = DataService()
-        return data_service.get_company_analytics(company_name)
+        """Cache company statistics using SQLModel foundation."""
+        start_time = time.perf_counter()
+        
+        with Session(engine) as session:
+            company_jobs = session.exec(
+                select(JobModel).where(
+                    JobModel.company.ilike(f"%{company_name}%")
+                )
+            ).all()
+            
+            stats = {
+                'job_count': len(company_jobs),
+                'avg_salary': sum(job.salary_min for job in company_jobs if job.salary_min) / len([j for j in company_jobs if j.salary_min]) if any(job.salary_min for job in company_jobs) else None,
+                'active_jobs': len([job for job in company_jobs if job.is_active])
+            }
+        
+        query_time = time.perf_counter() - start_time
+        _self._track_performance(query_time)
+        
+        return stats
     
-    @st.cache_data(ttl=60)  # 1-minute cache for dashboard
-    def get_dashboard_metrics(_self) -> Dict[str, Any]:
-        """Cache dashboard metrics for real-time display."""
-        from src.database.data_service import DataService
-        data_service = DataService()
+    def _track_performance(self, query_time: float):
+        """Simple performance tracking for evolution triggers."""
+        st.session_state.performance_metrics['query_times'].append(query_time)
+        
+        # Keep only recent measurements (last 50 queries)
+        if len(st.session_state.performance_metrics['query_times']) > 50:
+            st.session_state.performance_metrics['query_times'] = \
+                st.session_state.performance_metrics['query_times'][-50:]
+    
+    def should_evolve_to_duckdb(self) -> bool:
+        """Check if DuckDB direct scanning should be enabled."""
+        query_times = st.session_state.performance_metrics['query_times']
+        if not query_times:
+            return False
+        
+        # Simple trigger logic - p95 latency >500ms or any query >2s
+        sorted_times = sorted(query_times)
+        p95_index = int(len(sorted_times) * 0.95)
+        p95_latency = sorted_times[p95_index] if p95_index < len(sorted_times) else 0
+        
+        return p95_latency > 0.5 or any(t > 2.0 for t in query_times)
+    
+    def get_performance_summary(self) -> Dict[str, Any]:
+        """Get simple performance metrics summary."""
+        query_times = st.session_state.performance_metrics['query_times']
+        if not query_times:
+            return {'status': 'no_data'}
+        
+        sorted_times = sorted(query_times)
+        p95_index = int(len(sorted_times) * 0.95)
+        p95_latency_ms = (sorted_times[p95_index] * 1000) if p95_index < len(sorted_times) else 0
+        
         return {
-            'total_jobs': data_service.count_active_jobs(),
-            'companies_tracked': data_service.count_companies(),
-            'recent_jobs': data_service.get_recent_jobs_count(days=7)
-        }
-    
-    def cache_data_with_ttl(self, ttl: int = 600):
-        """Decorator for caching expensive operations."""
-        def decorator(func):
-            @st.cache_data(ttl=ttl)
-            @wraps(func)
-            def wrapper(*args, **kwargs):
-                return func(*args, **kwargs)
-            return wrapper
-        return decorator
-    
-    def get_cache_metrics(self) -> Dict[str, int]:
-        """Get current cache performance metrics."""
-        return st.session_state.get('cache_metrics', {
-            'cache_hits': 0,
-            'cache_misses': 0,
-            'total_requests': 0
-        })
-    
-    def clear_cache(self):
-        """Clear Streamlit cache and reset metrics."""
-        st.cache_data.clear()
-        st.session_state.cache_metrics = {
-            'cache_hits': 0,
-            'cache_misses': 0,
-            'total_requests': 0
+            'p95_latency_ms': round(p95_latency_ms, 2),
+            'max_query_time_s': round(max(query_times), 2),
+            'should_evolve': self.should_evolve_to_duckdb(),
+            'total_queries': len(query_times)
         }
 
-# Usage examples with Streamlit integration:
-# @st.cache_data(ttl=300)
-# def expensive_analytics_operation(data):
-#     return process_large_dataset(data)
+# Global service instance
+cache_service = SimplifiedCacheService()
 ```
 
 ### 3. Database Optimization
@@ -730,6 +756,7 @@ async def performance_middleware(request: Request, call_next):
 
 ## Changelog
 
+- **v2.0 (2025-08-25)**: **SIMPLIFIED PERFORMANCE STRATEGY ALIGNMENT** - Major simplification aligned with final meta-analysis decision emphasizing architectural discipline. UPDATED: Title to "Simplified Performance Strategy with Incremental DuckDB Evolution". REPLACED: Complex Redis/RQ patterns with simple Threading + st.cache_data. REMOVED: Over-engineered monitoring infrastructure in favor of simple performance tracking. SIMPLIFIED: Caching service from complex metrics collection to essential performance monitoring. ALIGNED: With SQLModel+SQLite foundation achieving 89% code reduction and incremental DuckDB analytics triggered by metrics. MAINTAINED: KISS/DRY/YAGNI principles while enabling performance evolution when justified.
 - **v1.3 (2025-08-22)**: **CANONICAL INTEGRATION** - Comprehensive update to align with canonical architecture decisions. REPLACED all RQ/Redis patterns with Threading (ADR-012) + st.cache_data caching. Updated architecture diagrams, implementation details, configuration, dependencies, and references. Positioned Pandas+SQLite as current stack with Polars+DuckDB scaling path. Achieved full alignment with threading background tasks and Streamlit native caching strategies.
 - **v1.1 (2025-08-22)**: **FP8 INTEGRATION** - Updated all references from AWQ to FP8 quantization following confirmation of FP8 support on RTX 4090 Laptop GPU. Improved memory savings from 4x to 8x reduction. Updated GPU utilization from conservative 50% to optimized 90%. Maintained basic Redis caching and realistic 8K context. Updated cross-references to align with current FP8 strategy.
 - **v1.0 (2025-01-20)**: Initial performance strategy definition with comprehensive benchmarking framework and multi-layer architecture design

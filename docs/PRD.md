@@ -89,6 +89,7 @@ This document outlines the product requirements for the **AI Job Scraper**, a lo
 ## 5. Technical Stack
 
 ### **Core Architecture**
+
 * **Local LLM:** Qwen/Qwen3-4B-Instruct-2507-FP8 with FP8 quantization
 * **Cloud LLM:** gpt-4o-mini for complex tasks (>8K tokens or high complexity)
 * **Inference Engine:** vLLM >=0.6.2 with FP8 support on RTX 4090 Laptop GPU
@@ -96,13 +97,15 @@ This document outlines the product requirements for the **AI Job Scraper**, a lo
 * **GPU Utilization:** 90% with aggressive memory optimization
 
 ### **Backend/Processing**
+
 * **Language:** Python 3.12+ with uv package management  
 * **Background Tasks:** threading.Thread with st.status for real-time progress display
-* **Database:** SQLModel + SQLite (current), Polars + DuckDB (scaling path)
+* **Database:** SQLModel + SQLite (proven foundation), DuckDB analytics sidecar (metrics-driven evolution)
 * **Caching:** st.cache_data (Streamlit native, session-based with TTL)
 * **Scraping:** ScrapeGraphAI, JobSpy, LangGraph for hybrid approaches
 
 ### **UI Framework**
+
 * **Primary:** Streamlit (latest stable) with built-in components
 * **State Management:** st.session_state with auto-refresh fragments
 * **Real-time Updates:** st.rerun() + threading for non-blocking UI
@@ -110,11 +113,13 @@ This document outlines the product requirements for the **AI Job Scraper**, a lo
 * **Deployment:** Docker + Docker Compose
 
 ### **Hardware Requirements**
+
 * **GPU:** RTX 4090 Laptop GPU with 16GB VRAM
 * **Software:** CUDA >=12.1, vLLM >=0.6.2 for FP8 support
 * **Memory:** Optimized for FP8 quantization efficiency
 
 ### **Development Tools**
+
 * **Package Management:** uv (not pip)
 * **Linting/Formatting:** ruff for Python
 * **Testing:** pytest with >80% coverage target
