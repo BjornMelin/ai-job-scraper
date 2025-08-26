@@ -5,6 +5,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 import streamlit as st
 
+from tests.ui.components.test_utils import MockSessionState
+
 from src.ui.components.search_bar import (
     _build_search_filters,
     _clear_all_filters,
@@ -12,37 +14,6 @@ from src.ui.components.search_bar import (
     _init_search_state,
     render_job_search,
 )
-
-
-class MockSessionState:
-    """Mock Streamlit session state that supports both dict and attribute access."""
-
-    def __init__(self, initial_data=None):
-        self._data = initial_data or {}
-
-    def __getitem__(self, key):  # noqa: D105
-        return self._data[key]
-
-    def __setitem__(self, key, value):  # noqa: D105
-        self._data[key] = value
-
-    def __contains__(self, key):  # noqa: D105
-        return key in self._data
-
-    def __getattr__(self, name):  # noqa: D105
-        if name.startswith("_"):
-            return super().__getattribute__(name)
-        return self._data.get(name)
-
-    def __setattr__(self, name, value):  # noqa: D105
-        if name.startswith("_"):
-            super().__setattr__(name, value)
-        else:
-            self._data[name] = value
-
-    def get(self, key, default=None):
-        """Get value from data dict with optional default."""
-        return self._data.get(key, default)
 
 
 class TestSearchBarComponent:

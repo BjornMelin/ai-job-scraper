@@ -19,6 +19,8 @@ from unittest.mock import patch
 import pytest
 import streamlit as st
 
+from tests.ui.components.test_utils import MockSessionState
+
 from src.constants import APPLICATION_STATUSES, SALARY_DEFAULT_MAX, SALARY_DEFAULT_MIN
 from src.ui.components.search_bar import (
     DEFAULT_SEARCH_LIMIT,
@@ -34,42 +36,6 @@ from src.ui.components.search_bar import (
     export_search_results,
     get_search_suggestions,
 )
-
-
-class MockSessionState:
-    """Mock Streamlit session state that supports both dict and attribute access."""
-
-    def __init__(self, initial_data=None):
-        self._data = initial_data or {}
-
-    def __getitem__(self, key):
-        """Get item from data dict."""
-        return self._data[key]
-
-    def __setitem__(self, key, value):
-        """Set item in data dict."""
-        self._data[key] = value
-
-    def __contains__(self, key):
-        """Check if key exists in data dict."""
-        return key in self._data
-
-    def __getattr__(self, name):
-        """Get attribute from data dict."""
-        if name.startswith("_"):
-            return super().__getattribute__(name)
-        return self._data.get(name)
-
-    def __setattr__(self, name, value):
-        """Set attribute in data dict."""
-        if name.startswith("_"):
-            super().__setattr__(name, value)
-        else:
-            self._data[name] = value
-
-    def get(self, key, default=None):
-        """Get value from data dict with optional default."""
-        return self._data.get(key, default)
 
 
 class TestSearchServiceIntegration:
