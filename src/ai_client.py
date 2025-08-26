@@ -203,7 +203,7 @@ class AIClient:
             logger.info(
                 "Context size %d exceeds threshold, using cloud model", token_count
             )
-            return "gpt-4o-mini"
+            return "gpt-4o-mini"  # noqa: TRY300
 
         except Exception as e:
             logger.warning("Token counting failed: %s, defaulting to local model", e)
@@ -244,8 +244,32 @@ class AIClient:
             return True
 
 
-# Global client instance
-_client_instance: AIClient | None = None
+class _AIClientSingleton:
+    """Singleton holder for AI client instance."""
+
+    def __init__(self) -> None:
+        self._instance: AIClient | None = None
+
+    def get_client(self, config_path: str | None = None) -> AIClient:
+        """Get singleton AI client instance.
+
+        Args:
+            config_path: Path to LiteLLM configuration file.
+
+        Returns:
+            Configured AIClient instance.
+        """
+        if self._instance is None:
+            self._instance = AIClient(config_path)
+        return self._instance
+
+    def reset(self) -> None:
+        """Reset AI client instance (useful for testing)."""
+        self._instance = None
+
+
+# Singleton instance
+_singleton = _AIClientSingleton()
 
 
 def get_ai_client(config_path: str | None = None) -> AIClient:
@@ -257,15 +281,9 @@ def get_ai_client(config_path: str | None = None) -> AIClient:
     Returns:
         Configured AIClient instance.
     """
-    global _client_instance
-
-    if _client_instance is None:
-        _client_instance = AIClient(config_path)
-
-    return _client_instance
+    return _singleton.get_client(config_path)
 
 
 def reset_ai_client() -> None:
     """Reset global AI client instance (useful for testing)."""
-    global _client_instance
-    _client_instance = None
+    _singleton.reset()

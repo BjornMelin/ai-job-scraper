@@ -9,7 +9,6 @@ import os
 from unittest.mock import patch
 
 import pandas as pd
-import pytest
 
 
 def test_jobspy_proxy():
@@ -50,16 +49,6 @@ def test_jobspy_proxy():
                 call_kwargs = mock_scrape_jobs.call_args.kwargs
                 assert "proxies" in call_kwargs
                 assert call_kwargs["proxies"] == ["http://test:8080"]
-
-
-@pytest.mark.skip(
-    reason="extract_job_lists signature changed - needs update for new architecture",
-)
-def test_scrapegraphai_proxy():
-    """Test that ScrapeGraphAI receives proxy configuration correctly."""
-    # This test needs to be updated for the new scraper architecture
-    # Current extract_job_lists expects different parameters
-    pytest.skip("Needs update for T1 simplified architecture")
 
 
 def test_proxy_disabled():

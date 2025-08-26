@@ -122,8 +122,6 @@ class Company(BaseModel):
 
     model_config = ConfigDict(
         from_attributes=True,  # Enable SQLModel object conversion
-        # Note: json_encoders is deprecated in Pydantic v2
-        # Use custom serializers if needed in model_dump(mode="json")
     )
 
 
@@ -268,6 +266,4 @@ class Job(BaseModel):
 
     model_config = ConfigDict(
         from_attributes=True,  # Enable SQLModel object conversion
-        # Note: json_encoders is deprecated in Pydantic v2
-        # Use custom serializers if needed in model_dump(mode="json")
     )

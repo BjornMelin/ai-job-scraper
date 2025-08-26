@@ -16,10 +16,10 @@ Features Demonstrated:
 - Performance metrics and search statistics
 - Integration with existing job card components
 
-Architecture:
+Technical Implementation:
 - Uses src.services.search_service.JobSearchService (sqlite-utils + FTS5)
 - Integrates src.ui.components.search_bar.render_job_search()
-- Follows ADR-018 library-first search architecture specifications
+- Library-first architecture using SQLite FTS5 with minimal custom code
 """
 
 import streamlit as st

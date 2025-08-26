@@ -1,4 +1,4 @@
-"""Comprehensive database and session management utilities.
+"""Database and session management utilities.
 
 This module provides optimized utilities for:
 - SQLAlchemy and Streamlit database session management

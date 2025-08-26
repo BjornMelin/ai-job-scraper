@@ -11,8 +11,8 @@ full-text search capabilities using SQLite FTS5 via sqlite-utils. Features inclu
 - Streamlit caching with 5-minute TTL for performance
 - Graceful error handling for database issues
 
-The implementation follows ADR-018 specifications with 100% library-first approach,
-using sqlite-utils for FTS5 setup and automatic trigger management.
+The implementation uses a complete library-first approach,
+leveraging sqlite-utils for FTS5 setup and automatic trigger management.
 """
 
 import logging
@@ -56,15 +56,15 @@ class JobSearchService:
     """Library-first search service using SQLite FTS5 via sqlite-utils.
 
     Provides professional-grade full-text search capabilities with:
-    - Porter stemming for intelligent matching
+    - Porter stemming for text normalization
     - Multi-field search across job content
     - BM25 relevance ranking
     - Automatic index maintenance
     - Filter integration with existing UI
     - Performance optimization with caching
 
-    Implementation uses 100% library-first approach per ADR-018,
-    leveraging sqlite-utils for FTS5 setup and trigger management.
+    Implementation uses native sqlite-utils capabilities for FTS5 setup
+    and automatic trigger management, minimizing custom code.
     """
 
     def __init__(self, db_path: str = "jobs.db"):
@@ -98,7 +98,7 @@ class JobSearchService:
         """Enable FTS5 search with automatic triggers - 100% library-first.
 
         Uses sqlite-utils to configure FTS5 with:
-        - Porter stemming for intelligent matching
+        - Porter stemming for text normalization
         - Unicode61 tokenizer for international support
         - Automatic triggers for index maintenance
         - Multi-field search across job content
@@ -160,7 +160,7 @@ class JobSearchService:
 
     @st.cache_data(ttl=300, hash_funcs={"JobSearchService": id})  # Cache for 5 minutes
     def search_jobs(
-        self,
+        _self,  # noqa: N805  # Streamlit caching requires _ prefix to avoid hashing
         query: str,
         filters: FilterDict | None = None,
         limit: int = 50,
@@ -168,7 +168,7 @@ class JobSearchService:
         """Search jobs using FTS5 with optional filters and BM25 ranking.
 
         Provides professional-grade search with:
-        - Porter stemming for intelligent matching
+        - Porter stemming for text normalization
         - Multi-field search across title, description, company, location
         - BM25 relevance ranking with best matches first
         - Filter integration for location, salary, remote, date
@@ -215,9 +215,9 @@ class JobSearchService:
 
         try:
             # Use FTS5 search if available, otherwise fallback to LIKE queries
-            if self._is_fts_available():
-                return self._search_with_fts(query, filters, limit)
-            return self._search_with_fallback(query, filters, limit)
+            if _self._is_fts_available():
+                return _self._search_with_fts(query, filters, limit)
+            return _self._search_with_fallback(query, filters, limit)
 
         except Exception:
             logger.exception("Search failed for query '%s'", query)

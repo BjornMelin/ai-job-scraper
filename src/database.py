@@ -23,7 +23,6 @@ from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel
 
 from src.config import Settings
-from src.database_listeners.monitoring_listeners import log_slow, start_timer
 from src.database_listeners.pragma_listeners import apply_pragmas
 
 # Import streamlit with fallback for non-Streamlit environments
@@ -39,22 +38,16 @@ logger = logging.getLogger(__name__)
 
 
 def _attach_sqlite_listeners(db_engine):
-    """Attach SQLite event listeners for pragmas and optional performance monitoring.
+    """Attach SQLite event listeners for pragma optimization.
 
-    This function uses modular event listeners organized by responsibility:
-    - Pragma listeners: Handle SQLite optimization settings
-    - Monitoring listeners: Track query performance and log slow queries
+    This function attaches pragma listeners to handle SQLite optimization settings
+    for better performance and safety.
 
     Args:
         db_engine: SQLAlchemy engine instance to attach listeners to.
     """
-    # Always attach pragma handler for SQLite optimization
+    # Attach pragma handler for SQLite optimization
     event.listen(db_engine, "connect", apply_pragmas)
-
-    # Only attach performance monitoring if enabled in settings
-    if settings.db_monitoring:
-        event.listen(db_engine, "before_cursor_execute", start_timer)
-        event.listen(db_engine, "after_cursor_execute", log_slow)
 
 
 def _create_engine_impl():
@@ -75,7 +68,7 @@ def _create_engine_impl():
             pool_pre_ping=True,  # Verify connections before use
             pool_recycle=3600,  # Refresh connections hourly
         )
-        # Configure SQLite optimizations and optional performance monitoring
+        # Configure SQLite optimizations
         _attach_sqlite_listeners(db_engine)
     else:
         # PostgreSQL or other database configuration

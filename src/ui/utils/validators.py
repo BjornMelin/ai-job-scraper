@@ -140,10 +140,18 @@ JobCount = Annotated[int, BeforeValidator(ensure_non_negative_int)]
 # Legacy functions for backward compatibility (deprecated)
 @validate_call
 def safe_int(value: Any, default: int = 0) -> int:
-    """Safely convert any value to a non-negative integer.
+    """Convert any value to a non-negative integer with fallback handling.
 
-    DEPRECATED: Use SafeInt Annotated type instead.
-    This function is kept for backward compatibility.
+    Args:
+        value: Input value to convert (any type).
+        default: Default value for invalid inputs (default: 0).
+
+    Returns:
+        Non-negative integer result.
+
+    Note:
+        DEPRECATED: Use SafeInt Annotated type for new code.
+        Maintained for backward compatibility.
     """
     validator = ensure_non_negative_int_with_default(default)
     return validator(value)
@@ -151,10 +159,18 @@ def safe_int(value: Any, default: int = 0) -> int:
 
 @validate_call
 def safe_job_count(value: Any, company_name: str = "unknown") -> int:
-    """Safely convert job count values with context-aware logging.
+    """Convert job count values with context-aware logging.
 
-    DEPRECATED: Use JobCount Annotated type instead.
-    This function is kept for backward compatibility.
+    Args:
+        value: Input value to convert (any type).
+        company_name: Company name for logging context (default: "unknown").
+
+    Returns:
+        Non-negative integer job count.
+
+    Note:
+        DEPRECATED: Use JobCount Annotated type for new code.
+        Maintained for backward compatibility.
     """
     try:
         result = ensure_non_negative_int(value)
