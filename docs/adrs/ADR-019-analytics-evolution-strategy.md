@@ -110,27 +110,24 @@ graph TD
 
 ### Functional Requirements
 
-- FR-024-01: SQLite-based analytics foundation with SQLModel integration
-- FR-024-02: Intelligent analytics method selection using DuckDB sqlite_scanner for high-performance queries
-- FR-024-03: Python 3.12 sys.monitoring for lightweight performance tracking
-- FR-024-04: Real-time cost tracking within $50 monthly operational budget
-- FR-024-05: Job market trend analysis and company hiring pattern insights
-- FR-024-06: Interactive Streamlit dashboard with analytics visualization
+- FR-019-01: SQLite-based analytics foundation with SQLModel integration
+- FR-019-02: DuckDB sqlite_scanner for direct SQLite querying without ETL
+- FR-019-03: Simple cost tracking within $50 monthly operational budget
+- FR-019-04: Job market trend analysis and company hiring pattern insights
+- FR-019-05: Interactive Streamlit dashboard with analytics visualization
 
 ### Non-Functional Requirements
 
-- NFR-024-01: Analytics query execution <2 seconds for dashboard responsiveness
-- NFR-024-02: Performance monitoring overhead <1% when enabled, zero when disabled
-- NFR-024-03: Intelligent method selection based on p95 latency >500ms performance thresholds
-- NFR-024-04: Cost tracking accuracy within $0.10 monthly budget monitoring
-- NFR-024-05: Dashboard loading time <3 seconds for 30-day analytics views
+- NFR-019-01: Analytics query execution <2 seconds for dashboard responsiveness
+- NFR-019-02: Cost tracking accuracy within $0.10 monthly budget monitoring
+- NFR-019-03: Dashboard loading time <3 seconds for 30-day analytics views
+- NFR-019-04: Streamlit caching with appropriate TTL (5-minute for analytics, 1-minute for costs)
 
 ### Performance Requirements
 
-- PR-024-01: SQLite analytics queries <2 seconds for 10,000+ job records
-- PR-024-02: DuckDB method selection threshold: p95 latency >500ms or max query >2s
-- PR-024-03: sys.monitoring collection overhead <50ms per function call
-- PR-024-04: Cost calculation and display <100ms for real-time budget tracking
+- PR-019-01: DuckDB analytics queries <2 seconds for 10,000+ job records
+- PR-019-02: Cost calculation and display <100ms for real-time budget tracking
+- PR-019-03: Dashboard component loading <500ms with Streamlit caching
 
 ### Integration Requirements
 
@@ -147,6 +144,7 @@ graph TD
 - **ADR-010** (Local AI Integration): AI cost tracking and performance monitoring coordination
 - **ADR-016** (Resilience Strategy): Error tracking and monitoring integration for system reliability
 - **ADR-018** (Search Architecture): Search results integrate with analytics dashboard for comprehensive job insights
+- **ADR-022** (Cost Monitoring): Provides detailed cost monitoring implementation using SQLModel with $50 monthly budget tracking
 
 ## Superseded Decisions
 
@@ -336,45 +334,30 @@ import pytest
 import time
 from src.analytics.analytics_service import AnalyticsService
 
-def test_performance_triggers():
-    """Test that performance thresholds work correctly for method selection."""
-    service = AnalyticsService()
-    
-    # Simulate slow queries to trigger high-performance mode
-    for _ in range(15):  # Ensure min sample size
-        service._track_query_performance(0.7)  # 700ms query
-    
-    assert service._should_use_duckdb_analytics() == True
-    
-    # Test that fast queries use standard mode
-    service._performance_metrics["query_times"] = [0.1] * 20  # 100ms queries
-    assert service._should_use_duckdb_analytics() == False
-
 def test_duckdb_sqlite_scanner():
     """Test DuckDB sqlite_scanner functionality."""
     service = AnalyticsService()
     
-    # Force high-performance mode
-    service._performance_metrics["high_performance_active"] = True
-    
-    # Test that DuckDB method works
-    trends = service._get_job_trends_duckdb(7)
-    assert isinstance(trends, list)
+    # Test that DuckDB analytics work correctly
+    trends = service.get_job_trends(7)
+    assert trends["status"] == "success"
+    assert trends["method"] == "duckdb_sqlite_scanner"
+    assert isinstance(trends["trends"], list)
     
 def test_cost_tracking_accuracy():
     """Test cost tracking calculations."""
-    from src.analytics.cost_monitor import IntegratedCostMonitor
+    from src.services.cost_monitor import CostMonitor
     
-    monitor = IntegratedCostMonitor("sqlite:///:memory:")
+    monitor = CostMonitor(":memory:")
     
     # Track various costs
     monitor.track_ai_cost("gpt-4", 1000, 0.02, "job_extraction")
     monitor.track_proxy_cost(50, 5.00, "residential")
     
-    monthly_costs = monitor.get_monthly_costs()
-    assert monthly_costs["total"] == 5.02
-    assert "ai" in monthly_costs["costs"]
-    assert "proxy" in monthly_costs["costs"]
+    monthly_summary = monitor.get_monthly_summary()
+    assert monthly_summary["total_cost"] == 5.02
+    assert "ai" in monthly_summary["costs_by_service"]
+    assert "proxy" in monthly_summary["costs_by_service"]
 
 @pytest.mark.performance
 def test_performance_overhead():
@@ -414,10 +397,10 @@ def test_performance_overhead():
 
 ### Ongoing Maintenance & Considerations
 
-- **Monitor Performance Thresholds**: Review quarterly and adjust thresholds based on actual usage
 - **Cost Budget Updates**: Adjust monthly budget limits based on operational needs
-- **Performance Optimization**: Leverage new library features as they become available
-- **Method Selection Validation**: Ensure DuckDB high-performance mode provides expected benefits
+- **Performance Optimization**: Leverage new DuckDB and SQLModel features as they become available
+- **Query Performance**: Monitor DuckDB analytics query performance and optimize as needed
+- **Caching Strategy**: Review Streamlit caching TTL values based on usage patterns
 
 ### Dependencies
 

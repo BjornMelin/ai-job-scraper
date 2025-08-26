@@ -111,7 +111,7 @@ We will implement **SQLite FTS5 Search Architecture using sqlite-utils** for opt
 ## Related Decisions
 
 - **ADR-005** (Database Architecture): Provides SQLite foundation for FTS5 integration
-- **ADR-019** (Analytics Architecture): Search integrates with analytics dashboard UI
+- **ADR-019** (Analytics and Monitoring): Search integrates with analytics dashboard for comprehensive job insights
 - **ADR-007** (Service Layer): Search service follows established patterns
 - **ADR-006** (Data Management): Search triggers coordinate with data sync patterns
 
