@@ -13,14 +13,10 @@ All modules follow KISS principles with focused responsibilities.
 from src.ui.utils.background_helpers import (
     CompanyProgress,
     ProgressInfo,
-    TaskInfo,
-    add_task,
     get_company_progress,
     get_scraping_progress,
     get_scraping_results,
-    get_task,
     is_scraping_active,
-    remove_task,
     start_background_scraping,
     stop_all_scraping,
 )
@@ -49,8 +45,6 @@ from src.ui.utils.validators import (
     SafeInt,
     ensure_non_negative_int,
     ensure_non_negative_int_with_default,
-    safe_int,
-    safe_job_count,
 )
 
 __all__ = [
@@ -61,8 +55,6 @@ __all__ = [
     "SafeInt",
     "SafeInteger",
     "SalaryTuple",
-    "TaskInfo",
-    "add_task",
     # Formatters
     "calculate_eta",
     "calculate_scraping_speed",
@@ -79,13 +71,9 @@ __all__ = [
     "get_company_progress",
     "get_scraping_progress",
     "get_scraping_results",
-    "get_task",
     "is_scraping_active",
     # Streamlit utilities
     "is_streamlit_context",
-    "remove_task",
-    "safe_int",
-    "safe_job_count",
     "start_background_scraping",
     "stop_all_scraping",
     "truncate_text",

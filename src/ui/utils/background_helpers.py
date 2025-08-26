@@ -103,7 +103,7 @@ def start_background_scraping(stay_active_in_tests: bool = False) -> str:
             timestamp=datetime.now(UTC),
         )
 
-        # Test environment handling
+        # Test environment handling - simplified
         if _is_test_environment() and not stay_active_in_tests:
             logger.info("Test environment detected - executing synchronously")
             _execute_test_scraping(task_id)
@@ -116,53 +116,47 @@ def start_background_scraping(stay_active_in_tests: bool = False) -> str:
                 st.session_state.scraping_active = True
                 st.session_state.scraping_status = "Scraping in progress..."
 
-                # Check if we're in test environment for conditional behavior
-                if _is_test_environment() and not stay_active_in_tests:
-                    # Test environment - use logging instead of st.status
-                    logger.info("Scraping jobs in test mode...")
-                    _execute_test_scraping(task_id)
-                else:
-                    # Production environment - use st.status with null checks
-                    status_context = st.status("🔍 Scraping jobs...", expanded=True)
-                    if status_context:  # Add null check
-                        with status_context as status:
-                            if status:  # Additional null check for the status object
-                                from src.scraper import scrape_all
-                                from src.services.job_service import JobService
+                # Production environment - use st.status with null checks
+                status_context = st.status("🔍 Scraping jobs...", expanded=True)
+                if status_context:  # Add null check
+                    with status_context as status:
+                        if status:  # Additional null check for the status object
+                            from src.scraper import scrape_all
+                            from src.services.job_service import JobService
 
-                                companies = JobService.get_active_companies()
-                                _atomic_update_session_state("company_progress", {})
+                            companies = JobService.get_active_companies()
+                            _atomic_update_session_state("company_progress", {})
 
-                                for i, company in enumerate(companies):
-                                    count = f"{i + 1}/{len(companies)}"
-                                    msg = f"Processing {company} ({count})"
-                                    status.write(msg)
-                                    _atomic_update_progress(company, "Scraping", 0)
-                                    time.sleep(0.1)  # Brief delay for UI responsiveness
+                            for i, company in enumerate(companies):
+                                count = f"{i + 1}/{len(companies)}"
+                                msg = f"Processing {company} ({count})"
+                                status.write(msg)
+                                _atomic_update_progress(company, "Scraping", 0)
+                                time.sleep(0.1)  # Brief delay for UI responsiveness
 
-                                # Execute full scraping
-                                results = scrape_all()
-                                st.session_state.scraping_results = results
+                            # Execute full scraping
+                            results = scrape_all()
+                            st.session_state.scraping_results = results
 
-                                # Update company progress to completed
-                                for company in companies:
-                                    jobs_found = results.get("inserted", 0) // max(
-                                        len(companies), 1
-                                    )
-                                    _atomic_update_progress(
-                                        company, "Completed", jobs_found
-                                    )
-
-                                status.update(
-                                    label="✅ Scraping completed!", state="complete"
+                            # Update company progress to completed
+                            for company in companies:
+                                jobs_found = results.get("inserted", 0) // max(
+                                    len(companies), 1
                                 )
-                                st.session_state.scraping_status = "Scraping completed"
-                            else:
-                                logger.warning("st.status context returned None")
-                                _execute_fallback_scraping(task_id)
-                    else:
-                        logger.warning("st.status returned None")
-                        _execute_fallback_scraping(task_id)
+                                _atomic_update_progress(
+                                    company, "Completed", jobs_found
+                                )
+
+                            status.update(
+                                label="✅ Scraping completed!", state="complete"
+                            )
+                            st.session_state.scraping_status = "Scraping completed"
+                        else:
+                            logger.warning("st.status context returned None")
+                            _execute_fallback_scraping(task_id)
+                else:
+                    logger.warning("st.status returned None")
+                    _execute_fallback_scraping(task_id)
 
             except Exception as e:
                 logger.exception("Scraping failed")
@@ -296,25 +290,6 @@ def _execute_test_scraping(task_id: str) -> None:
             message="Test scraping completed",
             timestamp=datetime.now(UTC),
         )
-
-
-# Legacy compatibility functions (minimal implementations)
-def add_task(task_id: str, task_info: TaskInfo) -> None:
-    """Store task information in session state."""
-    if "tasks" not in st.session_state:
-        st.session_state.tasks = {}
-    st.session_state.tasks[task_id] = task_info
-
-
-def get_task(task_id: str) -> TaskInfo | None:
-    """Get task info from session state."""
-    return st.session_state.get("tasks", {}).get(task_id)
-
-
-def remove_task(task_id: str) -> None:
-    """Remove task from session state."""
-    if "tasks" in st.session_state:
-        st.session_state.tasks.pop(task_id, None)
 
 
 def throttled_rerun(
