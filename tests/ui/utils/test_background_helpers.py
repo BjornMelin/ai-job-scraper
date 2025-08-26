@@ -100,25 +100,25 @@ class TestSimplifiedSessionStateManagement:
 
         result = is_scraping_active()
 
-        assert result is True
+        assert result
 
     def test_is_scraping_active_default_false(self, mock_session_state):
         """Test is_scraping_active defaults to False."""
         result = is_scraping_active()
-        assert result is False
+        assert not result
 
     def test_session_state_coordination_basic_flags(self, mock_session_state):
         """Test basic session state flag coordination."""
         # Should start as inactive
-        assert is_scraping_active() is False
+        assert not is_scraping_active()
 
         # Set active manually
         mock_session_state.scraping_active = True
-        assert is_scraping_active() is True
+        assert is_scraping_active()
 
         # Clear active
         mock_session_state.scraping_active = False
-        assert is_scraping_active() is False
+        assert not is_scraping_active()
 
 
 class TestSimplifiedBackgroundTaskHandling:
@@ -134,14 +134,14 @@ class TestSimplifiedBackgroundTaskHandling:
         assert isinstance(task_id, str)
 
         # Should set basic active flag
-        assert mock_session_state.scraping_active is True
+        assert mock_session_state.scraping_active
 
     def test_start_background_scraping_test_mode_sync(self, mock_session_state):
         """Test start_background_scraping executes synchronously in test mode."""
         start_background_scraping(stay_active_in_tests=False)
 
         # In test mode without stay_active, should complete synchronously
-        assert mock_session_state.scraping_active is False
+        assert not mock_session_state.scraping_active
         assert "scraping_results" in mock_session_state
 
     def test_start_background_scraping_test_mode_async(self, mock_session_state):
@@ -149,7 +149,7 @@ class TestSimplifiedBackgroundTaskHandling:
         start_background_scraping(stay_active_in_tests=True)
 
         # Should stay active when requested
-        assert mock_session_state.scraping_active is True
+        assert mock_session_state.scraping_active
 
     def test_stop_all_scraping_cleans_basic_state(self, mock_session_state):
         """Test stop_all_scraping cleans up basic session state."""
@@ -165,7 +165,7 @@ class TestSimplifiedBackgroundTaskHandling:
         stopped_count = stop_all_scraping()
 
         assert stopped_count == 1
-        assert mock_session_state.scraping_active is False
+        assert not mock_session_state.scraping_active
         assert mock_session_state.scraping_status == "Scraping stopped"
 
     def test_stop_all_scraping_no_active_scraping(self, mock_session_state):
@@ -184,7 +184,7 @@ class TestTestEnvironmentDetection:
         task_id = start_background_scraping(stay_active_in_tests=False)
 
         # Should complete synchronously in test mode
-        assert mock_session_state.scraping_active is False
+        assert not mock_session_state.scraping_active
         assert isinstance(task_id, str)
 
 
@@ -203,21 +203,27 @@ class TestSimplifiedWorkflowIntegration:
         assert stopped == 1
         assert not is_scraping_active()
 
-    def test_throttled_rerun_in_ui_loop_simplified(
+    def test_throttled_rerun_first_call_triggers(
         self, mock_session_state, mock_streamlit
     ):
-        """Test throttled rerun in typical UI refresh loop."""
-        # Simulate UI refresh loop with throttling
-        for i in range(5):
-            # Only should trigger rerun on first call
+        """Test first throttled rerun call triggers."""
+        throttled_rerun("ui_refresh", 1.0, should_rerun=True)
+        assert mock_streamlit["rerun"].call_count == 1
+
+    def test_throttled_rerun_subsequent_calls_throttled(
+        self, mock_session_state, mock_streamlit
+    ):
+        """Test subsequent throttled rerun calls are throttled."""
+        # First call triggers
+        throttled_rerun("ui_refresh", 1.0, should_rerun=True)
+        assert mock_streamlit["rerun"].call_count == 1
+
+        # Subsequent calls are throttled
+        for _ in range(4):
             throttled_rerun("ui_refresh", 1.0, should_rerun=True)
 
-            if i == 0:
-                # First call should trigger
-                assert mock_streamlit["rerun"].call_count == 1
-            else:
-                # Subsequent calls should be throttled
-                assert mock_streamlit["rerun"].call_count == 1
+        # Should still be 1 - no additional calls triggered
+        assert mock_streamlit["rerun"].call_count == 1
 
     def test_integration_with_background_task_state(
         self, mock_session_state, mock_streamlit
@@ -257,7 +263,7 @@ class TestSimplificationCompliance:
 
         # Should use simple boolean flags, not complex dataclasses
         assert isinstance(mock_session_state.scraping_active, bool)
-        assert is_scraping_active() is True
+        assert is_scraping_active()
 
     def test_no_complex_task_management_required(self, mock_session_state):
         """Test that complex task management objects are not required."""
@@ -268,7 +274,7 @@ class TestSimplificationCompliance:
         assert isinstance(task_id, str)
 
         # Should work with basic session state
-        assert is_scraping_active() is True
+        assert is_scraping_active()
 
         # Cleanup should work simply
         stopped = stop_all_scraping()
@@ -281,11 +287,11 @@ class TestSimplificationCompliance:
         assert isinstance(task_id, str)
 
         # Should have simple state management
-        assert is_scraping_active() is True
+        assert is_scraping_active()
 
         # Should clean up simply
         stop_all_scraping()
-        assert is_scraping_active() is False
+        assert not is_scraping_active()
 
 
 class TestCoreFunctionalityOnly:
@@ -373,7 +379,7 @@ class TestPerformanceAndStability:
         # Rapid state changes should be stable in sync mode
         for _ in range(20):
             start_background_scraping(stay_active_in_tests=False)  # Sync test mode
-            assert is_scraping_active() is False  # Already completed in sync mode
+            assert not is_scraping_active()  # Already completed in sync mode
 
             stop_all_scraping()
-            assert is_scraping_active() is False
+            assert not is_scraping_active()
