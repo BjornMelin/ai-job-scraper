@@ -92,9 +92,10 @@ def start_background_scraping(stay_active_in_tests: bool = False) -> str:
                 st.warning("Scraping already in progress")
             return task_id
 
-        # Initialize session state safely
-        st.session_state.setdefault("task_progress", {})
-        st.session_state.setdefault("company_progress", {})
+        # Initialize session state safely with thread protection
+        with _session_state_lock:
+            st.session_state.setdefault("task_progress", {})
+            st.session_state.setdefault("company_progress", {})
 
         # Store task info
         st.session_state.task_progress[task_id] = ProgressInfo(
@@ -109,54 +110,27 @@ def start_background_scraping(stay_active_in_tests: bool = False) -> str:
             _execute_test_scraping(task_id)
             return task_id
 
+        # Set scraping active immediately for tests to see it
+        st.session_state.scraping_active = True
+        st.session_state.scraping_status = "🔍 Scraping in progress..."
+
         # Production threading
         def scraping_worker():
             """Background thread worker with Streamlit context and error handling."""
             try:
-                st.session_state.scraping_active = True
-                st.session_state.scraping_status = "Scraping in progress..."
+                from contextlib import nullcontext
 
-                # Production environment - use st.status with null checks
-                status_context = st.status("🔍 Scraping jobs...", expanded=True)
-                if status_context:  # Add null check
-                    with status_context as status:
-                        if status:  # Additional null check for the status object
-                            from src.scraper import scrape_all
-                            from src.services.job_service import JobService
+                from src.services.job_service import JobService
 
-                            companies = JobService.get_active_companies()
-                            _atomic_update_session_state("company_progress", {})
+                companies = JobService.get_active_companies()
 
-                            for i, company in enumerate(companies):
-                                count = f"{i + 1}/{len(companies)}"
-                                msg = f"Processing {company} ({count})"
-                                status.write(msg)
-                                _atomic_update_progress(company, "Scraping", 0)
-                                time.sleep(0.1)  # Brief delay for UI responsiveness
+                # Try to get a status context, default to nullcontext for fallback
+                status_context = (
+                    st.status("🔍 Scraping jobs...", expanded=True) or nullcontext()
+                )
 
-                            # Execute full scraping
-                            results = scrape_all()
-                            st.session_state.scraping_results = results
-
-                            # Update company progress to completed
-                            for company in companies:
-                                jobs_found = results.get("inserted", 0) // max(
-                                    len(companies), 1
-                                )
-                                _atomic_update_progress(
-                                    company, "Completed", jobs_found
-                                )
-
-                            status.update(
-                                label="✅ Scraping completed!", state="complete"
-                            )
-                            st.session_state.scraping_status = "Scraping completed"
-                        else:
-                            logger.warning("st.status context returned None")
-                            _execute_fallback_scraping(task_id)
-                else:
-                    logger.warning("st.status returned None")
-                    _execute_fallback_scraping(task_id)
+                with status_context as status:
+                    _run_unified_scrape(companies, status)
 
             except Exception as e:
                 logger.exception("Scraping failed")
@@ -189,12 +163,10 @@ def _atomic_update_session_state(key: str, value: Any) -> None:
         st.session_state[key] = value
 
 
-def _atomic_update_progress(company: str, status: str, jobs_found: int) -> None:
-    """Thread-safe progress update."""
+def _update_company_progress(company: str, status: str, jobs_found: int) -> None:
+    """Thread-safe single helper for company progress."""
     with _session_state_lock:
-        if "company_progress" not in st.session_state:
-            st.session_state.company_progress = {}
-        st.session_state.company_progress[company] = CompanyProgress(
+        st.session_state.setdefault("company_progress", {})[company] = CompanyProgress(
             name=company,
             status=status,
             jobs_found=jobs_found,
@@ -202,36 +174,79 @@ def _atomic_update_progress(company: str, status: str, jobs_found: int) -> None:
         )
 
 
-def _execute_fallback_scraping(_task_id: str) -> None:
-    """Execute scraping without Streamlit status context."""
-    try:
-        from src.scraper import scrape_all
-        from src.services.job_service import JobService
+def _run_unified_scrape(companies: list[str], status_ctx) -> None:
+    """Unified logic for scraping with progress updates and cancellation support."""
+    from src.scraper import scrape_all
 
-        logger.info("Executing fallback scraping without st.status")
-        companies = JobService.get_active_companies()
-        _atomic_update_session_state("company_progress", {})
+    _atomic_update_session_state("company_progress", {})
 
-        for company in companies:
-            logger.info("Processing %s", company)
-            _atomic_update_progress(company, "Scraping", 0)
-            time.sleep(0.1)
+    for i, company in enumerate(companies):
+        # Check for cancellation before processing each company
+        if not st.session_state.get("scraping_active", False):
+            logger.info("Scraping cancelled by user")
+            st.session_state.scraping_status = "Scraping cancelled"
+            return
 
-        # Execute full scraping
-        results = scrape_all()
-        st.session_state.scraping_results = results
+        count = f"{i + 1}/{len(companies)}"
+        msg = f"Processing {company} ({count})"
 
-        # Update company progress to completed
-        for company in companies:
-            jobs_found = results.get("inserted", 0) // max(len(companies), 1)
-            _atomic_update_progress(company, "Completed", jobs_found)
+        # Write to status if available, otherwise log
+        if hasattr(status_ctx, "write"):
+            status_ctx.write(msg)
+        else:
+            logger.info("Processing %s (%s)", company, count)
 
-        st.session_state.scraping_status = "Scraping completed"
-        logger.info("Fallback scraping completed successfully")
+        _atomic_update_progress(company, "Scraping", 0)
+        time.sleep(0.1)  # Brief delay for UI responsiveness
 
-    except Exception as e:
-        logger.exception("Fallback scraping failed")
-        st.session_state.scraping_status = f"Error: {e!s}"
+    # Final cancellation check before executing full scraping
+    if not st.session_state.get("scraping_active", False):
+        logger.info("Scraping cancelled before full scraping execution")
+        st.session_state.scraping_status = "Scraping cancelled"
+        return
+
+    # Execute full scraping
+    results = scrape_all()
+    st.session_state.scraping_results = results
+
+    # Update company progress to completed
+    for company in companies:
+        jobs_found = results.get("inserted", 0) // max(len(companies), 1)
+        _atomic_update_progress(company, "Completed", jobs_found)
+
+    st.session_state.scraping_status = "Scraping completed"
+
+    # Update status if available
+    if hasattr(status_ctx, "update"):
+        status_ctx.update(label="✅ Scraping completed!", state="complete")
+    else:
+        logger.info("Scraping completed successfully")
+
+
+def _atomic_update_progress(company: str, status: str, jobs_found: int) -> None:
+    """Thread-safe progress update."""
+    with _session_state_lock:
+        if "company_progress" not in st.session_state:
+            st.session_state.company_progress = {}
+
+        # Preserve existing end_time and error fields if they exist
+        existing = st.session_state.company_progress.get(company)
+        end_time = getattr(existing, "end_time", None) if existing else None
+        error = getattr(existing, "error", None) if existing else None
+        start_time = (
+            getattr(existing, "start_time", datetime.now(UTC))
+            if existing
+            else datetime.now(UTC)
+        )
+
+        st.session_state.company_progress[company] = CompanyProgress(
+            name=company,
+            status=status,
+            jobs_found=jobs_found,
+            start_time=start_time,
+            end_time=end_time,
+            error=error,
+        )
 
 
 def stop_all_scraping() -> int:
