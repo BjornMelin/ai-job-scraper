@@ -10,6 +10,7 @@ import threading
 import time
 import uuid
 
+from contextlib import nullcontext
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
@@ -118,15 +119,15 @@ def start_background_scraping(stay_active_in_tests: bool = False) -> str:
         def scraping_worker():
             """Background thread worker with Streamlit context and error handling."""
             try:
-                from contextlib import nullcontext
-
                 from src.services.job_service import JobService
 
                 companies = JobService.get_active_companies()
 
                 # Try to get a status context, default to nullcontext for fallback
                 status_context = (
-                    st.status("🔍 Scraping jobs...", expanded=True) or nullcontext()
+                    st.status("🔍 Scraping jobs...", expanded=True)
+                    if not _is_test_environment()
+                    else nullcontext()
                 )
 
                 with status_context as status:
@@ -157,74 +158,8 @@ def start_background_scraping(stay_active_in_tests: bool = False) -> str:
     return task_id
 
 
-def _atomic_update_session_state(key: str, value: Any) -> None:
-    """Thread-safe session state update."""
-    with _session_state_lock:
-        st.session_state[key] = value
-
-
 def _update_company_progress(company: str, status: str, jobs_found: int) -> None:
-    """Thread-safe single helper for company progress."""
-    with _session_state_lock:
-        st.session_state.setdefault("company_progress", {})[company] = CompanyProgress(
-            name=company,
-            status=status,
-            jobs_found=jobs_found,
-            start_time=datetime.now(UTC),
-        )
-
-
-def _run_unified_scrape(companies: list[str], status_ctx) -> None:
-    """Unified logic for scraping with progress updates and cancellation support."""
-    from src.scraper import scrape_all
-
-    _atomic_update_session_state("company_progress", {})
-
-    for i, company in enumerate(companies):
-        # Check for cancellation before processing each company
-        if not st.session_state.get("scraping_active", False):
-            logger.info("Scraping cancelled by user")
-            st.session_state.scraping_status = "Scraping cancelled"
-            return
-
-        count = f"{i + 1}/{len(companies)}"
-        msg = f"Processing {company} ({count})"
-
-        # Write to status if available, otherwise log
-        if hasattr(status_ctx, "write"):
-            status_ctx.write(msg)
-        else:
-            logger.info("Processing %s (%s)", company, count)
-
-        _atomic_update_progress(company, "Scraping", 0)
-        time.sleep(0.1)  # Brief delay for UI responsiveness
-
-    # Final cancellation check before executing full scraping
-    if not st.session_state.get("scraping_active", False):
-        logger.info("Scraping cancelled before full scraping execution")
-        st.session_state.scraping_status = "Scraping cancelled"
-        return
-
-    # Execute full scraping
-    results = scrape_all()
-    st.session_state.scraping_results = results
-
-    # Update company progress to completed
-    for company in companies:
-        jobs_found = results.get("inserted", 0) // max(len(companies), 1)
-        _atomic_update_progress(company, "Completed", jobs_found)
-
-    st.session_state.scraping_status = "Scraping completed"
-
-    # Update status if available
-    if hasattr(status_ctx, "update"):
-        status_ctx.update(label="✅ Scraping completed!", state="complete")
-    else:
-        logger.info("Scraping completed successfully")
-
-
-def _atomic_update_progress(company: str, status: str, jobs_found: int) -> None:
-    """Thread-safe progress update."""
+    """Thread-safe single helper for company progress with field preservation."""
     with _session_state_lock:
         if "company_progress" not in st.session_state:
             st.session_state.company_progress = {}
@@ -247,6 +182,61 @@ def _atomic_update_progress(company: str, status: str, jobs_found: int) -> None:
             end_time=end_time,
             error=error,
         )
+
+
+def _run_unified_scrape(companies: list[str], status_ctx) -> None:
+    """Unified logic for scraping with progress updates and cancellation support."""
+    from src.scraper import scrape_all
+
+    # Initialize company progress
+    with _session_state_lock:
+        st.session_state.company_progress = {}
+
+    for i, company in enumerate(companies):
+        # Check for cancellation before processing each company
+        if not st.session_state.get("scraping_active", False):
+            logger.info("Scraping cancelled by user")
+            st.session_state.scraping_status = "Scraping cancelled"
+            return
+
+        count = f"{i + 1}/{len(companies)}"
+        msg = f"Processing {company} ({count})"
+
+        # Write to status if available, otherwise log
+        if hasattr(status_ctx, "write"):
+            status_ctx.write(msg)
+        else:
+            logger.info("Processing %s (%s)", company, count)
+
+        _update_company_progress(company, "Scraping", 0)
+        time.sleep(0.1)  # Brief delay for UI responsiveness
+
+    # Final cancellation check before executing full scraping
+    if not st.session_state.get("scraping_active", False):
+        logger.info("Scraping cancelled before full scraping execution")
+        st.session_state.scraping_status = "Scraping cancelled"
+        return
+
+    # Execute full scraping
+    results = scrape_all()
+    st.session_state.scraping_results = results
+
+    # Update company progress to completed with proper job distribution
+    jobs_per_company = results.get("inserted", 0) // max(len(companies), 1)
+    for company in companies:
+        # Check for cancellation during progress updates
+        if not st.session_state.get("scraping_active", False):
+            logger.info("Scraping cancelled during progress updates")
+            break
+        _update_company_progress(company, "Completed", jobs_per_company)
+
+    st.session_state.scraping_status = "Scraping completed"
+
+    # Update status if available
+    if hasattr(status_ctx, "update"):
+        status_ctx.update(label="✅ Scraping completed!", state="complete")
+    else:
+        logger.info("Scraping completed successfully")
 
 
 def stop_all_scraping() -> int:
@@ -345,4 +335,6 @@ def background_task_status_fragment():
 
     if st.button("🛑 Stop All Tasks") and stop_all_scraping():
         st.success("Scraping stopped")
+        # Brief delay to allow UI to reflect stopped state
+        time.sleep(0.1)
         st.rerun()
