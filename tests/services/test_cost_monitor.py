@@ -24,7 +24,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from src.services.cost_monitor import CostEntry, CostMonitor
 
@@ -117,9 +117,9 @@ class TestCostEntryModel:
             session.commit()
 
             # Query by service (indexed field)
-            results = (
-                session.query(CostEntry).filter(CostEntry.service == "service_0").all()
-            )
+            results = session.exec(
+                select(CostEntry).where(CostEntry.service == "service_0")
+            ).all()
             assert len(results) > 0
 
 
@@ -143,7 +143,7 @@ class TestCostMonitorInitialization:
         """Test that database tables are created during initialization."""
         with Session(cost_monitor.engine) as session:
             # Should be able to query the cost_entries table
-            result = session.query(CostEntry).all()
+            result = session.exec(select(CostEntry)).all()
             assert isinstance(result, list)
 
 
@@ -156,7 +156,9 @@ class TestCostTrackingMethods:
 
         # Verify cost was stored
         with Session(cost_monitor.engine) as session:
-            entries = session.query(CostEntry).filter(CostEntry.service == "ai").all()
+            entries = session.exec(
+                select(CostEntry).where(CostEntry.service == "ai")
+            ).all()
             assert len(entries) == 1
 
             entry = entries[0]
@@ -174,9 +176,9 @@ class TestCostTrackingMethods:
 
         # Verify cost was stored
         with Session(cost_monitor.engine) as session:
-            entries = (
-                session.query(CostEntry).filter(CostEntry.service == "proxy").all()
-            )
+            entries = session.exec(
+                select(CostEntry).where(CostEntry.service == "proxy")
+            ).all()
             assert len(entries) == 1
 
             entry = entries[0]
@@ -194,9 +196,9 @@ class TestCostTrackingMethods:
 
         # Verify cost was stored
         with Session(cost_monitor.engine) as session:
-            entries = (
-                session.query(CostEntry).filter(CostEntry.service == "scraping").all()
-            )
+            entries = session.exec(
+                select(CostEntry).where(CostEntry.service == "scraping")
+            ).all()
             assert len(entries) == 1
 
             entry = entries[0]
@@ -218,15 +220,15 @@ class TestCostTrackingMethods:
 
         # Verify all costs were stored
         with Session(cost_monitor.engine) as session:
-            ai_entries = (
-                session.query(CostEntry).filter(CostEntry.service == "ai").all()
-            )
-            proxy_entries = (
-                session.query(CostEntry).filter(CostEntry.service == "proxy").all()
-            )
-            scraping_entries = (
-                session.query(CostEntry).filter(CostEntry.service == "scraping").all()
-            )
+            ai_entries = session.exec(
+                select(CostEntry).where(CostEntry.service == "ai")
+            ).all()
+            proxy_entries = session.exec(
+                select(CostEntry).where(CostEntry.service == "proxy")
+            ).all()
+            scraping_entries = session.exec(
+                select(CostEntry).where(CostEntry.service == "scraping")
+            ).all()
 
             assert len(ai_entries) == 2
             assert len(proxy_entries) == 1
@@ -237,7 +239,7 @@ class TestCostTrackingMethods:
                 entry.cost_usd
                 for entry in ai_entries + proxy_entries + scraping_entries
             )
-            assert total_cost == 6.54  # 0.03 + 0.01 + 2.00 + 3.50
+            assert total_cost == 5.54  # 0.03 + 0.01 + 2.00 + 3.50
 
 
 class TestMonthlySummaryAndBudgetAnalysis:

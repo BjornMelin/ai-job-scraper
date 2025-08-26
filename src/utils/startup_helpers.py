@@ -49,11 +49,10 @@ def initialize_performance_optimizations() -> dict[str, Any]:
     Returns:
         Dictionary with basic initialization status.
     """
-    try:
+    from contextlib import suppress
+
+    with suppress(Exception):
         logger.info("Initializing simplified startup configuration...")
-    except Exception:
-        # Ignore logging errors to ensure function continues
-        pass
 
     # Simple initialization - just mark session as started
     if hasattr(st, "session_state"):
@@ -65,10 +64,7 @@ def initialize_performance_optimizations() -> dict[str, Any]:
         "complex_optimization": "removed_for_simplicity",
     }
 
-    try:
+    with suppress(Exception):
         logger.info("Startup configuration initialized using library-first approach")
-    except Exception:
-        # Ignore logging errors to ensure function continues
-        pass
 
     return result

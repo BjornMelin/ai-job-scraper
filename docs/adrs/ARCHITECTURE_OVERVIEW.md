@@ -118,7 +118,7 @@ graph LR
 
 **Key Technologies**:
 
-- **Python 3.12**: sys.monitoring for 20x performance improvement
+- **Python 3.12**: Modern Python patterns with native libraries
 - **uv**: Package management and dependency resolution
 - **pytest**: Library-first testing with minimal custom fixtures
 
@@ -248,7 +248,7 @@ graph TB
     end
     
     subgraph "Analytics Engine"
-        D[Performance Monitoring]
+        D[DuckDB Analytics]
         E{"p95 latency >500ms?"}
         F[SQLModel SQLite Queries]
         G[DuckDB sqlite_scanner]
@@ -274,7 +274,7 @@ graph TB
 - **FTS5 Search**: Porter stemming, multi-field queries, BM25 relevance ranking with documented 5-300ms response time scaling
 - **Analytics Method Selection**: Automatic switching between SQLite (baseline) and DuckDB (p95 latency >500ms)
 - **Application Status Tracking**: SQLModel enum patterns with status indicators and funnel analytics
-- **Python 3.12 sys.monitoring**: Native performance monitoring capabilities
+- **DuckDB sqlite_scanner**: Zero-ETL analytics capabilities
 
 ### UI & Infrastructure Layer: Modern Experience
 
@@ -362,7 +362,7 @@ Company Sites:      Dynamic extraction via ScrapeGraphAI + AI
 
 1. **Scraping → AI Processing**: Raw content → LiteLLM → Instructor validation → Structured data
 2. **Database → Search**: Automatic FTS5 trigger updates with porter stemming
-3. **Search → Analytics**: Performance monitoring triggers intelligent DuckDB scaling
+3. **Search → Analytics**: DuckDB sqlite_scanner provides direct analytics access
 4. **Status → UI**: Real-time status updates with optimistic feedback and error recovery
 5. **Background → Services**: Threading coordination with Streamlit session state management
 
@@ -511,7 +511,7 @@ Based on documented SQLite, FTS5, DuckDB, and Streamlit performance characterist
 **Performance Optimization Strategy:**
 
 1. **Tier 1-2**: Use default SQLite configuration with standard FTS5
-2. **Tier 3**: Enable performance monitoring to trigger DuckDB integration
+2. **Tier 3**: Enable DuckDB analytics with sqlite_scanner integration
 3. **Tier 4**: Implement mandatory DuckDB analytics with sqlite_scanner
 
 **UI Scaling Strategy:**

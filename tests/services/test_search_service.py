@@ -39,6 +39,8 @@ from src.services.search_service import JobSearchService
 if TYPE_CHECKING:
     from sqlmodel import Session
 
+logger = logging.getLogger(__name__)
+
 
 class TestFTS5Setup:
     """Test FTS5 search index setup and initialization."""
@@ -221,9 +223,9 @@ class TestFTS5Setup:
                 # This might fail due to locking, should handle gracefully
                 # FTS setup might fail, but shouldn't crash
                 JobSearchService(tmp.name)
-            except Exception:  # noqa: S110
+            except Exception:
                 # Any exception should be handled gracefully in production
-                pass
+                logger.exception("Exception during FTS5 setup with locked database")
             finally:
                 lock_conn.close()
 

@@ -56,7 +56,8 @@ def cost_monitor(test_cost_db):
     """Create a CostMonitor instance with test database."""
     monitor = CostMonitor(db_path=test_cost_db)
     # Clear any cached data to ensure test isolation
-    monitor.get_monthly_summary.clear()
+    if hasattr(monitor.get_monthly_summary, "clear"):
+        monitor.get_monthly_summary.clear()
     return monitor
 
 
@@ -492,8 +493,7 @@ class TestCostMonitorIntegration:
         # Verify complete workflow
         summary = cost_monitor.get_monthly_summary()
 
-        # Total: 4.00 + 5.00 + 2.00 + 2.50 + 3.00 + 1.50 = 18.00
-        expected_total = 18.00
+        expected_total = 18.00  # 4.00 + 5.00 + 2.00 + 2.50 + 3.00 + 1.50
         assert abs(summary["total_cost"] - expected_total) < 0.01
 
         # Check service breakdowns

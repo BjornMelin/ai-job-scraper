@@ -43,7 +43,8 @@ class TestSimplifiedStartupHelpers:
     def test_initialize_without_streamlit_session_state(self, mock_st):
         """Test initialization when Streamlit session state is not available."""
         # Setup mock without session_state attribute
-        delattr(mock_st, "session_state") if hasattr(mock_st, "session_state") else None
+        if hasattr(mock_st, "session_state"):
+            delattr(mock_st, "session_state")
 
         # Should not raise error
         result = initialize_performance_optimizations()
@@ -184,7 +185,7 @@ class TestStartupHelpersErrorHandling:
         """Test handling of AttributeError when accessing session_state."""
         # Make session_state access raise AttributeError
         type(mock_st).session_state = property(
-            lambda self: (_ for _ in ()).throw(AttributeError("No session state"))
+            lambda _: (_ for _ in ()).throw(AttributeError("No session state"))
         )
 
         # Should not raise error
