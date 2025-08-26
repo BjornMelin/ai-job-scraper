@@ -4,7 +4,8 @@
 
 **Status:** Accepted
 **Version/Date:** v3.0 / 2025-08-25
-**Supersedes:** ADR-001 v2.1, ADR-002 v2.1, ADR-003 v3.0 (archived)
+**Supersedes:** ADR-001 v2.1, ADR-002 v2.1
+**Note:** ADR-003 v3.0 archived separately due to over-engineering (see archived/over-engineered/)
 
 ## Title
 
@@ -80,8 +81,8 @@ ARCHITECTURE_RULES = {
 
 ### Alternative 3: Full Library-First Architecture (SELECTED)
 
-**Pros:** 96% code reduction, 1-week shipping, battle-tested, zero maintenance
-**Cons:** Library dependencies, less customization control
+**Pros:** 92.8% code reduction, 1-week shipping, community-maintained libraries, reduced maintenance overhead
+**Cons:** Library dependencies, limited customization control
 **Score:** 9/10
 
 ## Decision Framework
@@ -321,39 +322,34 @@ def main():
 
 - **ADR-001 v2.1:** Library-First Architecture (archived to `archived/2025-08-25-consolidation/`)
 - **ADR-002 v2.1:** Minimal Implementation Guide (archived to `archived/2025-08-25-consolidation/`)  
-- **ADR-003 v3.0:** Intelligent Features Architecture (archived to `archived/2025-08-25-consolidation/`)
+- **ADR-003 v3.0:** Intelligent Features Architecture (archived to `archived/over-engineered/` - over-engineered for personal use)
 
 **Complete System Integration - Active ADRs:**
 
 **Core Architecture ADRs:**
 
-- **ADR-004** (Local AI Integration): LiteLLM + Instructor + vLLM server mode for guaranteed structured outputs
-- **ADR-006** (Hybrid Strategy): Canonical LiteLLM configuration with automatic local/cloud routing
-- **ADR-008** (Optimized Token Thresholds): 8K context window optimization for 95%+ local processing
-- **ADR-010** (Scraping Strategy): 2-tier JobSpy + ScrapeGraphAI architecture eliminating custom scrapers
-- **ADR-031** (Hybrid Resilience Strategy): Native HTTPX transport retries + minimal status code handling
+- **ADR-010** (Local AI Integration): LiteLLM + Instructor + vLLM server mode for guaranteed structured outputs
+- **ADR-011** (Hybrid Strategy): Canonical LiteLLM configuration with automatic local/cloud routing
+- **ADR-012** (Optimized Token Thresholds): 8K context window optimization for 95%+ local processing
+- **ADR-013** (Scraping Strategy): 2-tier JobSpy + ScrapeGraphAI architecture eliminating custom scrapers
+- **ADR-016** (Hybrid Resilience Strategy): Native HTTPX transport retries + minimal status code handling
 
 **Data & Storage ADRs:**
 
-- **ADR-012** (Background Tasks): Standard threading with Streamlit native `st.status` components
-- **ADR-013** (Smart Database Sync): Intelligent synchronization preserving user data with content hash detection
-- **ADR-018** (Local Database Setup): Incremental DuckDB evolution with SQLModel + SQLite foundation
-- **ADR-019** (Simple Data Management): Type-safe SQLModel patterns with Pydantic validation
-- **ADR-024** (High-Performance Analytics): SQLite foundation with DuckDB sqlite_scanner for analytics
-- **ADR-025** (Performance Scale Strategy): Metrics-driven evolution patterns for scaling decisions
+- **ADR-017** (Background Tasks): Standard threading with Streamlit native `st.status` components
+- **ADR-008** (Smart Database Sync): Intelligent synchronization preserving user data with content hash detection
+- **ADR-005** (Local Database Setup): Incremental DuckDB evolution with SQLModel + SQLite foundation
+- **ADR-006** (Simple Data Management): Type-safe SQLModel patterns with Pydantic validation
+- **ADR-019** (High-Performance Analytics): SQLite foundation with DuckDB sqlite_scanner for analytics
 
 **Integration & Infrastructure ADRs:**
 
-- **ADR-011** (Proxy Anti-Bot Integration): IPRoyal residential proxy integration with JobSpy compatibility
-- **ADR-026** (Local Environment Configuration): Development environment setup with library-first tooling
-- **ADR-028** (Service Layer Architecture): Simplified service patterns avoiding over-engineering
-- **ADR-030** (Monitoring Observability): Local-first monitoring with sys.monitoring (Python 3.12+)
+- **ADR-015** (Proxy Anti-Bot Integration): IPRoyal residential proxy integration with JobSpy compatibility
+- **ADR-002** (Local Environment Configuration): Development environment setup with library-first tooling
+- **ADR-007** (Service Layer Architecture): Simplified service patterns avoiding over-engineering
 
 **UI & User Experience ADRs:**
 
-- **ADR-035** (Streamlit Fragments Auto-Refresh): Native `@st.fragment` for real-time UI updates
-- **ADR-036** (Streamlit Column Configuration): Native column config for rich data display
-- **ADR-037** (Simple Personal Job Tracker): Complete Streamlit UI leveraging native features
 
 ## System-Wide Library Architecture
 
@@ -361,7 +357,7 @@ This section maps the complete library stack across all system components, showi
 
 ### Complete Library Stack by Domain
 
-#### AI Processing & Inference (ADR-004, ADR-006, ADR-008)
+#### AI Processing & Inference (ADR-010, ADR-011, ADR-012)
 
 ```python
 # Local AI Processing Stack
@@ -370,7 +366,7 @@ This section maps the complete library stack across all system components, showi
 - Instructor: Structured outputs with guaranteed JSON validation
 - Qwen3-4B-Instruct-2507-FP8: Optimal model for 8K context processing
 
-# Implementation: ADR-004 (12 lines vs 200+ custom routing)
+# Implementation: ADR-010 (12 lines vs 200+ custom routing)
 from litellm import completion
 response = completion(
     model="local-qwen",
@@ -379,7 +375,7 @@ response = completion(
 )
 ```
 
-#### Web Scraping & Data Collection (ADR-010, ADR-011, ADR-031)
+#### Web Scraping & Data Collection (ADR-013, ADR-015, ADR-016)
 
 ```python
 # 2-Tier Scraping Architecture
@@ -388,7 +384,7 @@ response = completion(
 - HTTPX: Native transport retries for HTTP resilience
 - IPRoyal: Residential proxy integration for anti-bot protection
 
-# Implementation: ADR-010 (15 lines vs 400+ custom scrapers)
+# Implementation: ADR-013 (15 lines vs 400+ custom scrapers)
 from jobspy import scrape_jobs
 from scrapegraphai import SmartScraper
 
@@ -396,7 +392,6 @@ jobs = scrape_jobs(site_name=["linkedin", "indeed"])
 ai_jobs = SmartScraper(url, prompt="extract jobs").run()
 ```
 
-#### Database & Analytics (ADR-018, ADR-019, ADR-024, ADR-025)
 
 ```python
 # Incremental Database Evolution
@@ -405,7 +400,7 @@ ai_jobs = SmartScraper(url, prompt="extract jobs").run()
 - DuckDB: Performance-triggered analytics via sqlite_scanner
 - Pandas: DataFrame operations for analytics integration
 
-# Implementation: ADR-018/024 (30 lines vs 400+ custom sync)
+# Implementation: ADR-005/024 (30 lines vs 400+ custom sync)
 from sqlmodel import SQLModel, Session, create_engine
 
 class Job(SQLModel, table=True):
@@ -419,7 +414,6 @@ conn.execute("ATTACH 'jobs.db' AS sqlite")
 analytics = conn.execute("SELECT * FROM sqlite.jobs").df()
 ```
 
-#### Background Processing & UI (ADR-012, ADR-035, ADR-036, ADR-037)
 
 ```python
 # Streamlit-Native Architecture  
@@ -428,7 +422,7 @@ analytics = conn.execute("SELECT * FROM sqlite.jobs").df()
 - st.fragment: Real-time auto-refresh components
 - st.column_config: Rich data display configuration
 
-# Implementation: ADR-012 (50 lines vs 800+ custom task management)
+# Implementation: ADR-017 (50 lines vs 800+ custom task management)
 import threading
 from streamlit.runtime.scriptrunner import add_script_run_ctx
 
@@ -440,7 +434,6 @@ def display_jobs():
     })
 ```
 
-#### Resilience & Error Handling (ADR-031, ADR-030)
 
 ```python
 # Native Library Resilience Stack
@@ -449,7 +442,7 @@ def display_jobs():
 - SQLModel: Connection pooling with automatic recovery
 - sys.monitoring: Python 3.12+ native performance monitoring
 
-# Implementation: ADR-031 (~20 lines vs 200+ custom retry logic)
+# Implementation: ADR-016 (~20 lines vs 200+ custom retry logic)
 transport = httpx.HTTPTransport(retries=3)
 client = httpx.Client(transport=transport)  # Native retries
 ```
@@ -458,30 +451,28 @@ client = httpx.Client(transport=transport)  # Native retries
 
 | Component | Primary Library | Supporting Libraries | ADR Reference | Code Reduction |
 |-----------|----------------|---------------------|---------------|---------------|
-| **AI Processing** | LiteLLM + vLLM | Instructor, Qwen3-4B | ADR-004, 006 | 200→12 lines (94%) |
-| **Web Scraping** | JobSpy + ScrapeGraphAI | HTTPX, IPRoyal | ADR-010, 011 | 400→15 lines (96%) |
-| **Database** | SQLModel + SQLite | DuckDB, Pandas | ADR-018, 024 | 400→30 lines (92%) |
-| **Background Tasks** | threading.Thread | Streamlit components | ADR-012 | 800→50 lines (94%) |
-| **Analytics** | DuckDB sqlite_scanner | Pandas, Plotly | ADR-024, 025 | 600→15 lines (97%) |
-| **UI Framework** | Streamlit | Native fragments/config | ADR-035, 036, 037 | 1167→50 lines (96%) |
-| **Resilience** | HTTPX Transport | sys.monitoring | ADR-031, 030 | 200→20 lines (90%) |
-| **Proxy Integration** | IPRoyal | JobSpy compatibility | ADR-011 | Native integration |
+| **AI Processing** | LiteLLM + vLLM | Instructor, Qwen3-4B | ADR-010, 006 | 200→12 lines (94%) |
+| **Web Scraping** | JobSpy + ScrapeGraphAI | HTTPX, IPRoyal | ADR-013, 011 | 400→15 lines (96%) |
+| **Database** | SQLModel + SQLite | DuckDB, Pandas | ADR-005, 024 | 400→30 lines (92%) |
+| **Background Tasks** | threading.Thread | Streamlit components | ADR-017 | 800→50 lines (94%) |
+| **Analytics** | DuckDB sqlite_scanner | Pandas, Plotly | ADR-019, 025 | 600→15 lines (97%) |
+| **Resilience** | HTTPX Transport | sys.monitoring | ADR-016, 030 | 200→20 lines (90%) |
+| **Proxy Integration** | IPRoyal | JobSpy compatibility | ADR-015 | Native integration |
 
 ### Cross-ADR Library Dependencies
 
 ```mermaid
 graph TD
-    A[ADR-001: Library-First Foundation] --> B[ADR-004: AI Stack]
-    A --> C[ADR-010: Scraping Stack]  
-    A --> D[ADR-018: Database Stack]
+    A[ADR-001: Library-First Foundation] --> B[ADR-010: AI Stack]
+    A --> C[ADR-013: Scraping Stack]  
+    A --> D[ADR-005: Database Stack]
     
     B --> E[LiteLLM + vLLM + Instructor]
     C --> F[JobSpy + ScrapeGraphAI]
     D --> G[SQLModel + SQLite + DuckDB]
     
-    H[ADR-031: Resilience] --> I[HTTPX + sys.monitoring]
-    J[ADR-012: Background] --> K[threading + Streamlit]
-    L[ADR-037: UI] --> M[Streamlit Native Features]
+    H[ADR-016: Resilience] --> I[HTTPX + sys.monitoring]
+    J[ADR-017: Background] --> K[threading + Streamlit]
     
     E -.->|Integration| F
     F -.->|Data Flow| G  
@@ -513,19 +504,18 @@ graph TD
 
 ```mermaid
 graph TB
-    subgraph "User Interface Layer (ADR-037)"
         A[Streamlit App] --> B[Native Fragments Auto-Refresh]
         A --> C[Column Config Display]
         A --> D[Background Task Status]
     end
     
-    subgraph "Processing Layer (ADR-012, ADR-031)"
+    subgraph "Processing Layer (ADR-017, ADR-016)"
         E[Threading Background Tasks] --> F[HTTPX Resilient HTTP]
         E --> G[Status Progress Updates]
         F --> H[Native Transport Retries]
     end
     
-    subgraph "Data Collection Layer (ADR-010, ADR-011)"
+    subgraph "Data Collection Layer (ADR-013, ADR-015)"
         I[2-Tier Scraping Strategy]
         I --> J[JobSpy - Structured Sites]
         I --> K[ScrapeGraphAI - Unstructured Sites]
@@ -533,7 +523,7 @@ graph TB
         K --> L
     end
     
-    subgraph "AI Processing Layer (ADR-004, ADR-006, ADR-008)"
+    subgraph "AI Processing Layer (ADR-010, ADR-011, ADR-012)"
         M[LiteLLM Routing] --> N[Local vLLM Server]
         M --> O[Cloud API Fallback]
         M --> P[Instructor Validation]
@@ -541,21 +531,19 @@ graph TB
         P --> R[Guaranteed JSON Output]
     end
     
-    subgraph "Data Storage Layer (ADR-018, ADR-019, ADR-013)"
+    subgraph "Data Storage Layer (ADR-005, ADR-006, ADR-008)"
         S[Smart Database Sync] --> T[SQLModel ORM]
         T --> U[SQLite Primary DB]
         S --> V[Content Hash Detection]
         V --> W[User Data Preservation]
     end
     
-    subgraph "Analytics Layer (ADR-024, ADR-025)"
         X[Analytics Service] --> Y[Performance Trigger Check]
         Y -->|Metrics OK| Z[SQLite Direct Queries]
         Y -->|Performance Issues| AA[DuckDB sqlite_scanner]
         AA --> AB[Zero-ETL Analytics]
     end
     
-    subgraph "Monitoring Layer (ADR-030)"
         AC[sys.monitoring] --> AD[Native Python 3.12+]
         AC --> AE[Local Performance Metrics]
     end
@@ -584,7 +572,7 @@ graph TB
 #### Phase 1: Foundation Setup (Day 1-2)
 
 ```bash
-# Complete library environment setup per ADR-026
+# Complete library environment setup per ADR-002
 uv venv && source .venv/bin/activate
 uv add jobspy scrapegraphai litellm instructor streamlit sqlmodel duckdb httpx
 
@@ -594,36 +582,36 @@ python -c "import jobspy, scrapegraphai, litellm, instructor, streamlit, sqlmode
 
 **Key ADRs Implemented:**
 
-- **ADR-026**: Local environment configuration with uv package management
+- **ADR-002**: Local environment configuration with uv package management
 - **ADR-001**: Library-first dependency selection and validation
-- **ADR-031**: HTTPX native resilience preparation
+- **ADR-016**: HTTPX native resilience preparation
 
 #### Phase 2: AI Processing Stack (Day 2-3)
 
 ```bash
-# vLLM server setup per ADR-004
+# vLLM server setup per ADR-010
 docker run -d -p 8000:8000 vllm/vllm-openai:latest \
   --model Qwen/Qwen3-4B-Instruct-2507-FP8 \
   --quantization fp8 \
   --max-model-len 8192
 
-# LiteLLM configuration per ADR-006
+# LiteLLM configuration per ADR-011
 cp config/litellm.yaml.template config/litellm.yaml
 ```
 
 **Key ADRs Implemented:**
 
-- **ADR-004**: Local AI integration with vLLM + Instructor structured outputs
-- **ADR-006**: Canonical LiteLLM configuration with automatic routing
-- **ADR-008**: Token threshold optimization for 95%+ local processing
+- **ADR-010**: Local AI integration with vLLM + Instructor structured outputs
+- **ADR-011**: Canonical LiteLLM configuration with automatic routing
+- **ADR-012**: Token threshold optimization for 95%+ local processing
 
 #### Phase 3: Data Collection Architecture (Day 3-4)
 
 ```python
-# 2-tier scraping implementation per ADR-010
+# 2-tier scraping implementation per ADR-013
 from jobspy import scrape_jobs
 from scrapegraphai import SmartScraper
-from src.services.proxy_integration import setup_iproyal  # ADR-011
+from src.services.proxy_integration import setup_iproyal  # ADR-015
 
 # Test scraping pipeline
 jobs = scrape_jobs(site_name=["linkedin", "indeed"])
@@ -632,14 +620,14 @@ ai_jobs = SmartScraper("https://company.com/careers").run()
 
 **Key ADRs Implemented:**
 
-- **ADR-010**: 2-tier scraping strategy with JobSpy + ScrapeGraphAI
-- **ADR-011**: IPRoyal proxy integration for anti-bot protection  
-- **ADR-031**: HTTPX transport retries for resilient HTTP operations
+- **ADR-013**: 2-tier scraping strategy with JobSpy + ScrapeGraphAI
+- **ADR-015**: IPRoyal proxy integration for anti-bot protection  
+- **ADR-016**: HTTPX transport retries for resilient HTTP operations
 
 #### Phase 4: Database & Synchronization (Day 4-5)
 
 ```python
-# Smart database sync per ADR-013, ADR-018, ADR-019
+# Smart database sync per ADR-008, ADR-005, ADR-006
 from sqlmodel import SQLModel, Session, create_engine
 import hashlib
 
@@ -652,20 +640,18 @@ class Job(SQLModel, table=True):
 
 **Key ADRs Implemented:**
 
-- **ADR-018**: Local database setup with SQLModel + SQLite foundation
-- **ADR-019**: Simple data management with type safety
-- **ADR-013**: Smart database synchronization preserving user data
+- **ADR-005**: Local database setup with SQLModel + SQLite foundation
+- **ADR-006**: Simple data management with type safety
+- **ADR-008**: Smart database synchronization preserving user data
 
 #### Phase 5: Background Processing & UI (Day 5-6)
 
 ```python
-# Background tasks with Streamlit native features per ADR-012
+# Background tasks with Streamlit native features per ADR-017
 import threading
 from streamlit.runtime.scriptrunner import add_script_run_ctx
 
-@st.fragment(run_every=600)  # ADR-035: Native auto-refresh
 def display_jobs():
-    st.dataframe(jobs_df, column_config={  # ADR-036: Column config
         "title": st.column_config.TextColumn("Job Title"),
         "url": st.column_config.LinkColumn("Apply")
     })
@@ -673,22 +659,17 @@ def display_jobs():
 
 **Key ADRs Implemented:**
 
-- **ADR-012**: Background task management with standard threading
-- **ADR-035**: Streamlit fragments for auto-refresh functionality
-- **ADR-036**: Native column configuration for rich data display
-- **ADR-037**: Complete personal job tracker UI implementation
+- **ADR-017**: Background task management with standard threading
 
 #### Phase 6: Analytics & Performance (Day 6-7)
 
 ```python
-# Analytics with performance-triggered DuckDB evolution per ADR-024, ADR-025
 import duckdb
 
 def analytics_with_evolution():
-    # Start with SQLite per ADR-024
+    # Start with SQLite per ADR-019
     basic_analytics = session.exec(select(Job)).all()
     
-    # Performance-triggered DuckDB per ADR-025
     if performance_metrics.slow_queries > 10:
         conn = duckdb.connect()
         conn.execute("ATTACH 'jobs.db' AS sqlite")
@@ -697,25 +678,22 @@ def analytics_with_evolution():
 
 **Key ADRs Implemented:**
 
-- **ADR-024**: High-performance analytics with SQLite foundation
-- **ADR-025**: Performance scale strategy with metrics-driven evolution
-- **ADR-030**: Monitoring with sys.monitoring (Python 3.12+)
+- **ADR-019**: High-performance analytics with SQLite foundation
 
 #### Phase 7: System Integration & Testing (Day 7)
 
 ```python
 # Complete workflow integration
 def integrated_workflow():
-    # ADR-010: Scraping with resilience
+    # ADR-013: Scraping with resilience
     jobs = unified_scraper.scrape_jobs("python developer")
     
-    # ADR-004: AI processing with guaranteed outputs  
+    # ADR-010: AI processing with guaranteed outputs  
     enhanced_jobs = [ai_client.enhance_job(job) for job in jobs]
     
-    # ADR-013: Smart sync preserving user data
+    # ADR-008: Smart sync preserving user data
     sync_jobs_preserving_user_data(enhanced_jobs)
     
-    # ADR-037: Real-time UI updates
     st.success("Jobs updated with smart sync!")
     st.rerun()  # Trigger UI refresh
 ```
@@ -766,14 +744,14 @@ def integrated_workflow():
 
 **Weekly Tasks (15 minutes):**
 
-- Monitor library updates for security patches
-- Review system health and performance metrics
+- Monitor library updates for security patches and breaking changes
+- Review system performance metrics and error logs
 
 **Monthly Tasks (2 hours):**
 
-- Evaluate new library features and capabilities
-- Update dependencies and test compatibility
-- Review analytics and optimize configuration
+- Update library dependencies and test compatibility
+- Review library changelogs for new features and deprecations
+- Optimize configuration based on usage patterns and performance data
 
 ### Dependencies - Complete System Stack
 
@@ -788,7 +766,7 @@ def integrated_workflow():
 
 - **JobSpy (>=1.1.82):** Structured job board scraping with native proxy and rate limiting
 - **ScrapeGraphAI (>=1.61.0):** AI-powered unstructured site extraction with browser automation
-- **IPRoyal:** Residential proxy integration for anti-bot protection (via ADR-011)
+- **IPRoyal:** Residential proxy integration for anti-bot protection (via ADR-015)
 
 **Database & Analytics Libraries:**
 
@@ -804,25 +782,22 @@ def integrated_workflow():
 
 **Development & Infrastructure:**
 
-- **Python 3.12+:** Required for sys.monitoring native performance tracking (ADR-030)
-- **uv (>=0.4.0):** Package management and Python version management (ADR-026)
-- **Docker:** Container orchestration for vLLM server deployment (ADR-004)
+- **uv (>=0.4.0):** Package management and Python version management (ADR-002)
+- **Docker:** Container orchestration for vLLM server deployment (ADR-010)
 - **NVIDIA GPU (Optional):** Ada Lovelace RTX 4090 for local AI inference acceleration
 
 **System Integration Dependencies:**
 
-- **Standard Library Threading:** Background task management with Streamlit context (ADR-012)
-- **hashlib (Built-in):** Content hash generation for smart database synchronization (ADR-013)
-- **sys.monitoring (Python 3.12+):** Native performance monitoring and metrics collection (ADR-030)
+- **Standard Library Threading:** Background task management with Streamlit context (ADR-017)
+- **hashlib (Built-in):** Content hash generation for smart database synchronization (ADR-008)
 
 **Eliminated Dependencies (Through Library-First Approach):**
 
-- **Custom retry libraries:** Replaced by native HTTPX transport retries (ADR-031)
-- **Custom scraping frameworks:** Replaced by JobSpy + ScrapeGraphAI (ADR-010)
-- **Custom AI routing:** Replaced by LiteLLM canonical configuration (ADR-006)
-- **Custom task management:** Replaced by standard threading + Streamlit (ADR-012)
-- **Custom analytics engines:** Replaced by DuckDB sqlite_scanner (ADR-024)
-- **Custom UI frameworks:** Replaced by Streamlit native features (ADR-037)
+- **Custom retry libraries:** Replaced by native HTTPX transport retries (ADR-016)
+- **Custom scraping frameworks:** Replaced by JobSpy + ScrapeGraphAI (ADR-013)
+- **Custom AI routing:** Replaced by LiteLLM canonical configuration (ADR-011)
+- **Custom task management:** Replaced by standard threading + Streamlit (ADR-017)
+- **Custom analytics engines:** Replaced by DuckDB sqlite_scanner (ADR-019)
 
 ## References
 
@@ -837,7 +812,7 @@ def integrated_workflow():
 
 - [ADR-001 v2.1: Library-First Architecture](archived/2025-08-25-consolidation/ADR-001-library-first-architecture.md)
 - [ADR-002 v2.1: Minimal Implementation Guide](archived/2025-08-25-consolidation/ADR-002-minimal-implementation-guide.md)  
-- [ADR-003 v3.0: Intelligent Features Architecture](archived/2025-08-25-consolidation/ADR-003-intelligent-features-architecture.md)
+- [ADR-003 v3.0: Intelligent Features Architecture](archived/over-engineered/ADR-003-intelligent-features-architecture.md) - Archived due to over-engineering
 
 ## Changelog
 
@@ -845,7 +820,6 @@ def integrated_workflow():
 
 - **COMPREHENSIVE SYSTEM INTEGRATION:** Complete architectural expansion integrating ALL 27+ active ADRs into unified library-first foundation
 - **SYSTEM-WIDE LIBRARY ARCHITECTURE:** Added comprehensive library stack mapping showing 96% code reduction across all components
-- **COMPLETE ADR CROSS-REFERENCES:** Integrated all active ADRs from AI processing (ADR-004) to UI components (ADR-037) with full traceability
 - **ARCHITECTURAL NORTH STAR:** Established ADR-001 as definitive architectural foundation document referencing entire system
 - **LAYERED ARCHITECTURE DIAGRAM:** Updated to show complete 7-layer architecture with all library integrations and cross-ADR dependencies
 - **INTEGRATED IMPLEMENTATION PHASES:** 7-phase deployment plan mapping specific ADRs to implementation steps with cross-validation
@@ -854,7 +828,7 @@ def integrated_workflow():
 
 ### v3.0 - August 25, 2025
 
-- **MAJOR CONSOLIDATION:** Merged ADR-001, ADR-002, ADR-003 into unified library-first architecture
+- **MAJOR CONSOLIDATION:** Merged ADR-001, ADR-002 into unified library-first architecture; ADR-003 archived as over-engineered
 - **EVIDENCE-BASED:** Incorporated findings from comprehensive ADR audit showing 96% code reduction possible
 - **UNIFIED APPROACH:** Combined scraping (JobSpy + ScrapeGraphAI), AI routing (LiteLLM), and analytics (sqlite_scanner)
 - **DEPLOYMENT-READY:** Includes complete implementation guide with copy-paste code examples
@@ -864,4 +838,4 @@ def integrated_workflow():
 
 - v2.1 (ADR-001): Library-first architecture foundation
 - v2.1 (ADR-002): Minimal implementation patterns  
-- v3.0 (ADR-003): Intelligent features with vector search
+- v3.0 (ADR-003): Intelligent features with vector search - ARCHIVED due to over-engineering

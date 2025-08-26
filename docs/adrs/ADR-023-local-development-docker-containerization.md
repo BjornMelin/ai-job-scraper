@@ -1,4 +1,4 @@
-# ADR-022: Local Development Docker Containerization
+# ADR-023: Local Development Docker Containerization
 
 ## Metadata
 
@@ -116,9 +116,9 @@ graph TB
 
 ## Related Decisions
 
-- **ADR-017** (Local Development Architecture): This decision implements the containerization strategy for the local development architecture
-- **ADR-021** (Local Development Performance): Container resource limits align with performance optimization requirements
-- **ADR-026** (Local Environment Configuration): Environment variables and configuration management integrate with this containerization approach
+- **ADR-003** (Local Development Architecture): This decision implements the containerization strategy for the local development architecture
+- **ADR-009** (Local Development Performance): Container resource limits align with performance optimization requirements
+- **ADR-002** (Local Environment Configuration): Environment variables and configuration management integrate with this containerization approach
 
 ## Design
 

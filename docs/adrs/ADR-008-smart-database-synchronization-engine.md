@@ -1,4 +1,4 @@
-# ADR-013: Smart Database Synchronization Engine
+# ADR-012: Smart Database Synchronization Engine
 
 ## Metadata
 
@@ -26,7 +26,7 @@ The AI job scraper requires intelligent database synchronization to handle conti
 - **Performance Optimization**: Avoid unnecessary database operations for identical content
 - **Stale Job Handling**: Archive or remove jobs no longer available while preserving user history
 
-**Technical Constraints**: Must integrate with SQLModel patterns and session management, support concurrent scraping operations from background tasks per **ADR-012**, handle large datasets efficiently (1000+ jobs per scraping session), and maintain referential integrity with user-generated content.
+**Technical Constraints**: Must integrate with SQLModel patterns and session management, support concurrent scraping operations from background tasks per **ADR-017**, handle large datasets efficiently (1000+ jobs per scraping session), and maintain referential integrity with user-generated content.
 
 ## Decision Drivers
 
@@ -108,13 +108,13 @@ graph TD
 ### Integration Requirements
 
 - **IR-1:** The solution must integrate natively with SQLModel session management and transaction patterns
-- **IR-2:** The component must be callable via background task integration per **ADR-012**
+- **IR-2:** The component must be callable via background task integration per **ADR-017**
 
 ## Related Decisions
 
-- **ADR-012** (Background Task Management): This decision builds upon the threading-based background processing architecture defined in ADR-012
+- **ADR-017** (Background Task Management): This decision builds upon the threading-based background processing architecture defined in ADR-017
 - **ADR-014** (Hybrid Scraping Strategy): The sync engine will handle data from both JobSpy and ScrapeGraphAI sources established in ADR-014
-- **ADR-018** (Local Database Setup): The component chosen here will be configured via the SQLModel patterns established in ADR-018
+- **ADR-005** (Local Database Setup): The component chosen here will be configured via the SQLModel patterns established in ADR-005
 
 ## Design
 
@@ -368,7 +368,7 @@ class TestDatabaseSyncIntegration:
 - Unlocks systematic user data preservation across all sync operations, maintaining favorites, notes, and application tracking without manual intervention
 - Standardizes content-based change detection across job scraping pipeline, eliminating unnecessary database operations through MD5 hashing
 - Reduces sync operation complexity: Smart detection now handles 4 sync scenarios (new, updated, unchanged, stale) with single service interface
-- Enables concurrent scraping operations through SQLModel session management, supporting background task integration per ADR-012
+- Enables concurrent scraping operations through SQLModel session management, supporting background task integration per ADR-017
 
 ### Negative Consequences / Trade-offs
 
@@ -382,7 +382,7 @@ class TestDatabaseSyncIntegration:
 - Monitor sync operation performance metrics and optimize content hashing if operations exceed 10-second target
 - Track SQLModel library updates for compatibility with session management patterns
 - Review archived job retention policies quarterly to manage database storage growth
-- Ensure sync service encapsulation maintains clear boundaries with background task management per ADR-012
+- Ensure sync service encapsulation maintains clear boundaries with background task management per ADR-017
 - Validate MD5 hash collision rates and consider SHA alternatives if content diversity increases significantly
 
 ### Dependencies
@@ -398,7 +398,7 @@ class TestDatabaseSyncIntegration:
 - [SQLAlchemy Session Management](https://docs.sqlalchemy.org/en/14/orm/session_basics.html) - Transaction safety patterns and best practices used in implementation
 - [Content Hashing Best Practices](https://en.wikipedia.org/wiki/Hash_function) - Deep dive into MD5 vs SHA alternatives for change detection
 - [Database Synchronization Patterns](https://martinfowler.com/articles/patterns-of-distributed-systems/version-vector.html) - Change detection strategies that informed sync engine design
-- [ADR-012: Background Task Management](docs/adrs/012-background-task-management.md) - Dependency relationship with current decision
+- [ADR-017: Background Task Management](docs/adrs/012-background-task-management.md) - Dependency relationship with current decision
 
 ## Changelog
 

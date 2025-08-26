@@ -1,4 +1,4 @@
-# ADR-029: Comprehensive Testing Strategy for Streamlit Application
+# ADR-004: Comprehensive Testing Strategy for Streamlit Application
 
 ## Metadata
 
@@ -154,10 +154,10 @@ graph TB
 
 ## Related Decisions
 
-- **ADR-028** (Service Layer Architecture): Primary testing target for service layer patterns and dependency injection
-- **ADR-012** (Background Task Management): Threading.Thread testing patterns for background scraping operations  
+- **ADR-007** (Service Layer Architecture): Primary testing target for service layer patterns and dependency injection
+- **ADR-017** (Background Task Management): Threading.Thread testing patterns for background scraping operations  
 - **ADR-014** (Hybrid Scraping Strategy): Integration testing workflows for 2-tier scraping implementation
-- **ADR-026** (Local Environment Configuration): Test environment setup and configuration management
+- **ADR-002** (Local Environment Configuration): Test environment setup and configuration management
 
 ## Design
 
@@ -493,6 +493,6 @@ The testing strategy validates implementation through multiple verification appr
 
 ## Changelog
 
-- **v1.0 (2025-08-22)**: Merged and restructured from split ADR-029 files with comprehensive testing strategy. Combined UI testing, CI/CD pipeline configuration, and implementation strategy into unified ADR following official template structure.
+- **v1.0 (2025-08-22)**: Merged and restructured from split ADR-004 files with comprehensive testing strategy. Combined UI testing, CI/CD pipeline configuration, and implementation strategy into unified ADR following official template structure.
 - **v0.2 (2025-08-21)**: Initial drafts of sub-components (UI testing, CI/CD, implementation).
 - **v0.1 (2025-08-20)**: Original comprehensive testing strategy draft.

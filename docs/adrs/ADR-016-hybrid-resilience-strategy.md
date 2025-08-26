@@ -1,4 +1,4 @@
-# ADR-031: Native HTTPX Resilience Strategy
+# ADR-016: Native HTTPX Resilience Strategy
 
 ## Metadata
 
@@ -12,7 +12,7 @@ Native HTTPX Resilience Strategy: Maximum Library Utilization with Minimal Custo
 
 ## Description
 
-Implement optimal resilience strategy using **Native HTTPX Transport Retries + Minimal Status Code Handling** achieving 95% library utilization through evidence-based approach. Core implementation: HTTPX transport retries (2 lines) + status code wrapper (~15 lines) = ~20 lines total custom code, zero additional dependencies. AI inference resilience completely delegated to LiteLLM configuration per ADR-006 canonical implementation.
+Implement optimal resilience strategy using **Native HTTPX Transport Retries + Minimal Status Code Handling** achieving 95% library utilization through evidence-based approach. Core implementation: HTTPX transport retries (2 lines) + status code wrapper (~15 lines) = ~20 lines total custom code, zero additional dependencies. AI inference resilience completely delegated to LiteLLM configuration per ADR-011 canonical implementation.
 
 ## Context
 
@@ -64,7 +64,7 @@ Implement optimal resilience strategy using **Native HTTPX Transport Retries + M
 
 ## Decision
 
-We will adopt **Native HTTPX Transport Retries + Minimal Status Code Handling** to achieve optimal reliability through maximum library utilization. Implementation consists of **HTTPX transport configuration (2 lines)** for connection failures and **simple status code retry wrapper (~15 lines)** for HTTP errors. **Total custom code: ~20 lines, zero additional dependencies.** AI inference resilience is completely delegated to LiteLLM configuration per ADR-006 canonical implementation.
+We will adopt **Native HTTPX Transport Retries + Minimal Status Code Handling** to achieve optimal reliability through maximum library utilization. Implementation consists of **HTTPX transport configuration (2 lines)** for connection failures and **simple status code retry wrapper (~15 lines)** for HTTP errors. **Total custom code: ~20 lines, zero additional dependencies.** AI inference resilience is completely delegated to LiteLLM configuration per ADR-011 canonical implementation.
 
 ## High-Level Architecture
 
@@ -136,18 +136,18 @@ graph TB
 ### Integration Requirements
 
 - **IR-1:** The solution must integrate with existing JobSpy and ScrapeGraphAI native retry patterns without conflicts
-- **IR-2:** The component must coordinate with LiteLLM configuration for AI resilience delegation per ADR-006
+- **IR-2:** The component must coordinate with LiteLLM configuration for AI resilience delegation per ADR-011
 - **IR-3:** The solution must maintain SQLModel connection pooling without additional retry layers
-- **IR-4:** The component must work seamlessly with IPRoyal proxy patterns per ADR-011
+- **IR-4:** The component must work seamlessly with IPRoyal proxy patterns per ADR-015
 
 ## Related Decisions
 
 - **ADR-001** (Library-First Architecture): This decision achieves 95% library utilization through native HTTPX capabilities
 - **ADR-002** (Minimal Implementation): Native strategy minimizes custom code to ~20 lines total implementation
-- **ADR-006** (Hybrid Strategy): AI resilience completely delegated to LiteLLM canonical implementation - zero custom patterns
-- **ADR-010** (Scraping Strategy): Maintains JobSpy + ScrapeGraphAI native resilience without additional retry complexity
-- **ADR-011** (Proxy Anti-Bot Integration): HTTPX transport retries work seamlessly with IPRoyal proxy rotation
-- **ADR-012** (Background Task Management): Streamlit threading operations use existing patterns, no additional retry complexity needed
+- **ADR-011** (Hybrid Strategy): AI resilience completely delegated to LiteLLM canonical implementation - zero custom patterns
+- **ADR-013** (Scraping Strategy): Maintains JobSpy + ScrapeGraphAI native resilience without additional retry complexity
+- **ADR-015** (Proxy Anti-Bot Integration): HTTPX transport retries work seamlessly with IPRoyal proxy rotation
+- **ADR-017** (Background Task Management): Streamlit threading operations use existing patterns, no additional retry complexity needed
 
 ## Design
 
@@ -342,7 +342,7 @@ def get_jobspy_resilience_config() -> Dict[str, Any]:
         "random_delay": True,         # Built-in rate limiting
         "timeout": 30,                # Native timeout handling
         "max_workers": 3,             # Conservative for stability
-        "proxy_use": True,            # IPRoyal integration per ADR-011
+        "proxy_use": True,            # IPRoyal integration per ADR-015
         # No custom retry logic needed - JobSpy handles internally
     }
 
@@ -403,7 +403,7 @@ def _process_and_validate_results(jobspy_results, scrapegraph_results):
 # AI retry logic completely eliminated from application code
 # All AI resilience handled by config/litellm.yaml automatically
 
-from src.ai.client import ai_client  # Canonical implementation from ADR-006
+from src.ai.client import ai_client  # Canonical implementation from ADR-011
 
 def ai_processing_with_delegated_resilience(content: str) -> dict:
     """AI processing with all retry complexity handled by LiteLLM configuration."""
@@ -558,14 +558,14 @@ DATABASE_MAX_OVERFLOW=20
 LITELLM_CONFIG_PATH=config/litellm.yaml
 OPENAI_API_KEY=your_openai_api_key_here
 
-# IPRoyal Proxy Configuration (from ADR-011)
+# IPRoyal Proxy Configuration (from ADR-015)
 IPROYAL_USERNAME="your-username"
 IPROYAL_PASSWORD="your-password"
 USE_PROXIES=true
 PROXY_POOL_SIZE=3
 ```
 
-**LiteLLM Configuration (Canonical from ADR-006 - Unchanged):**
+**LiteLLM Configuration (Canonical from ADR-011 - Unchanged):**
 
 ```yaml
 # config/litellm.yaml - Complete AI resilience delegation
@@ -801,7 +801,7 @@ class TestNativeResilienceStrategy:
 - **Enables comprehensive resilience coverage** addressing connection failures (HTTPX native) and HTTP status errors (minimal wrapper) while maintaining existing browser and AI patterns
 - **Maintains architectural simplicity** with clear separation: native library patterns (95%) vs minimal custom code (5%), reducing cognitive load to near zero
 - **Provides evidence-based validation** with 87.5% decision framework score through corrected technical analysis and quantified trade-off assessment
-- **Integrates seamlessly with existing architecture** enhancing ADR-006 (LiteLLM), ADR-010 (scraping), ADR-011 (proxy patterns) without conflicts or additional complexity
+- **Integrates seamlessly with existing architecture** enhancing ADR-011 (LiteLLM), ADR-013 (scraping), ADR-015 (proxy patterns) without conflicts or additional complexity
 - **Eliminates maintenance overhead** through native library patterns that require no ongoing updates or monitoring
 - **Supports 1-week deployment target** with ~20 lines of implementation code and 1-2 day timeline
 
@@ -817,7 +817,7 @@ class TestNativeResilienceStrategy:
 - **Monitor HTTPX library updates** for enhanced native retry capabilities that could further reduce custom code
 - **Track status code retry effectiveness** monthly to ensure 90%+ success rate for HTTP status retries
 - **Validate LiteLLM configuration** regularly to ensure complete AI resilience delegation remains optimal without custom patterns
-- **Coordinate with proxy integration** (ADR-011) to maintain consistent retry behavior across IPRoyal rotation and transport retries
+- **Coordinate with proxy integration** (ADR-015) to maintain consistent retry behavior across IPRoyal rotation and transport retries
 - **Monitor performance metrics** to ensure sub-100ms transport and <50ms status retry overhead targets are maintained
 - **Assess scaling triggers** quarterly: if system requires advanced retry orchestration, consider Stamina migration
 - **Review custom code simplicity** - if status wrapper exceeds 25 lines, evaluate library alternatives
@@ -827,7 +827,7 @@ class TestNativeResilienceStrategy:
 - **System**: HTTPX transport capabilities, native browser automation libraries, SQLModel connection pooling
 - **Python**: `httpx>=0.28.1`, `python-jobspy>=1.1.82`, `scrapegraphai>=1.61.0`, `litellm>=1.63.0`, `sqlmodel>=0.0.24`
 - **Configuration**: Simplified `.env` settings, optimized `config/litellm.yaml` (AI resilience delegation), IPRoyal proxy integration
-- **Integration**: Coordination with ADR-006 (LiteLLM canonical), ADR-010 (scraping strategy), ADR-011 (proxy patterns), ADR-012 (background tasks)
+- **Integration**: Coordination with ADR-011 (LiteLLM canonical), ADR-013 (scraping strategy), ADR-015 (proxy patterns), ADR-017 (background tasks)
 - **Removed Dependencies**: `tenacity` no longer required - eliminated external retry library dependency
 
 ## References
@@ -839,9 +839,9 @@ class TestNativeResilienceStrategy:
 - [ScrapeGraphAI Documentation](https://scrapegraphai.com/docs) - Browser automation resilience and timeout configuration patterns
 - [SQLAlchemy Connection Pooling](https://docs.sqlalchemy.org/en/20/core/pooling.html) - Native database resilience through connection pooling
 - [Critical Analysis Report](./reports/2025-08-25/001-final-architecture-decision-critical-analysis.md) - Evidence-based decision framework validation
-- [ADR-006: Hybrid Strategy](./ADR-006-hybrid-strategy.md) - Canonical LiteLLM implementation for complete AI resilience delegation
-- [ADR-010: Scraping Strategy](./ADR-010-scraping-strategy.md) - 2-tier architecture maintained with native resilience patterns
-- [ADR-011: Proxy Anti-Bot Integration](./ADR-011-proxy-anti-bot-integration-2025.md) - IPRoyal proxy rotation coordination with transport retries
+- [ADR-011: Hybrid Strategy](./ADR-011-hybrid-strategy.md) - Canonical LiteLLM implementation for complete AI resilience delegation
+- [ADR-013: Scraping Strategy](./ADR-013-scraping-strategy.md) - 2-tier architecture maintained with native resilience patterns
+- [ADR-015: Proxy Anti-Bot Integration](./ADR-015-proxy-anti-bot-integration-2025.md) - IPRoyal proxy rotation coordination with transport retries
 
 ## Changelog
 

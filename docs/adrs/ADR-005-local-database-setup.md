@@ -1,4 +1,4 @@
-# ADR-018: Local Database Setup
+# ADR-005: Local Database Setup
 
 ## Metadata
 
@@ -203,13 +203,9 @@ graph TB
 
 ## Related Decisions
 
-- **ADR-017** (Local Development Architecture): Provides Docker and dependency integration foundation
-- **ADR-019** (Simple Data Management): Establishes SQLModel+SQLite foundation patterns that this architecture preserves
-- **ADR-037** (Simple Personal Job Tracker): Simple direct database connection replaces complex evolution patterns
-- **ADR-033** (ARCHIVED): Over-engineered monitoring framework replaced by simple solution
-- **ADR-034** (ARCHIVED): Over-engineered connection pooling replaced by direct connection
-- **ADR-025** (Simplified Performance Strategy): Coordinates performance monitoring for evolution trigger detection
-- **ADR-012** (Background Task Management): Coordinates with Streamlit-based UI integration
+- **ADR-003** (Local Development Architecture): Provides Docker and dependency integration foundation
+- **ADR-006** (Simple Data Management): Establishes SQLModel+SQLite foundation patterns that this architecture preserves
+- **ADR-017** (Background Task Management): Coordinates with Streamlit-based UI integration
 - **ADR-001** (Library-First Architecture): Foundation for SQLModel and library adoption
 
 ## Design
@@ -475,6 +471,24 @@ class AnalyticsService:
 analytics_service = AnalyticsService()
 ```
 
+### 5. Search Architecture Integration
+
+For comprehensive job search functionality, see **ADR-018: Library-First Search Architecture** which provides:
+
+- **SQLite FTS5** with sqlite-utils integration
+- **Porter Stemming** for flexible matching ("develop" → "developer")
+- **Multi-field Search** across title, description, company, location, requirements  
+- **BM25 Relevance Ranking** for best results first
+- **5 Lines Implementation** using 100% library-first approach
+- **Zero Configuration** with automatic triggers
+
+**Architecture Integration**:
+
+- Uses SQLite foundation established in this ADR
+- Integrates with analytics dashboard (ADR-019)  
+- Follows service layer patterns (ADR-007)
+- Replaces over-engineered ADR-003 (653 lines → 5 lines)
+
 ### Configuration
 
 #### Database Initialization
@@ -727,7 +741,8 @@ def test_analytical_query_performance():
 
 - **SQLModel 0.0.14+**: Type-safe ORM with Pydantic validation
 - **DuckDB 0.9.0+**: Embedded analytical database with sqlite_scanner extension
-- **SQLite 3.38+**: Primary database with WAL mode and performance optimizations
+- **SQLite 3.38+**: Primary database with WAL mode and FTS5 search capabilities
+- **sqlite-utils 3.35+**: Library-first SQLite utilities with FTS5 integration (used by ADR-018)
 - **Pydantic 2.5+**: Data validation and serialization
 - **Streamlit 1.28+**: For st.cache_data integration with analytics results
 
@@ -749,6 +764,7 @@ def test_analytical_query_performance():
 
 ## Changelog
 
+- **v5.1 (2025-08-26)**: **SEARCH ARCHITECTURE SEPARATION** - Moved search functionality to dedicated ADR-018 following proper ADR practices. REFERENCES: ADR-018 for complete search architecture and implementation. MAINTAINED: Database foundation role while delegating search-specific decisions to dedicated ADR.
 - **v5.0 (2025-08-25)**: **INCREMENTAL DUCKDB EVOLUTION ALIGNMENT** - Complete architectural realignment with final meta-analysis decision. UPDATED: Title from "Hybrid" to "Incremental DuckDB Evolution". REPLACED: Complex synchronization patterns with sqlite_scanner direct access. ADDED: 4-phase implementation approach with metrics-driven triggers. REMOVED: Polars dependencies and complex sync architecture. MAINTAINED: Proven SQLModel + SQLite foundation achieving 89% code reduction. ALIGNED: With evidence-based decision prioritizing simplicity and proven patterns.
-- **v4.0 (2025-08-22)**: Unified ADR by merging ADR-018a (Schema Design) and ADR-018b (Implementation Strategy). Consolidated overlapping content while preserving all technical details. Applied official ADR template structure with all 13 sections.
+- **v4.0 (2025-08-22)**: Unified ADR by merging ADR-005a (Schema Design) and ADR-005b (Implementation Strategy). Consolidated overlapping content while preserving all technical details. Applied official ADR template structure with all 13 sections.
 - **v3.0 (2025-08-19)**: Initial hybrid database architecture specification. Separate schema design and implementation strategy documents. Defined transactional models with SQLModel validation and analytical schemas with DuckDB optimizations.

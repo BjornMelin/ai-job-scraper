@@ -1,4 +1,4 @@
-# ADR-012: Background Task Management Using Standard Threading for Streamlit
+# ADR-017: Background Task Management Using Standard Threading for Streamlit
 
 ## Metadata
 
@@ -17,7 +17,6 @@ Implement background task management for long-running scraping operations using 
 
 The AI job scraper requires background task execution for long-running scraping operations that can take 30-180 seconds to complete. These operations must not block the Streamlit UI while providing real-time progress feedback to users.
 
-**CONFLICT RESOLUTION UPDATE (2025-08-22)**: This ADR now serves as the **definitive background task solution** after comprehensive analysis resolving conflicts with ADR-025 (RQ/Redis approach) and archived ADR-023 variations. Decision framework analysis with 2024 benchmarks confirms threading approach optimal for Streamlit integration with 84.8% score vs 70.3% for RQ/Redis alternatives.
 
 **Current Problem**: Initial implementation used custom ThreadPoolExecutor with complex state management requiring 800+ lines of code. Research validation revealed this over-engineering introduced unnecessary complexity for I/O-bound workloads.
 
@@ -115,10 +114,9 @@ graph TD
 ## Related Decisions
 
 - **ADR-001** (Library-First Architecture): This decision builds upon the library-first principles by using Python's standard threading library
-- **ADR-013** (Smart Database Synchronization Engine): Background tasks coordinate with database sync operations defined in this ADR  
+- **ADR-008** (Smart Database Synchronization Engine): Background tasks coordinate with database sync operations defined in this ADR  
 - **ADR-014** (Hybrid Scraping Strategy): The threading implementation enables non-blocking execution of scraping operations
-- **ADR-031** (Native HTTPX Resilience Strategy): Background scraping tasks leverage HTTPX native transport retries + minimal status code handling for comprehensive error recovery
-- **ADR-035** (Streamlit Fragments Auto-Refresh): Provides auto-updating UI patterns that enhance real-time progress displays for background tasks
+- **ADR-016** (Native HTTPX Resilience Strategy): Background scraping tasks leverage HTTPX native transport retries + minimal status code handling for comprehensive error recovery
 
 ## Design
 
@@ -170,7 +168,7 @@ def start_background_scraping():
                     status.write(f"Processing {company} ({i+1}/{len(companies)})")
                     # Integration with ADR-014 scraping strategy
                     jobs = scrape_company_jobs(company)
-                    # Integration with ADR-013 database sync
+                    # Integration with ADR-008 database sync
                     sync_jobs_to_database(jobs)
                     
                 status.update(label="✅ Scraping completed!", state="complete")
@@ -266,6 +264,5 @@ def test_background_task_error_handling():
 
 ## Changelog
 
-- **v3.0 (2025-08-22)**: **DEFINITIVE SOLUTION** after comprehensive conflict resolution analysis. Confirmed as optimal choice (84.8% score) over RQ/Redis (70.3%) and other approaches using 2024 benchmarks and decision framework. Resolves conflicts with ADR-025 and archived ADR-023 variations.
-- **v2.0 (2025-08-20)**: Applied official ADR template structure with quantitative decision framework scoring (8.95 vs 4.35). Enhanced cross-references to ADR-013 and ADR-014. Added comprehensive testing strategy and architectural diagrams.
+- **v2.0 (2025-08-20)**: Applied official ADR template structure with quantitative decision framework scoring (8.95 vs 4.35). Enhanced cross-references to ADR-008 and ADR-014. Added comprehensive testing strategy and architectural diagrams.
 - **v1.0 (2025-08-07)**: Initial background task management decision selecting threading approach. Research validation confirming threading.Thread optimal for I/O-bound workload. 94% code reduction from custom ThreadPoolExecutor implementation.

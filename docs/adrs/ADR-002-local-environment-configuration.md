@@ -1,4 +1,4 @@
-# ADR-026: Local Environment Configuration
+# ADR-002: Local Environment Configuration
 
 ## Metadata
 
@@ -101,10 +101,10 @@ graph TB
 
 ## Related Decisions
 
-- **ADR-006** (Hybrid LLM Strategy): This configuration system provides the environment variables and type-safe settings consumed by the canonical UnifiedAIClient implementation
-- **ADR-018** (Local Database Setup): This configuration management supports the SQLite database connection established in ADR-018
-- **ADR-012** (Background Task Management Streamlit): Provides configuration foundation for Streamlit-based task management
-- **ADR-022** (Local Development Docker Containerization): Environment configuration supports containerized development setup
+- **ADR-011** (Hybrid LLM Strategy): This configuration system provides the environment variables and type-safe settings consumed by the canonical UnifiedAIClient implementation
+- **ADR-005** (Local Database Setup): This configuration management supports the SQLite database connection established in ADR-005
+- **ADR-017** (Background Task Management Streamlit): Provides configuration foundation for Streamlit-based task management
+- **ADR-023** (Local Development Docker Containerization): Environment configuration supports containerized development setup
 
 ## Design
 
@@ -127,7 +127,7 @@ class DatabaseConfig(BaseSettings):
     echo: bool = Field(default=False)
 
 class AIConfig(BaseSettings):
-    """AI processing configuration aligned with canonical UnifiedAIClient from ADR-006."""
+    """AI processing configuration aligned with canonical UnifiedAIClient from ADR-011."""
     # Core UnifiedAIClient settings
     vllm_base_url: str = Field(default="http://localhost:8000/v1", description="vLLM OpenAI-compatible endpoint")
     token_threshold: int = Field(default=8000, description="Token threshold for local vs cloud routing")
@@ -187,7 +187,7 @@ DEBUG=true
 DATABASE__URL=sqlite:///./data/jobs.db
 DATABASE__ECHO=false
 
-# AI Configuration (aligned with canonical UnifiedAIClient from ADR-006)
+# AI Configuration (aligned with canonical UnifiedAIClient from ADR-011)
 AI__VLLM_BASE_URL=http://localhost:8000/v1
 AI__TOKEN_THRESHOLD=8000
 AI__ENABLE_CLOUD_FALLBACK=true
@@ -248,7 +248,7 @@ response = ai_client.chat_completion(
 )
 ```
 
-> **INTEGRATION NOTE**: This configuration system provides the environment variables and type-safe settings consumed by the canonical UnifiedAIClient from **ADR-006**. All AI processing across the application uses this unified configuration approach.
+> **INTEGRATION NOTE**: This configuration system provides the environment variables and type-safe settings consumed by the canonical UnifiedAIClient from **ADR-011**. All AI processing across the application uses this unified configuration approach.
 
 ## Testing
 
@@ -324,5 +324,5 @@ def test_configuration_validation():
 
 ## Changelog
 
-- **v1.1 (2025-08-23)**: **CANONICAL AI CLIENT INTEGRATION** - Updated AIConfig to align with canonical UnifiedAIClient from **ADR-006**. Replaced provider-specific settings with unified configuration (vLLM base URL, token threshold, cloud fallback). Added connection management settings (timeouts, max connections). Updated environment variables to match canonical client expectations. Added integration examples showing how configuration feeds into the UnifiedAIClient.
+- **v1.1 (2025-08-23)**: **CANONICAL AI CLIENT INTEGRATION** - Updated AIConfig to align with canonical UnifiedAIClient from **ADR-011**. Replaced provider-specific settings with unified configuration (vLLM base URL, token threshold, cloud fallback). Added connection management settings (timeouts, max connections). Updated environment variables to match canonical client expectations. Added integration examples showing how configuration feeds into the UnifiedAIClient.
 - **v1.0 (2025-08-21)**: Initial accepted version with Pydantic BaseSettings implementation for local environment configuration management

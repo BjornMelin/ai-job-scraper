@@ -1,4 +1,4 @@
-# ADR-024: Analytics and Monitoring Architecture
+# ADR-019: Analytics and Monitoring Architecture
 
 ## Metadata
 
@@ -153,23 +153,20 @@ graph TD
 ### Integration Requirements
 
 - IR-024-01: Seamless integration with existing SQLModel+SQLite stack
-- IR-024-02: Coordinate with ADR-012 threading patterns for background analytics
-- IR-024-03: Interface with ADR-004 AI processing for cost tracking integration
-- IR-024-04: Support ADR-018 database architecture patterns
+- IR-024-02: Coordinate with ADR-017 threading patterns for background analytics
+- IR-024-03: Interface with ADR-010 AI processing for cost tracking integration
+- IR-024-04: Support ADR-005 database architecture patterns
 
 ## Related Decisions
 
-- **ADR-018** (Database Architecture): Provides SQLModel+SQLite foundation this strategy builds upon
-- **ADR-019** (Simple Data Management): Establishes data sync patterns for analytics data access
-- **ADR-012** (Background Task Management): Threading integration for background analytics processing
-- **ADR-004** (Local AI Integration): AI cost tracking and performance monitoring coordination
-- **ADR-031** (Resilience Strategy): Error tracking and monitoring integration for system reliability
+- **ADR-005** (Database Architecture): Provides SQLModel+SQLite foundation this strategy builds upon
+- **ADR-006** (Simple Data Management): Establishes data sync patterns for analytics data access
+- **ADR-017** (Background Task Management): Threading integration for background analytics processing
+- **ADR-010** (Local AI Integration): AI cost tracking and performance monitoring coordination
+- **ADR-016** (Resilience Strategy): Error tracking and monitoring integration for system reliability
+- **ADR-018** (Search Architecture): Search results integrate with analytics dashboard for comprehensive job insights
 
 ## Superseded Decisions
-
-- **ADR-035** (Streamlit Fragments Auto-refresh): Superseded by comprehensive analytics dashboard with intelligent refresh
-- **ADR-036** (Column Configuration): Superseded by integrated analytics dashboard column management
-- **ADR-037** (Simple Personal Job Tracker): Rejected for over-simplification - removes essential analytics capabilities
 
 ## Design
 
@@ -843,5 +840,3 @@ def test_performance_overhead():
 - [Streamlit Caching Best Practices](https://docs.streamlit.io/library/advanced-features/caching) - Dashboard performance optimization
 
 ## Changelog
-
-- **v3.0 (2025-08-25)**: **CONSOLIDATED ANALYTICS AND MONITORING ARCHITECTURE** - Major consolidation of ADR-024 (High-Performance Data Analytics), ADR-025 (Performance Scale Strategy), and ADR-030 (Monitoring Observability) into unified analytics architecture. ADDED: Python 3.12 sys.monitoring discovery (20x performance improvement). INTEGRATED: DuckDB sqlite_scanner for zero-ETL high-performance analytics. SIMPLIFIED: Complex monitoring infrastructure to 20-line sys.monitoring solution. UNIFIED: Intelligent method selection with cost tracking integration. ELIMINATED: 3,000+ lines of over-engineering while preserving all essential capabilities. ALIGNED: With library-first philosophy achieving 95%+ code reduction through aggressive library utilization.

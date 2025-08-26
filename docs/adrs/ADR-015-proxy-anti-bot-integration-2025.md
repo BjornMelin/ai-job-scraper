@@ -1,4 +1,4 @@
-# ADR-011: Proxy Anti-Bot Integration 2025
+# ADR-015: Proxy Anti-Bot Integration 2025
 
 ## Metadata
 
@@ -123,7 +123,7 @@ graph TB
 
 - **ADR-001** (Library-First Architecture): IPRoyal integration leverages native library proxy capabilities rather than custom proxy handling
 - **ADR-014** (Simplified 2-Tier Scraping Strategy): This decision enhances the JobSpy + ScrapeGraphAI architecture with proxy protection
-- **ADR-012** (Background Task Management): Proxy operations integrate with Streamlit threading-based background processing
+- **ADR-017** (Background Task Management): Proxy operations integrate with Streamlit threading-based background processing
 
 ## Design
 
@@ -632,6 +632,5 @@ class TestIPRoyalProxyIntegration:
 
 ## Changelog
 
-- **v2.1 (2025-08-22)**: **MAJOR INTEGRATION** - Enhanced with comprehensive operational monitoring capabilities: Added ProxyUsageTracker for cost tracking, ProxyMonitoringService for health checks, priority-based allocation logic, database schema for proxy usage, enhanced budget controls with 80% alert threshold, comprehensive testing for cost monitoring and health validation. Integrated capabilities from ADR-027 (now superseded).
 - **v2.0 (2025-08-20)**: Applied official ADR template structure with project-specific decision framework. Aligned with 2-tier scraping strategy from ADR-014. Added quantitative scoring (8.7/10). Enhanced testing strategy and implementation details.
 - **v1.0 (2025-08-18)**: Initial proxy strategy defining IPRoyal residential integration, anti-bot research, and cost optimization within $15-25/month budget constraints.

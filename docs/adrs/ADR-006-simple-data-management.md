@@ -1,4 +1,4 @@
-# ADR-019: Simple Data Management with SQLModel Foundation
+# ADR-011: Simple Data Management with SQLModel Foundation
 
 ## Metadata
 
@@ -31,8 +31,6 @@ The AI Job Scraper requires efficient data management for current development-sc
 - Zero-ETL complexity through direct SQLite access
 - Performance-triggered adoption (p95 latency >500ms, >5% lock contention)
 - Maintains familiar SQL interface for analytical queries
-
-The system preserves existing SQLModel functionality while adding incremental DuckDB analytics capabilities when triggered by performance metrics. Integration with **ADR-025** (Performance & Scale Strategy) coordinates background processing, and threading per **ADR-012** enables async operations. Aligned with **ADR-018** (Incremental DuckDB Evolution Architecture).
 
 ## Decision Drivers
 
@@ -71,7 +69,7 @@ graph TB
         B --> D[Pandas Analytics]
         C --> E[SQLite Database]
         D --> F[st.cache_data Integration]
-        D --> G[Threading Background per ADR-012]
+        D --> G[Threading Background per ADR-017]
     end
     
     subgraph "Incremental Analytics (Metrics-Driven)"
@@ -127,19 +125,15 @@ graph TB
 
 ### Integration Requirements
 
-- **IR-1:** The solution must integrate seamlessly with **ADR-025's** performance strategy
 - **IR-2:** The component must coordinate with **ADR-023's** background processing architecture
 - **IR-3:** Streamlit state must receive analytical insights without blocking UI responsiveness
 
 ## Related Decisions
 
-- **ADR-018** (Incremental DuckDB Evolution Architecture): Provides the core database architecture that this data management approach builds upon
-- **ADR-025** (Simplified Performance Strategy): Coordinates performance monitoring and metrics collection for evolution trigger detection
-- **ADR-037** (Simple Personal Job Tracker): Complete simple implementation using direct database connection
-- **ADR-033** (ARCHIVED): Over-engineered evolution framework replaced by simple approach  
-- **ADR-034** (ARCHIVED): Over-engineered connection pooling replaced by direct connection
-- **ADR-012** (Background Task Management): Data service coordinates with threading background processing patterns
-- **ADR-017** (Local Development Architecture): Memory allocation and resource requirements for data management operations
+- **ADR-005** (Incremental DuckDB Evolution Architecture): Provides the core database architecture that this data management approach builds upon
+- **ADR-018** (Library-First Search Architecture): Search functionality leverages the same SQLite foundation and data management patterns
+- **ADR-017** (Background Task Management): Data service coordinates with threading background processing patterns
+- **ADR-003** (Local Development Architecture): Memory allocation and resource requirements for data management operations
 
 ## Design
 
@@ -401,7 +395,6 @@ def test_performance_trigger_thresholds():
 
 - Monitor performance metrics regularly to identify when DuckDB evolution triggers are met
 - Track SQLite optimization opportunities before adopting DuckDB direct scanning
-- Coordinate with ADR-025 performance strategy and ADR-018 incremental evolution approach
 - Maintain clear performance baselines and thresholds for architectural evolution decisions
 - Review performance trigger thresholds quarterly and adjust based on usage patterns
 
@@ -422,5 +415,5 @@ def test_performance_trigger_thresholds():
 
 ## Changelog
 
-- **v2.0 (2025-08-25)**: **INCREMENTAL DUCKDB EVOLUTION ALIGNMENT** - Major realignment with final meta-analysis decision. UPDATED: Title from "Polars DataFrame Processing" to "SQLModel Foundation and Incremental DuckDB Analytics". REPLACED: Polars foundation approach with proven SQLModel + SQLite foundation. ADDED: Performance metrics collection and trigger-based DuckDB evolution recommendations. REMOVED: Complex Polars scaling path references. MAINTAINED: 89% code reduction achievements and proven architectural patterns. ALIGNED: With ADR-018 incremental evolution and evidence-based decision framework.
+- **v2.0 (2025-08-25)**: **INCREMENTAL DUCKDB EVOLUTION ALIGNMENT** - Major realignment with final meta-analysis decision. UPDATED: Title from "Polars DataFrame Processing" to "SQLModel Foundation and Incremental DuckDB Analytics". REPLACED: Polars foundation approach with proven SQLModel + SQLite foundation. ADDED: Performance metrics collection and trigger-based DuckDB evolution recommendations. REMOVED: Complex Polars scaling path references. MAINTAINED: 89% code reduction achievements and proven architectural patterns. ALIGNED: With ADR-005 incremental evolution and evidence-based decision framework.
 - **v1.0 (2025-08-22)**: Initial accepted version with SQLModel + Polars integration architecture

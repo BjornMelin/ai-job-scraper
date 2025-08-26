@@ -1,4 +1,4 @@
-# ADR-017: Local Development Architecture
+# ADR-003: Local Development Architecture
 
 ## Metadata
 
@@ -124,21 +124,21 @@ graph TB
 
 - PR-1: UI responsiveness under 500ms for typical development operations
 - PR-2: Background task updates with 2-second refresh cycle via fragments
-- PR-3: Database queries optimized for development data volumes (100-1000 jobs)
+- PR-3: Database queries optimized for personal to professional scale (1,000-50,000 jobs)
 
 ### Integration Requirements
 
-- IR-1: Coordinate with **ADR-012** background task management patterns
-- IR-2: Support **ADR-013** database synchronization requirements
+- IR-1: Coordinate with **ADR-017** background task management patterns
+- IR-2: Support **ADR-008** database synchronization requirements
 - IR-3: Interface with **ADR-009** AI processing configurations
 
 ## Related Decisions
 
-- **ADR-012** (Background Task Management): Provides Streamlit-native background processing patterns
-- **ADR-013** (Database Synchronization): Defines SQLModel + SQLite integration approach  
+- **ADR-017** (Background Task Management): Provides Streamlit-native background processing patterns
+- **ADR-008** (Database Synchronization): Defines SQLModel + SQLite integration approach  
 - **ADR-009** (LLM Selection Strategy): Establishes AI processing configuration patterns
-- **ADR-021** (Local Development Performance): Complements with performance optimization patterns
-- **ADR-022** (Docker Containerization): Provides containerized development environment setup
+- **ADR-009** (Local Development Performance): Complements with performance optimization patterns
+- **ADR-023** (Docker Containerization): Provides containerized development environment setup
 
 ## Design
 

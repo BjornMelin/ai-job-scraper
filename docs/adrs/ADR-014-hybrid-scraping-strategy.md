@@ -11,20 +11,20 @@ Hybrid Scraping Strategy Implementation: JobSpy + ScrapeGraphAI
 
 ## Description
 
-Implement a validated 2-tier scraping architecture using JobSpy for structured job boards and ScrapeGraphAI for company career pages, achieving optimal balance of performance, coverage, and maintainability.
+Implement a 2-tier scraping architecture using JobSpy for structured job boards and ScrapeGraphAI for company career pages, with documented performance characteristics, coverage mapping, and maintenance requirements.
 
 ## Context
 
-The AI job scraper requires a reliable web scraping strategy that can handle both structured job boards (LinkedIn, Indeed, Glassdoor) and unstructured company career pages while maintaining high extraction accuracy and minimal maintenance overhead.
+The AI job scraper requires a web scraping strategy that handles structured job boards (LinkedIn, Indeed, Glassdoor) and unstructured company career pages with measured extraction reliability and defined maintenance requirements.
 
 **Current Problem**: Previous 4-tier architecture (JobSpy → Playwright → Crawl4AI → ScrapeGraphAI) introduced excessive complexity with limited value improvement, scoring only 0.52 in our decision framework analysis.
 
 **Key Research Findings**:
 
-- **JobSpy Library**: 2k+ stars, native job board integration with built-in proxy support for major platforms
-- **ScrapeGraphAI**: AI-powered extraction capability for complex, unstructured sites  
-- **Library-First Analysis**: 2-tier approach covers 80% of use cases with 67% improvement in decision scoring
-- **Maintenance Reality**: Multi-tier architectures require exponentially more maintenance as site structures change
+- **JobSpy Library**: 2k+ stars, documented job board integration with proxy support for major platforms
+- **ScrapeGraphAI**: AI-powered extraction for unstructured sites  
+- **Library-First Analysis**: 2-tier approach addresses identified use cases with measured decision framework scoring
+- **Maintenance Requirements**: Multi-tier architectures require proportionally more maintenance as site structures change
 
 **Technical Constraints**:
 
@@ -42,10 +42,10 @@ The AI job scraper requires a reliable web scraping strategy that can handle bot
 
 ## Alternatives
 
-- **A: 4-Tier Hybrid** — JobSpy → Playwright → Crawl4AI → ScrapeGraphAI / Pros: Maximum coverage, multiple fallbacks / Cons: Excessive complexity, 4x maintenance burden, increased failure points
-- **B: ScrapeGraphAI Only** — AI-powered extraction for all sites / Pros: Handles any structure, consistent approach / Cons: High LLM costs, slower response times (3-5s), API dependency
-- **C: JobSpy Only** — Fast extraction for supported sites only / Pros: Fastest performance, native proxy support, minimal complexity / Cons: Limited to job boards only, misses 20% of potential sources
-- **D: 2-Tier Simplified** — JobSpy + ScrapeGraphAI / Pros: 80% coverage via fast tier, AI fallback, optimal performance-coverage balance / Cons: AI dependency for 20% of use cases, requires LLM API access
+- **A: 4-Tier Hybrid** — JobSpy → Playwright → Crawl4AI → ScrapeGraphAI / Pros: Multiple fallback options / Cons: Complex architecture, 4x maintenance requirements, multiple failure points
+- **B: ScrapeGraphAI Only** — AI-powered extraction for all sites / Pros: Uniform approach for all structures / Cons: Higher LLM costs, 3-5s response times, API dependency
+- **C: JobSpy Only** — Fast extraction for supported sites only / Pros: Documented performance, native proxy support, minimal complexity / Cons: Limited to supported job boards only
+- **D: 2-Tier Simplified** — JobSpy + ScrapeGraphAI / Pros: Fast tier plus AI fallback / Cons: AI dependency for complex sites, requires LLM API access
 
 ### Decision Framework
 
@@ -58,7 +58,7 @@ The AI job scraper requires a reliable web scraping strategy that can handle bot
 
 ## Decision
 
-We will adopt **2-Tier Simplified Scraping Strategy** to address comprehensive job data extraction. This involves using **JobSpy for structured job boards** as Tier 1 and **ScrapeGraphAI for company career pages** as Tier 2. This decision supersedes the previous 4-tier hybrid approach and eliminates Playwright/Crawl4AI complexity.
+We will adopt **2-Tier Scraping Strategy** for job data extraction. This involves using **JobSpy for structured job boards** as Tier 1 and **ScrapeGraphAI for company career pages** as Tier 2. This decision supersedes the previous 4-tier hybrid approach and eliminates Playwright/Crawl4AI requirements.
 
 ## High-Level Architecture
 
@@ -103,21 +103,21 @@ graph TD
 
 - **PR-1:** Query latency must be below 500ms for structured job boards under normal load
 - **PR-2:** Resource utilization for AI extraction must not exceed 3s response time on target infrastructure
-- **PR-3:** LLM API usage costs must not exceed $10/month for typical scraping volumes
+- **PR-3:** LLM API usage costs must not exceed $10/month based on measured scraping volumes
 
 ### Integration Requirements
 
-- **IR-1:** The solution must integrate natively with IPRoyal proxy service as defined in ADR-011
-- **IR-2:** The component must be callable via background processing patterns established in ADR-012
-- **IR-3:** The scraping output must integrate with database synchronization engine from ADR-013
+- **IR-1:** The solution must integrate natively with IPRoyal proxy service as defined in ADR-015
+- **IR-2:** The component must be callable via background processing patterns established in ADR-017
+- **IR-3:** The scraping output must integrate with database synchronization engine from ADR-008
 
 ## Related Decisions
 
 - **ADR-001** (Library-First Architecture): This decision builds upon the library-first principle by leveraging JobSpy and ScrapeGraphAI native capabilities
-- **ADR-006** (Hybrid LLM Strategy): The Tier 2 AI extraction uses the canonical UnifiedAIClient implementation from this ADR for consistent AI processing across the architecture
-- **ADR-011** (Proxy Anti-Bot Integration): The JobSpy tier will be configured with IPRoyal proxy support established in this ADR
-- **ADR-012** (Background Task Management): The scraping operations will integrate with the background processing framework defined here
-- **ADR-013** (Smart Database Synchronization): The extracted job data will be processed through the database sync engine established in this ADR
+- **ADR-011** (Hybrid LLM Strategy): The Tier 2 AI extraction uses the canonical UnifiedAIClient implementation from this ADR for consistent AI processing across the architecture
+- **ADR-015** (Proxy Anti-Bot Integration): The JobSpy tier will be configured with IPRoyal proxy support established in this ADR
+- **ADR-017** (Background Task Management): The scraping operations will integrate with the background processing framework defined here
+- **ADR-008** (Smart Database Synchronization): The extracted job data will be processed through the database sync engine established in this ADR
 
 ## Design
 
@@ -159,7 +159,7 @@ import logging
 import httpx
 
 class SimplifiedScraper:
-    """Simplified 2-tier scraping strategy using canonical UnifiedAIClient from ADR-006."""
+    """Simplified 2-tier scraping strategy using canonical UnifiedAIClient from ADR-011."""
     
     JOBSPY_SITES = {"linkedin.com", "indeed.com", "glassdoor.com", "ziprecruiter.com"}
     
@@ -167,7 +167,7 @@ class SimplifiedScraper:
         self.proxy_list = proxy_list or []
         self.logger = logging.getLogger(__name__)
         
-        # Import canonical UnifiedAIClient from ADR-006
+        # Import canonical UnifiedAIClient from ADR-011
         from src.ai.client import ai_client
         self.ai_client = ai_client
         
@@ -208,7 +208,7 @@ class SimplifiedScraper:
         return jobs_df.to_dict('records') if not jobs_df.empty else []
     
     async def _scrape_with_canonical_ai(self, url: str, company: str) -> List[Dict]:
-        """Tier 2: AI extraction using canonical UnifiedAIClient from ADR-006."""
+        """Tier 2: AI extraction using canonical UnifiedAIClient from ADR-011."""
         try:
             # Fetch page content
             async with httpx.AsyncClient() as client:
@@ -218,7 +218,7 @@ class SimplifiedScraper:
             
             # Use canonical AI client for extraction
             ai_response = self.ai_client.chat_completion(
-                model="Qwen3-4B-Instruct-2507-FP8",  # Auto-routes per ADR-006
+                model="Qwen3-4B-Instruct-2507-FP8",  # Auto-routes per ADR-011
                 messages=[
                     {"role": "system", "content": "Extract job postings from HTML content. Return valid JSON with job title, location, description, and any other relevant details."},
                     {"role": "user", "content": f"Extract all job postings for company {company} from this HTML content:\n\n{page_content}"}
@@ -252,7 +252,7 @@ class SimplifiedScraper:
 
 **Environment Configuration with Canonical UnifiedAIClient:**
 
-> **CANONICAL REFERENCE**: AI configuration is managed through the UnifiedAIClient from **ADR-006**. See ADR-006 for complete AI service configuration details.
+> **CANONICAL REFERENCE**: AI configuration is managed through the UnifiedAIClient from **ADR-011**. See ADR-011 for complete AI service configuration details.
 
 ```env
 # Scraping-specific configuration
@@ -260,10 +260,10 @@ JOBSPY_PROXY_ENABLED=true
 SCRAPING_TIMEOUT=60
 PROXY_ROTATION_ENABLED=true
 
-# IPRoyal proxy configuration (from ADR-011)
+# IPRoyal proxy configuration (from ADR-015)
 IPROYAL_PROXY_LIST="proxy1.iproyal.com:8080,proxy2.iproyal.com:8080"
 
-# AI Configuration (managed by canonical UnifiedAIClient from ADR-006)
+# AI Configuration (managed by canonical UnifiedAIClient from ADR-011)
 VLLM_BASE_URL=http://localhost:8000/v1
 AI_TOKEN_THRESHOLD=8000
 ENABLE_CLOUD_FALLBACK=true
@@ -272,7 +272,7 @@ OPENAI_API_KEY=your_openai_api_key_here  # For cloud fallback only
 
 **Integration Benefits:**
 
-- **Unified AI Management**: All AI extraction uses the canonical client from ADR-006
+- **Unified AI Management**: All AI extraction uses the canonical client from ADR-011
 - **Automatic Routing**: Local processing for content <8000 tokens, cloud fallback for larger content
 - **Cost Optimization**: 98%+ local processing reduces monthly AI costs from $50 to $2.50
 - **Observability**: Structured logging with correlation IDs for all AI extraction operations
@@ -351,7 +351,7 @@ class TestProxyIntegration:
     @pytest.mark.asyncio
     async def test_iproyal_proxy_configuration(self):
         """Test IPRoyal proxy integration with JobSpy native support."""
-        # Test proxy configuration per ADR-011 requirements
+        # Test proxy configuration per ADR-015 requirements
         proxy_config = ["residential.iproyal.com:12321"]
         scraper = SimplifiedScraper(proxy_list=proxy_config)
         
@@ -364,28 +364,28 @@ class TestProxyIntegration:
 
 ### Positive Outcomes
 
-- Enables 80% of job scraping through fast JobSpy tier, reducing end-to-end pipeline latency from 3-5s to sub-500ms for structured sites
-- Unlocks comprehensive coverage through AI fallback for company career pages, directly supporting complete job market visibility
-- Standardizes scraping workflow across job boards and company sites, eliminating 2 unnecessary tiers and reducing maintenance complexity by 50%
-- Reduces implementation complexity: New scraping targets now require 1 library integration instead of 4-tier fallback chain
-- Eliminates custom proxy handling through JobSpy native support, reducing proxy setup time from 30 minutes to 5 minutes configuration
+- Implements fast JobSpy tier for structured sites, reducing pipeline latency from 3-5s to sub-500ms based on library performance
+- Provides AI fallback for company career pages through ScrapeGraphAI integration
+- Consolidates scraping workflow from 4-tier to 2-tier architecture, reducing maintenance requirements
+- Simplifies implementation: New scraping targets require single library integration instead of multi-tier configuration
+- Leverages JobSpy native proxy support, reducing proxy configuration from 30 minutes to 5 minutes setup
 
 ### Negative Consequences / Trade-offs
 
 - Introduces dependency on OpenAI API for Tier 2 extraction, requiring monthly budget allocation and API key management
-- Memory usage increases by ~100MB per scraping session due to ScrapeGraphAI model loading, requiring consideration in concurrent scraping scenarios
-- Creates LLM cost dependency for 20% of use cases, requiring usage monitoring and cost controls
-- Requires fallback logic complexity in scraping orchestration, adding conditional branching to scraping flow
-- May experience reduced extraction quality for complex career pages compared to manual selector-based approaches
+- Memory usage increases by ~100MB per scraping session due to ScrapeGraphAI model loading in concurrent scenarios
+- Creates LLM cost dependency for company career pages, requiring usage monitoring and cost controls
+- Requires conditional logic in scraping orchestration for tier selection and fallback handling
+- Extraction quality for complex career pages depends on AI model performance compared to manual selector approaches
 
-### Ongoing Maintenance & Considerations
+### Ongoing Maintenance Requirements
 
-- Monitor JobSpy and ScrapeGraphAI library updates quarterly for breaking changes and compatibility issues
-- Track LLM API usage costs monthly and adjust Tier 2 usage patterns if exceeding $10/month budget
-- Review scraping success rates weekly and optimize tier selection logic based on site-specific performance data
-- Coordinate IPRoyal proxy renewals with DevOps team per ADR-011 requirements
+- Monitor JobSpy and ScrapeGraphAI library updates quarterly for breaking changes and compatibility
+- Track LLM API usage costs monthly with alerts if approaching $10/month budget threshold
+- Review scraping success rates weekly and adjust tier selection based on measured performance data
+- Coordinate IPRoyal proxy renewals per ADR-015 requirements and cost management
 - Maintain test coverage for both tiers and update mock responses when library interfaces change
-- Ensure team knowledge transfer for both JobSpy configuration and ScrapeGraphAI prompt engineering
+- Document JobSpy configuration patterns and ScrapeGraphAI prompt engineering approaches
 
 ### Dependencies
 
@@ -400,10 +400,10 @@ class TestProxyIntegration:
 - [IPRoyal Residential Proxies](https://iproyal.com/residential-proxies/) - Anti-bot proxy service compatible with JobSpy integration
 - [Multi-criteria Decision Analysis](https://en.wikipedia.org/wiki/Multi-criteria_decision_analysis) - Quantitative decision framework methodology used for architecture evaluation
 - [Library-First Architecture Principles](https://12factor.net/) - Modern application architecture guidelines supporting minimal custom code approach
-- [ADR-011: Proxy Anti-Bot Integration](docs/adrs/ADR-011-proxy-anti-bot-integration-2025.md) - IPRoyal proxy service integration requirements
+- [ADR-015: Proxy Anti-Bot Integration](docs/adrs/ADR-015-proxy-anti-bot-integration-2025.md) - IPRoyal proxy service integration requirements
 
 ## Changelog
 
-- **v2.1 (2025-08-23)**: **CANONICAL AI CLIENT INTEGRATION** - Integrated UnifiedAIClient from ADR-006 for Tier 2 AI extraction. Replaced ScrapeGraphAI direct OpenAI integration with canonical client. Added automatic token-based routing (<8000 tokens local, ≥8000 cloud). Enhanced observability with correlation ID logging. Updated testing suite for canonical client integration.
+- **v2.1 (2025-08-23)**: **CANONICAL AI CLIENT INTEGRATION** - Integrated UnifiedAIClient from ADR-011 for Tier 2 AI extraction. Replaced ScrapeGraphAI direct OpenAI integration with canonical client. Added automatic token-based routing (<8000 tokens local, ≥8000 cloud). Enhanced observability with correlation ID logging. Updated testing suite for canonical client integration.
 - **v2.0 (2025-08-20)**: Applied official ADR template format with quantitative decision framework, eliminated 4-tier complexity, validated library-first approach with 67% scoring improvement
 - **v1.0 (2025-08-18)**: Initial hybrid scraping strategy with 4-tier architecture and comprehensive coverage approach

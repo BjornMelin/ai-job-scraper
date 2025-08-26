@@ -1,4 +1,4 @@
-# ADR-004: Local AI Processing Architecture
+# ADR-010: Local AI Processing Architecture
 
 ## Metadata
 
@@ -19,7 +19,7 @@ Simplified local AI processing using Qwen3-4B-Instruct-2507-FP8 with LiteLLM cli
 
 The AI job scraper requires a local LLM that balances processing quality, memory efficiency, and cost-effectiveness for job data extraction and enhancement tasks. The solution must:
 
-- Process 95%+ of job extractions locally per **ADR-008** threshold strategy
+- Process 95%+ of job extractions locally per **ADR-012** threshold strategy
 - Handle complex structured output per **ADR-007** requirements  
 - Integrate with production-ready inference stack for deployment
 - Support 8K context length optimized for job posting processing
@@ -265,9 +265,9 @@ graph TD
 ## Related Decisions
 
 - **ADR-001** (Library-First Architecture): Provides foundation for vLLM native feature utilization
-- **ADR-006** (Hybrid Strategy): Uses canonical LiteLLM configuration for local-cloud routing
-- **ADR-008** (Token Thresholds): Leverages 8K threshold for 98% local processing optimization
-- **ADR-031** (Native HTTPX Resilience Strategy): Delegates all AI retry logic to LiteLLM native capabilities (zero custom AI retry patterns)
+- **ADR-011** (Hybrid Strategy): Uses canonical LiteLLM configuration for local-cloud routing
+- **ADR-012** (Token Thresholds): Leverages 8K threshold for 98% local processing optimization
+- **ADR-016** (Native HTTPX Resilience Strategy): Delegates all AI retry logic to LiteLLM native capabilities (zero custom AI retry patterns)
 
 ## Design
 
@@ -352,7 +352,7 @@ class LocalAIProcessor:
     async def extract_jobs(self, content: str, schema_model=JobExtraction) -> JobExtraction:
         """Extract structured job data using Instructor with advanced features.
         
-        Retry strategy: Delegated to LiteLLM configuration (ADR-031).
+        Retry strategy: Delegated to LiteLLM configuration (ADR-016).
         No Tenacity needed - LiteLLM handles all retry logic natively.
         """
         # Enhanced schema with semantic validation
@@ -398,7 +398,7 @@ class LocalAIProcessor:
 
 **vLLM Native Structured Outputs** (consolidates ADR-007 functionality):
 
-ADR-004 includes **complete structured output generation** using vLLM's native `guided_json` feature, providing 100% valid JSON with zero parsing failures. This replaces the Outlines library approach with a library-first solution that eliminates the dependency while maintaining identical functionality.
+ADR-010 includes **complete structured output generation** using vLLM's native `guided_json` feature, providing 100% valid JSON with zero parsing failures. This replaces the Outlines library approach with a library-first solution that eliminates the dependency while maintaining identical functionality.
 
 **Schema Definition:**
 
@@ -740,7 +740,7 @@ SERVER_BENCHMARK_CONFIG = {
 - **v5.0 (2025-08-23)**: **PHASE 1 REFINEMENT** - Comprehensive update for validated Phase 1 architecture. Integrated Instructor for structured outputs eliminating custom JSON parsing (70 lines removed). Simplified to canonical LiteLLM configuration with automatic routing and fallbacks. Removed Phase 2/3 over-engineering patterns. Focused on minimal viable implementation with 80% code reduction. Enhanced cross-references to unified architecture decisions.
 - **v3.2 (2025-08-23)**: **MAJOR CONSOLIDATION** - Integrated ADR-007 structured output functionality using vLLM native guided_json, eliminated Outlines dependency with 97% code reduction while maintaining 100% JSON reliability, added comprehensive schema examples and advanced nested structure support
 - **v3.1 (2025-08-23)**: Applied official ADR template, restored critical implementation details (environment variables, YAML config, production settings), enhanced testing framework, maintained essential technical content while improving template compliance
-- **v3.0 (2025-08-22)**: Consolidated ADR-004, ADR-005, and ADR-009 into unified local AI processing architecture, superseded inference stack and model selection decisions
+- **v3.0 (2025-08-22)**: Consolidated ADR-010, ADR-005, and ADR-009 into unified local AI processing architecture, superseded inference stack and model selection decisions
 - **v2.2 (2025-08-22)**: Confirmed FP8 quantization on RTX 4090 GPU, simplified to single Qwen3-4B model
 - **v2.0 (2025-08-18)**: Removed 570+ lines of custom hardware management, adopted library-first approach
 - **v1.0 (2025-08-18)**: Initial complex hardware-aware implementation

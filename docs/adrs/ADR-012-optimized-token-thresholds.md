@@ -1,4 +1,4 @@
-# ADR-008: Optimized Token Thresholds
+# ADR-017: Optimized Token Thresholds
 
 ## Metadata
 
@@ -21,7 +21,7 @@ The AI job scraper requires intelligent routing decisions between local Qwen3 mo
 
 **Research Discovery**: Job content analysis shows 98% of job pages contain 3K-8K tokens, making 8K context optimal with 8x safety margin for comprehensive coverage.
 
-**Technical Forces**: Library-first implementation leveraging tiktoken for accurate token counting and LiteLLM for robust fallback mechanisms, integrated with comprehensive local AI processing architecture per **ADR-004** and hybrid strategy per **ADR-006**.
+**Technical Forces**: Library-first implementation leveraging tiktoken for accurate token counting and LiteLLM for robust fallback mechanisms, integrated with comprehensive local AI processing architecture per **ADR-010** and hybrid strategy per **ADR-011**.
 
 **Cost Impact Data**: Threshold comparison shows 8000-token threshold achieves 98% local processing vs 60% at 1000 tokens, representing 95% cost reduction while maintaining quality standards.
 
@@ -105,15 +105,15 @@ flowchart TD
 
 ### Integration Requirements
 
-- **IR-1:** The solution must integrate with comprehensive local AI processing architecture from **ADR-004** specifications
-- **IR-2:** The component must coordinate with hybrid strategy routing from **ADR-006** architecture
+- **IR-1:** The solution must integrate with comprehensive local AI processing architecture from **ADR-010** specifications
+- **IR-2:** The component must coordinate with hybrid strategy routing from **ADR-011** architecture
 
 ## Related Decisions
 
-- **ADR-006** (Hybrid LLM Strategy): This decision implements the core threshold-based routing mechanism for the hybrid strategy architecture
-- **ADR-004** (Local AI Processing Architecture): The token threshold coordinates with consolidated structured output generation to ensure consistent quality across routing paths
-- **ADR-004** (Comprehensive Local AI Processing Architecture): The 8000-token threshold leverages Qwen3 model capacity analysis and performance characteristics
-- **ADR-004** (Local AI Integration): This threshold optimization maximizes local model utilization while maintaining extraction quality standards
+- **ADR-011** (Hybrid LLM Strategy): This decision implements the core threshold-based routing mechanism for the hybrid strategy architecture
+- **ADR-010** (Local AI Processing Architecture): The token threshold coordinates with consolidated structured output generation to ensure consistent quality across routing paths
+- **ADR-010** (Comprehensive Local AI Processing Architecture): The 8000-token threshold leverages Qwen3 model capacity analysis and performance characteristics
+- **ADR-010** (Local AI Integration): This threshold optimization maximizes local model utilization while maintaining extraction quality standards
 
 ## Design
 
@@ -172,7 +172,7 @@ class TokenThresholdRouter:
         self.tokenizer = tiktoken.get_encoding(self.config.encoding_name)
         self._token_cache: dict[str, int] = {}  # LRU cache for performance
         
-        # Use canonical LiteLLM client from ADR-006
+        # Use canonical LiteLLM client from ADR-011
         from src.ai.client import ai_client
         self.ai_client = ai_client
     
@@ -310,7 +310,7 @@ class ThresholdValidator:
 ### Integration with Hybrid Strategy
 
 ```python
-# Integration with ADR-006 Hybrid Strategy
+# Integration with ADR-011 Hybrid Strategy
 from typing import Union
 import asyncio
 
@@ -320,7 +320,7 @@ class HybridProcessingStrategy:
     def __init__(self):
         self.router = TokenThresholdRouter()
         self.validator = ThresholdValidator()
-        # Use canonical LiteLLM client from ADR-006 - no separate processors needed
+        # Use canonical LiteLLM client from ADR-011 - no separate processors needed
         from src.ai.client import ai_client
         self.ai_client = ai_client
     
@@ -511,7 +511,7 @@ class TestThresholdIntegration:
 
 - **Python**: `tiktoken>=0.8.0` for accurate token counting with OpenAI-compatible encodings
 - **Python**: LiteLLM for robust retry patterns in cloud fallback scenarios
-- **System**: Local Qwen3 models per **ADR-004** specifications with vLLM inference stack integration
+- **System**: Local Qwen3 models per **ADR-010** specifications with vLLM inference stack integration
 - **Removed**: Custom token estimation logic (replaced by tiktoken library-first implementation)
 
 ## References

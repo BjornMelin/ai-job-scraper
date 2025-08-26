@@ -1,4 +1,4 @@
-# ADR-021: Local Development Performance
+# ADR-009: Local Development Performance
 
 ## Metadata
 
@@ -25,7 +25,7 @@ Key constraints include:
 - Simple debugging and monitoring needs
 - Foundation patterns that can scale to production when needed
 
-Prior decisions establish local-first development architecture (**ADR-017**) and SQLite database usage (**ADR-018**), requiring performance optimization within these constraints.
+Prior decisions establish local-first development architecture (**ADR-003**) and SQLite database usage (**ADR-005**), requiring performance optimization within these constraints.
 
 ## Decision Drivers
 
@@ -126,17 +126,16 @@ graph TB
 
 ### Integration Requirements
 
-- Compatible with SQLite database architecture (**ADR-018**)
+- Compatible with SQLite database architecture (**ADR-005**)
 - Integrates with Streamlit UI framework patterns
 - Supports development workflow automation and testing
 - Provides foundation for future production performance optimization
 
 ## Related Decisions
 
-- **ADR-017** (Local Development Architecture): Provides architectural foundation for performance optimization
-- **ADR-018** (Local Database Setup): Establishes SQLite usage requiring specific optimization patterns  
-- **ADR-019** (Simple Data Management): Defines data patterns that performance optimization must support
-- **ADR-025** (Performance Scale Strategy): Provides future production scaling considerations
+- **ADR-003** (Local Development Architecture): Provides architectural foundation for performance optimization
+- **ADR-005** (Local Database Setup): Establishes SQLite usage requiring specific optimization patterns  
+- **ADR-006** (Simple Data Management): Defines data patterns that performance optimization must support
 
 ## Design
 

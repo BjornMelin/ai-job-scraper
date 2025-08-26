@@ -1,4 +1,4 @@
-# ADR-010: Scraping Strategy Implementation for Job Data Extraction
+# ADR-008: Scraping Strategy Implementation for Job Data Extraction
 
 ## Metadata
 
@@ -34,7 +34,7 @@ Job data exists across two distinct source types requiring different extraction 
 - **ScrapeGraphAI Capability**: AI-powered extraction for unstructured content with schema-based output
 - **Maintenance Reality**: Multi-tier architectures require exponential maintenance overhead as site structures evolve
 - **Performance Data**: 2-tier architecture covers 80% of use cases with optimal resource utilization
-- **Integration Requirements**: Must coordinate with proxy system (**ADR-011**), structured output (**ADR-004**), and comprehensive local AI processing (**ADR-004**)
+- **Integration Requirements**: Must coordinate with proxy system (**ADR-015**), structured output (**ADR-010**), and comprehensive local AI processing (**ADR-010**)
 
 ## Decision Drivers
 
@@ -105,7 +105,7 @@ graph LR
 
 - **FR-1:** The system must extract job postings from structured job boards (LinkedIn, Indeed, Glassdoor)
 - **FR-2:** Users must have the ability to extract job data from unstructured company career pages
-- **FR-3:** The system must generate structured output per **ADR-004** structured output specifications
+- **FR-3:** The system must generate structured output per **ADR-010** structured output specifications
 - **FR-4:** The system must handle JavaScript-rendered and dynamic content
 
 ### Non-Functional Requirements
@@ -123,16 +123,16 @@ graph LR
 ### Integration Requirements
 
 - **IR-1:** The solution must integrate with the 2-tier architecture defined in **ADR-014**
-- **IR-2:** The component must be callable via the proxy system established in **ADR-011**
-- **IR-3:** The solution must coordinate with structured output framework from **ADR-004**
-- **IR-4:** The component must interface with comprehensive local AI processing per **ADR-004** specifications
+- **IR-2:** The component must be callable via the proxy system established in **ADR-015**
+- **IR-3:** The solution must coordinate with structured output framework from **ADR-010**
+- **IR-4:** The component must interface with comprehensive local AI processing per **ADR-010** specifications
 
 ## Related Decisions
 
-- **ADR-006** (Hybrid Strategy): Uses canonical LiteLLM configuration for Tier 2 AI extraction with automatic routing and fallbacks
-- **ADR-004** (Local AI Integration): Leverages Instructor structured outputs for guaranteed validation and schema compliance
-- **ADR-008** (Token Thresholds): Integrates with 8K threshold routing for optimal local vs cloud processing decisions
-- **ADR-031** (Native HTTPX Resilience Strategy): AI retry logic delegated to LiteLLM; HTTP retries via native HTTPX transport retries + minimal status code handling
+- **ADR-011** (Hybrid Strategy): Uses canonical LiteLLM configuration for Tier 2 AI extraction with automatic routing and fallbacks
+- **ADR-010** (Local AI Integration): Leverages Instructor structured outputs for guaranteed validation and schema compliance
+- **ADR-012** (Token Thresholds): Integrates with 8K threshold routing for optimal local vs cloud processing decisions
+- **ADR-016** (Native HTTPX Resilience Strategy): AI retry logic delegated to LiteLLM; HTTP retries via native HTTPX transport retries + minimal status code handling
 
 ## Design
 
@@ -193,7 +193,7 @@ class SourceType(Enum):
     COMPANY_PAGE = "company_page"
 
 class JobPosting(BaseModel):
-    """Standardized job posting structure per ADR-004."""
+    """Standardized job posting structure per ADR-010."""
     title: str
     company: str
     location: Optional[str] = None
@@ -299,7 +299,7 @@ class UnifiedScrapingService:
         
         # Option 2: Standard HTTP + Instructor extraction
         try:
-            # Use resilient HTTP client per ADR-031
+            # Use resilient HTTP client per ADR-016
             from src.services.http_client import AsyncResilientHTTPClient
             async with AsyncResilientHTTPClient() as client:
                 response = await client.get(url)
@@ -340,8 +340,8 @@ class UnifiedScrapingService:
             return []
     
     def _load_jobspy_config(self) -> Dict[str, Any]:
-        """Load JobSpy configuration with ADR-011 proxy integration."""
-        return {"country_indeed": "USA"}  # Proxy config per ADR-011
+        """Load JobSpy configuration with ADR-015 proxy integration."""
+        return {"country_indeed": "USA"}  # Proxy config per ADR-015
     
     def _validate_extraction_quality(self, jobs: List[JobPosting]) -> List[JobPosting]:
         """Basic quality validation for extracted jobs."""
@@ -493,7 +493,7 @@ class TestScrapingIntegration:
 
 - **Monitor tier performance metrics** including success rates, response times, and classification accuracy on monthly basis
 - **Track JobSpy library updates** for breaking changes to job board integrations and proxy compatibility
-- **Review ScrapeGraphAI model performance** quarterly and update local model configurations per ADR-004
+- **Review ScrapeGraphAI model performance** quarterly and update local model configurations per ADR-010
 - **Validate extraction quality** across different company website structures and update extraction schemas as needed
 - **Cost monitoring** for AI extraction usage to optimize between performance and operational expenses
 - **Rate limiting compliance** to ensure both tiers respect job board and company website policies
@@ -516,6 +516,6 @@ class TestScrapingIntegration:
 ## Changelog
 
 - **v3.0 (2025-08-23)**: **INSTRUCTOR VALIDATION INTEGRATION** - Implemented Instructor for guaranteed schema validation in Tier 2 AI extraction, eliminating custom JSON parsing logic. Integrated with canonical LiteLLM configuration for automatic routing and retries. Added MultipleJobExtraction schema for structured company page processing. Simplified error handling through library-first validation approach with 60% code reduction.
-- **v2.1 (2025-08-23)**: **CANONICAL AI CLIENT INTEGRATION** - Replaced ScrapeGraphAI direct model integration with canonical UnifiedAIClient from **ADR-006**. Updated UnifiedScrapingService to use canonical client for Tier 2 AI extraction. Added automatic token-based routing and observability features from ADR-006. Simplified configuration by removing duplicate AI model settings. Enhanced cross-references to include ADR-006 as the canonical AI processing source.
+- **v2.1 (2025-08-23)**: **CANONICAL AI CLIENT INTEGRATION** - Replaced ScrapeGraphAI direct model integration with canonical UnifiedAIClient from **ADR-011**. Updated UnifiedScrapingService to use canonical client for Tier 2 AI extraction. Added automatic token-based routing and observability features from ADR-011. Simplified configuration by removing duplicate AI model settings. Enhanced cross-references to include ADR-011 as the canonical AI processing source.
 - **v2.0 (2025-08-22)**: Applied official ADR template structure with exact 13-section format. Updated Decision Framework to use project-specific criteria weights. Enhanced code examples with latest library features. Improved cross-references and added comprehensive testing strategy.
 - **v1.0 (2025-08-18)**: Initial scraping strategy decision documenting 2-tier approach selection. Basic implementation outline with library selection rationale and performance requirements.

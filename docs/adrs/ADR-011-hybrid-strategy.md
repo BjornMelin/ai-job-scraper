@@ -1,4 +1,4 @@
-# ADR-006: Hybrid LLM Strategy with Local Models and Cloud Fallback
+# ADR-011: Hybrid LLM Strategy with Local Models and Cloud Fallback
 
 ## Metadata
 
@@ -96,7 +96,7 @@ Simplified hybrid AI strategy using LiteLLM configuration-driven routing with na
 
 ### Integration Requirements
 
-- **IR-016:** Integration with vLLM model manager from ADR-004 for local processing
+- **IR-016:** Integration with vLLM model manager from ADR-010 for local processing
 - **IR-017:** Uses LiteLLM native retry and fallback logic per configuration
 - **IR-018:** Unified configuration through central settings management
 
@@ -129,10 +129,10 @@ graph LR
 ## Related Decisions
 
 - **ADR-001** (Library-First Architecture): Foundation for eliminating custom implementations in favor of proven libraries
-- **ADR-004** (Local AI Integration): Provides Instructor + LiteLLM integration patterns for structured outputs
-- **ADR-008** (Token Thresholds): Implements 8K threshold routing through LiteLLM configuration
-- **ADR-010** (Scraping Strategy): Consumes canonical AI client for extraction processing
-- **ADR-031** (Native HTTPX Resilience Strategy): AI retry logic completely delegated to LiteLLM native capabilities (canonical implementation)
+- **ADR-010** (Local AI Integration): Provides Instructor + LiteLLM integration patterns for structured outputs
+- **ADR-012** (Token Thresholds): Implements 8K threshold routing through LiteLLM configuration
+- **ADR-013** (Scraping Strategy): Consumes canonical AI client for extraction processing
+- **ADR-016** (Native HTTPX Resilience Strategy): AI retry logic completely delegated to LiteLLM native capabilities (canonical implementation)
 
 ## Design
 
@@ -171,7 +171,7 @@ graph TB
 
 **LiteLLM-Based Hybrid Strategy:**
 
-> **Reference Note**: This is the canonical LiteLLM implementation used across the architecture. Other ADRs (ADR-031, ADR-004, ADR-008, ADR-010) reference this implementation to eliminate code duplication and maintain consistency.
+> **Reference Note**: This is the canonical LiteLLM implementation used across the architecture. Other ADRs (ADR-016, ADR-010, ADR-012, ADR-013) reference this implementation to eliminate code duplication and maintain consistency.
 
 **Canonical Configuration (`config/litellm.yaml`):**
 
@@ -288,7 +288,7 @@ response = ai_client(
 # - Cost tracking and budget limits
 # - Parameter compatibility
 
-# For structured outputs, use with Instructor (ADR-004)
+# For structured outputs, use with Instructor (ADR-010)
 import instructor
 client = instructor.from_litellm(completion)
 
@@ -344,7 +344,7 @@ response = client.chat.completions.create(
 
 ### Dependencies
 
-- **Local Model:** Qwen/Qwen3-4B-Instruct-2507-FP8 via vLLM from ADR-004
+- **Local Model:** Qwen/Qwen3-4B-Instruct-2507-FP8 via vLLM from ADR-010
 - **Cloud API:** OpenAI gpt-4o-mini API client with LiteLLM native retry handling
 - **Retry Logic:** LiteLLM configuration for fallback and error recovery
 - **Tokenization:** tiktoken for accurate token counting and routing decisions
@@ -366,7 +366,7 @@ response = client.chat.completions.create(
 - **80% CODE REDUCTION** - Simplified from 200+ line UnifiedAIClient to 15-line library-first implementation
 - **LIBRARY DELEGATION** - Complete delegation to LiteLLM for all AI infrastructure concerns: routing, fallbacks, retries, cost tracking
 - **VALIDATED ARCHITECTURE** - Implementation of research-validated Phase 1 approach with 88.25% confidence score from multi-model consensus
-- **CANONICAL SIMPLIFICATION** - Established minimal viable implementation referenced across all ADRs (ADR-004, ADR-008, ADR-010, ADR-031)
+- **CANONICAL SIMPLIFICATION** - Established minimal viable implementation referenced across all ADRs (ADR-010, ADR-012, ADR-013, ADR-016)
 - **KISS/DRY/YAGNI ACHIEVEMENT** - Perfect alignment with simplicity principles while maintaining full functionality
 
 ### v4.0-v5.0 - August 23, 2025 - OVER-ENGINEERED (SUPERSEDED)
@@ -382,14 +382,14 @@ response = client.chat.completions.create(
 - **95% Code Reduction** - Simplified from 200+ line hybrid routing to 15-line unified client
 - **Single Interface** - Eliminated separate local/cloud client management through OpenAI compatibility
 - **Configuration Simplification** - Unified config eliminating hybrid routing complexity  
-- **Integration Alignment** - Coordinated with **ADR-031** hybrid resilience strategy integration
+- **Integration Alignment** - Coordinated with **ADR-016** hybrid resilience strategy integration
 
 ### v3.1 - August 21, 2025
 
 - Restructured to match exact ADR template format with all 16 required sections
 - Added separate High-Level Architecture section with comprehensive flow diagram  
 - Updated Decision Framework table with project-specific weights: Solution Leverage (35%), Application Value (30%), Maintenance & Cognitive Load (25%), Architectural Adaptability (10%)
-- Enhanced Related Decisions with comprehensive cross-references including ADR-008 and ADR-031
+- Enhanced Related Decisions with comprehensive cross-references including ADR-012 and ADR-016
 - Standardized Requirements sections with proper formatting and categorization
 - Improved Architecture Overview with detailed component relationships
 

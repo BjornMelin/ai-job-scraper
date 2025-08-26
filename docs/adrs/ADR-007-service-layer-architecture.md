@@ -1,4 +1,4 @@
-# ADR-028: Service Layer Architecture for Streamlit Integration
+# ADR-007: Service Layer Architecture for Streamlit Integration
 
 ## Title
 
@@ -529,10 +529,11 @@ class TestJobService:
 
 ### Integration Points
 
-- **ADR-012**: Background task management (threading.Thread integrates with service layer)
-- **ADR-019**: Simple data management (service layer provides abstraction)
+- **ADR-017**: Background task management (threading.Thread integrates with service layer)
+- **ADR-006**: Simple data management (service layer provides abstraction)
 - **ADR-014**: 2-tier scraping strategy (ScrapingService orchestrates both tiers)
-- **ADR-031**: Native HTTPX Resilience Strategy (service layer operations use HTTPX native transport retries + minimal status code handling for comprehensive error recovery)
+- **ADR-016**: Native HTTPX Resilience Strategy (service layer operations use HTTPX native transport retries + minimal status code handling for comprehensive error recovery)
+- **ADR-018**: Library-first search architecture (JobSearchService follows established service layer patterns)
 
 ### Dependencies
 
