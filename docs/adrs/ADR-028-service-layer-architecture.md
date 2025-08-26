@@ -10,7 +10,7 @@ Service Layer Architecture Patterns for Streamlit Applications with SQLModel Bac
 
 ## Status
 
-Proposed - Supporting Local-First Architecture
+Accepted
 
 ## Context
 

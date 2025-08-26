@@ -165,6 +165,12 @@ graph TD
 - **ADR-004** (Local AI Integration): AI cost tracking and performance monitoring coordination
 - **ADR-031** (Resilience Strategy): Error tracking and monitoring integration for system reliability
 
+## Superseded Decisions
+
+- **ADR-035** (Streamlit Fragments Auto-refresh): Superseded by comprehensive analytics dashboard with intelligent refresh
+- **ADR-036** (Column Configuration): Superseded by integrated analytics dashboard column management
+- **ADR-037** (Simple Personal Job Tracker): Rejected for over-simplification - removes essential analytics capabilities
+
 ## Design
 
 ### Architecture Overview

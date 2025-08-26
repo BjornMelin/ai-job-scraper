@@ -118,6 +118,7 @@ graph TD
 - **ADR-013** (Smart Database Synchronization Engine): Background tasks coordinate with database sync operations defined in this ADR  
 - **ADR-014** (Hybrid Scraping Strategy): The threading implementation enables non-blocking execution of scraping operations
 - **ADR-031** (Native HTTPX Resilience Strategy): Background scraping tasks leverage HTTPX native transport retries + minimal status code handling for comprehensive error recovery
+- **ADR-035** (Streamlit Fragments Auto-Refresh): Provides auto-updating UI patterns that enhance real-time progress displays for background tasks
 
 ## Design
 

@@ -2,7 +2,7 @@
 
 ## Metadata
 
-**Status:** Proposed  
+**Status:** Accepted  
 **Version/Date:** 1.0 / August 22, 2025  
 **Author(s):** Project Team  
 **Deciders:** Architecture Team  
