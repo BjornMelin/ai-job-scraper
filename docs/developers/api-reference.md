@@ -83,6 +83,98 @@ Handles the intelligent synchronization of scraped data with the database.
 
 * `sync_jobs(jobs: list[JobSQL]) -> dict[str, int]`: The main entry point for the engine. It takes a list of scraped `JobSQL` objects and performs the full sync logic, returning a dictionary of statistics (inserted, updated, archived, deleted, skipped).
 
+## 🔄 Background Task Management (`src/ui/utils/background_helpers.py`)
+
+Simplified threading-based background task management following ADR-017's minimal approach.
+
+### Core API Functions
+
+* **`start_background_scraping(stay_active_in_tests: bool = False) -> str`**
+  * Initiates background scraping using standard Python threading
+  * Returns unique task ID for progress tracking
+  * Uses Streamlit session state coordination to prevent concurrent execution
+  * Integrates with `add_script_run_ctx()` for proper Streamlit context
+  * **Parameters:**
+    * `stay_active_in_tests`: If `True`, keeps task active in test environment
+  
+* **`is_scraping_active() -> bool`**
+  * Checks current scraping status via session state flags
+  * Thread-safe through Streamlit's session state management
+  * Returns `True` if scraping operation is running, `False` otherwise
+
+* **`stop_all_scraping() -> int`**
+  * Stops all active scraping operations with proper thread cleanup
+  * Uses session state coordination to signal graceful termination
+  * Returns count of stopped tasks (0 or 1 in simplified implementation)
+  * Includes timeout-based thread cleanup to prevent hanging
+
+* **`get_company_progress() -> dict[str, CompanyProgress]`**
+  * Returns real-time company-level scraping progress
+  * Progress data includes status, job counts, timing, and error information
+  * Used by UI components for live progress display
+
+* **`throttled_rerun(session_key: str = "last_refresh", interval_seconds: float = 2.0, *, should_rerun: bool = True) -> None`**
+  * Auto-refresh utility with rate limiting to prevent excessive reruns
+  * Only triggers `st.rerun()` when specified interval has elapsed
+  * Essential for background task status updates without performance impact
+
+### Data Models
+
+**`CompanyProgress` (dataclass)**
+
+```python
+@dataclass
+class CompanyProgress:
+    name: str
+    status: str = "Pending"
+    jobs_found: int = 0
+    start_time: datetime | None = None
+    end_time: datetime | None = None
+    error: str | None = None
+```
+
+**`ProgressInfo` (dataclass)**
+
+```python
+@dataclass  
+class ProgressInfo:
+    progress: float      # 0.0 to 1.0
+    message: str
+    timestamp: datetime
+```
+
+### Integration Patterns
+
+**Streamlit Components:**
+
+* Uses `st.session_state` for task coordination
+* Integrates with `st.status` component for progress display
+* Supports `@st.fragment` decorators for auto-refresh display
+
+**Threading Requirements:**
+
+* Standard Python `threading.Thread` with `daemon=True`
+* Requires `add_script_run_ctx(thread)` for Streamlit compatibility
+* Session state flags coordinate thread lifecycle
+
+**Usage Example:**
+
+```python
+from src.ui.utils.background_helpers import (
+    start_background_scraping,
+    is_scraping_active, 
+    get_company_progress
+)
+
+# Start background operation
+task_id = start_background_scraping()
+
+# Check status
+if is_scraping_active():
+    progress = get_company_progress()
+    st.info(f"Scraping {len(progress)} companies...")
+```
+
 ## 📊 Analytics & Monitoring Services
 
 ### `AnalyticsService` (`src/services/analytics_service.py`)

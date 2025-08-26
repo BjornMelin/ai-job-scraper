@@ -114,6 +114,18 @@ class MockSessionState:
         """
         return self._data.get(key, default)
 
+    def setdefault(self, key: str, default: Any = None) -> Any:
+        """Get value from data dict with optional default, setting it if missing.
+
+        Args:
+            key: The key to retrieve/set.
+            default: The default value to set and return if the key doesn't exist.
+
+        Returns:
+            The existing value or the newly set default value.
+        """
+        return self._data.setdefault(key, default)
+
     def update(self, other: dict[str, Any]) -> None:
         """Update internal data dictionary with values from another dict.
 

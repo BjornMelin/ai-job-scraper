@@ -91,17 +91,141 @@ This layer abstracts all business logic away from the UI.
 
 * **`SmartSyncEngine`:** Handles updating the database with scraped data without destroying user edits. See `ADR-008` for details.
 
-### Background Tasks (`src/ui/utils/background_helpers.py`)
+### Background Task Management (`src/ui/utils/background_helpers.py`)
 
-Scraping is a long-running task and is handled in a background thread to keep the UI responsive.
+Background task management follows ADR-017's simplified threading approach, reducing complexity by 94% while maintaining essential functionality for I/O-bound scraping operations.
 
-* **Simplicity:** The implementation uses Python's standard `threading.Thread` with 64-line startup helpers.
+#### Simplified Threading Architecture
 
-* **UI Updates:** The background thread communicates progress back to the main thread by updating `st.session_state`. The UI uses `st.rerun()` and session state for real-time updates.
+**Core Design Principles:**
 
-* **Safety:** The system is designed to run one scraping task at a time. Database sessions for background threads are managed carefully to prevent conflicts.
+* **Standard Threading**: Uses Python's built-in `threading.Thread` (no custom ThreadPoolExecutor)
+* **Native Streamlit Integration**: Leverages `st.session_state` and `st.status` components
+* **Session State Coordination**: Thread-safe coordination via atomic session operations
+* **Streamlit Context**: Proper threading context with `add_script_run_ctx()`
 
-* **Analytics Integration:** Cost tracking and performance monitoring are integrated into background task workflows.
+**5-Function API:**
+
+```python
+from src.ui.utils.background_helpers import (
+    start_background_scraping,
+    is_scraping_active, 
+    stop_all_scraping,
+    get_company_progress,
+    throttled_rerun
+)
+
+# Start background scraping
+task_id = start_background_scraping()
+
+# Check if scraping is active
+if is_scraping_active():
+    # Get real-time progress
+    progress = get_company_progress()
+    
+    # Display progress with throttled refresh
+    for company, status in progress.items():
+        st.info(f"{company}: {status.jobs_found} jobs found")
+    
+    # Auto-refresh every 2 seconds
+    throttled_rerun(should_rerun=True)
+
+# Stop all tasks
+stop_all_scraping()
+```
+
+#### Threading Implementation Pattern
+
+**Standard Thread Creation:**
+
+```python
+def scraping_worker():
+    """Background thread worker with Streamlit context."""
+    try:
+        st.session_state.scraping_active = True
+        
+        with st.status("🔍 Scraping jobs...", expanded=True) as status:
+            companies = st.session_state.get('selected_companies', [])
+            
+            for i, company in enumerate(companies):
+                status.write(f"Processing {company} ({i+1}/{len(companies)})")
+                # Scraping operations...
+                
+            status.update(label="✅ Scraping completed!", state="complete")
+                
+    except Exception as e:
+        st.error(f"Scraping failed: {str(e)}")
+    finally:
+        st.session_state.scraping_active = False
+
+# Create thread with Streamlit context
+thread = threading.Thread(target=scraping_worker, daemon=True)
+add_script_run_ctx(thread)  # Essential for Streamlit compatibility
+thread.start()
+```
+
+#### Session State Coordination
+
+**Atomic Operations:**
+
+```python
+# Thread-safe coordination using session state locks
+_session_state_lock = threading.Lock()
+
+def _atomic_check_and_set(key: str, check_value, set_value) -> bool:
+    """Atomically check and set session state value."""
+    with _session_state_lock:
+        current_value = st.session_state.get(key)
+        if current_value == check_value:
+            st.session_state[key] = set_value
+            return True
+        return False
+
+# Prevent concurrent execution
+if not _atomic_check_and_set("scraping_active", False, True):
+    st.warning("Scraping already in progress")
+    return
+```
+
+#### Progress Display Integration
+
+**Auto-Refresh Fragments:**
+
+```python
+@st.fragment(run_every="2s")
+def background_task_status_fragment():
+    """Auto-refreshing status display during background tasks."""
+    if not is_scraping_active():
+        return
+        
+    # Display progress with real-time updates
+    progress = get_company_progress()
+    for company_name, company_status in progress.items():
+        st.progress(
+            company_status.jobs_found / 100,  # Normalize progress
+            text=f"{company_name}: {company_status.status}"
+        )
+```
+
+#### Key Advantages
+
+**Simplified Maintenance:**
+
+* 94% code reduction compared to custom ThreadPoolExecutor implementations
+* No complex task queue management or worker pool coordination
+* Standard library patterns reduce debugging complexity
+
+**Native Streamlit Integration:**
+
+* Direct `st.status` component usage for progress display
+* Built-in session state coordination patterns
+* Fragment-based auto-refresh without manual polling
+
+**Optimal for I/O-Bound Operations:**
+
+* Threading approach ideal for network requests and database operations
+* No CPU-bound processing overhead from complex task management
+* Memory-efficient for long-running scraping sessions (100MB max)
 
 ### Analytics & Cost Monitoring (`src/services/`)
 

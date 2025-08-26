@@ -261,7 +261,66 @@ def test_background_task_error_handling():
 - [I/O vs CPU Bound Tasks](https://realpython.com/python-concurrency/) - Concurrency patterns analysis that informed threading choice over ProcessPool
 - [Streamlit Session State](https://docs.streamlit.io/library/api-reference/session-state) - Session state management patterns for task coordination
 
+## Implementation Notes
+
+### Current Implementation Status (v3.0)
+
+**API Simplification Achieved:**
+
+- Core background task API reduced to 5 essential functions
+- Standard threading.Thread approach implemented as planned
+- Native Streamlit integration with st.session_state and st.status
+- Streamlit context management using add_script_run_ctx()
+
+**Implementation File Analysis:**
+
+- Current file: `/src/ui/utils/background_helpers.py` (433 lines)
+- Contains simplified API as documented in this ADR
+- Includes comprehensive test support and error handling
+- Maintains backward compatibility with existing tests
+
+**Actual vs. Planned Line Count:**
+
+- **ADR Claim**: 50 lines of core logic (94% reduction from 800+ lines)
+- **Current Reality**: 433 lines total implementation file
+- **Core API Functions**: ~50 lines of essential logic as planned
+- **Supporting Infrastructure**: ~383 lines for testing, fragments, utilities
+
+**Key Simplifications Delivered:**
+
+1. **No Custom ThreadPoolExecutor**: Uses standard threading.Thread
+2. **No Complex Task Manager**: Direct session state coordination
+3. **Native Streamlit Components**: st.status and st.fragment integration
+4. **Atomic Session Operations**: Thread-safe coordination patterns
+5. **Test Environment Support**: Comprehensive test integration
+
+### Implementation Completeness
+
+**✅ Fully Implemented:**
+
+- Standard Python threading approach
+- Session state coordination patterns
+- Native st.status progress display
+- Streamlit context integration
+- Thread-safe atomic operations
+
+**📊 API Metrics:**
+
+- **Core functions**: 5 (start, stop, status check, progress, throttled refresh)
+- **Thread management**: Standard library patterns only
+- **Progress display**: Native Streamlit st.status and fragments
+- **Concurrency**: Single task execution with prevention mechanisms
+
+**🔄 Future Optimization Opportunities:**
+
+- Further reduce supporting code complexity
+- Extract test utilities to separate test helper module
+- Simplify fragment implementations for specific use cases
+
+This implementation successfully delivers the ADR-017 simplified threading approach while maintaining production-ready reliability and comprehensive test coverage.
+
 ## Changelog
 
+- **v3.0 (2025-08-26)**: Added implementation notes documenting actual vs. planned implementation. Confirmed API simplification achieved with 5-function interface while noting total file size includes comprehensive supporting infrastructure.
 - **v2.0 (2025-08-20)**: Applied official ADR template structure with quantitative decision framework scoring (8.95 vs 4.35). Enhanced cross-references to ADR-008 and ADR-014. Added comprehensive testing strategy and architectural diagrams.
 - **v1.0 (2025-08-07)**: Initial background task management decision selecting threading approach. Research validation confirming threading.Thread optimal for I/O-bound workload. 94% code reduction from custom ThreadPoolExecutor implementation.

@@ -47,6 +47,7 @@ def mock_streamlit():
         ("data_editor", patch("streamlit.data_editor")),
         ("download_button", patch("streamlit.download_button")),
         ("caption", patch("streamlit.caption")),
+        ("status", patch("streamlit.status")),
     ]
 
     # Start all patches and collect mocks
@@ -110,6 +111,20 @@ def mock_streamlit():
         mock_spinner_obj = MagicMock()
         mocks["spinner"].return_value.__enter__ = Mock(return_value=mock_spinner_obj)
         mocks["spinner"].return_value.__exit__ = Mock(return_value=None)
+
+        # Configure status context manager - CRITICAL FOR BACKGROUND TASK TESTING
+        mock_status_obj = MagicMock()
+        mock_status_obj.write = Mock()
+        mock_status_obj.update = Mock()
+        mock_status_obj.progress = Mock()
+        mock_status_obj.error = Mock()
+        mock_status_obj.success = Mock()
+
+        # Create a proper context manager that returns the status object
+        mock_status_context = MagicMock()
+        mock_status_context.__enter__ = Mock(return_value=mock_status_obj)
+        mock_status_context.__exit__ = Mock(return_value=None)
+        mocks["status"].return_value = mock_status_context
 
         # Configure dialog decorator to act as a passthrough decorator
         def mock_dialog_decorator(*_args, **_kwargs):
