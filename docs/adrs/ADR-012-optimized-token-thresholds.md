@@ -1,4 +1,4 @@
-# ADR-017: Optimized Token Thresholds
+# ADR-012: Optimized Token Thresholds
 
 ## Metadata
 

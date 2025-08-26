@@ -1,9 +1,10 @@
-# ADR-005: Library-First Search Architecture
+# ADR-018: Library-First Search Architecture
 
 ## Metadata
 
-**Status:** Accepted  
+**Status:** In Progress  
 **Version/Date:** v1.0 / 2025-08-26
+**Implementation Status:** NOT IMPLEMENTED - Search service, FTS5 setup, and UI components missing
 **Supersedes:** ADR-003 (archived as over-engineered)
 
 ## Title
