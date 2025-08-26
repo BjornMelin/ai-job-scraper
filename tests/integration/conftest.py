@@ -8,50 +8,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-
-class MockSessionState:
-    """Mock session state that behaves like both a dict and an object."""
-
-    def __init__(self):
-        self._data = {}
-
-    def __getitem__(self, key):
-        """Retrieve an item from the session state by key."""
-        return self._data[key]
-
-    def __setitem__(self, key, value):
-        """Set an item in the session state."""
-        self._data[key] = value
-
-    def __getattr__(self, name):
-        """Retrieve an attribute from the session state."""
-        return self._data.get(name)
-
-    def __setattr__(self, name, value):
-        """Set an attribute in the session state."""
-        if name.startswith("_"):
-            super().__setattr__(name, value)
-        else:
-            self._data[name] = value
-
-    def get(self, key, default=None):
-        """Get value with default fallback."""
-        return self._data.get(key, default)
-
-    def update(self, other):
-        """Update internal data dictionary."""
-        self._data.update(other)
-
-    def __contains__(self, key):
-        """Check if key exists in session state."""
-        return key in self._data
-
-    def __delattr__(self, name):
-        """Delete an attribute from the session state."""
-        if name.startswith("_"):
-            super().__delattr__(name)
-        elif name in self._data:
-            del self._data[name]
+from tests.ui.components.test_utils import MockSessionState
 
 
 @pytest.fixture

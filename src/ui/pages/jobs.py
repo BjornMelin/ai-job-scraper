@@ -578,13 +578,9 @@ def _render_job_display(jobs: list["Job"], tab_key: str) -> None:
     if not jobs:
         return
 
-    # Apply per-tab search to jobs list
-    filtered_jobs = _apply_tab_search_to_jobs(jobs, tab_key)
-
     # Use helper for view mode selection and rendering
-
     view_mode, grid_columns = select_view_mode(tab_key)
-    apply_view_mode(filtered_jobs, view_mode, grid_columns)
+    apply_view_mode(jobs, view_mode, grid_columns)
 
 
 def _jobs_to_dataframe(jobs: list["Job"]) -> pd.DataFrame:
@@ -618,56 +614,6 @@ def _jobs_to_dataframe(jobs: list["Job"]) -> pd.DataFrame:
             for j in jobs
         ],
     )
-
-
-def _apply_tab_search_to_jobs(jobs: list["Job"], tab_key: str) -> list["Job"]:
-    """Apply per-tab search filtering to Job DTO objects.
-
-    Args:
-        jobs: List of Job DTO objects to filter.
-        tab_key: Tab key for search state.
-
-    Returns:
-        Filtered list of Job DTO objects.
-    """
-    # Per-tab search with visual feedback
-    search_col1, search_col2 = st.columns([3, 1])
-
-    with search_col1:
-        search_key = f"search_{tab_key}"
-        search_term = st.text_input(
-            "🔍 Search in this tab",
-            key=search_key,
-            placeholder="Search by job title, description, or company...",
-            help="Search is case-insensitive and searches across title, "
-            "description, and company",
-        )
-
-    # Apply search filter if search term exists
-    if search_term:
-        search_term_lower = search_term.lower()
-        filtered_jobs = [
-            job
-            for job in jobs
-            if (
-                search_term_lower in job.title.lower()
-                or search_term_lower in job.description.lower()
-                or search_term_lower in job.company.lower()
-            )
-        ]
-
-        with search_col2:
-            st.metric(
-                "Results",
-                len(filtered_jobs),
-                delta=f"-{len(jobs) - len(filtered_jobs)}"
-                if len(filtered_jobs) < len(jobs)
-                else None,
-            )
-
-        return filtered_jobs
-
-    return jobs
 
 
 def _render_statistics_dashboard(jobs: list["Job"]) -> None:

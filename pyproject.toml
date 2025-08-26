@@ -45,6 +45,7 @@ dependencies = [
     "pandas>=2.3.1,<3.0.0",
     # Database
     "sqlmodel>=0.0.24,<1.0.0",
+    "sqlite-utils>=3.35.0,<4.0.0",
     "pydantic-settings>=2.10.1,<3.0.0",
     "alembic>=1.15.0,<2.0.0",
     # UI and CLI

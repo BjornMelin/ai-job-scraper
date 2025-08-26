@@ -73,7 +73,7 @@ def _render_search_filters() -> None:
             "Search Keywords",
             value=st.session_state.filters["keyword"],
             placeholder="e.g., Python, Machine Learning, Remote",
-            help="Search in job titles and descriptions",
+            help="Full-text search with stemming (e.g., 'develop' matches 'developer')",
         )
 
         # Update keyword in filters and sync with URL
