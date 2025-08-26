@@ -5,7 +5,7 @@
 
 ## Overview
 
-This directory contains historically significant ADRs that have been **SUPERSEDED** by the current active ADRs (ADR-001 through ADR-027). These archives are organized by architectural domain for easy reference and provide context for understanding the evolution of the AI Job Scraper architecture.
+This directory contains historically significant ADRs that have been **SUPERSEDED** by the current active ADRs (ADR-001 through ADR-026, excluding superseded ADR-027). These archives are organized by architectural domain for easy reference and provide context for understanding the evolution of the AI Job Scraper architecture.
 
 ## Directory Structure
 
@@ -115,6 +115,7 @@ All archived ADRs have been completely superseded by current active ADRs:
 | ADR-012 (DB migration) | ADR-019 | Database |
 | ADR-013 (scraping hybrid) | ADR-010 | Scraping |
 | ADR-014 (performance) | ADR-025 | Performance |
+| ADR-027 (proxy monitoring) | ADR-011 | Proxy/Anti-Bot |
 
 ## Archive Quality Standards
 
@@ -134,7 +135,7 @@ All archived ADRs have been completely superseded by current active ADRs:
 
 ---
 
-**Total Files Archived:** 21 ADRs across 6 domain clusters  
+**Total Files Archived:** 22 ADRs across 6 domain clusters  
 **Files Deleted During Consolidation:** 15+ working documents and superseded files  
 **Archive Efficiency:** 95% reduction in archive complexity while preserving historical value
 

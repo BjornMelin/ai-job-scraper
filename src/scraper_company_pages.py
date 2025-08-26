@@ -15,13 +15,12 @@ from urllib.parse import urljoin
 
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.graph import END, StateGraph
+from openai import OpenAI
 from scrapegraphai.graphs import SmartScraperMultiGraph
 from sqlmodel import select
 
 from src.config import Settings
 from src.core_utils import (
-    get_extraction_model,
-    get_llm_client,
     get_proxy,
     random_delay,
     random_user_agent,
@@ -30,8 +29,19 @@ from src.database import SessionLocal
 from src.models import CompanySQL, JobSQL
 
 settings = Settings()
-llm_client = get_llm_client()
-extraction_model = get_extraction_model()
+
+
+# Create OpenAI client for ScrapeGraphAI compatibility
+# This will eventually be replaced with structured output in Phase 2
+def get_scrapegraph_client():
+    """Get OpenAI client for ScrapeGraphAI compatibility."""
+    return OpenAI(api_key=settings.openai_api_key)
+
+
+def get_scrapegraph_model() -> str:
+    """Get model name for ScrapeGraphAI."""
+    return "gpt-4o-mini"
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -121,7 +131,7 @@ def extract_job_lists(state: State) -> dict[str, list[dict]]:
     )
 
     config = {
-        "llm": {"client": llm_client, "model": extraction_model},
+        "llm": {"client": get_scrapegraph_client(), "model": get_scrapegraph_model()},
         "verbose": True,
         "headers": {"User-Agent": random_user_agent()},
     }
@@ -207,7 +217,7 @@ def extract_details(state: State) -> dict[str, list[dict]]:
     )
 
     config = {
-        "llm": {"client": llm_client, "model": extraction_model},
+        "llm": {"client": get_scrapegraph_client(), "model": get_scrapegraph_model()},
         "verbose": True,
         "headers": {"User-Agent": random_user_agent()},
     }
