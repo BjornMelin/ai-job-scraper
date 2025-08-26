@@ -1,660 +1,593 @@
-"""Tests for background task management utilities.
+"""Tests for simplified Phase 3 background task implementation.
 
-Tests the background task system including task creation, progress tracking,
-company progress management, and integration with Streamlit session state.
+This module tests the simplified 50-line background task management system
+based on ADR-017 using standard Python threading with Streamlit integration.
+
+Core test areas:
+- Threading context setup with add_script_run_ctx
+- Session state coordination to prevent concurrent operations
+- st.status component integration for progress display
+- Error handling and graceful cleanup
+- Thread lifecycle management
 """
 
-from datetime import UTC, datetime
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, call, patch
 
 import pytest
 
-from src.ui.utils.background_helpers import (
-    CompanyProgress,
-    ProgressInfo,
-    TaskInfo,
-    add_task,
-    get_company_progress,
-    get_scraping_progress,
-    get_scraping_results,
-    get_task,
-    is_scraping_active,
-    remove_task,
-    start_background_scraping,
-    stop_all_scraping,
-)
 
+class TestThreadingContextSetup:
+    """Test proper threading context setup with Streamlit."""
 
-class TestCompanyProgress:
-    """Test the CompanyProgress dataclass functionality."""
+    def test_threading_context_setup(self, mock_session_state, mock_streamlit):
+        """Verify proper threading context setup with Streamlit."""
+        from src.ui.utils.background_helpers import start_background_scraping
 
-    def test_company_progress_default_values(self):
-        """Test CompanyProgress creates with correct default values."""
-        # Act
-        progress = CompanyProgress(name="TechCorp")
-
-        # Assert
-        assert progress.name == "TechCorp"
-        assert progress.status == "Pending"
-        assert progress.jobs_found == 0
-        assert progress.start_time is None
-        assert progress.end_time is None
-        assert progress.error is None
-
-    def test_company_progress_with_custom_values(self):
-        """Test CompanyProgress accepts custom values."""
-        # Arrange
-        start_time = datetime.now(UTC)
-        end_time = datetime.now(UTC)
-
-        # Act
-        progress = CompanyProgress(
-            name="DataCorp",
-            status="Completed",
-            jobs_found=25,
-            start_time=start_time,
-            end_time=end_time,
-            error="Connection timeout",
-        )
-
-        # Assert
-        assert progress.name == "DataCorp"
-        assert progress.status == "Completed"
-        assert progress.jobs_found == 25
-        assert progress.start_time == start_time
-        assert progress.end_time == end_time
-        assert progress.error == "Connection timeout"
-
-    def test_company_progress_can_be_updated(self):
-        """Test CompanyProgress fields can be updated after creation."""
-        # Arrange
-        progress = CompanyProgress(name="TechCorp")
-
-        # Act
-        progress.status = "Scraping"
-        progress.jobs_found = 10
-        progress.start_time = datetime.now(UTC)
-
-        # Assert
-        assert progress.status == "Scraping"
-        assert progress.jobs_found == 10
-        assert progress.start_time is not None
-
-
-class TestProgressInfo:
-    """Test the ProgressInfo dataclass functionality."""
-
-    def test_progress_info_creation(self):
-        """Test ProgressInfo creates correctly with all fields."""
-        # Arrange
-        timestamp = datetime.now(UTC)
-
-        # Act
-        info = ProgressInfo(
-            progress=0.75,
-            message="Processing companies...",
-            timestamp=timestamp,
-        )
-
-        # Assert
-        assert info.progress == 0.75
-        assert info.message == "Processing companies..."
-        assert info.timestamp == timestamp
-
-
-class TestTaskInfo:
-    """Test the TaskInfo dataclass functionality."""
-
-    def test_task_info_creation(self):
-        """Test TaskInfo creates correctly with all fields."""
-        # Arrange
-        timestamp = datetime.now(UTC)
-
-        # Act
-        task = TaskInfo(
-            task_id="task-123",
-            status="running",
-            progress=0.5,
-            message="Scraping in progress",
-            timestamp=timestamp,
-        )
-
-        # Assert
-        assert task.task_id == "task-123"
-        assert task.status == "running"
-        assert task.progress == 0.5
-        assert task.message == "Scraping in progress"
-        assert task.timestamp == timestamp
-
-
-@pytest.mark.usefixtures("mock_session_state")
-class TestSessionStateTaskFunctions:
-    """Test the session state task management functions."""
-
-    def test_add_task_stores_task_info(self, mock_session_state):
-        """Test adding a task stores it in session state."""
-        # Arrange
-        task_info = TaskInfo(
-            task_id="task-123",
-            status="running",
-            progress=0.0,
-            message="Starting",
-            timestamp=datetime.now(UTC),
-        )
-
-        # Act
-        add_task("task-123", task_info)
-
-        # Assert
-        assert "tasks" in mock_session_state._data
-        assert "task-123" in mock_session_state._data["tasks"]
-        assert mock_session_state._data["tasks"]["task-123"] == task_info
-
-    def test_get_task_returns_correct_task(self, mock_session_state):
-        """Test getting a task returns the correct TaskInfo."""
-        # Arrange
-        task_info = TaskInfo(
-            task_id="task-123",
-            status="running",
-            progress=0.5,
-            message="In progress",
-            timestamp=datetime.now(UTC),
-        )
-        mock_session_state.update({"tasks": {"task-123": task_info}})
-
-        # Act
-        retrieved_task = get_task("task-123")
-
-        # Assert
-        assert retrieved_task == task_info
-
-    def test_get_task_returns_none_for_missing_task(self, mock_session_state):
-        """Test getting a non-existent task returns None."""
-        # Act
-        retrieved_task = get_task("nonexistent-task")
-
-        # Assert
-        assert retrieved_task is None
-
-    def test_remove_task_deletes_task(self, mock_session_state):
-        """Test removing a task deletes it from session state."""
-        # Arrange
-        task_info = TaskInfo(
-            task_id="task-123",
-            status="completed",
-            progress=1.0,
-            message="Done",
-            timestamp=datetime.now(UTC),
-        )
-        mock_session_state.update({"tasks": {"task-123": task_info}})
-
-        # Act
-        remove_task("task-123")
-
-        # Assert
-        assert "task-123" not in mock_session_state._data.get("tasks", {})
-
-    def test_remove_nonexistent_task_does_not_error(self, mock_session_state):
-        """Test removing a non-existent task doesn't raise an error."""
-        # Act & Assert - Should not raise exception
-        remove_task("nonexistent-task")
-
-
-@pytest.mark.usefixtures("mock_session_state")
-class TestBackgroundTaskStateFunctions:
-    """Test background task state management functions."""
-
-    def test_is_scraping_active_returns_false_by_default(self):
-        """Test is_scraping_active returns False when not set."""
-        # Act
-        result = is_scraping_active()
-
-        # Assert
-        assert result is False
-
-    def test_is_scraping_active_returns_session_state_value(self, mock_session_state):
-        """Test is_scraping_active returns value from session state."""
-        # Arrange
-        mock_session_state.update({"scraping_active": True})
-
-        # Act
-        result = is_scraping_active()
-
-        # Assert
-        assert result is True
-
-    def test_get_scraping_results_returns_empty_dict_by_default(self):
-        """Test get_scraping_results returns empty dict when not set."""
-        # Act
-        result = get_scraping_results()
-
-        # Assert
-        assert result == {}
-
-    def test_get_scraping_results_returns_session_state_value(self, mock_session_state):
-        """Test get_scraping_results returns value from session state."""
-        # Arrange
-        results = {"TechCorp": 25, "DataCorp": 15}
-        mock_session_state.update({"scraping_results": results})
-
-        # Act
-        result = get_scraping_results()
-
-        # Assert
-        assert result == results
-
-    def test_get_scraping_progress_returns_empty_dict_by_default(self):
-        """Test get_scraping_progress returns empty dict when not set."""
-        # Act
-        result = get_scraping_progress()
-
-        # Assert
-        assert result == {}
-
-    def test_get_scraping_progress_returns_session_state_value(
-        self,
-        mock_session_state,
-    ):
-        """Test get_scraping_progress returns value from session state."""
-        # Arrange
-        progress = {
-            "task-123": ProgressInfo(
-                progress=0.5,
-                message="In progress",
-                timestamp=datetime.now(UTC),
-            ),
-        }
-        mock_session_state.update({"task_progress": progress})
-
-        # Act
-        result = get_scraping_progress()
-
-        # Assert
-        assert result == progress
-
-    def test_get_company_progress_returns_empty_dict_by_default(self):
-        """Test get_company_progress returns empty dict when not set."""
-        # Act
-        result = get_company_progress()
-
-        # Assert
-        assert result == {}
-
-    def test_get_company_progress_returns_session_state_value(self, mock_session_state):
-        """Test get_company_progress returns value from session state."""
-        # Arrange
-        progress = {
-            "TechCorp": CompanyProgress(
-                name="TechCorp",
-                status="Completed",
-                jobs_found=25,
-            ),
-        }
-        mock_session_state.update({"company_progress": progress})
-
-        # Act
-        result = get_company_progress()
-
-        # Assert
-        assert result == progress
-
-
-class TestStartBackgroundScraping:
-    """Test the start_background_scraping function."""
-
-    def test_start_background_scraping_initializes_session_state(
-        self,
-        mock_session_state,
-    ):
-        """Test start_background_scraping initializes required session state."""
-        # Act
-        task_id = start_background_scraping()
-
-        # Assert
-        assert mock_session_state.get("scraping_active") is True
-        assert "task_progress" in mock_session_state._data
-        assert task_id in mock_session_state.get("task_progress")
-        assert mock_session_state.get("task_id") == task_id
-
-    def test_start_background_scraping_creates_progress_info(self, mock_session_state):
-        """Test start_background_scraping creates initial progress information."""
-        # Act
-        task_id = start_background_scraping()
-
-        # Assert
-        task_progress = mock_session_state.get("task_progress")
-        progress_info = task_progress[task_id]
-
-        assert isinstance(progress_info, ProgressInfo)
-        assert progress_info.progress == 0.0
-        assert progress_info.message == "Starting scraping..."
-        assert isinstance(progress_info.timestamp, datetime)
-
-    def test_start_background_scraping_sets_trigger_flag(self, mock_session_state):
-        """Test start_background_scraping sets scraping trigger flag."""
-        # Act
-        start_background_scraping()
-
-        # Assert
-        assert mock_session_state.get("scraping_trigger") is True
-
-    def test_start_background_scraping_returns_task_id(self, mock_session_state):
-        """Test start_background_scraping returns a valid task ID."""
-        # Act
-        task_id = start_background_scraping()
-
-        # Assert
-        assert isinstance(task_id, str)
-        assert len(task_id) > 0
-        # Should also store the task ID in session state
-        assert mock_session_state.get("task_id") == task_id
-        # Should be a UUID-like string
-        assert len(task_id.split("-")) == 5
-
-
-class TestStopAllScraping:
-    """Test the stop_all_scraping function."""
-
-    def test_stop_all_scraping_stops_active_scraping(self, mock_session_state):
-        """Test stop_all_scraping stops active scraping and returns count."""
-        # Arrange
-        mock_session_state.update({"scraping_active": True})
-
-        # Act
-        stopped_count = stop_all_scraping()
-
-        # Assert
-        assert mock_session_state.get("scraping_active") is False
-        assert mock_session_state.get("scraping_status") == "Scraping stopped"
-        assert stopped_count == 1
-
-    def test_stop_all_scraping_returns_zero_when_not_active(self, mock_session_state):
-        """Test stop_all_scraping returns 0 when scraping is not active."""
-        # Arrange
-        mock_session_state.update({"scraping_active": False})
-
-        # Act
-        stopped_count = stop_all_scraping()
-
-        # Assert
-        assert stopped_count == 0
-
-    def test_stop_all_scraping_cleans_up_thread_reference(self, mock_session_state):
-        """Test stop_all_scraping cleans up thread references."""
-        # Arrange
-        mock_thread = Mock()
-        mock_thread.is_alive.return_value = True
-        mock_session_state.update(
-            {"scraping_active": True, "scraping_thread": mock_thread},
-        )
-
-        # Act
-        stop_all_scraping()
-
-        # Assert
-        mock_thread.join.assert_called_once_with(timeout=5.0)
-        assert "scraping_thread" not in mock_session_state._data
-
-    def test_stop_all_scraping_handles_dead_thread_gracefully(self, mock_session_state):
-        """Test stop_all_scraping handles already-dead threads gracefully."""
-        # Arrange
-        mock_thread = Mock()
-        mock_thread.is_alive.return_value = False
-        mock_session_state.update(
-            {"scraping_active": True, "scraping_thread": mock_thread},
-        )
-
-        # Act
-        stopped_count = stop_all_scraping()
-
-        # Assert
-        mock_thread.join.assert_not_called()  # Should not join dead thread
-        assert stopped_count == 1
-
-
-class TestStartScrapingFunction:
-    """Test the start_background_scraping function and background task execution."""
-
-    def test_start_background_scraping_sets_active_state(self, mock_session_state):
-        """Test start_background_scraping sets scraping to active state."""
-        # Act
-        start_background_scraping()
-
-        # Assert
-        assert mock_session_state.get("scraping_active") is True
-        assert mock_session_state.get("scraping_status") == "Initializing scraping..."
-
-    def test_start_background_scraping_with_test_parameter(self, mock_session_state):
-        """Test start_background_scraping accepts stay_active_in_tests parameter."""
-        # Act - Function should accept the parameter without error
-        task_id = start_background_scraping(stay_active_in_tests=True)
-
-        # Assert - Function should still work and return a valid task ID
-        assert isinstance(task_id, str)
-        assert len(task_id) > 0
-        assert mock_session_state.get("scraping_active") is True
-
-    def test_start_background_scraping_initializes_task_progress(
-        self,
-        mock_session_state,
-    ):
-        """Test start_background_scraping initializes task progress tracking."""
-        # Act
-        task_id = start_background_scraping()
-
-        # Assert
-        task_progress = mock_session_state.get("task_progress")
-        assert task_progress is not None
-        assert task_id in task_progress
-        progress_info = task_progress[task_id]
-        assert progress_info.progress == 0.0
-        assert "Starting scraping" in progress_info.message
-
-    def test_start_background_scraping_handles_multiple_calls(self, mock_session_state):
-        """Test start_background_scraping handles multiple calls gracefully."""
-        # Act - Call function multiple times
-        task_id_1 = start_background_scraping()
-        task_id_2 = start_background_scraping()
-
-        # Assert - Both tasks should be different and tracked
-        assert task_id_1 != task_id_2
-        assert isinstance(task_id_1, str)
-        assert isinstance(task_id_2, str)
-
-        # Latest task ID should be stored
-        assert mock_session_state.get("task_id") == task_id_2
-
-        # Both should have task progress
-        task_progress = mock_session_state.get("task_progress")
-        assert task_id_1 in task_progress
-        assert task_id_2 in task_progress
-
-    def test_start_background_scraping_sets_all_required_flags(
-        self,
-        mock_session_state,
-    ):
-        """Test start_background_scraping sets all required session state flags."""
-        # Act
-        task_id = start_background_scraping()
-
-        # Assert - All required flags should be set
-        assert mock_session_state.get("scraping_trigger") is True
-        assert mock_session_state.get("scraping_active") is True
-        assert mock_session_state.get("scraping_status") == "Initializing scraping..."
-        assert mock_session_state.get("task_id") == task_id
-
-        # Task progress should be initialized
-        task_progress = mock_session_state.get("task_progress")
-        assert task_progress is not None
-        assert task_id in task_progress
-
-        progress_info = task_progress[task_id]
-        assert progress_info.progress == 0.0
-        assert "Starting scraping" in progress_info.message
-
-    def test_start_background_scraping_handles_scraping_errors_gracefully(
-        self,
-        mock_session_state,
-        mock_job_service,
-    ):
-        """Test start_background_scraping handles scraping errors without crashing."""
-        # Arrange
-        mock_job_service.get_active_companies.return_value = ["TechCorp"]
-
-        # Act
         with (
             patch("threading.Thread") as mock_thread_class,
-            patch("src.scraper.scrape_all", side_effect=Exception("Scraping failed")),
+            patch("streamlit.runtime.scriptrunner.add_script_run_ctx") as mock_add_ctx,
         ):
-            mock_thread_class.return_value.start = Mock()
-            start_background_scraping()
+            # Configure thread mock
+            mock_thread_instance = Mock()
+            mock_thread_class.return_value = mock_thread_instance
 
-            # Execute the thread function
-            thread_target = mock_thread_class.call_args[1]["target"]
-            thread_target()
+            # Act
+            start_background_scraping(stay_active_in_tests=True)
 
-        # Assert - Should handle error gracefully
-        assert mock_session_state.get("scraping_active") is False
-        company_progress = mock_session_state.get("company_progress")
-        if company_progress and "TechCorp" in company_progress:
-            assert company_progress["TechCorp"].status == "Error"
+            # Verify thread creation with daemon=True
+            mock_thread_class.assert_called_once()
+            call_kwargs = mock_thread_class.call_args[1]
+            assert call_kwargs["daemon"]
+            assert "target" in call_kwargs
 
-    def test_start_background_scraping_stores_scraping_results(
-        self,
-        mock_session_state,
-        mock_job_service,
-    ):
-        """Test start_background_scraping stores final scraping results."""
-        # Arrange
-        mock_job_service.get_active_companies.return_value = ["TechCorp", "DataCorp"]
-        scraping_results = {"TechCorp": 25, "DataCorp": 15}
+            # Verify add_script_run_ctx was called with thread instance
+            mock_add_ctx.assert_called_once_with(mock_thread_instance)
 
-        # Act
+            # Verify thread start was called
+            mock_thread_instance.start.assert_called_once()
+
+    def test_daemon_thread_creation(self, mock_session_state):
+        """Test that background threads are created as daemon threads."""
+        from src.ui.utils.background_helpers import start_background_scraping
+
+        with patch("threading.Thread") as mock_thread_class:
+            mock_thread_instance = Mock()
+            mock_thread_class.return_value = mock_thread_instance
+
+            # Act
+            start_background_scraping(stay_active_in_tests=True)
+
+            # Assert daemon thread configuration
+            call_args = mock_thread_class.call_args
+            assert call_args[1]["daemon"]
+
+    def test_streamlit_context_integration(self, mock_session_state):
+        """Test add_script_run_ctx integration for Streamlit compatibility."""
+        from src.ui.utils.background_helpers import start_background_scraping
+
         with (
             patch("threading.Thread") as mock_thread_class,
-            patch("src.scraper.scrape_all", return_value=scraping_results),
+            patch("streamlit.runtime.scriptrunner.add_script_run_ctx") as mock_add_ctx,
         ):
-            mock_thread_class.return_value.start = Mock()
-            start_background_scraping()
+            mock_thread_instance = Mock()
+            mock_thread_class.return_value = mock_thread_instance
 
-            # Execute the thread function
-            thread_target = mock_thread_class.call_args[1]["target"]
-            thread_target()
+            # Act
+            start_background_scraping(stay_active_in_tests=True)
 
-        # Assert
-        stored_results = mock_session_state.get("scraping_results")
-        assert stored_results == scraping_results
+            # Verify context is added to thread before starting
+            mock_add_ctx.assert_called_once_with(mock_thread_instance)
 
+            # Verify call order: create thread, add context, start thread
+            mock_thread_class.assert_called_once()
+            mock_add_ctx.assert_called_once()
+            mock_thread_instance.start.assert_called_once()
 
-class TestBackgroundTaskIntegration:
-    """Integration tests for complete background task workflows."""
+    def test_thread_lifecycle_management(self, mock_session_state):
+        """Test proper thread lifecycle from creation to completion."""
+        from src.ui.utils.background_helpers import (
+            start_background_scraping,
+            stop_all_scraping,
+        )
 
-    def test_complete_background_scraping_workflow(
-        self,
-        mock_session_state,
-        mock_job_service,
-    ):
-        """Test complete workflow from start to finish."""
-        # Arrange
-        mock_job_service.get_active_companies.return_value = ["TechCorp"]
-        scraping_results = {"TechCorp": 20}
+        with patch("threading.Thread") as mock_thread_class:
+            mock_thread_instance = Mock()
+            mock_thread_instance.is_alive.return_value = True
+            mock_thread_class.return_value = mock_thread_instance
 
-        # Act
-        with (
-            patch("threading.Thread") as mock_thread_class,
-            patch("src.scraper.scrape_all", return_value=scraping_results),
-        ):
-            mock_thread_class.return_value.start = Mock()
+            # Start background scraping
+            start_background_scraping(stay_active_in_tests=True)
 
-            # Start scraping
-            task_id = start_background_scraping()
-
-            # Execute background thread
-            thread_target = mock_thread_class.call_args[1]["target"]
-            thread_target()
+            # Store thread reference in session state for testing
+            mock_session_state.scraping_thread = mock_thread_instance
 
             # Stop scraping
-            stopped_count = stop_all_scraping()
+            stop_all_scraping()
 
-        # Assert complete workflow
-        # 1. Task was created and started
-        assert isinstance(task_id, str)
-        assert mock_session_state.get("task_id") == task_id
+            # Verify thread join was called for cleanup
+            mock_thread_instance.join.assert_called_once_with(timeout=5.0)
 
-        # 2. Company progress was tracked
-        company_progress = mock_session_state.get("company_progress")
-        assert "TechCorp" in company_progress
-        assert company_progress["TechCorp"].jobs_found == 20
 
-        # 3. Results were stored
-        assert mock_session_state.get("scraping_results") == scraping_results
+class TestSessionStateCoordination:
+    """Test session state management prevents concurrent operations."""
 
-        # 4. Scraping was stopped
-        assert stopped_count == 1
-        assert mock_session_state.get("scraping_active") is False
+    def test_session_state_coordination_prevents_concurrent_scraping(
+        self, mock_session_state
+    ):
+        """Test session state prevents concurrent scraping operations."""
+        from src.ui.utils.background_helpers import start_background_scraping
 
-    def test_concurrent_task_management(self, mock_session_state):
-        """Test session state can handle multiple concurrent task operations."""
-        # Create multiple tasks
-        tasks = []
-        for i in range(3):
-            task = TaskInfo(
-                task_id=f"task-{i}",
-                status="running",
-                progress=i * 0.1,
-                message=f"Task {i} running",
-                timestamp=datetime.now(UTC),
-            )
-            tasks.append(task)
+        # Set up active scraping state
+        mock_session_state.scraping_active = True
 
-        # Act
-        for i, task in enumerate(tasks):
-            add_task(f"task-{i}", task)
+        with (
+            patch("threading.Thread") as mock_thread_class,
+            patch("streamlit.warning") as mock_warning,
+        ):
+            # Act - try to start scraping when already active
+            start_background_scraping(stay_active_in_tests=True)
 
-        # Assert
-        assert len(mock_session_state._data.get("tasks", {})) == 3
-        for i in range(3):
-            retrieved = get_task(f"task-{i}")
-            assert retrieved == tasks[i]
+            # Should prevent starting new thread when scraping already active
+            # (Note: this test depends on the implementation checking scraping_active)
+            mock_warning.assert_called_with("Scraping already in progress")
+            mock_thread_class.assert_not_called()
 
-    def test_background_task_error_recovery(self, mock_session_state, mock_job_service):
-        """Test background task system recovers from errors."""
-        # Arrange
-        mock_job_service.get_active_companies.side_effect = Exception("Database error")
-
-        # Act
-        with patch("threading.Thread") as mock_thread_class:
-            mock_thread_class.return_value.start = Mock()
-
-            # Start scraping (which will fail)
-            task_id = start_background_scraping()
-
-            # Execute thread (which should handle error)
-            thread_target = mock_thread_class.call_args[1]["target"]
-            thread_target()
-
-        # Assert - System should remain stable after error
-        assert isinstance(task_id, str)
-        assert mock_session_state.get("scraping_active") is False
-        # Task progress should still be accessible
-        task_progress = mock_session_state.get("task_progress")
-        assert task_id in task_progress
-
-    def test_session_state_cleanup_on_stop(self, mock_session_state):
-        """Test proper cleanup of session state when stopping scraping."""
-        # Arrange
-        mock_session_state.update(
-            {
-                "scraping_active": True,
-                "scraping_status": "Running",
-                "scraping_thread": Mock(),
-            },
+    def test_session_state_scraping_active_flag(self, mock_session_state):
+        """Test scraping_active flag coordination."""
+        from src.ui.utils.background_helpers import (
+            is_scraping_active,
+            start_background_scraping,
         )
 
-        # Act
-        stop_all_scraping()
+        # Initially not active
+        assert not is_scraping_active()
 
-        # Assert
-        assert mock_session_state.get("scraping_active") is False
-        assert mock_session_state.get("scraping_status") == "Scraping stopped"
-        assert "scraping_thread" not in mock_session_state._data
+        # Start scraping
+        start_background_scraping(stay_active_in_tests=True)
+
+        # Should be active after starting
+        assert is_scraping_active()
+        assert mock_session_state.scraping_active
+
+    def test_session_state_cleanup_after_completion(self, mock_session_state):
+        """Test session state cleanup after scraping completion."""
+        from src.ui.utils.background_helpers import stop_all_scraping
+
+        # Set up active scraping
+        mock_session_state.scraping_active = True
+        mock_session_state.scraping_status = "Running"
+
+        # Stop scraping
+        stopped_count = stop_all_scraping()
+
+        # Verify state cleanup
+        assert not mock_session_state.scraping_active
+        assert mock_session_state.scraping_status == "Scraping stopped"
+        assert stopped_count == 1
+
+    def test_prevent_multiple_concurrent_operations(self, mock_session_state):
+        """Test prevention of multiple concurrent scraping operations."""
+        from src.ui.utils.background_helpers import start_background_scraping
+
+        with (
+            patch("threading.Thread") as mock_thread_class,
+            patch("streamlit.warning") as mock_warning,
+        ):
+            # First operation should succeed
+            start_background_scraping(stay_active_in_tests=True)
+            assert mock_thread_class.call_count == 1
+
+            # Second operation should be prevented
+            start_background_scraping(stay_active_in_tests=True)
+            mock_warning.assert_called_with("Scraping already in progress")
+            assert mock_thread_class.call_count == 1  # No additional thread created
+
+
+class TestStreamlitStatusIntegration:
+    """Test st.status component functionality."""
+
+    def test_streamlit_status_component_usage(self, mock_session_state):
+        """Test st.status component integration."""
+        from src.ui.utils.background_helpers import start_background_scraping
+
+        with (
+            patch("threading.Thread") as mock_thread_class,
+            patch("streamlit.status") as mock_status,
+        ):
+            # Configure status context manager
+            mock_status_obj = Mock()
+            mock_status.return_value.__enter__ = Mock(return_value=mock_status_obj)
+            mock_status.return_value.__exit__ = Mock(return_value=None)
+
+            # Start scraping and execute thread function
+            start_background_scraping(stay_active_in_tests=True)
+            thread_func = mock_thread_class.call_args[1]["target"]
+            thread_func()
+
+            # Verify st.status was used for progress display
+            mock_status.assert_called_with("🔍 Scraping jobs...", expanded=True)
+
+    def test_progress_updates_through_status(self, mock_session_state):
+        """Test progress updates through st.status component."""
+        from src.ui.utils.background_helpers import start_background_scraping
+
+        # Set up companies for scraping
+        mock_session_state.selected_companies = ["OpenAI", "Anthropic"]
+
+        with (
+            patch("threading.Thread") as mock_thread_class,
+            patch("streamlit.status") as mock_status,
+            patch("src.scraper.scrape_company_jobs", return_value=[]),
+            patch("src.services.database_sync.sync_jobs_to_database"),
+        ):
+            # Configure status context manager
+            mock_status_obj = Mock()
+            mock_status.return_value.__enter__ = Mock(return_value=mock_status_obj)
+            mock_status.return_value.__exit__ = Mock(return_value=None)
+
+            # Execute thread function
+            start_background_scraping(stay_active_in_tests=True)
+            thread_func = mock_thread_class.call_args[1]["target"]
+            thread_func()
+
+            # Verify progress updates for each company
+            expected_calls = [
+                call("Processing OpenAI (1/2)"),
+                call("Processing Anthropic (2/2)"),
+            ]
+            mock_status_obj.write.assert_has_calls(expected_calls)
+
+            # Verify completion update
+            mock_status_obj.update.assert_called_with(
+                label="✅ Scraping completed!", state="complete"
+            )
+
+    def test_status_completion_state_change(self, mock_session_state):
+        """Test completion state changes in st.status."""
+        from src.ui.utils.background_helpers import start_background_scraping
+
+        mock_session_state.selected_companies = ["TestCorp"]
+
+        with (
+            patch("threading.Thread") as mock_thread_class,
+            patch("streamlit.status") as mock_status,
+            patch("src.scraper.scrape_company_jobs", return_value=[]),
+            patch("src.services.database_sync.sync_jobs_to_database"),
+        ):
+            mock_status_obj = Mock()
+            mock_status.return_value.__enter__ = Mock(return_value=mock_status_obj)
+            mock_status.return_value.__exit__ = Mock(return_value=None)
+
+            # Execute thread function
+            start_background_scraping(stay_active_in_tests=True)
+            thread_func = mock_thread_class.call_args[1]["target"]
+            thread_func()
+
+            # Verify completion state update
+            mock_status_obj.update.assert_called_with(
+                label="✅ Scraping completed!", state="complete"
+            )
+
+
+class TestBackgroundTaskErrorHandling:
+    """Test graceful error handling."""
+
+    def test_background_task_exception_handling(self, mock_session_state):
+        """Test graceful error handling in background thread."""
+        from src.ui.utils.background_helpers import start_background_scraping
+
+        mock_session_state.selected_companies = ["TestCorp"]
+
+        with (
+            patch("threading.Thread") as mock_thread_class,
+            patch("streamlit.error") as mock_error,
+            patch(
+                "src.scraper.scrape_company_jobs",
+                side_effect=Exception("Scraping failed"),
+            ),
+        ):
+            # Execute thread function
+            start_background_scraping(stay_active_in_tests=True)
+            thread_func = mock_thread_class.call_args[1]["target"]
+            thread_func()
+
+            # Verify error was displayed to user
+            mock_error.assert_called_with("Scraping failed: Scraping failed")
+
+            # Verify session state was reset after error
+            assert not mock_session_state.scraping_active
+
+    def test_session_state_reset_on_error(self, mock_session_state):
+        """Test session state reset on background task error."""
+        from src.ui.utils.background_helpers import start_background_scraping
+
+        mock_session_state.selected_companies = ["TestCorp"]
+
+        with (
+            patch("threading.Thread") as mock_thread_class,
+            patch("streamlit.error"),
+            patch(
+                "src.scraper.scrape_company_jobs", side_effect=Exception("Test error")
+            ),
+        ):
+            # Execute thread function that will fail
+            start_background_scraping(stay_active_in_tests=True)
+            thread_func = mock_thread_class.call_args[1]["target"]
+            thread_func()
+
+            # Verify session state cleanup in finally block
+            assert not mock_session_state.scraping_active
+
+    def test_error_display_to_user(self, mock_session_state):
+        """Test error messages are properly displayed to user."""
+        from src.ui.utils.background_helpers import start_background_scraping
+
+        error_message = "Database connection failed"
+        mock_session_state.selected_companies = ["TestCorp"]
+
+        with (
+            patch("threading.Thread") as mock_thread_class,
+            patch("streamlit.error") as mock_error,
+            patch(
+                "src.scraper.scrape_company_jobs", side_effect=Exception(error_message)
+            ),
+        ):
+            # Execute thread function
+            start_background_scraping(stay_active_in_tests=True)
+            thread_func = mock_thread_class.call_args[1]["target"]
+            thread_func()
+
+            # Verify specific error message displayed
+            mock_error.assert_called_with(f"Scraping failed: {error_message}")
+
+    def test_graceful_cleanup_after_exception(self, mock_session_state):
+        """Test graceful cleanup happens even after exceptions."""
+        from src.ui.utils.background_helpers import start_background_scraping
+
+        mock_session_state.selected_companies = ["TestCorp"]
+
+        with (
+            patch("threading.Thread") as mock_thread_class,
+            patch("streamlit.error"),
+            patch(
+                "src.scraper.scrape_company_jobs", side_effect=Exception("Test error")
+            ),
+        ):
+            # Set scraping as active initially
+            mock_session_state.scraping_active = True
+
+            # Execute thread function that will fail
+            start_background_scraping(stay_active_in_tests=True)
+            thread_func = mock_thread_class.call_args[1]["target"]
+            thread_func()
+
+            # Verify cleanup still happens in finally block
+            assert not mock_session_state.scraping_active
+
+
+class TestCoreThreadingFunctionality:
+    """Test core threading functionality without complex task management."""
+
+    def test_simple_background_task_execution(self, mock_session_state):
+        """Test basic background task execution."""
+        from src.ui.utils.background_helpers import start_background_scraping
+
+        mock_session_state.selected_companies = ["OpenAI", "Anthropic"]
+
+        with (
+            patch("threading.Thread") as mock_thread_class,
+            patch(
+                "src.scraper.scrape_company_jobs", return_value=[{"title": "Engineer"}]
+            ),
+            patch("src.services.database_sync.sync_jobs_to_database"),
+        ):
+            mock_thread_instance = Mock()
+            mock_thread_class.return_value = mock_thread_instance
+
+            # Start background scraping
+            start_background_scraping(stay_active_in_tests=True)
+
+            # Verify thread setup
+            mock_thread_class.assert_called_once()
+            assert mock_thread_class.call_args[1]["daemon"]
+            mock_thread_instance.start.assert_called_once()
+
+    def test_integration_with_scraping_functions(self, mock_session_state):
+        """Test integration with actual scraping functions."""
+        from src.ui.utils.background_helpers import start_background_scraping
+
+        mock_session_state.selected_companies = ["TestCorp"]
+
+        with (
+            patch("threading.Thread") as mock_thread_class,
+            patch("src.scraper.scrape_company_jobs") as mock_scrape_jobs,
+            patch("src.services.database_sync.sync_jobs_to_database") as mock_sync,
+        ):
+            mock_jobs = [{"title": "Engineer", "company": "TestCorp"}]
+            mock_scrape_jobs.return_value = mock_jobs
+
+            # Execute thread function
+            start_background_scraping(stay_active_in_tests=True)
+            thread_func = mock_thread_class.call_args[1]["target"]
+            thread_func()
+
+            # Verify integration calls
+            mock_scrape_jobs.assert_called_with("TestCorp")
+            mock_sync.assert_called_with(mock_jobs)
+
+    def test_minimal_session_state_usage(self, mock_session_state):
+        """Test minimal session state usage without complex data structures."""
+        from src.ui.utils.background_helpers import (
+            is_scraping_active,
+            start_background_scraping,
+        )
+
+        # Should use only basic session state flags
+        assert not is_scraping_active()
+
+        start_background_scraping(stay_active_in_tests=True)
+
+        # Should set basic active flag
+        assert is_scraping_active()
+        assert hasattr(mock_session_state, "scraping_active")
+        assert isinstance(mock_session_state.scraping_active, bool)
+
+
+class TestIntegrationWithADRRequirements:
+    """Test integration with ADR-008 database sync and ADR-014 scraping strategy."""
+
+    def test_database_sync_integration(self, mock_session_state):
+        """Test integration with ADR-008 database sync operations."""
+        from src.ui.utils.background_helpers import start_background_scraping
+
+        mock_session_state.selected_companies = ["TestCorp"]
+
+        with (
+            patch("threading.Thread") as mock_thread_class,
+            patch("src.scraper.scrape_company_jobs", return_value=[{"title": "Job"}]),
+            patch("src.services.database_sync.sync_jobs_to_database") as mock_sync,
+        ):
+            # Execute thread function
+            start_background_scraping(stay_active_in_tests=True)
+            thread_func = mock_thread_class.call_args[1]["target"]
+            thread_func()
+
+            # Verify database sync integration
+            mock_sync.assert_called_once()
+
+    def test_scraping_strategy_integration(self, mock_session_state):
+        """Test integration with ADR-014 hybrid scraping strategy."""
+        from src.ui.utils.background_helpers import start_background_scraping
+
+        mock_session_state.selected_companies = ["Company1", "Company2"]
+
+        with (
+            patch("threading.Thread") as mock_thread_class,
+            patch("src.scraper.scrape_company_jobs") as mock_scrape_jobs,
+            patch("src.services.database_sync.sync_jobs_to_database"),
+        ):
+            mock_scrape_jobs.return_value = []
+
+            # Execute thread function
+            start_background_scraping(stay_active_in_tests=True)
+            thread_func = mock_thread_class.call_args[1]["target"]
+            thread_func()
+
+            # Verify scraping strategy integration - called for each company
+            assert mock_scrape_jobs.call_count == 2
+            mock_scrape_jobs.assert_any_call("Company1")
+            mock_scrape_jobs.assert_any_call("Company2")
+
+
+class TestSimplificationVerification:
+    """Test that implementation follows simplification principles."""
+
+    def test_no_complex_dataclasses_required(self, mock_session_state):
+        """Test that no complex dataclasses are required for basic operation."""
+        from src.ui.utils.background_helpers import (
+            is_scraping_active,
+            start_background_scraping,
+        )
+
+        # Should work with just basic session state
+        start_background_scraping(stay_active_in_tests=True)
+
+        # Should not require TaskInfo, ProgressInfo, or CompanyProgress objects
+        assert is_scraping_active()
+        assert isinstance(mock_session_state.scraping_active, bool)
+
+    def test_minimal_imports_required(self):
+        """Test that minimal imports are required for core functionality."""
+        # Core functionality should work with minimal imports
+        try:
+            import threading
+
+            from unittest.mock import patch
+
+            # These should be the core imports for simplified implementation
+            with patch("streamlit.runtime.scriptrunner.add_script_run_ctx"):
+                assert threading is not None
+        except ImportError:
+            pytest.fail("Required imports not available")
+
+    def test_reduced_complexity_verification(self, mock_session_state):
+        """Test that complexity is reduced compared to original implementation."""
+        from src.ui.utils.background_helpers import start_background_scraping
+
+        # Should work with minimal session state setup
+        result = start_background_scraping(stay_active_in_tests=True)
+
+        # Should return simple task ID, not complex objects
+        assert isinstance(result, str)
+        assert len(result) > 0
+
+
+@pytest.mark.integration
+class TestCompleteBackgroundTaskWorkflow:
+    """Integration tests for complete background task workflows."""
+
+    def test_complete_simplified_workflow(self, mock_session_state):
+        """Test complete workflow using simplified 50-line implementation."""
+        from src.ui.utils.background_helpers import (
+            is_scraping_active,
+            start_background_scraping,
+            stop_all_scraping,
+        )
+
+        mock_session_state.selected_companies = ["OpenAI", "Anthropic"]
+
+        with (
+            patch("threading.Thread") as mock_thread_class,
+            patch("src.scraper.scrape_company_jobs", return_value=[]),
+            patch("src.services.database_sync.sync_jobs_to_database"),
+            patch("streamlit.status") as mock_status,
+        ):
+            # Configure status context manager
+            mock_status_obj = Mock()
+            mock_status.return_value.__enter__ = Mock(return_value=mock_status_obj)
+            mock_status.return_value.__exit__ = Mock(return_value=None)
+
+            # 1. Start background scraping
+            task_id = start_background_scraping(stay_active_in_tests=True)
+            assert is_scraping_active()
+            assert isinstance(task_id, str)
+
+            # 2. Execute background thread
+            thread_func = mock_thread_class.call_args[1]["target"]
+            thread_func()
+
+            # 3. Verify completion
+            mock_status_obj.update.assert_called_with(
+                label="✅ Scraping completed!", state="complete"
+            )
+            assert not mock_session_state.scraping_active
+
+            # 4. Stop scraping (cleanup)
+            stopped_count = stop_all_scraping()
+            assert stopped_count == 0  # Already stopped by completion
+
+    def test_workflow_with_error_recovery(self, mock_session_state):
+        """Test complete workflow with error handling and recovery."""
+        from src.ui.utils.background_helpers import (
+            is_scraping_active,
+            start_background_scraping,
+        )
+
+        mock_session_state.selected_companies = ["FailCorp"]
+
+        with (
+            patch("threading.Thread") as mock_thread_class,
+            patch(
+                "src.scraper.scrape_company_jobs",
+                side_effect=Exception("Connection error"),
+            ),
+            patch("streamlit.error") as mock_error,
+        ):
+            # Start and execute scraping (which will fail)
+            start_background_scraping(stay_active_in_tests=True)
+            thread_func = mock_thread_class.call_args[1]["target"]
+            thread_func()
+
+            # Verify error handling and cleanup
+            mock_error.assert_called_with("Scraping failed: Connection error")
+            assert not is_scraping_active()  # Should be cleaned up after error

@@ -222,7 +222,7 @@ def db_session() -> Generator[Session, None, None]:
         ```python
         with db_session() as session:
             job = session.get(JobSQL, job_id)
-            job.status = "completed"
+            job.application_status = "completed"
             # Automatic commit on success, rollback on exception
         ```
     """

@@ -168,20 +168,6 @@ class Job(BaseModel):
     archived: bool = False
     last_seen: datetime | None = None
 
-    # Backward compatibility alias
-    @property
-    def status(self) -> str:
-        """Backward compatibility alias for application_status.
-
-        Returns:
-            Current application status string.
-
-        Note:
-            This property is maintained for backward compatibility.
-            New code should use application_status directly.
-        """
-        return self.application_status
-
     @field_validator("link")
     @classmethod
     def validate_link(cls, v: str) -> str:

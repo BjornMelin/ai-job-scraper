@@ -12,7 +12,7 @@ import logging
 
 from typing import Annotated, Any
 
-from pydantic import BeforeValidator, validate_call
+from pydantic import BeforeValidator
 
 logger = logging.getLogger(__name__)
 
@@ -135,54 +135,3 @@ def ensure_non_negative_int_with_default(default: int = 0):
 # Pydantic Annotated types for reuse across the codebase
 SafeInt = Annotated[int, BeforeValidator(ensure_non_negative_int)]
 JobCount = Annotated[int, BeforeValidator(ensure_non_negative_int)]
-
-
-# Legacy functions for backward compatibility (deprecated)
-@validate_call
-def safe_int(value: Any, default: int = 0) -> int:
-    """Convert any value to a non-negative integer with fallback handling.
-
-    Args:
-        value: Input value to convert (any type).
-        default: Default value for invalid inputs (default: 0).
-
-    Returns:
-        Non-negative integer result.
-
-    Note:
-        DEPRECATED: Use SafeInt Annotated type for new code.
-        Maintained for backward compatibility.
-    """
-    validator = ensure_non_negative_int_with_default(default)
-    return validator(value)
-
-
-@validate_call
-def safe_job_count(value: Any, company_name: str = "unknown") -> int:
-    """Convert job count values with context-aware logging.
-
-    Args:
-        value: Input value to convert (any type).
-        company_name: Company name for logging context (default: "unknown").
-
-    Returns:
-        Non-negative integer job count.
-
-    Note:
-        DEPRECATED: Use JobCount Annotated type for new code.
-        Maintained for backward compatibility.
-    """
-    try:
-        result = ensure_non_negative_int(value)
-    except Exception as e:
-        logger.warning(
-            "Failed to convert job count for %s: %s (%s)",
-            company_name,
-            value,
-            e,
-        )
-        return 0
-
-    if value != result and value is not None:
-        logger.info("Converted job count for %s: %s -> %s", company_name, value, result)
-    return result
