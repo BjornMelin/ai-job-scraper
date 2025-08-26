@@ -31,7 +31,7 @@ except ImportError:
 
     st = _DummyStreamlit()
 
-from sqlalchemy import func, or_
+from sqlalchemy import func
 from sqlmodel import select
 
 from src.constants import SALARY_DEFAULT_MIN, SALARY_UNBOUNDED_THRESHOLD
@@ -143,14 +143,11 @@ class JobService:
         # Note: Don't early return for empty filters as we still need to apply
         # default filters like archived
 
-        # Apply text search filter
-        if text_search := filters.get("text_search", "").strip():
-            query = query.filter(
-                or_(
-                    JobSQL.title.ilike(f"%{text_search}%"),
-                    JobSQL.description.ilike(f"%{text_search}%"),
-                ),
-            )
+        # TODO: Text search filter will be replaced with SQLite FTS5 implementation
+        # Temporarily disabled - will be handled by search_service.py
+        # if text_search := filters.get("text_search", "").strip():
+        #     # FTS5 search implementation goes here
+        #     pass
 
         # Apply company filter - assumes CompanySQL is already joined
         if (
@@ -204,7 +201,7 @@ class JobService:
 
         Args:
             filters: Dictionary containing filter criteria:
-                - text_search: String to search in title and description
+                - text_search: [DEPRECATED] Will be replaced by SQLite FTS5 search_service.py
                 - company: List of company names or "All"
                 - application_status: List of status values or "All"
                 - date_from: Start date for filtering
@@ -613,13 +610,11 @@ class JobService:
                 )
 
                 # Apply the same filters as in get_filtered_jobs
-                if text_search := filters.get("text_search", "").strip():
-                    query = query.filter(
-                        or_(
-                            JobSQL.title.ilike(f"%{text_search}%"),
-                            JobSQL.description.ilike(f"%{text_search}%"),
-                        ),
-                    )
+                # TODO: Text search filter will be replaced with SQLite FTS5 implementation
+                # Temporarily disabled - will be handled by search_service.py
+                # if text_search := filters.get("text_search", "").strip():
+                #     # FTS5 search implementation goes here
+                #     pass
 
                 if (
                     company_filter := filters.get("company", [])
