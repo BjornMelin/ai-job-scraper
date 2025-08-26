@@ -1,13 +1,14 @@
 """Performance benchmark tests for FTS5 search implementation.
 
-This module provides performance benchmark tests to validate that the FTS5 search
-implementation meets the performance requirements specified in ADR-018:
-- Search latency <10ms for typical queries
-- Proper index creation and maintenance performance
-- Large dataset handling capabilities
-- Concurrent search performance
+This module provides performance benchmark tests to validate FTS5 search engine
+performance characteristics:
+- Search latency <10ms for typical queries on small datasets
+- Search latency <50ms for typical queries on large datasets (1000+ jobs)
+- Index creation and maintenance performance benchmarks
+- Concurrent search handling under load
+- Memory usage validation for sustained operations
 
-These tests serve as both validation and regression testing for performance.
+Tests validate both performance thresholds and result correctness.
 """
 
 import time
@@ -85,7 +86,8 @@ class TestSearchPerformanceBenchmarks:
             # Average time should be reasonable for large dataset
             avg_time = sum(times) / len(times)
             assert avg_time < 50.0, (
-                f"Average search time for '{query}' was {avg_time:.2f}ms, should be <50ms"
+                f"Average search time for '{query}' was {avg_time:.2f}ms, "
+                f"should be <50ms"
             )
 
             # No individual search should take too long
@@ -136,7 +138,8 @@ class TestSearchPerformanceBenchmarks:
 
         # Concurrent searches should still be reasonably fast
         assert avg_concurrent_time < 100.0, (
-            f"Average concurrent search time {avg_concurrent_time:.2f}ms, should be <100ms"
+            f"Average concurrent search time {avg_concurrent_time:.2f}ms, "
+            "should be <100ms"
         )
         assert max_concurrent_time < 200.0, (
             f"Slowest concurrent search {max_concurrent_time:.2f}ms, should be <200ms"
@@ -175,7 +178,7 @@ class TestSearchPerformanceBenchmarks:
             times = []
             for _ in range(3):
                 start_time = time.perf_counter()
-                results = performance_test_database.search_jobs(base_query, filters)
+                performance_test_database.search_jobs(base_query, filters)
                 end_time = time.perf_counter()
 
                 search_time_ms = (end_time - start_time) * 1000
@@ -232,7 +235,8 @@ class TestSearchPerformanceBenchmarks:
 
             # Performance should not degrade significantly with higher limits
             assert search_time_ms < 100.0, (
-                f"Search with limit {limit} took {search_time_ms:.2f}ms, should be <100ms"
+                f"Search with limit {limit} took {search_time_ms:.2f}ms, "
+                "should be <100ms"
             )
 
             # Should respect the limit
@@ -275,7 +279,8 @@ class TestSearchPerformanceBenchmarks:
 
             # Fallback should still be reasonably fast
             assert search_time_ms < 200.0, (
-                f"Fallback search for '{query}' took {search_time_ms:.2f}ms, should be <200ms"
+                f"Fallback search for '{query}' took {search_time_ms:.2f}ms, "
+                f"should be <200ms"
             )
 
             # Results should still be valid
@@ -316,7 +321,8 @@ class TestSearchMemoryUsage:
         # Memory growth should be minimal (less than 50MB)
         memory_growth = (final_memory - baseline_memory) / 1024 / 1024  # MB
         assert memory_growth < 50.0, (
-            f"Memory grew by {memory_growth:.1f}MB during search operations, should be <50MB"
+            f"Memory grew by {memory_growth:.1f}MB during search operations, "
+            f"should be <50MB"
         )
 
     @pytest.mark.performance
@@ -387,13 +393,15 @@ class TestSearchStressTest:
 
         # Performance should remain stable
         assert avg_time < 100.0, (
-            f"Average search time {avg_time:.2f}ms degraded under load, should be <100ms"
+            f"Average search time {avg_time:.2f}ms degraded under load, "
+            "should be <100ms"
         )
         assert max_time < 500.0, (
             f"Maximum search time {max_time:.2f}ms too high, should be <500ms"
         )
         assert searches_per_second > 10.0, (
-            f"Search throughput {searches_per_second:.1f}/sec too low, should be >10/sec"
+            f"Search throughput {searches_per_second:.1f}/sec too low, "
+            "should be >10/sec"
         )
 
     @pytest.mark.performance

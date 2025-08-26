@@ -143,11 +143,8 @@ class JobService:
         # Note: Don't early return for empty filters as we still need to apply
         # default filters like archived
 
-        # TODO: Text search filter will be replaced with SQLite FTS5 implementation
-        # Temporarily disabled - will be handled by search_service.py
-        # if text_search := filters.get("text_search", "").strip():
-        #     # FTS5 search implementation goes here
-        #     pass
+        # Note: Text search filtering is handled by search_service.py using SQLite FTS5
+        # This service focuses on database filtering without text search capabilities
 
         # Apply company filter - assumes CompanySQL is already joined
         if (
@@ -201,7 +198,6 @@ class JobService:
 
         Args:
             filters: Dictionary containing filter criteria:
-                - text_search: [DEPRECATED] Will be replaced by SQLite FTS5 search_service.py
                 - company: List of company names or "All"
                 - application_status: List of status values or "All"
                 - date_from: Start date for filtering
@@ -610,11 +606,7 @@ class JobService:
                 )
 
                 # Apply the same filters as in get_filtered_jobs
-                # TODO: Text search filter will be replaced with SQLite FTS5 implementation
-                # Temporarily disabled - will be handled by search_service.py
-                # if text_search := filters.get("text_search", "").strip():
-                #     # FTS5 search implementation goes here
-                #     pass
+                # Note: Text search filtering is handled by search_service.py
 
                 if (
                     company_filter := filters.get("company", [])

@@ -82,3 +82,132 @@ Provides methods for querying and updating job records.
 Handles the intelligent synchronization of scraped data with the database.
 
 * `sync_jobs(jobs: list[JobSQL]) -> dict[str, int]`: The main entry point for the engine. It takes a list of scraped `JobSQL` objects and performs the full sync logic, returning a dictionary of statistics (inserted, updated, archived, deleted, skipped).
+
+## 📊 Analytics & Monitoring Services
+
+### `AnalyticsService` (`src/services/analytics_service.py`)
+
+DuckDB-powered analytics service providing zero-ETL data analysis.
+
+#### Constructor
+
+```python
+AnalyticsService(db_path: str = "jobs.db")
+```
+
+#### Core Methods
+
+* **`get_job_trends(days: int = 30) -> AnalyticsResponse`**
+  * Returns job posting trends over specified time period
+  * Uses DuckDB's `DATE_TRUNC` for daily aggregation
+  * Includes trend data, total jobs, and method metadata
+  * Cached for 5 minutes via `@st.cache_data(ttl=300)`
+
+* **`get_company_analytics() -> AnalyticsResponse`**
+  * Returns company hiring metrics with salary statistics
+  * Aggregates total jobs, average salary ranges per company
+  * Limited to top 20 companies by job count
+  * Includes JSON salary parsing via DuckDB's `json_extract`
+
+* **`get_salary_analytics(days: int = 90) -> AnalyticsResponse`**
+  * Returns salary statistics for specified period
+  * Calculates average, min, max salary ranges and standard deviation
+  * Filters jobs with non-null salary data
+  * Uses DuckDB's native statistical functions
+
+* **`get_status_report() -> dict[str, Any]`**
+  * Returns service configuration and connection status
+  * Includes DuckDB availability, database path, connection state
+
+#### Response Format
+
+```python
+type AnalyticsResponse = dict[str, Any]
+# Standard fields:
+# - "status": "success" | "error"
+# - "method": "duckdb_sqlite_scanner"
+# - "error": str (if status == "error")
+# - Data fields vary by method
+```
+
+#### Technical Implementation
+
+* **DuckDB Connection**: In-memory with sqlite_scanner extension
+  * **Query Pattern**: Direct SQLite scanning via `sqlite_scan(db_path, table)`
+  * **Fallback Handling**: Graceful degradation when DuckDB unavailable
+  * **Streamlit Integration**: Native caching with configurable TTL
+
+### `CostMonitor` (`src/services/cost_monitor.py`)
+
+SQLModel-based cost tracking service with $50 monthly budget monitoring.
+
+#### Data Model
+
+**`CostEntry` (SQLModel table)**
+
+```python
+class CostEntry(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    service: str = Field(index=True)  # "ai", "proxy", "scraping"  
+    operation: str                    # Operation description
+    cost_usd: float                   # Cost in USD
+    extra_data: str = ""              # JSON metadata
+```
+
+#### Constructor - Costs
+
+```python
+CostMonitor(db_path: str = "costs.db")
+```
+
+* Creates SQLite database with `costs.db` default
+  * Sets monthly budget to $50.00
+  * Auto-creates tables via `SQLModel.metadata.create_all()`
+
+#### Cost Tracking Methods
+
+* **`track_ai_cost(model: str, tokens: int, cost: float, operation: str) -> None`**
+  * Records AI/LLM operation costs
+  * Stores model name and token count in `extra_data`
+  * Triggers budget alerts after cost addition
+
+* **`track_proxy_cost(requests: int, cost: float, endpoint: str) -> None`**
+  * Records proxy service costs
+  * Stores request count and endpoint in `extra_data`
+  * Used for IPRoyal residential proxy tracking
+
+* **`track_scraping_cost(company: str, jobs_found: int, cost: float) -> None`**
+  * Records scraping operation costs  
+  * Stores company name and job count in `extra_data`
+  * Tracks per-company scraping expenses
+
+#### Budget Monitoring Methods
+
+* **`get_monthly_summary() -> dict[str, Any]`**
+  * Returns current month cost breakdown by service
+  * Includes total cost, remaining budget, utilization percentage
+  * Cached for 1 minute via `@st.cache_data(ttl=60)`
+  * Budget status: "within_budget", "moderate_usage", "approaching_limit", "over_budget"
+
+* **`get_cost_alerts() -> list[dict[str, str]]`**
+  * Returns active cost alerts for dashboard display
+  * Alert types: "error" (>100%), "warning" (>80%)
+  * Structured for Streamlit alert components
+
+#### Budget Alert System
+
+* **80% Threshold**: Warning alerts via Streamlit and logging
+* **100% Threshold**: Error alerts via Streamlit and logging
+* **Real-time Monitoring**: Triggered after each cost entry
+* **Streamlit Integration**: Automatic UI alerts when available
+
+### Analytics Dashboard Integration (`src/ui/pages/analytics.py`)
+
+The analytics page integrates both services with Plotly visualizations:
+
+* **Cost Monitoring**: Pie charts for service breakdown, metric cards for budget status
+* **Job Trends**: Line charts with configurable time ranges (7/30/90 days)  
+* **Company Analytics**: Bar charts for top companies, interactive data tables
+* **Salary Analytics**: Metric displays for salary statistics and ranges
+* **Service Status**: Expandable technical status information

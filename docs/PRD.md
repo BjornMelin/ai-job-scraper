@@ -84,7 +84,7 @@ This document outlines the product requirements for the **AI Job Scraper**, a lo
 
 * **FR-ANALYTICS-01: Automatic Method Selection:** The system must automatically select between SQLite and DuckDB analytics methods based on performance triggers (p95 latency >500ms).
 
-* **FR-ANALYTICS-02: Python 3.12 Monitoring:** Performance tracking must use sys.monitoring for 20x faster profiling with zero runtime overhead when disabled.
+* **FR-ANALYTICS-02: Streamlit Caching:** Performance tracking must use Streamlit native caching (st.cache_data) for optimized operations with minimal overhead.
 
 * **FR-ANALYTICS-03: Cost Control Integration:** Real-time cost tracking must monitor the $50 monthly budget with automated alerts at 80% and 100% utilization.
 
@@ -132,7 +132,7 @@ This document outlines the product requirements for the **AI Job Scraper**, a lo
 * **Database:** SQLModel + SQLite with WAL mode and type-safe operations
 * **Search:** SQLite FTS5 with porter stemming and BM25 relevance ranking via sqlite-utils (ADR-018)
 * **Analytics:** Automatic method selection - SQLite baseline with DuckDB sqlite_scanner scaling (ADR-019)
-* **Performance Monitoring:** Python 3.12 sys.monitoring for 20x faster performance tracking with zero overhead
+* **Performance Optimization:** Streamlit native caching for streamlined performance tracking
 * **Cost Control:** Real-time $50 budget monitoring with automated service-level cost tracking
 * **Synchronization:** Database sync with content hash detection and user data preservation
 
@@ -173,7 +173,7 @@ This document outlines the product requirements for the **AI Job Scraper**, a lo
 * **Search:** <10ms FTS5 queries with porter stemming and BM25 ranking via sqlite-utils (ADR-018)
 * **Analytics:** Automatic method selection triggers at p95 >500ms for DuckDB sqlite_scanner activation (ADR-019)
 * **AI Processing:** <2s local vLLM inference with FP8 optimization, 98% local processing rate (ADR-011/012)
-* **Performance Monitoring:** Python 3.12 sys.monitoring provides 20x faster profiling vs cProfile (ADR-019)
+* **Performance Optimization:** Streamlit native caching provides streamlined operations vs custom monitoring (ADR-019)
 * **UI Rendering:** Card-based interface with improved scanning efficiency, <200ms rendering for 50+ jobs (ADR-021)
 * **GPU Utilization:** 90% efficiency with RTX 4090 FP8 quantization and continuous batching
 * **Cost Control:** $50 monthly budget with real-time monitoring and automated alerts (ADR-019)

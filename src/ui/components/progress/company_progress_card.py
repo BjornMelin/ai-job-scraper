@@ -4,7 +4,7 @@ This module provides a reusable progress card component that displays individual
 company scraping progress with metrics and visual indicators.
 
 Key features:
-- Professional card layout with border
+- Card layout with border styling
 - Real-time progress bar
 - Calculated metrics (jobs found, scraping speed)
 - Status-based styling and icons
@@ -41,8 +41,8 @@ logger = logging.getLogger(__name__)
 class CompanyProgressCard:
     """Reusable component for displaying company scraping progress.
 
-    This component renders a professional progress card showing real-time
-    scraping status, metrics, and progress indicators for individual companies.
+    This component renders a progress card showing real-time scraping status,
+    metrics, and progress indicators for individual companies.
     """
 
     def __init__(self):

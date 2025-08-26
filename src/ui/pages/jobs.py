@@ -65,7 +65,7 @@ def _handle_job_details_modal(jobs: list["Job"]) -> None:
 
 
 def _execute_scraping_safely() -> dict[str, int]:
-    """Execute scraping with comprehensive error handling and logging.
+    """Execute scraping with error handling and logging.
 
     This function provides a robust wrapper around the scraping functionality,
     ensuring proper asyncio lifecycle management and detailed error reporting.
@@ -204,7 +204,7 @@ def _render_action_bar() -> None:
 
 
 def _handle_refresh_jobs() -> None:
-    """Handle the job refresh operation with comprehensive logging.
+    """Handle the job refresh operation with logging.
 
     This function orchestrates the job refresh workflow with detailed logging
     for monitoring, debugging, and user feedback. It follows modern Python
@@ -663,7 +663,7 @@ def _render_metric_cards(
     favorites: int,
     rejected: int,
 ) -> None:
-    """Render the metric cards section using enhanced st.metric components.
+    """Render the metric cards section using st.metric components.
 
     Args:
         total_jobs: Total number of jobs.

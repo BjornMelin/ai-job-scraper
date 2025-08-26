@@ -9,9 +9,9 @@ The service includes:
 - Bulk scraping statistics updates with weighted success rates
 - Active company management for scraping workflows
 - Company statistics with job counts via optimized queries
-- Performance monitoring decorators for observability
+- Simple logging for debugging and maintenance
 
-All methods use context-managed database sessions and comprehensive error handling
+All methods use context-managed database sessions and error handling
 with proper logging. DTO conversion prevents DetachedInstanceError issues.
 """
 
@@ -105,7 +105,7 @@ class CompanyService:
     in the database. This service acts as an abstraction layer between the UI
     and the database models.
 
-    All methods are static and decorated with performance monitoring for observability.
+    All methods are static with logging for debugging and maintenance.
     The service uses context-managed database sessions and converts SQLModel objects
     to Pydantic DTOs to prevent DetachedInstanceError issues.
 
@@ -114,7 +114,7 @@ class CompanyService:
     - Weighted success rate calculations for scraping statistics
     - Bulk operations for performance optimization
     - Optimized queries with job counts to prevent N+1 problems
-    - Comprehensive error handling with detailed logging
+    - Error handling with detailed logging
     """
 
     @staticmethod
@@ -380,7 +380,7 @@ class CompanyService:
         """Delete a company and all associated jobs.
 
         Removes company record and cascades deletion to all related job records.
-        Provides comprehensive logging of deletion operation.
+        Provides logging of deletion operation.
 
         Args:
             company_id: Database ID of the company to delete.

@@ -2,9 +2,9 @@
 
 ## Metadata
 
-**Status:** In Progress  
-**Version/Date:** v1.0 / 2025-08-26
-**Implementation Status:** NOT IMPLEMENTED - Search service, FTS5 setup, and UI components missing
+**Status:** Accepted  
+**Version/Date:** v2.0 / 2025-08-26
+**Implementation Status:** IMPLEMENTED - Search service with FTS5 and sqlite-utils complete (633 lines)
 **Supersedes:** ADR-003 (archived as over-engineered)
 
 ## Title
@@ -111,7 +111,7 @@ We will implement **SQLite FTS5 Search Architecture using sqlite-utils** for opt
 ## Related Decisions
 
 - **ADR-005** (Database Architecture): Provides SQLite foundation for FTS5 integration
-- **ADR-019** (Analytics Architecture): Search integrates with analytics dashboard UI
+- **ADR-019** (Analytics and Monitoring): Search integrates with analytics dashboard for comprehensive job insights
 - **ADR-007** (Service Layer): Search service follows established patterns
 - **ADR-006** (Data Management): Search triggers coordinate with data sync patterns
 
@@ -427,10 +427,16 @@ def test_relevance_ranking():
 
 ## Changelog
 
+### v2.0 - August 26, 2025
+
+- **Status update**: Changed from "NOT IMPLEMENTED" to "IMPLEMENTED" - search service exists and is functional
+- **Verified implementation**: 633 lines in `src/services/search_service.py` with FTS5 and sqlite-utils integration
+- **Architecture validation**: Implementation matches ADR specifications for library-first approach
+
 ### v1.0 - August 26, 2025
 
 - **Initial implementation**: SQLite FTS5 search architecture with sqlite-utils integration
-- **Supersedes ADR-003**: Replaces 653 lines of vector search complexity with 5 lines of library-first code  
+- **Supersedes ADR-003**: Replaces 653 lines of vector search complexity with library-first code  
 - **Core features**: Porter stemming, multi-field search, BM25 ranking, automatic triggers
-- **Performance optimized**: <10ms search latency, zero configuration, automatic index management
+- **Performance optimized**: Fast search latency, zero configuration, automatic index management
 - **Integration ready**: Service layer patterns, Streamlit UI integration, comprehensive testing strategy

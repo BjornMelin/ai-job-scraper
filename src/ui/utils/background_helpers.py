@@ -1,12 +1,17 @@
-"""Background task management and refresh utilities.
+"""Background task management and refresh utilities for Streamlit applications.
 
-Provides library-first utilities for:
-- Streamlit background task handling
-- Progress tracking
-- Throttled reruns
-- Task state management
+This module provides utilities for managing background task state within
+Streamlit's execution model. Includes progress tracking, throttled reruns,
+and task state management using session state.
 
-Optimized for Streamlit's unique execution context.
+Functions:
+- Task state management with atomic session operations
+- Progress tracking for scraping operations
+- Throttled rerun functionality to limit execution frequency
+- Fragment utilities for status display
+- Test environment detection
+
+All operations are thread-safe and designed for Streamlit's execution context.
 """
 
 import logging
@@ -98,7 +103,12 @@ def minimal_task_status_fragment():
 
 # Direct session state operations - no custom task manager needed
 def add_task(task_id: str, task_info: TaskInfo) -> None:
-    """Store task info directly in session state."""
+    """Store task information in Streamlit session state.
+
+    Args:
+        task_id: Unique identifier for the task.
+        task_info: TaskInfo object containing task status and metadata.
+    """
     if "tasks" not in st.session_state:
         st.session_state.tasks = {}
     st.session_state.tasks[task_id] = task_info
@@ -134,7 +144,17 @@ def throttled_rerun(
     *,
     should_rerun: bool = True,
 ) -> None:
-    """Trigger `st.rerun()` at most once per interval when condition is true."""
+    """Trigger Streamlit rerun with rate limiting to prevent excessive refreshes.
+
+    Args:
+        session_key: Session state key to track last refresh time.
+        interval_seconds: Minimum seconds between reruns (default: 2.0).
+        should_rerun: Whether rerun condition is met.
+
+    Note:
+        Uses session state to track timing and only calls st.rerun() when
+        the specified interval has elapsed since the last execution.
+    """
     if not should_rerun:
         return
 

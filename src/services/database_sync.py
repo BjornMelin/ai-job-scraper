@@ -1,6 +1,6 @@
 """Smart database synchronization service for AI Job Scraper.
 
-This module implements the SmartSyncEngine, a robust service that intelligently
+This module implements the SmartSyncEngine, a robust service that
 synchronizes scraped job data with the database while preserving user data
 and preventing data loss. It uses content hashing for change detection and
 implements smart archiving rules.
@@ -21,16 +21,16 @@ logger = logging.getLogger(__name__)
 
 
 class SmartSyncEngine:
-    """Intelligent database synchronization engine for job data.
+    """Database synchronization engine for job data.
 
-    This engine provides safe, intelligent synchronization of scraped job data
+    This engine provides safe synchronization of scraped job data
     with the database, implementing the following features:
 
     - Content-based change detection using MD5 hashes
     - Preservation of user-editable data during updates
     - Smart archiving of stale jobs with user data
     - Permanent deletion of jobs without user interaction
-    - Comprehensive error handling and logging
+    - Error handling and logging
     - Transactional safety with rollback on errors
 
     The engine follows the database sync requirements DB-SYNC-01 through DB-SYNC-04
@@ -65,7 +65,7 @@ class SmartSyncEngine:
             session.close()
 
     def sync_jobs(self, jobs: list[JobSQL]) -> dict[str, int]:
-        """Synchronize jobs with the database intelligently.
+        """Synchronize jobs with the database.
 
         This method performs the core synchronization logic:
         1. Identifies jobs to insert (new jobs not in database)
@@ -355,7 +355,7 @@ class SmartSyncEngine:
         )
 
     def _generate_content_hash(self, job: JobSQL) -> str:
-        """Generate MD5 hash of job content for comprehensive change detection.
+        """Generate MD5 hash of job content for change detection.
 
         The hash includes all relevant scraped fields to detect meaningful changes
         in job content per DB-SYNC-02. This ensures updates are triggered when
@@ -371,7 +371,7 @@ class SmartSyncEngine:
         # relationship loading
         company_identifier = str(job.company_id) if job.company_id else "unknown"
 
-        # Include all relevant scraped fields for comprehensive change detection
+        # Include all relevant scraped fields for change detection
         content_parts = [
             job.title or "",
             job.description or "",

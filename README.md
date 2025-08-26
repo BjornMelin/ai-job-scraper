@@ -17,7 +17,7 @@ AI Job Scraper is a modern, open-source Python application designed to automate 
 * **🚀 Non-Blocking Background Tasks:** Real-time progress tracking with st.status while maintaining UI responsiveness
 * **⚡ High-Performance Caching:** st.cache_data for <100ms filter operations on 5000+ job records
 * **🏢 Smart Database Sync:** Content hash-based synchronization engine that preserves user data during updates
-* **📊 Analytics Scaling:** Automatic SQLite → DuckDB migration when p95 query latency exceeds 500ms
+* **📊 DuckDB Analytics:** Zero-ETL analytics via sqlite_scanner - no separate database maintenance
 * **🛡️ Privacy-First Architecture:** All processing happens locally - no personal data leaves your machine
 * **🐳 Docker Ready:** Complete containerization with GPU support for one-command deployment
 
@@ -42,9 +42,9 @@ AI Job Scraper is a modern, open-source Python application designed to automate 
 
 * **Backend:** Python 3.12+, SQLModel ORM, threading-based background tasks
 * **Frontend:** Streamlit with native caching (st.cache_data), fragments, and real-time updates  
-* **Database:** SQLite 3.38+ with WAL mode, FTS5 search, automatic DuckDB 0.9.0+ scaling
+* **Database:** SQLite 3.38+ with WAL mode, FTS5 search, DuckDB 0.9.0+ sqlite_scanner analytics
 * **AI Processing:** LiteLLM unified client + Instructor + vLLM >=0.6.2 with FP8 support
-* **Analytics:** Python 3.12 sys.monitoring for 20x faster performance tracking (zero overhead)
+* **Analytics:** DuckDB sqlite_scanner for zero-ETL analytics, SQLModel cost tracking
 * **Deployment:** Docker + Docker Compose with GPU support, uv package management
 
 ### **Performance Characteristics**
@@ -54,7 +54,7 @@ AI Job Scraper is a modern, open-source Python application designed to automate 
 * **GPU Utilization:** 90% efficiency with RTX 4090 FP8 quantization and continuous batching
 * **UI Rendering:** <100ms filter operations via st.cache_data, <200ms job card display
 * **Scalability:** Tested capacity 500K job records (1.3GB database), single-user architecture
-* **Analytics Scaling:** Automatic DuckDB sqlite_scanner activation when p95 >500ms
+* **Analytics:** DuckDB sqlite_scanner for direct SQLite analytics queries
 * **Cost:** $25-30/month operational cost breakdown: AI $2.50, proxies $20, misc $5
 * **Memory:** FP8 quantization for optimal 16GB VRAM utilization
 
@@ -74,7 +74,7 @@ graph TD
         SEARCH_UTILS[sqlite-utils Integration]
         ANALYTICS_SMART[Automatic Method Selection]
         ANALYTICS_DUCK[DuckDB sqlite_scanner]
-        ANALYTICS_MONITOR[Python 3.12 sys.monitoring]
+        ANALYTICS_CACHE[Streamlit Native Caching]
         ANALYTICS_COST[Real-time Cost Tracking]
     end
     
@@ -101,6 +101,7 @@ graph TD
     UI_CARDS --> UI_SEARCH
     UI_SEARCH --> SEARCH_FTS5
     UI_STATUS --> ANALYTICS_SMART
+    ANALYTICS_SMART --> ANALYTICS_CACHE
     
     SEARCH_FTS5 --> SEARCH_UTILS
     SEARCH_UTILS --> DB_SQLITE
@@ -190,7 +191,7 @@ Our architecture delivers production-ready performance for personal-scale usage:
 * **UI Operations:** <100ms filter operations via Streamlit native caching
 * **Real-time Updates:** Non-blocking progress with st.rerun() + session_state during background scraping
 * **GPU Efficiency:** 90% utilization with FP8 quantization on RTX 4090 (16GB VRAM)
-* **Database Performance:** SQLite handles 500K+ records, automatic DuckDB scaling at p95 >500ms
+* **Database Performance:** SQLite handles 500K+ records, DuckDB analytics via sqlite_scanner
 * **Cost Control:** $25-30/month operational costs with real-time budget monitoring
 * **Memory Management:** FP8 quantization for optimal VRAM utilization with continuous batching
 
@@ -216,15 +217,15 @@ The application uses a hybrid local/cloud approach:
 * **Resilience:** Native HTTPX transport retries, eliminates custom retry logic
 * **Background Tasks:** Python threading.Thread with Streamlit st.status integration
 
-### **Performance Scaling Configuration**
+### **Analytics & Monitoring Configuration**
 
-Automatic performance-triggered scaling:
+Built-in analytics and cost tracking:
 
-* **Search:** SQLite FTS5 handles 500K+ records, pagination above 10K jobs
-* **Analytics:** DuckDB sqlite_scanner activates when p95 query latency >500ms threshold
-* **Database:** SQLite proven to 1.3GB capacity with WAL mode
-* **Caching:** Session-based st.cache_data → Persistent cache layers
-* **UI:** Streamlit fragments for auto-refresh, column configuration for data display
+* **Search:** SQLite FTS5 handles 500K+ records with porter stemming
+* **Analytics:** DuckDB sqlite_scanner for zero-ETL analytics queries
+* **Database:** SQLite primary storage with WAL mode, DuckDB analytics via direct scanning
+* **Caching:** Session-based st.cache_data → Persistent cache layers with configurable TTL
+* **UI:** Streamlit fragments for auto-refresh, modern card-based interface
 * **Cost Control:** Real-time $50 budget monitoring with automated alerts at 80% and 100%
 
 ## 📚 Documentation

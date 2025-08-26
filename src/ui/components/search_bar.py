@@ -1,17 +1,16 @@
-"""Modern search UI component with FTS5 integration.
+"""Search UI component with FTS5 integration.
 
-This module provides a comprehensive search interface that leverages the SQLite FTS5
-search capabilities with real-time search, advanced filtering, relevance scoring,
-and performance metrics. It integrates seamlessly with the existing job display
-and modal systems.
+This module provides a search interface that leverages SQLite FTS5
+full-text search capabilities with real-time search, filtering, relevance scoring,
+and performance metrics. Integrates with existing job display and modal systems.
 
 Key Features:
-- Real-time search with FTS5 full-text search
-- Advanced filters (location, salary, remote, date range)
+- Real-time search using SQLite FTS5 full-text search
+- Filters for location, salary, remote work, and date ranges
 - Relevance score display with performance metrics
-- Integration with existing job card components and modal system
+- Integration with job card components and modal system
 - Empty state and error handling
-- Mobile-responsive design with modern UI patterns
+- Mobile-responsive design
 """
 
 import logging
@@ -160,11 +159,11 @@ def _render_search_input() -> None:
 
 
 def _render_advanced_filters() -> None:
-    """Render advanced filter controls in expandable section."""
+    """Render detailed filter controls in expandable section."""
     if not st.session_state.show_advanced_filters:
         return
 
-    with st.expander("🎯 Advanced Filters", expanded=True):
+    with st.expander("Filter Options", expanded=True):
         # First row: Location and Remote
         col1, col2 = st.columns(2)
 
@@ -685,7 +684,7 @@ def _clear_all_filters() -> None:
     }
 
 
-# Utility functions for enhanced search features
+# Utility functions for search features
 def get_search_suggestions() -> list[str]:
     """Get search suggestions (future enhancement)."""
     raise NotImplementedError("Search suggestions functionality not yet implemented.")

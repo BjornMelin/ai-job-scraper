@@ -44,8 +44,8 @@ def main() -> None:
     # Initialize session state with library-first approach
     init_session_state()
 
-    # Initialize performance optimizations (caching & prefetching)
-    # This runs cache warming and background prefetching for 50% faster page loads
+    # Initialize simple startup configuration
+    # Uses Streamlit's native caching with library-first approach
     initialize_performance_optimizations()
 
     # Define pages using st.navigation() with relative paths
@@ -66,6 +66,11 @@ def main() -> None:
             "ui/pages/scraping.py",
             title="Scraping",
             icon="🔍",
+        ),
+        st.Page(
+            "ui/pages/analytics.py",
+            title="Analytics",
+            icon="📊",
         ),
         st.Page(
             "ui/pages/settings.py",

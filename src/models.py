@@ -4,7 +4,7 @@ This module contains SQLModel classes representing database entities:
 - CompanySQL: Company information with scraping statistics
 - JobSQL: Job postings with application tracking and salary parsing
 
-The module also includes salary parsing functionality with comprehensive
+The module also includes salary parsing functionality using
 regex patterns for handling various salary formats from job boards.
 """
 

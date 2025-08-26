@@ -25,7 +25,6 @@ class Settings(BaseSettings):
         use_checkpointing: Flag to enable checkpointing in workflows.
         db_url: Database connection URL.
         sqlite_pragmas: List of SQLite PRAGMA statements for optimization.
-        db_monitoring: Flag to enable database performance monitoring.
     """
 
     model_config = SettingsConfigDict(
@@ -56,9 +55,8 @@ class Settings(BaseSettings):
         "PRAGMA foreign_keys = ON",  # Enable foreign key constraints
         "PRAGMA optimize",  # Auto-optimize indexes
     ]
-    db_monitoring: bool = False  # Toggle slow-query logging on/off
 
-    # Enhanced configuration with validation and aliases
+    # Configuration fields with validation and aliases
     log_level: str = Field(
         default="INFO",
         description="Logging level for the application",

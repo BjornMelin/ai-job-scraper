@@ -80,7 +80,7 @@ def get_or_create_company(session: sqlmodel.Session, company_name: str) -> int:
 
 
 def scrape_all(max_jobs_per_company: int | None = None) -> SyncStats:
-    """Run the full scraping workflow with intelligent database synchronization.
+    """Run the full scraping workflow with database synchronization.
 
     This function orchestrates scraping from company pages and job boards,
     normalizes the data, filters for relevant AI/ML jobs using regex,
@@ -101,7 +101,7 @@ def scrape_all(max_jobs_per_company: int | None = None) -> SyncStats:
     # Rich panel for workflow start
     console.print(
         Panel.fit(
-            "🚀 STARTING COMPREHENSIVE JOB SCRAPING WORKFLOW",
+            "🚀 STARTING JOB SCRAPING WORKFLOW",
             title="[bold blue]AI Job Scraper[/bold blue]",
             style="blue",
         ),
@@ -240,7 +240,7 @@ def scrape_all(max_jobs_per_company: int | None = None) -> SyncStats:
         )
         return {"inserted": 0, "updated": 0, "archived": 0, "deleted": 0, "skipped": 0}
 
-    # Step 8: Use SmartSyncEngine for intelligent database synchronization
+    # Step 8: Use SmartSyncEngine for database synchronization
     logger.info("Synchronizing jobs with database using SmartSyncEngine...")
     sync_engine = SmartSyncEngine()
     sync_stats = sync_engine.sync_jobs(dedup_jobs)

@@ -29,7 +29,7 @@ def seed() -> None:
         None: This function does not return a value but prints the result to stdout.
     """
     # Define the list of AI/ML companies with their names, career page URLs,
-    # and active status - comprehensive dataset for real job searching
+    # and active status - dataset for real job searching
     companies = [
         # Top AI Research Labs & Foundations
         CompanySQL(
