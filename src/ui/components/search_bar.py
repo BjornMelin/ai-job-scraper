@@ -688,17 +688,19 @@ def _clear_all_filters() -> None:
 # Utility functions for enhanced search features
 def get_search_suggestions() -> list[str]:
     """Get search suggestions (future enhancement)."""
-    # Placeholder for future search suggestions functionality
-    # Could integrate with FTS5 to provide autocomplete suggestions
-    return []
+    raise NotImplementedError("Search suggestions functionality not yet implemented.")
 
 
 def export_search_results(results: list["Job"], export_format: str = "csv") -> None:
     """Export search results to various formats (future enhancement)."""
     # Placeholder for future export functionality
     # Could export search results to CSV, JSON, etc.
+    raise NotImplementedError(
+        "Export search results functionality not yet implemented."
+    )
 
 
 def save_search_query() -> None:
     """Save search query for future use (future enhancement)."""
     # Placeholder for saved searches functionality
+    raise NotImplementedError("Save search query functionality not yet implemented.")

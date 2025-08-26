@@ -1001,7 +1001,9 @@ class TestErrorHandlingAndEdgeCases:
             # If it succeeds, clean up
             if Path(invalid_path).exists():
                 Path(invalid_path).unlink()
-                Path(invalid_path).parent.rmdir()
+                parent_dir = Path(invalid_path).parent
+                if parent_dir.exists() and not any(parent_dir.iterdir()):
+                    parent_dir.rmdir()
         except Exception:
             # Should handle gracefully, not crash
             pass

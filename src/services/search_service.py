@@ -158,9 +158,9 @@ class JobSearchService:
         else:
             return True
 
-    @st.cache_data(ttl=300)  # Cache for 5 minutes as specified in ADR-018
+    @st.cache_data(ttl=300, hash_funcs={"JobSearchService": id})  # Cache for 5 minutes
     def search_jobs(
-        _self,  # noqa: N805  # _self required for Streamlit caching
+        self,
         query: str,
         filters: FilterDict | None = None,
         limit: int = 50,
@@ -215,9 +215,9 @@ class JobSearchService:
 
         try:
             # Use FTS5 search if available, otherwise fallback to LIKE queries
-            if _self._is_fts_available():
-                return _self._search_with_fts(query, filters, limit)
-            return _self._search_with_fallback(query, filters, limit)
+            if self._is_fts_available():
+                return self._search_with_fts(query, filters, limit)
+            return self._search_with_fallback(query, filters, limit)
 
         except Exception:
             logger.exception("Search failed for query '%s'", query)
@@ -276,7 +276,15 @@ class JobSearchService:
         search_results = []
         for row in results:
             # sqlite-utils execute() returns tuples, so convert using column names
-            result_dict = dict(zip(column_names, row, strict=False))
+            try:
+                result_dict = dict(zip(column_names, row, strict=True))
+            except ValueError:
+                logger.exception(
+                    "Column/value mismatch in search: columns=%d, values=%d",
+                    len(column_names),
+                    len(row),
+                )
+                continue  # Skip this row
 
             # Use company_name from JOIN if available, otherwise keep existing field
             if result_dict.get("company_name"):
@@ -360,7 +368,15 @@ class JobSearchService:
         search_results = []
         for row in results:
             # sqlite-utils execute() returns tuples, so convert using column names
-            result_dict = dict(zip(column_names, row, strict=False))
+            try:
+                result_dict = dict(zip(column_names, row, strict=True))
+            except ValueError:
+                logger.exception(
+                    "Column/value mismatch in fallback: columns=%d, values=%d",
+                    len(column_names),
+                    len(row),
+                )
+                continue  # Skip this row
 
             # Use company_name from JOIN if available
             if result_dict.get("company_name"):

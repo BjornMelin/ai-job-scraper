@@ -16,6 +16,14 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import pytest
 
+try:
+    import psutil
+
+    _HAS_PSUTIL = True
+except ImportError:
+    _HAS_PSUTIL = False
+    psutil = None
+
 from tests.fixtures.search_fixtures import SearchTestUtils
 
 
@@ -280,10 +288,11 @@ class TestSearchMemoryUsage:
     @pytest.mark.performance
     def test_search_memory_efficiency(self, performance_test_database):
         """Test that search operations don't cause memory leaks."""
+        if not _HAS_PSUTIL:
+            pytest.skip("psutil is not installed; skipping memory efficiency test.")
+
         import gc
         import os
-
-        import psutil
 
         process = psutil.Process(os.getpid())
 
