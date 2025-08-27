@@ -1,18 +1,31 @@
-# AI Job Scraper - Production Deployment Guide
+# AI Job Scraper - Comprehensive Deployment Guide
 
 **Version**: 1.0  
 **Date**: 2025-08-27  
 **Status**: Production Ready  
 
+## Table of Contents
+
+1. [Quick Start](#quick-start)
+2. [Deployment Options](#deployment-options)
+3. [Local AI (vLLM) Deployment](#local-ai-vllm-deployment)
+4. [Configuration Management](#configuration-management)
+5. [Production Infrastructure](#production-infrastructure)
+6. [Monitoring and Logging](#monitoring-and-logging)
+7. [Security Hardening](#security-hardening)
+8. [Troubleshooting](#troubleshooting)
+
 ## Quick Start
 
 ### Prerequisites
+
 - Python 3.12+ with uv package manager
 - Docker & Docker Compose (recommended)
-- 4GB+ RAM (8GB recommended for local AI)
-- 2GB+ available disk space
+- 4GB+ RAM (24GB recommended for local AI with RTX 4090)
+- 2GB+ available disk space (10GB+ for local AI models)
 
 ### 1-Command Deployment
+
 ```bash
 # Clone and deploy with Docker
 git clone https://github.com/BjornMelin/ai-job-scraper.git
@@ -21,13 +34,23 @@ cp .env.example .env  # Edit with your API keys
 docker-compose up -d
 ```
 
-Access the application at: http://localhost:8501
+Access the application at: <http://localhost:8501>
 
 ## Deployment Options
 
 ### Option 1: Docker Deployment (Recommended)
 
+#### Cloud AI Only
+
+```bash
+# Deploy with cloud AI fallback only
+docker-compose up -d ai-job-scraper
+
+# Requires OPENAI_API_KEY in .env file
+```
+
 #### Full Stack with Local AI
+
 ```bash
 # Deploy complete system with vLLM local AI
 docker-compose -f docker-compose.yml -f docker-compose.vllm.yml up -d
@@ -38,17 +61,10 @@ docker-compose -f docker-compose.yml -f docker-compose.vllm.yml up -d
 # - nginx: Reverse proxy (port 80)
 ```
 
-#### Cloud AI Only
-```bash
-# Deploy with cloud AI fallback only
-docker-compose up -d ai-job-scraper
-
-# Requires OPENAI_API_KEY in .env file
-```
-
 ### Option 2: Native Python Deployment
 
 #### System Setup
+
 ```bash
 # Install uv package manager
 curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -67,6 +83,7 @@ uv run streamlit run src/main.py --server.port 8501
 ### Option 3: Production Server Deployment
 
 #### systemd Service Setup
+
 ```bash
 # Create service user
 sudo useradd --system --create-home ai-scraper
@@ -76,6 +93,238 @@ sudo cp deployment/ai-job-scraper.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable ai-job-scraper
 sudo systemctl start ai-job-scraper
+```
+
+## Local AI (vLLM) Deployment
+
+The AI Job Scraper supports local AI inference using vLLM for cost-effective, privacy-focused AI processing. This section provides comprehensive vLLM deployment instructions.
+
+### Architecture Overview
+
+```mermaid
+graph TD
+    A[Client Application] --> B[vLLM Server :8000]
+    B --> C[Qwen2.5-4B-Instruct]
+    C --> D[NVIDIA RTX 4090 GPU]
+    
+    B --> E[Health Check :8000/health]
+    B --> F[OpenAI API :8000/v1/*]
+    B --> G[Metrics :8001/metrics]
+    
+    H[Prometheus :9090] --> G
+    
+    subgraph "vLLM Features"
+        I[FP8 Quantization]
+        J[Prefix Caching]
+        K[Continuous Batching]
+        L[Structured Output]
+        M[Swap Space: 4GB]
+    end
+    
+    C --> I
+    C --> J
+    C --> K
+    C --> L
+    C --> M
+```
+
+### Hardware Requirements
+
+#### Minimum Requirements (RTX 4090 Optimized)
+
+- **GPU**: NVIDIA RTX 4090 (24GB VRAM) with Ada Lovelace architecture (Compute Capability 8.9)
+- **System RAM**: 20GB (16GB for model + 4GB swap space)
+- **Storage**: 10GB free space for model caching
+- **CUDA**: Version 12.1 or higher
+- **Docker**: With NVIDIA runtime support
+
+#### Optimal Configuration
+
+- **GPU Memory Utilization**: 90% (21.6GB out of 24GB)
+- **Swap Space**: 4GB CPU memory for overflow handling
+- **Host RAM**: 20GB total allocation
+- **PCIe**: 16x slot for optimal bandwidth
+
+### vLLM Quick Start
+
+#### 1. Prerequisites Check
+
+```bash
+# Verify GPU availability
+nvidia-smi
+
+# Check CUDA version (should be 12.1+)
+nvcc --version
+
+# Verify Docker with NVIDIA support
+docker run --rm --gpus all nvidia/cuda:12.1-base-ubuntu20.04 nvidia-smi
+```
+
+#### 2. vLLM Environment Setup
+
+```bash
+# Set API key (recommended)
+export VLLM_API_KEY="your-secure-api-key-here"
+
+# Verify project structure
+ls -la docker-compose.vllm.yml scripts/start_vllm.sh
+```
+
+#### 3. Start vLLM Server
+
+```bash
+# Using the startup script (recommended)
+./scripts/start_vllm.sh
+
+# Or directly with Docker Compose
+docker-compose -f docker-compose.vllm.yml up -d
+```
+
+#### 4. Validate vLLM Deployment
+
+```bash
+# Run comprehensive validation
+python scripts/validate_vllm.py
+
+# Quick health check
+curl http://localhost:8000/health
+```
+
+### vLLM Configuration
+
+#### Docker Compose Configuration
+
+```yaml
+# docker-compose.vllm.yml
+version: '3.8'
+
+services:
+  vllm-server:
+    image: vllm/vllm-openai:latest
+    command: >
+      --model Qwen/Qwen2.5-4B-Instruct
+      --quantization fp8
+      --max-model-len 8192
+      --gpu-memory-utilization 0.9
+      --swap-space 4
+      --enable-prefix-caching
+      --max-num-seqs 128
+      --port 8000
+      --host 0.0.0.0
+      --api-key local-key
+    ports:
+      - "8000:8000"
+      - "8001:8001"  # Metrics
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+      - HF_TOKEN=${HUGGINGFACE_TOKEN}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    volumes:
+      - "~/.cache/huggingface:/root/.cache/huggingface"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 60s
+      timeout: 30s
+      retries: 3
+      start_period: 300s
+```
+
+#### Performance Settings
+
+| Parameter | Value | Description |
+|-----------|-------|-------------|
+| `gpu_memory_utilization` | 0.9 | 90% GPU memory usage |
+| `swap_space` | 4 | 4GB CPU memory for overflow |
+| `max_model_len` | 8192 | Maximum context window |
+| `max_num_seqs` | 128 | Concurrent request limit |
+| `enable_prefix_caching` | true | Optimize repeated patterns |
+| `enable_chunked_prefill` | true | Improve batching efficiency |
+
+### vLLM API Endpoints
+
+#### Health Check
+
+```bash
+curl http://localhost:8000/health
+```
+
+#### Models List
+
+```bash
+curl -H "Authorization: Bearer $VLLM_API_KEY" \
+     http://localhost:8000/v1/models
+```
+
+#### Chat Completion
+
+```bash
+curl -X POST http://localhost:8000/v1/chat/completions \
+  -H "Authorization: Bearer $VLLM_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "Qwen2.5-4B-Instruct",
+    "messages": [
+      {"role": "user", "content": "Extract job info: Software Engineer at TechCorp"}
+    ],
+    "max_tokens": 100
+  }'
+```
+
+#### Structured Output
+
+```bash
+curl -X POST http://localhost:8000/v1/chat/completions \
+  -H "Authorization: Bearer $VLLM_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "Qwen2.5-4B-Instruct",
+    "messages": [
+      {"role": "user", "content": "Extract job info: Software Engineer at TechCorp"}
+    ],
+    "extra_body": {
+      "guided_json": {
+        "type": "object",
+        "properties": {
+          "title": {"type": "string"},
+          "company": {"type": "string"}
+        }
+      }
+    }
+  }'
+```
+
+### Integration with LiteLLM
+
+Configure LiteLLM to use the vLLM server as specified in the hybrid AI architecture:
+
+```yaml
+# config/litellm.yaml
+model_list:
+  - model_name: local-qwen
+    litellm_params:
+      model: Qwen2.5-4B-Instruct
+      api_base: http://localhost:8000/v1
+      api_key: ${VLLM_API_KEY}
+      timeout: 30
+
+  - model_name: gpt-4o-mini
+    litellm_params:
+      model: openai/gpt-4o-mini
+      api_key: ${OPENAI_API_KEY}
+      max_tokens: 4096
+      temperature: 0.1
+
+router_settings:
+  routing_strategy: simple-shuffle
+  fallbacks: 
+    - ["local-qwen", "gpt-4o-mini"]
 ```
 
 ## Configuration Management
@@ -90,7 +339,6 @@ SCRAPER_LOG_LEVEL=INFO
 
 # Database Configuration  
 DATABASE_URL=sqlite:///jobs.db
-# DATABASE_URL=postgresql://user:pass@localhost:5432/aiJobscraper  # PostgreSQL alternative
 
 # Proxy Configuration (Optional)
 USE_PROXIES=true
@@ -112,52 +360,10 @@ SSL_CERT_PATH=/path/to/cert.pem
 SSL_KEY_PATH=/path/to/key.pem
 ```
 
-### AI Model Configuration
-
-#### Local AI (vLLM) Configuration
-```yaml
-# config/vllm_config.yaml
-model: Qwen/Qwen2.5-4B-Instruct
-tensor_parallel_size: 1
-max_model_len: 32768
-gpu_memory_utilization: 0.8
-enforce_eager: false
-disable_log_stats: false
-port: 8000
-host: 0.0.0.0
-api_key: local-key
-```
-
-#### Cloud AI Configuration
-```yaml
-# config/litellm.yaml
-model_list:
-  - model_name: gpt-4o-mini
-    litellm_params:
-      model: openai/gpt-4o-mini
-      api_key: ${OPENAI_API_KEY}
-      max_tokens: 4096
-      temperature: 0.1
-      
-  - model_name: claude-3-haiku
-    litellm_params:
-      model: anthropic/claude-3-haiku-20240307
-      api_key: ${ANTHROPIC_API_KEY}
-      max_tokens: 4096
-      temperature: 0.1
-
-router_settings:
-  routing_strategy: simple-shuffle
-  model_group_alias:
-    gpt-4o-mini: ["gpt-4o-mini"]
-    claude-3-haiku: ["claude-3-haiku"]
-  fallbacks: 
-    - ["gpt-4o-mini", "claude-3-haiku"]
-```
-
 ### Database Configuration
 
 #### SQLite (Default)
+
 ```python
 # Optimized SQLite configuration (auto-applied)
 sqlite_pragmas = [
@@ -172,6 +378,7 @@ sqlite_pragmas = [
 ```
 
 #### PostgreSQL (Production Scale)
+
 ```bash
 # Install PostgreSQL dependencies
 uv add --group database psycopg2-binary asyncpg
@@ -183,60 +390,12 @@ DATABASE_URL=postgresql://username:password@localhost:5432/ai_job_scraper
 uv run alembic upgrade head
 ```
 
-## Dependency Management
+## Production Infrastructure
 
-### Core Dependencies
-```toml
-# pyproject.toml - Production dependencies
-[project]
-dependencies = [
-    # AI and LLM
-    "litellm>=1.63.0,<2.0.0",
-    "instructor>=1.8.0,<2.0.0", 
-    "vllm>=0.6.0,<1.0.0",
-    "openai>=1.98.0,<2.0.0",
-    
-    # Web scraping
-    "python-jobspy>=1.1.82,<2.0.0",
-    "scrapegraphai>=1.61.0,<2.0.0",
-    "httpx>=0.28.1,<1.0.0",
-    "proxies>=1.6,<2.0.0",
-    
-    # Database and data processing
-    "sqlmodel>=0.0.24,<1.0.0",
-    "sqlite-utils>=3.35.0,<4.0.0",
-    "alembic>=1.15.0,<2.0.0",
-    "pandas>=2.3.1,<3.0.0",
-    "duckdb>=0.9.0,<1.0.0",
-    
-    # UI and utilities
-    "streamlit>=1.47.1,<2.0.0",
-    "typer>=0.16.0,<1.0.0",
-    "tenacity>=8.0.0,<9.0.0",
-    "python-dotenv>=1.1.1,<2.0.0",
-    "pydantic-settings>=2.10.1,<3.0.0"
-]
-```
-
-### Dependency Installation
-```bash
-# Production installation
-uv sync --no-dev
-
-# Full development setup
-uv sync --all-extras
-
-# Specific feature groups
-uv sync --group local-ai    # vLLM for local AI
-uv sync --group database    # PostgreSQL drivers
-uv sync --group prod        # Production servers
-```
-
-## Container Configuration
-
-### Docker Compose Configuration
+### Container Configuration
 
 #### docker-compose.yml (Base)
+
 ```yaml
 version: '3.8'
 
@@ -265,11 +424,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
 
 networks:
   default:
@@ -277,45 +431,8 @@ networks:
     driver: bridge
 ```
 
-#### docker-compose.vllm.yml (Local AI Extension)
-```yaml
-version: '3.8'
-
-services:
-  vllm-server:
-    image: vllm/vllm-openai:latest
-    command: >
-      --model Qwen/Qwen2.5-4B-Instruct
-      --port 8000
-      --host 0.0.0.0
-      --api-key local-key
-      --tensor-parallel-size 1
-      --max-model-len 32768
-      --gpu-memory-utilization 0.8
-    ports:
-      - "8000:8000"
-    environment:
-      - CUDA_VISIBLE_DEVICES=0
-      - HF_TOKEN=${HUGGINGFACE_TOKEN}
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
-    volumes:
-      - "~/.cache/huggingface:/root/.cache/huggingface"
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 60s
-      timeout: 30s
-      retries: 3
-      start_period: 300s
-```
-
 ### Multi-Stage Dockerfile
+
 ```dockerfile
 # Multi-stage build for optimized production image
 FROM python:3.12-slim as base
@@ -328,14 +445,6 @@ RUN apt-get update && apt-get install -y \
 
 # Install uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
-
-# Development stage
-FROM base as development
-WORKDIR /app
-COPY pyproject.toml uv.lock ./
-RUN uv sync --all-extras
-COPY . .
-CMD ["uv", "run", "streamlit", "run", "src/main.py", "--server.port=8501", "--server.address=0.0.0.0"]
 
 # Production stage  
 FROM base as production
@@ -352,9 +461,8 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 CMD ["uv", "run", "streamlit", "run", "src/main.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.runOnSave=false"]
 ```
 
-## Production Infrastructure
-
 ### Reverse Proxy Configuration (Nginx)
+
 ```nginx
 # /etc/nginx/sites-available/ai-job-scraper
 server {
@@ -386,30 +494,11 @@ server {
         access_log off;
         proxy_pass http://localhost:8501/_stcore/health;
     }
-    
-    # Static file caching
-    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg)$ {
-        expires 1y;
-        add_header Cache-Control "public, immutable";
-    }
-}
-
-# HTTPS configuration (Let's Encrypt)
-server {
-    listen 443 ssl http2;
-    server_name your-domain.com;
-    
-    ssl_certificate /path/to/cert.pem;
-    ssl_certificate_key /path/to/key.pem;
-    ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_ciphers ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512;
-    
-    # Same location blocks as HTTP version
-    include /etc/nginx/sites-available/ai-job-scraper-common;
 }
 ```
 
 ### systemd Service Configuration
+
 ```ini
 # /etc/systemd/system/ai-job-scraper.service
 [Unit]
@@ -428,8 +517,6 @@ ExecStart=/home/ai-scraper/.local/bin/uv run streamlit run src/main.py --server.
 # Restart configuration
 Restart=always
 RestartSec=10
-StartLimitInterval=60
-StartLimitBurst=3
 
 # Resource limits
 MemoryMax=8G
@@ -442,33 +529,43 @@ ProtectSystem=strict
 ProtectHome=true
 ReadWritePaths=/home/ai-scraper/ai-job-scraper
 
-# Logging
-StandardOutput=journal
-StandardError=journal
-SyslogIdentifier=ai-job-scraper
-
 [Install]
 WantedBy=multi-user.target
 ```
 
 ## Monitoring and Logging
 
+### vLLM Monitoring
+
+```bash
+# View available metrics
+curl http://localhost:8001/metrics
+
+# Start Prometheus monitoring (optional)
+docker-compose -f docker-compose.vllm.yml --profile monitoring up -d
+```
+
+#### Key vLLM Metrics to Monitor
+
+- **Request Latency**: P95 < 2000ms for typical requests
+- **GPU Memory Usage**: Should stay around 90%
+- **Swap Space Usage**: Monitor for overflow situations
+- **Request Queue Depth**: Track concurrent request handling
+- **Error Rate**: Should be < 1%
+
 ### Application Logging
+
 ```python
 # Logging configuration in src/config.py
-import logging.config
-
 LOGGING_CONFIG = {
     'version': 1,
     'disable_existing_loggers': False,
     'formatters': {
         'detailed': {
-            'format': '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-            'datefmt': '%Y-%m-%d %H:%M:%S'
+            'format': '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
         },
         'json': {
-            'format': '{"timestamp":"%(asctime)s","name":"%(name)s","level":"%(levelname)s","message":"%(message)s"}',
-            'datefmt': '%Y-%m-%dT%H:%M:%S'
+            'format': '{"timestamp":"%(asctime)s","name":"%(name)s","level":"%(levelname)s","message":"%(message)s"}'
         }
     },
     'handlers': {
@@ -484,19 +581,17 @@ LOGGING_CONFIG = {
             'maxBytes': 10485760,  # 10MB
             'backupCount': 5
         }
-    },
-    'root': {
-        'level': 'INFO',
-        'handlers': ['console', 'file']
     }
 }
 ```
 
 ### Health Monitoring Script
+
 ```python
 # monitoring/health_check.py
 import asyncio
 import httpx
+import json
 import sys
 from datetime import datetime
 
@@ -550,49 +645,10 @@ if __name__ == '__main__':
     sys.exit(0 if health['overall_status'] == 'healthy' else 1)
 ```
 
-## Environment-Specific Deployments
-
-### Development Environment
-```bash
-# Development with hot reload
-docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
-
-# Features:
-# - Source code mounting for hot reload
-# - Debug logging enabled
-# - Test data seeding
-# - Development proxy settings
-```
-
-### Staging Environment
-```bash
-# Staging deployment (production-like)
-docker-compose -f docker-compose.yml -f docker-compose.staging.yml up -d
-
-# Features:
-# - Production Docker images
-# - Limited resource allocation
-# - Staging API keys
-# - Performance monitoring enabled
-```
-
-### Production Environment
-```bash
-# Production deployment
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
-
-# Features:
-# - Optimized production images
-# - Full resource allocation
-# - Production API keys and secrets
-# - Comprehensive monitoring and logging
-# - Automated backups
-# - SSL/TLS termination
-```
-
 ## Security Hardening
 
 ### Container Security
+
 ```dockerfile
 # Security-hardened Dockerfile additions
 FROM python:3.12-slim as production
@@ -606,12 +662,10 @@ WORKDIR /app
 
 # Switch to non-root user
 USER appuser
-
-# Read-only root filesystem (where possible)
-VOLUME ["/app/jobs.db", "/app/logs", "/app/cache"]
 ```
 
 ### Network Security
+
 ```yaml
 # docker-compose.yml security additions
 services:
@@ -627,11 +681,22 @@ services:
       - /tmp:rw,noexec,nosuid,size=100m
 ```
 
+### vLLM Security
+
+```bash
+# Generate secure API key for vLLM
+export VLLM_API_KEY=$(openssl rand -hex 32)
+
+# Store in .env file
+echo "VLLM_API_KEY=$VLLM_API_KEY" >> .env
+```
+
 ## Troubleshooting
 
-### Common Issues
+### Common Application Issues
 
 #### Application Won't Start
+
 ```bash
 # Check logs
 docker-compose logs ai-job-scraper
@@ -644,6 +709,7 @@ docker-compose logs ai-job-scraper
 ```
 
 #### Database Connection Issues
+
 ```bash
 # Check SQLite file permissions
 ls -la jobs.db
@@ -656,7 +722,61 @@ chmod 644 jobs.db
 uv run python -c "from src.database import engine; print('Database OK')"
 ```
 
-#### AI Service Connectivity
+### vLLM-Specific Troubleshooting
+
+#### GPU Not Available
+
+**Error**: `RuntimeError: No GPU available`
+
+**Solutions**:
+
+```bash
+# Check NVIDIA Docker runtime
+docker info | grep nvidia
+
+# Install nvidia-container-toolkit if missing
+sudo apt install nvidia-container-toolkit
+sudo systemctl restart docker
+```
+
+#### Out of Memory
+
+**Error**: `CUDA out of memory`
+
+**Solutions**:
+
+- Reduce `gpu_memory_utilization` to 0.8
+- Increase `swap_space` to 8GB
+- Reduce `max_num_seqs` to 64
+
+#### Model Download Issues
+
+**Error**: `Failed to download model`
+
+**Solutions**:
+
+```bash
+# Pre-download model
+docker run --rm -v ~/.cache/huggingface:/root/.cache/huggingface \
+  vllm/vllm-openai:latest \
+  --model Qwen/Qwen2.5-4B-Instruct --download-dir /root/.cache/huggingface
+```
+
+#### vLLM Performance Issues
+
+```bash
+# Monitor GPU utilization
+nvidia-smi -l 1
+
+# Check system resources
+htop
+
+# Monitor request latency
+python scripts/validate_vllm.py --timeout 120
+```
+
+### AI Service Connectivity
+
 ```bash
 # Test local vLLM
 curl http://localhost:8000/health
@@ -668,4 +788,68 @@ curl -H "Authorization: Bearer $OPENAI_API_KEY" https://api.openai.com/v1/models
 uv run python -c "from src.ai import get_hybrid_ai_router; print(get_hybrid_ai_router().get_health_status())"
 ```
 
-This deployment guide provides comprehensive instructions for production deployment with security best practices, monitoring, and troubleshooting procedures. All configurations are production-tested and optimized for the specific requirements of the AI job scraper system.
+### Log Analysis
+
+#### vLLM Successful Startup
+
+```text
+INFO: Started server process
+INFO: Waiting for application startup.
+INFO: Application startup complete.
+INFO: Initializing an LLM engine with config:
+INFO: Loading model weights took 2.34 GB GPU memory
+```
+
+#### vLLM Error Patterns
+
+```text
+ERROR: CUDA out of memory
+ERROR: Failed to allocate memory
+ERROR: Failed to load model
+ERROR: Model not found in cache
+```
+
+## Performance Optimization
+
+### vLLM Memory Optimization
+
+```yaml
+# Adjust for different memory constraints
+command: >
+  --gpu-memory-utilization 0.85  # Reduce from 0.9 if needed
+  --swap-space 8                 # Increase for large requests
+  --max-num-seqs 64              # Reduce for memory-constrained environments
+```
+
+### vLLM Request Optimization
+
+```yaml
+# Enable all caching and optimization
+command: >
+  --enable-prefix-caching
+  --enable-chunked-prefill
+  --max-num-batched-tokens 4096
+  --scheduler-delay-factor 0.0
+```
+
+## Environment-Specific Deployments
+
+### Development Environment
+
+```bash
+# Development with hot reload
+docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+```
+
+### Production Environment
+
+```bash
+# Production deployment with vLLM
+docker-compose -f docker-compose.yml -f docker-compose.vllm.yml -f docker-compose.prod.yml up -d
+```
+
+---
+
+This comprehensive deployment guide provides complete instructions for deploying the AI Job Scraper application across all environments, with specialized focus on local AI deployment using vLLM for optimal cost-effectiveness and privacy.
+
+For additional support, refer to the [Operations Manual](./operations-manual.md) or check the [Performance Benchmarks](./performance-benchmarks.md) for expected system performance metrics.

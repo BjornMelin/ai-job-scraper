@@ -78,6 +78,7 @@ graph TB
 ### Component Architecture
 
 #### Phase 3A: Unified Scraping Service
+
 - **JobSpy Integration**: Structured job board scraping (LinkedIn, Indeed, Glassdoor)
 - **ScrapeGraphAI Integration**: AI-powered company page extraction
 - **Proxy Management**: IPRoyal residential proxy rotation
@@ -85,18 +86,21 @@ graph TB
 - **Performance**: 15x async improvement, 95%+ success rate
 
 #### Phase 3B: Mobile-First Responsive Cards
+
 - **CSS Grid Layout**: `repeat(auto-fill, minmax(300px, 1fr))` responsive design
 - **Mobile Detection**: JavaScript matchMedia API for accurate viewport detection
 - **Performance Optimization**: <200ms rendering for 50+ cards
 - **Touch-Friendly**: 44px minimum touch targets, hover states
 
 #### Phase 3C: Hybrid AI Integration
+
 - **Local vLLM Service**: Qwen2.5-4B-Instruct model, 200-300 tokens/s
 - **Cloud Fallback**: LiteLLM with GPT-4o-mini, Claude-3-Haiku
 - **Intelligent Routing**: Complexity-based routing (0.5 threshold)
 - **Structured Output**: Instructor integration for 15% reliability improvement
 
 #### Phase 3D: System Coordination
+
 - **Service Orchestration**: End-to-end workflow execution
 - **Background Tasks**: Async processing with progress tracking
 - **Health Monitoring**: Real-time service availability detection
@@ -247,6 +251,7 @@ graph LR
 ### Service Communication Patterns
 
 #### Async Background Processing
+
 ```python
 # Background task coordination
 async def coordinate_scraping_workflow(query: JobQuery) -> str:
@@ -272,6 +277,7 @@ async def coordinate_scraping_workflow(query: JobQuery) -> str:
 ```
 
 #### Error Recovery Patterns
+
 ```python
 # Tenacity-based retry with exponential backoff
 @retry(
@@ -303,12 +309,14 @@ async def resilient_scraping_operation(url: str) -> dict[str, Any]:
 ### Scalability Characteristics
 
 #### Database Performance (SQLite + FTS5)
+
 - **1K Jobs**: 5-15ms search, 2.5MB storage
 - **10K Jobs**: 15-50ms search, 27.5MB storage  
 - **100K Jobs**: 50-200ms search, 275MB storage
 - **500K Jobs**: 200-300ms search, 1.3GB storage (tested limit)
 
 #### AI Processing Distribution
+
 - **Local Processing**: 98% of requests (content <8K tokens)
 - **Cloud Fallback**: 2% of requests (complex content)
 - **Cost Impact**: $2.50/month vs $50/month (95% cost reduction)
@@ -316,12 +324,14 @@ async def resilient_scraping_operation(url: str) -> dict[str, Any]:
 ## Security Architecture
 
 ### Data Protection
+
 - **Local-First Storage**: All job data stored locally in SQLite
 - **API Privacy**: Processing-only usage, no data retention by cloud services
 - **Proxy Security**: Residential proxy rotation with authentication
 - **Input Validation**: Pydantic schema validation for all data inputs
 
 ### Operational Security
+
 - **Secret Management**: Environment-based API key management via pydantic-settings
 - **Network Security**: HTTPS enforcement, certificate validation
 - **Error Handling**: Sanitized error messages, no sensitive data exposure
@@ -330,6 +340,7 @@ async def resilient_scraping_operation(url: str) -> dict[str, Any]:
 ## Technology Stack Details
 
 ### Core Infrastructure
+
 ```yaml
 Runtime: Python 3.12+
 Package Manager: uv (modern pip replacement)
@@ -341,6 +352,7 @@ Analytics: DuckDB 0.9+ with sqlite_scanner
 ```
 
 ### AI & ML Stack
+
 ```yaml
 Local AI: vLLM 0.6+ with Qwen2.5-4B-Instruct
 Cloud AI: LiteLLM 1.63+ (OpenAI, Anthropic)
@@ -350,6 +362,7 @@ Embedding: OpenAI text-embedding-ada-002 (if needed)
 ```
 
 ### Scraping & Networking
+
 ```yaml
 Job Boards: python-jobspy 1.1.82+
 AI Scraping: scrapegraphai 1.61+
@@ -360,6 +373,7 @@ Retry Logic: tenacity 8.0+ with exponential backoff
 ```
 
 ### DevOps & Monitoring
+
 ```yaml
 Containerization: Docker + docker-compose
 Process Management: Python threading with asyncio
@@ -372,6 +386,7 @@ Code Quality: ruff (formatting + linting)
 ## Deployment Architecture
 
 ### Container Architecture
+
 ```yaml
 # docker-compose.yml structure
 services:
@@ -395,6 +410,7 @@ services:
 ```
 
 ### Configuration Management
+
 ```python
 # Environment-based configuration
 class Settings(BaseSettings):
@@ -421,6 +437,7 @@ class Settings(BaseSettings):
 ## Integration Validation
 
 ### Health Check Endpoints
+
 ```python
 # System health monitoring
 health_monitor = get_system_health_monitor()
@@ -440,6 +457,7 @@ system_status = await health_monitor.get_comprehensive_health_report()
 ```
 
 ### Production Readiness Validation
+
 ```python
 # Automated production checks
 orchestrator = get_service_orchestrator() 
