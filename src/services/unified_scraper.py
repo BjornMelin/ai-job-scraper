@@ -23,6 +23,31 @@ from typing import Any
 import httpx
 import pandas as pd
 
+# Import streamlit with fallback for non-Streamlit environments
+try:
+    import streamlit as st
+
+    STREAMLIT_AVAILABLE = True
+except ImportError:
+    STREAMLIT_AVAILABLE = False
+
+    class _DummyStreamlit:
+        @staticmethod
+        def cache_data(**_kwargs):
+            def decorator(wrapped_func):
+                return wrapped_func
+
+            return decorator
+
+        @staticmethod
+        def cache_resource(**_kwargs):
+            def decorator(wrapped_func):
+                return wrapped_func
+
+            return decorator
+
+    st = _DummyStreamlit()
+
 from jobspy import Site, scrape_jobs
 from openai import OpenAI
 from scrapegraphai.graphs import SmartScraperMultiGraph
@@ -58,6 +83,146 @@ from src.models import CompanySQL, JobSQL
 from src.schemas import Job
 
 logger = logging.getLogger(__name__)
+
+
+# Cached utility functions - defined at module level for Streamlit compatibility
+@st.cache_resource
+def _create_http_client() -> httpx.AsyncClient:
+    """Create optimized HTTP client (cached as resource).
+
+    Uses Streamlit resource caching to ensure single HTTP client instance
+    with connection pooling across all scraping operations.
+    """
+    # Configure for 15x performance improvement with connection pooling
+    limits = httpx.Limits(
+        max_keepalive_connections=20,
+        max_connections=100,
+        keepalive_expiry=30.0,
+    )
+
+    timeout = httpx.Timeout(
+        connect=10.0,
+        read=30.0,
+        write=10.0,
+        pool=5.0,
+    )
+
+    return httpx.AsyncClient(
+        limits=limits,
+        timeout=timeout,
+        follow_redirects=True,
+        headers={"User-Agent": random_user_agent()},
+    )
+
+
+@st.cache_resource(ttl=3600)  # Cache AI client for 1 hour
+def _create_ai_client(api_key: str) -> OpenAI:
+    """Create OpenAI client (cached as resource).
+
+    Uses Streamlit resource caching to ensure single OpenAI client instance
+    across all AI-powered scraping operations.
+    """
+    if not api_key:
+        raise AIEnhancementError("OpenAI API key required for AI enhancement features")
+    return OpenAI(api_key=api_key)
+
+
+@st.cache_data(
+    ttl=300, max_entries=1000, show_spinner="Normalizing job data..."
+)  # Cache for 5 minutes
+def _normalize_jobspy_data_cached(
+    raw_jobs_hash: str, raw_jobs: list[dict[str, Any]]
+) -> list[Job]:
+    """Convert JobSpy raw data to Job schema objects (cached version).
+
+    Uses content-based caching to avoid re-normalizing identical job data.
+    Cache key includes hash of raw jobs to ensure cache invalidation on data changes.
+    """
+    normalized_jobs = []
+
+    for raw_job in raw_jobs:
+        try:
+            # Map JobSpy fields to our Job schema
+            job = Job(
+                company=raw_job.get("company", ""),
+                title=raw_job.get("title", ""),
+                description=raw_job.get("description", ""),
+                link=raw_job.get("job_url", ""),
+                location=raw_job.get("location", "Remote"),
+                salary=(
+                    raw_job.get("min_amount"),
+                    raw_job.get("max_amount"),
+                )
+                if raw_job.get("min_amount") or raw_job.get("max_amount")
+                else (None, None),
+                content_hash="",  # Will be computed if needed
+                last_seen=datetime.now(UTC),
+            )
+
+            normalized_jobs.append(job)
+
+        except Exception as e:
+            logger.warning("⚠️ Failed to normalize job data: %s", e)
+
+    return normalized_jobs
+
+
+@st.cache_data(
+    ttl=1800, max_entries=10, show_spinner="Loading companies..."
+)  # Cache for 30 minutes
+def _load_active_companies_cached() -> list[dict[str, Any]]:
+    """Load active companies from database (cached version).
+
+    Caches company data for 30 minutes to avoid frequent database queries.
+    Returns serializable dict format for Streamlit caching compatibility.
+    """
+    session = SessionLocal()
+    try:
+        companies = session.exec(select(CompanySQL).where(CompanySQL.active)).all()
+        # Convert to serializable format for caching
+        return [
+            {
+                "id": company.id,
+                "name": company.name,
+                "url": company.url,
+                "active": company.active,
+            }
+            for company in companies
+        ]
+    finally:
+        session.close()
+
+
+@st.cache_data(
+    ttl=600, max_entries=500, show_spinner="Deduplicating jobs..."
+)  # Cache for 10 minutes
+def _deduplicate_jobs_cached(jobs_hash: str, jobs: list[Job]) -> list[Job]:
+    """Remove duplicate jobs based on content similarity (cached version).
+
+    Uses content-based caching to avoid re-processing identical job lists.
+    Cache key includes hash of jobs to ensure cache invalidation on data changes.
+    """
+    if not jobs:
+        return jobs
+
+    # Enhanced deduplication with multiple criteria
+    seen_signatures = set()
+    unique_jobs = []
+
+    for job in jobs:
+        # Create signature based on multiple fields for better deduplication
+        signature = (
+            job.link or "",
+            job.title.lower().strip(),
+            job.company.lower().strip(),
+            job.location.lower().strip(),
+        )
+
+        if signature not in seen_signatures:
+            seen_signatures.add(signature)
+            unique_jobs.append(job)
+
+    return unique_jobs
 
 
 class UnifiedScrapingService(IScrapingService):
@@ -105,37 +270,13 @@ class UnifiedScrapingService(IScrapingService):
     async def _get_http_client(self) -> httpx.AsyncClient:
         """Get or create async HTTP client with optimized settings."""
         if self._http_client is None:
-            # Configure for 15x performance improvement with connection pooling
-            limits = httpx.Limits(
-                max_keepalive_connections=20,
-                max_connections=100,
-                keepalive_expiry=30.0,
-            )
-
-            timeout = httpx.Timeout(
-                connect=10.0,
-                read=30.0,
-                write=10.0,
-                pool=5.0,
-            )
-
-            self._http_client = httpx.AsyncClient(
-                limits=limits,
-                timeout=timeout,
-                follow_redirects=True,
-                headers={"User-Agent": random_user_agent()},
-            )
-
+            self._http_client = _create_http_client()
         return self._http_client
 
     def _get_ai_client(self) -> OpenAI:
         """Get or create OpenAI client for ScrapeGraphAI."""
         if self._ai_client is None:
-            if not self.settings.openai_api_key:
-                raise AIEnhancementError(
-                    "OpenAI API key required for AI enhancement features"
-                )
-            self._ai_client = OpenAI(api_key=self.settings.openai_api_key)
+            self._ai_client = _create_ai_client(self.settings.openai_api_key)
         return self._ai_client
 
     def _update_success_metrics(self, category: str, success: bool) -> None:
@@ -336,16 +477,20 @@ class UnifiedScrapingService(IScrapingService):
 
     async def _load_active_companies(self) -> list[CompanySQL]:
         """Load active companies from database asynchronously."""
-        loop = asyncio.get_event_loop()
+        # Use cached version and convert back to CompanySQL objects
+        company_dicts = _load_active_companies_cached()
 
-        def load_companies_sync() -> list[CompanySQL]:
-            session = SessionLocal()
-            try:
-                return session.exec(select(CompanySQL).where(CompanySQL.active)).all()
-            finally:
-                session.close()
+        companies = []
+        for company_dict in company_dicts:
+            company = CompanySQL(
+                id=company_dict["id"],
+                name=company_dict["name"],
+                url=company_dict["url"],
+                active=company_dict["active"],
+            )
+            companies.append(company)
 
-        return await loop.run_in_executor(None, load_companies_sync)
+        return companies
 
     def _create_scrapegraph_config(self) -> dict[str, Any]:
         """Create configuration for ScrapeGraphAI."""
@@ -564,33 +709,14 @@ class UnifiedScrapingService(IScrapingService):
 
     async def _normalize_jobspy_data(self, raw_jobs: list[dict[str, Any]]) -> list[Job]:
         """Convert JobSpy raw data to Job schema objects."""
-        normalized_jobs = []
+        # Create hash of raw jobs for cache key
+        import hashlib
+        import json
 
-        for raw_job in raw_jobs:
-            try:
-                # Map JobSpy fields to our Job schema
-                job = Job(
-                    company=raw_job.get("company", ""),
-                    title=raw_job.get("title", ""),
-                    description=raw_job.get("description", ""),
-                    link=raw_job.get("job_url", ""),
-                    location=raw_job.get("location", "Remote"),
-                    salary=(
-                        raw_job.get("min_amount"),
-                        raw_job.get("max_amount"),
-                    )
-                    if raw_job.get("min_amount") or raw_job.get("max_amount")
-                    else (None, None),
-                    content_hash="",  # Will be computed if needed
-                    last_seen=datetime.now(UTC),
-                )
+        raw_jobs_str = json.dumps(raw_jobs, sort_keys=True, default=str)
+        raw_jobs_hash = hashlib.md5(raw_jobs_str.encode()).hexdigest()[:8]
 
-                normalized_jobs.append(job)
-
-            except Exception as e:
-                self.logger.warning("⚠️ Failed to normalize job data: %s", e)
-
-        return normalized_jobs
+        return _normalize_jobspy_data_cached(raw_jobs_hash, raw_jobs)
 
     async def scrape_unified(self, query: JobQuery) -> list[Job]:
         """Execute unified scraping across multiple job sources.
@@ -666,16 +792,16 @@ class UnifiedScrapingService(IScrapingService):
         if not jobs:
             return jobs
 
-        # Simple deduplication by link URL
-        seen_links = set()
-        unique_jobs = []
+        # Create hash of jobs for cache key
+        import hashlib
+        import json
 
-        for job in jobs:
-            if job.link and job.link not in seen_links:
-                seen_links.add(job.link)
-                unique_jobs.append(job)
+        jobs_str = json.dumps(
+            [job.model_dump() for job in jobs], sort_keys=True, default=str
+        )
+        jobs_hash = hashlib.md5(jobs_str.encode()).hexdigest()[:8]
 
-        return unique_jobs
+        return _deduplicate_jobs_cached(jobs_hash, jobs)
 
     async def start_background_scraping(self, query: JobQuery) -> str:
         """Start background scraping operation."""
@@ -746,11 +872,16 @@ class UnifiedScrapingService(IScrapingService):
 
             await asyncio.sleep(1.0)  # Update every second
 
-    async def get_success_rate_metrics(self) -> dict[str, Any]:
-        """Get scraping success rate and performance metrics."""
+    @st.cache_data(ttl=60, show_spinner=False)  # Cache metrics for 1 minute
+    def _get_cached_metrics(self, metrics_snapshot: dict[str, Any]) -> dict[str, Any]:
+        """Get scraping success rate and performance metrics (cached version).
+
+        Caches computed metrics to avoid recalculating on every access.
+        Uses short TTL (1 minute) to keep metrics relatively fresh.
+        """
         metrics = {}
 
-        for category, data in self._success_metrics.items():
+        for category, data in metrics_snapshot.items():
             attempts = data["attempts"]
             successes = data["successes"]
             success_rate = (successes / attempts * 100) if attempts > 0 else 0.0
@@ -762,12 +893,8 @@ class UnifiedScrapingService(IScrapingService):
             }
 
         # Overall success rate
-        total_attempts = sum(
-            data["attempts"] for data in self._success_metrics.values()
-        )
-        total_successes = sum(
-            data["successes"] for data in self._success_metrics.values()
-        )
+        total_attempts = sum(data["attempts"] for data in metrics_snapshot.values())
+        total_successes = sum(data["successes"] for data in metrics_snapshot.values())
         overall_success_rate = (
             (total_successes / total_attempts * 100) if total_attempts > 0 else 0.0
         )
@@ -778,7 +905,20 @@ class UnifiedScrapingService(IScrapingService):
             "success_rate": round(overall_success_rate, 2),
         }
 
+        # Add cache performance info
+        metrics["cache_info"] = {
+            "metrics_cached": True,
+            "cache_ttl_seconds": 60,
+            "streamlit_caching_enabled": STREAMLIT_AVAILABLE,
+        }
+
         return metrics
+
+    async def get_success_rate_metrics(self) -> dict[str, Any]:
+        """Get scraping success rate and performance metrics."""
+        # Create snapshot of current metrics for caching
+        metrics_snapshot = dict(self._success_metrics)
+        return self._get_cached_metrics(metrics_snapshot)
 
     async def __aenter__(self):
         """Async context manager entry."""
@@ -790,3 +930,50 @@ class UnifiedScrapingService(IScrapingService):
             await self._http_client.aclose()
 
         self.logger.info("🧹 UnifiedScrapingService cleanup completed")
+
+    @staticmethod
+    def clear_all_caches() -> None:
+        """Clear all Streamlit caches used by the scraping service.
+
+        Useful for forcing fresh data retrieval or troubleshooting cache issues.
+        """
+        if STREAMLIT_AVAILABLE:
+            # Clear all data caches
+            st.cache_data.clear()
+            # Clear all resource caches
+            st.cache_resource.clear()
+            logger.info("✅ All UnifiedScrapingService caches cleared")
+        else:
+            logger.info("ℹ️ Streamlit not available - no caches to clear")
+
+    @staticmethod
+    def get_cache_stats() -> dict[str, Any]:
+        """Get cache utilization statistics.
+
+        Returns information about cache performance and memory usage.
+        """
+        return {
+            "streamlit_available": STREAMLIT_AVAILABLE,
+            "caching_enabled": STREAMLIT_AVAILABLE,
+            "cached_functions": [
+                "_normalize_jobspy_data_cached",
+                "_load_active_companies_cached",
+                "_deduplicate_jobs_cached",
+                "_get_cached_metrics",
+                "_create_http_client",
+                "_create_ai_client",
+            ],
+            "cache_ttls": {
+                "job_normalization": 300,  # 5 minutes
+                "company_loading": 1800,  # 30 minutes
+                "job_deduplication": 600,  # 10 minutes
+                "metrics": 60,  # 1 minute
+                "ai_client": 3600,  # 1 hour
+            },
+            "performance_benefits": {
+                "reduced_database_queries": "30min company cache",
+                "reduced_processing_overhead": "Job normalization & deduplication caching",
+                "reduced_client_creation": "HTTP & AI client resource caching",
+                "reduced_metrics_computation": "1min metrics cache",
+            },
+        }

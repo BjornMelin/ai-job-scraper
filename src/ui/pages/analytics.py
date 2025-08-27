@@ -1,11 +1,26 @@
-"""Analytics dashboard page for the AI Job Scraper application.
+"""Fragment-based analytics dashboard with real-time updates and auto-refresh.
 
-This module provides analytics visualization including cost monitoring,
-job market trends, and company hiring analysis using the library-first refactored
-analytics services with DuckDB sqlite_scanner and SQLModel cost tracking.
+This module provides analytics visualization with st.fragment() architecture for:
+- Real-time cost monitoring with auto-refresh
+- Live job market trends without full page reruns
+- Auto-updating company hiring analytics
+- Fragment-isolated performance optimization
+
+Features include:
+- Auto-refresh cost monitoring (30s intervals)
+- Real-time job trends (10s intervals)
+- Live company analytics (60s intervals)
+- Fragment-scoped error handling and recovery
+- Performance optimized with selective updates
+- Integration with DuckDB sqlite_scanner and SQLModel cost tracking
+
+This implementation follows Stream C fragment architecture specifications for
+component isolation and coordination simplification.
 """
 
 import logging
+
+from datetime import datetime
 
 import pandas as pd
 import plotly.express as px
@@ -257,7 +272,337 @@ def _render_analytics_status_section(analytics: AnalyticsService) -> None:
             st.error(f"Status unavailable: {e}")
 
 
+# ========== FRAGMENT-BASED ANALYTICS COMPONENTS ==========
+# Enhanced analytics with st.fragment() architecture for Stream C
+
+
+@st.fragment(run_every="30s")
+def render_cost_monitoring_fragment() -> None:
+    """Fragment for real-time cost monitoring with auto-refresh.
+
+    This fragment provides live cost tracking and budget alerts that update
+    automatically without triggering full page reruns.
+    """
+    try:
+        # Initialize cost monitor in session state for performance
+        if "cost_monitor_fragment" not in st.session_state:
+            st.session_state.cost_monitor_fragment = CostMonitor()
+
+        cost_monitor = st.session_state.cost_monitor_fragment
+
+        with st.container():
+            col_header, col_indicator = st.columns([4, 1])
+            with col_header:
+                st.subheader("💰 Live Cost Monitor")
+            with col_indicator:
+                st.caption("🔄 Auto-updating")
+
+            # Get real-time summary
+            summary = cost_monitor.get_monthly_summary()
+
+            # Display cost metrics with live updates
+            col1, col2, col3, col4 = st.columns(4)
+
+            # Calculate usage percentage for color coding
+            usage_pct = summary["utilization_percent"]
+            color = "normal"
+            if usage_pct > 90:
+                color = "inverse"  # Red
+            elif usage_pct > 75:
+                color = "off"  # Orange-ish
+
+            col1.metric("Monthly Spend", f"${summary['total_cost']:.2f}")
+            col2.metric("Remaining", f"${summary['remaining']:.2f}")
+            col3.metric("Usage", f"{usage_pct:.0f}%")
+            col4.metric("Budget", f"${summary['monthly_budget']:.0f}")
+
+            # Show real-time cost alerts
+            alerts = cost_monitor.get_cost_alerts()
+            for alert in alerts:
+                if alert["type"] == "error":
+                    st.error(alert["message"])
+                elif alert["type"] == "warning":
+                    st.warning(alert["message"])
+
+            # Service cost breakdown with auto-update
+            if summary["costs_by_service"]:
+                with st.expander("📊 Service Breakdown", expanded=False):
+                    # Create real-time pie chart
+                    fig_pie = px.pie(
+                        values=list(summary["costs_by_service"].values()),
+                        names=list(summary["costs_by_service"].keys()),
+                        title=f"Real-time Costs - {summary['month_year']}",
+                    )
+                    st.plotly_chart(fig_pie, use_container_width=True)
+
+    except Exception as e:
+        logger.exception("Error in cost monitoring fragment")
+        st.error(f"⚠️ Cost monitor temporarily unavailable: {str(e)[:100]}...")
+
+
+@st.fragment(run_every="10s")
+def render_job_trends_fragment(time_range: str = "Last 7 Days") -> None:
+    """Fragment for real-time job market trends with auto-refresh.
+
+    Args:
+        time_range: Time range for trends analysis.
+    """
+    try:
+        # Initialize analytics service in fragment state
+        if "analytics_fragment" not in st.session_state:
+            st.session_state.analytics_fragment = AnalyticsService()
+
+        analytics = st.session_state.analytics_fragment
+
+        with st.container():
+            col_header, col_indicator = st.columns([4, 1])
+            with col_header:
+                st.subheader("📈 Live Job Trends")
+            with col_indicator:
+                st.caption("🔄 Auto-updating")
+
+            # Get time range mapping
+            days_map = {"Last 7 Days": 7, "Last 30 Days": 30, "Last 90 Days": 90}
+            days = days_map.get(time_range, 7)
+
+            # Get real-time trends data
+            trends_data = analytics.get_job_trends(days)
+
+            if trends_data["status"] == "success" and trends_data["trends"]:
+                # Real-time success indicator
+                st.success(f"🚀 Live data via {trends_data['method']}", icon="📡")
+
+                # Convert to DataFrame for live plotting
+                trends_df = pd.DataFrame(trends_data["trends"])
+
+                # Create live trends chart
+                fig_trends = px.line(
+                    trends_df,
+                    x="date",
+                    y="job_count",
+                    title=f"Live Job Trends - {time_range}",
+                    labels={"date": "Date", "job_count": "Jobs Posted"},
+                    markers=True,
+                )
+                fig_trends.update_layout(height=400)
+                st.plotly_chart(fig_trends, use_container_width=True)
+
+                # Live summary metrics
+                col1, col2 = st.columns(2)
+                col1.metric("Total Jobs", f"{trends_data['total_jobs']:,}")
+                col2.metric("Daily Avg", f"{trends_data['total_jobs'] / days:.0f}")
+
+                # Show last update time
+                st.caption(f"Last updated: {datetime.now().strftime('%H:%M:%S')}")
+
+            else:
+                st.warning(
+                    f"📊 Trends data loading... {trends_data.get('error', 'Retrying...')}"
+                )
+
+    except Exception as e:
+        logger.exception("Error in job trends fragment")
+        st.error(f"⚠️ Trends temporarily unavailable: {str(e)[:100]}...")
+
+
+@st.fragment(run_every="60s")
+def render_company_analytics_fragment() -> None:
+    """Fragment for real-time company hiring analysis with auto-refresh."""
+    try:
+        # Initialize analytics service in fragment state
+        if "analytics_fragment" not in st.session_state:
+            st.session_state.analytics_fragment = AnalyticsService()
+
+        analytics = st.session_state.analytics_fragment
+
+        with st.container():
+            col_header, col_indicator = st.columns([4, 1])
+            with col_header:
+                st.subheader("🏢 Live Company Analytics")
+            with col_indicator:
+                st.caption("🔄 Auto-updating")
+
+            # Get real-time company data
+            company_data = analytics.get_company_analytics()
+
+            if company_data["status"] == "success" and company_data["companies"]:
+                st.info(f"🚀 Live company data via {company_data['method']}")
+
+                # Convert to DataFrame for live analysis
+                df_companies = pd.DataFrame(company_data["companies"])
+
+                # Live metrics
+                col1, col2, col3 = st.columns(3)
+                col1.metric("Active Companies", len(df_companies))
+                col2.metric("Total Jobs", df_companies["total_jobs"].sum())
+                col3.metric(
+                    "Avg Jobs/Company", f"{df_companies['total_jobs'].mean():.1f}"
+                )
+
+                # Top companies live chart
+                if len(df_companies) > 0:
+                    top_10 = df_companies.head(10)
+                    fig_companies = px.bar(
+                        top_10,
+                        x="total_jobs",
+                        y="company",
+                        orientation="h",
+                        title="Top 10 Companies (Live)",
+                        labels={"total_jobs": "Jobs", "company": "Company"},
+                    )
+                    fig_companies.update_layout(height=400)
+                    st.plotly_chart(fig_companies, use_container_width=True)
+
+                    # Interactive company table with live updates
+                    with st.expander("📋 Full Company Data", expanded=False):
+                        st.dataframe(df_companies, use_container_width=True)
+
+                # Show last update time
+                st.caption(f"Last updated: {datetime.now().strftime('%H:%M:%S')}")
+
+            else:
+                st.warning(
+                    f"🏢 Company data loading... {company_data.get('error', 'Retrying...')}"
+                )
+
+    except Exception as e:
+        logger.exception("Error in company analytics fragment")
+        st.error(f"⚠️ Company analytics temporarily unavailable: {str(e)[:100]}...")
+
+
+@st.fragment(run_every="45s")
+def render_salary_analytics_fragment(salary_days: int = 90) -> None:
+    """Fragment for real-time salary analytics with auto-refresh.
+
+    Args:
+        salary_days: Days of salary data to analyze.
+    """
+    try:
+        # Initialize analytics service in fragment state
+        if "analytics_fragment" not in st.session_state:
+            st.session_state.analytics_fragment = AnalyticsService()
+
+        analytics = st.session_state.analytics_fragment
+
+        with st.container():
+            col_header, col_indicator = st.columns([4, 1])
+            with col_header:
+                st.subheader("💰 Live Salary Analytics")
+            with col_indicator:
+                st.caption("🔄 Auto-updating")
+
+            # Get real-time salary data
+            salary_data = analytics.get_salary_analytics(days=salary_days)
+
+            if salary_data["status"] == "success" and salary_data["salary_data"]:
+                st.success(f"🚀 Live salary data via {salary_data['method']}")
+
+                data = salary_data["salary_data"]
+
+                # Live salary metrics
+                if data["total_jobs_with_salary"] > 0:
+                    col1, col2, col3, col4 = st.columns(4)
+                    col1.metric("Jobs w/ Salary", f"{data['total_jobs_with_salary']:,}")
+                    col2.metric("Avg Min", f"${data['avg_min_salary']:,.0f}")
+                    col3.metric("Avg Max", f"${data['avg_max_salary']:,.0f}")
+                    col4.metric(
+                        "Range",
+                        f"${data['min_salary']:,.0f} - ${data['max_salary']:,.0f}",
+                    )
+
+                    # Live salary insights
+                    avg_midpoint = (data["avg_min_salary"] + data["avg_max_salary"]) / 2
+                    st.metric("💡 Avg Salary Midpoint", f"${avg_midpoint:,.0f}")
+
+                else:
+                    st.info("📊 No salary data available for selected period")
+
+                # Show last update time
+                st.caption(f"Last updated: {datetime.now().strftime('%H:%M:%S')}")
+
+            else:
+                st.warning(
+                    f"💰 Salary data loading... {salary_data.get('error', 'Retrying...')}"
+                )
+
+    except Exception as e:
+        logger.exception("Error in salary analytics fragment")
+        st.error(f"⚠️ Salary analytics temporarily unavailable: {str(e)[:100]}...")
+
+
+def render_analytics_page_with_fragments() -> None:
+    """Enhanced analytics dashboard with fragment architecture.
+
+    This function orchestrates multiple auto-refreshing fragments for optimal
+    performance and real-time updates without full page reruns.
+    """
+    st.title("📊 Live Analytics Dashboard")
+    st.caption("🚀 Real-time updates with fragment architecture")
+
+    # Fragment control panel
+    with st.expander("⚙️ Fragment Controls", expanded=False):
+        col1, col2 = st.columns(2)
+        with col1:
+            enable_cost_monitor = st.checkbox("Cost Monitor (30s)", value=True)
+            enable_job_trends = st.checkbox("Job Trends (10s)", value=True)
+        with col2:
+            enable_company_analytics = st.checkbox(
+                "Company Analytics (60s)", value=True
+            )
+            enable_salary_analytics = st.checkbox("Salary Analytics (45s)", value=True)
+
+        # Time range controls for fragments
+        time_range = st.selectbox(
+            "Trends Time Range",
+            ["Last 7 Days", "Last 30 Days", "Last 90 Days"],
+            index=0,
+        )
+
+        salary_days = st.selectbox(
+            "Salary Analysis Period",
+            [30, 60, 90, 180],
+            index=2,
+            format_func=lambda x: f"Last {x} Days",
+        )
+
+    # Render enabled fragments
+    if enable_cost_monitor:
+        render_cost_monitoring_fragment()
+        st.markdown("---")
+
+    if enable_job_trends:
+        render_job_trends_fragment(time_range)
+        st.markdown("---")
+
+    if enable_company_analytics:
+        render_company_analytics_fragment()
+        st.markdown("---")
+
+    if enable_salary_analytics:
+        render_salary_analytics_fragment(salary_days)
+        st.markdown("---")
+
+    # Analytics status section (static)
+    with st.expander("🔧 Analytics Status"):
+        try:
+            # Use singleton analytics service for status
+            if "analytics_service" not in st.session_state:
+                st.session_state.analytics_service = AnalyticsService()
+
+            status = st.session_state.analytics_service.get_status_report()
+            st.json(status)
+        except Exception as e:
+            logger.exception("Failed to get analytics status")
+            st.error(f"Status unavailable: {e}")
+
+
 # Execute page when loaded by st.navigation()
 # Only run when in a proper Streamlit context (not during test imports)
 if is_streamlit_context():
-    render_analytics_page()
+    # Check if fragments are enabled in session state
+    use_fragments = st.session_state.get("use_fragment_analytics", True)
+
+    if use_fragments:
+        render_analytics_page_with_fragments()
+    else:
+        render_analytics_page()

@@ -19,9 +19,62 @@ import yaml
 from litellm import Router, acompletion, token_counter
 from pydantic import BaseModel, Field
 
+# Import streamlit with fallback for non-Streamlit environments
+try:
+    import streamlit as st
+
+    STREAMLIT_AVAILABLE = True
+except ImportError:
+    STREAMLIT_AVAILABLE = False
+
+    class _DummyStreamlit:
+        @staticmethod
+        def cache_data(**_kwargs):
+            def decorator(wrapped_func):
+                return wrapped_func
+
+            return decorator
+
+        @staticmethod
+        def cache_resource(**_kwargs):
+            def decorator(wrapped_func):
+                return wrapped_func
+
+            return decorator
+
+    st = _DummyStreamlit()
+
 from src.config import Settings
 
 logger = logging.getLogger(__name__)
+
+
+# Module-level cached functions for Streamlit compatibility
+@st.cache_resource  # Cache router as resource (persistent connection)
+def _create_litellm_router(config: dict[str, Any]) -> Router:
+    """Create LiteLLM router with configuration (cached as resource).
+
+    Uses Streamlit resource caching to ensure single router instance
+    across all cloud AI operations.
+    """
+    return Router(
+        model_list=config["model_list"],
+        **config.get("litellm_settings", {}),
+    )
+
+
+@st.cache_resource  # Cache instructor client as resource
+def _create_instructor_client() -> instructor.Instructor:
+    """Create instructor client from LiteLLM (cached as resource).
+
+    Uses Streamlit resource caching for singleton instructor client.
+    """
+    from litellm import completion
+
+    return instructor.from_litellm(
+        completion,
+        mode=instructor.Mode.JSON,
+    )
 
 
 class CloudServiceHealth(BaseModel):
@@ -67,15 +120,10 @@ class CloudAIService:
         self.config = self._load_config()
 
         # Initialize LiteLLM router with loaded configuration
-        self.router = self._create_router()
+        self.router = _create_litellm_router(self.config)
 
         # Create instructor client from LiteLLM
-        from litellm import completion
-
-        self.instructor_client = instructor.from_litellm(
-            completion,
-            mode=instructor.Mode.JSON,
-        )
+        self.instructor_client = _create_instructor_client()
 
         # Service metrics
         self._request_count = 0
@@ -122,17 +170,6 @@ class CloudAIService:
             raise yaml.YAMLError(msg) from e
         else:
             return config
-
-    def _create_router(self) -> Router:
-        """Create LiteLLM router with loaded configuration.
-
-        Returns:
-            Configured LiteLLM Router instance
-        """
-        return Router(
-            model_list=self.config["model_list"],
-            **self.config.get("litellm_settings", {}),
-        )
 
     def get_available_models(self) -> list[str]:
         """Get list of available model names from configuration.
@@ -493,27 +530,56 @@ class CloudAIService:
             last_check=self._last_health_check,
         )
 
+    @st.cache_data(ttl=60, show_spinner=False)  # Cache usage stats for 1 minute
+    def _calculate_usage_stats_cached(
+        self, stats_snapshot: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Calculate usage statistics (cached version).
+
+        Caches computed stats to avoid recalculating on every access.
+        """
+        avg_response_time = (
+            sum(stats_snapshot["response_times"])
+            / len(stats_snapshot["response_times"])
+            if stats_snapshot["response_times"]
+            else 0.0
+        )
+
+        return {
+            "total_requests": stats_snapshot["request_count"],
+            "successful_requests": stats_snapshot["success_count"],
+            "success_rate": stats_snapshot["success_count"]
+            / max(stats_snapshot["request_count"], 1)
+            * 100,
+            "total_tokens": stats_snapshot["total_tokens"],
+            "total_cost_usd": stats_snapshot["total_cost"],
+            "average_response_time_ms": avg_response_time,
+            "cost_per_1k_tokens": stats_snapshot["total_cost"]
+            / max(stats_snapshot["total_tokens"], 1)
+            * 1000,
+            "cache_info": {
+                "cached": True,
+                "cache_ttl_seconds": 60,
+                "streamlit_caching_enabled": STREAMLIT_AVAILABLE,
+            },
+        }
+
     def get_usage_stats(self) -> dict[str, Any]:
         """Get usage statistics for the cloud AI service.
 
         Returns:
             Dictionary containing usage metrics
         """
-        avg_response_time = (
-            sum(self._response_times) / len(self._response_times)
-            if self._response_times
-            else 0.0
-        )
-
-        return {
-            "total_requests": self._request_count,
-            "successful_requests": self._success_count,
-            "success_rate": self._success_count / max(self._request_count, 1) * 100,
+        # Create snapshot for caching
+        stats_snapshot = {
+            "request_count": self._request_count,
+            "success_count": self._success_count,
             "total_tokens": self._total_tokens,
-            "total_cost_usd": self._total_cost,
-            "average_response_time_ms": avg_response_time,
-            "cost_per_1k_tokens": self._total_cost / max(self._total_tokens, 1) * 1000,
+            "total_cost": self._total_cost,
+            "response_times": list(self._response_times),  # Copy for thread safety
         }
+
+        return self._calculate_usage_stats_cached(stats_snapshot)
 
     def reset_metrics(self) -> None:
         """Reset usage metrics (useful for periodic reporting)."""
@@ -524,9 +590,61 @@ class CloudAIService:
         self._response_times = []
         logger.info("Cloud AI service metrics reset")
 
+    @staticmethod
+    def clear_all_caches() -> None:
+        """Clear all Streamlit caches used by the cloud AI service.
 
-# Module-level singleton for easy access
+        Useful for forcing fresh health checks and stats recalculation.
+        """
+        if STREAMLIT_AVAILABLE:
+            # Clear all caches
+            st.cache_data.clear()
+            st.cache_resource.clear()
+            logger.info("✅ All CloudAIService caches cleared")
+        else:
+            logger.info("ℹ️ Streamlit not available - no caches to clear")
+
+    @staticmethod
+    def get_cache_stats() -> dict[str, Any]:
+        """Get cache utilization statistics for the cloud AI service.
+
+        Returns information about cache performance and memory usage.
+        """
+        return {
+            "streamlit_available": STREAMLIT_AVAILABLE,
+            "caching_enabled": STREAMLIT_AVAILABLE,
+            "cached_functions": [
+                "_create_litellm_router",
+                "_create_instructor_client",
+                "_calculate_usage_stats_cached",
+            ],
+            "cache_ttls": {
+                "router": "permanent",  # Resource cache
+                "instructor_client": "permanent",  # Resource cache
+                "usage_stats": 60,  # 1 minute
+            },
+            "performance_benefits": {
+                "reduced_router_creation": "Router resource caching",
+                "reduced_client_creation": "Instructor client resource caching",
+                "reduced_stats_computation": "1min stats caching",
+            },
+        }
+
+
+# Module-level singleton for easy access with Streamlit resource caching
 _cloud_ai_service: CloudAIService | None = None
+
+
+@st.cache_resource(ttl=3600)  # Cache service instance for 1 hour
+def _create_cloud_ai_service(
+    config_hash: str, config_path: str | None = None, settings: Settings | None = None
+) -> CloudAIService:
+    """Create CloudAIService instance (cached as resource).
+
+    Uses Streamlit resource caching to ensure single service instance
+    across the application lifecycle.
+    """
+    return CloudAIService(config_path, settings)
 
 
 def get_cloud_ai_service(
@@ -543,7 +661,24 @@ def get_cloud_ai_service(
     """
     global _cloud_ai_service
     if _cloud_ai_service is None:
-        _cloud_ai_service = CloudAIService(config_path, settings)
+        if STREAMLIT_AVAILABLE:
+            # Use cached version with config hash for cache invalidation
+            import hashlib
+            import json
+
+            # Create hash based on config path and settings for cache invalidation
+            config_data = {
+                "config_path": config_path or "config/litellm.yaml",
+                "settings": settings.model_dump() if settings else {},
+            }
+            config_str = json.dumps(config_data, sort_keys=True)
+            config_hash = hashlib.md5(config_str.encode()).hexdigest()[:8]
+
+            _cloud_ai_service = _create_cloud_ai_service(
+                config_hash, config_path, settings
+            )
+        else:
+            _cloud_ai_service = CloudAIService(config_path, settings)
     return _cloud_ai_service
 
 

@@ -292,6 +292,14 @@ ruff_full_report.json
 reports/adrs/
 ai-research/
 docs/adrs/reports/
+cache_validation_results.json
+STREAM_C_*.md
+FRAGMENT_OPTIMIZATION_*.md
+NATIVE_PROGRESS_*.md
+UNIFIED_STREAMLIT_*.md
+FINAL_VALIDATION_*.md
+PHASE_3*_*.md
+VALIDATION_INFRASTRUCTURE_*.md
 
 # Temporary files
 temp/

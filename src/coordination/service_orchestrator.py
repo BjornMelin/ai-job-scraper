@@ -19,7 +19,7 @@ import logging
 import uuid
 
 from collections.abc import AsyncGenerator
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import streamlit as st
@@ -28,9 +28,6 @@ from src.ai.hybrid_ai_router import get_hybrid_ai_router
 from src.config import Settings
 from src.coordination.background_task_manager import (
     get_background_task_manager,
-)
-from src.coordination.progress_tracker import (
-    get_progress_tracking_manager,
 )
 from src.coordination.system_health_monitor import (
     get_system_health_monitor,
@@ -147,8 +144,14 @@ class ServiceOrchestrator:
         self._unified_scraper: UnifiedScrapingService | None = None
         self._ai_router = get_hybrid_ai_router(settings)
         self._task_manager = get_background_task_manager(settings)
-        self._progress_manager = get_progress_tracking_manager()
         self._health_monitor = get_system_health_monitor()
+
+        # Import native progress components dynamically to avoid circular imports
+        from src.ui.components.native_progress import (
+            get_native_progress_manager,
+        )
+
+        self._native_progress_manager = get_native_progress_manager()
         self._database_sync: DatabaseSync | None = None
         self._search_service: SearchService | None = None
 
@@ -232,8 +235,8 @@ class ServiceOrchestrator:
             else:
                 job_query = query
 
-            # Create progress tracker for this workflow
-            progress_tracker = self._progress_manager.create_tracker(workflow_id)
+            # Initialize native progress tracking for this workflow
+            from src.ui.components.native_progress import NativeProgressContext
 
             # Initialize workflow tracking
             self._active_workflows[workflow_id] = {
@@ -255,57 +258,72 @@ class ServiceOrchestrator:
                 else str(job_query),
             )
 
-            # Phase 1: Service Health Validation (0% -> 10%)
-            await self._execute_health_validation_phase(workflow_id, progress_tracker)
-
-            # Phase 2: Unified Scraping (10% -> 60%)
-            jobs_data = await self._execute_scraping_phase(
-                workflow_id, job_query, progress_tracker
-            )
-
-            # Phase 3: AI Enhancement (60% -> 75%)
-            if enable_ai_enhancement and jobs_data:
-                enhanced_jobs = await self._execute_ai_enhancement_phase(
-                    workflow_id, jobs_data, progress_tracker
-                )
-            else:
-                enhanced_jobs = jobs_data
-
-            # Phase 4: Database Storage (75% -> 85%)
-            if enhanced_jobs:
-                stored_count = await self._execute_database_storage_phase(
-                    workflow_id, enhanced_jobs, progress_tracker
-                )
-            else:
-                stored_count = 0
-
-            # Phase 5: Search Indexing (85% -> 95%)
-            if stored_count > 0:
-                await self._execute_search_indexing_phase(workflow_id, progress_tracker)
-
-            # Phase 6: UI Updates (95% -> 100%)
-            if enable_ui_updates:
-                await self._execute_ui_updates_phase(
-                    workflow_id, enhanced_jobs or [], progress_tracker
-                )
-
-            # Complete workflow
-            duration = (datetime.now(UTC) - start_time).total_seconds()
-            self._complete_workflow(
+            # Execute workflow with native progress tracking
+            with NativeProgressContext(
                 workflow_id,
-                {
-                    "jobs_processed": len(enhanced_jobs) if enhanced_jobs else 0,
-                    "duration": duration,
-                    "ai_enhancement_enabled": enable_ai_enhancement,
-                    "ui_updates_enabled": enable_ui_updates,
-                },
-            )
+                f"🔍 Processing: {job_query.keywords if hasattr(job_query, 'keywords') else str(job_query)[:50]}",
+                expanded=True,
+            ) as progress:
+                # Phase 1: Service Health Validation (0% -> 10%)
+                progress.update(5.0, "🔍 Validating service health...", "health_check")
+                await self._execute_health_validation_phase(workflow_id)
 
-            progress_tracker.update_progress(
-                100.0,
-                f"🎉 Workflow completed! Processed {len(enhanced_jobs) if enhanced_jobs else 0} jobs",
-                "completed",
-            )
+                # Phase 2: Unified Scraping (10% -> 60%)
+                progress.update(15.0, "📋 Starting job scraping...", "scraping")
+                jobs_data = await self._execute_scraping_phase(
+                    workflow_id, job_query, progress
+                )
+
+                # Phase 3: AI Enhancement (60% -> 75%)
+                if enable_ai_enhancement and jobs_data:
+                    progress.update(
+                        65.0, "🧠 Enhancing jobs with AI...", "ai_processing"
+                    )
+                    enhanced_jobs = await self._execute_ai_enhancement_phase(
+                        workflow_id, jobs_data, progress
+                    )
+                else:
+                    enhanced_jobs = jobs_data
+
+                # Phase 4: Database Storage (75% -> 85%)
+                if enhanced_jobs:
+                    progress.update(80.0, "💾 Storing jobs to database...", "storage")
+                    stored_count = await self._execute_database_storage_phase(
+                        workflow_id, enhanced_jobs, progress
+                    )
+                else:
+                    stored_count = 0
+
+                # Phase 5: Search Indexing (85% -> 95%)
+                if stored_count > 0:
+                    progress.update(90.0, "🔍 Updating search indexes...", "indexing")
+                    await self._execute_search_indexing_phase(workflow_id, progress)
+
+                # Phase 6: UI Updates (95% -> 100%)
+                if enable_ui_updates:
+                    progress.update(98.0, "📱 Updating UI components...", "ui_updates")
+                    await self._execute_ui_updates_phase(
+                        workflow_id, enhanced_jobs or [], progress
+                    )
+
+                # Complete workflow
+                duration = (datetime.now(UTC) - start_time).total_seconds()
+                jobs_count = len(enhanced_jobs) if enhanced_jobs else 0
+
+                self._complete_workflow(
+                    workflow_id,
+                    {
+                        "jobs_processed": jobs_count,
+                        "duration": duration,
+                        "ai_enhancement_enabled": enable_ai_enhancement,
+                        "ui_updates_enabled": enable_ui_updates,
+                    },
+                )
+
+                progress.complete(
+                    f"🎉 Completed! Processed {jobs_count} jobs in {duration:.1f}s",
+                    show_balloons=True,
+                )
 
             self._metrics.record_workflow_completion(duration)
 
@@ -326,14 +344,8 @@ class ServiceOrchestrator:
             self._metrics.record_workflow_failure()
             raise WorkflowExecutionError(f"Workflow {workflow_id} failed: {e}") from e
 
-    async def _execute_health_validation_phase(
-        self, workflow_id: str, progress_tracker
-    ) -> None:
+    async def _execute_health_validation_phase(self, workflow_id: str) -> None:
         """Execute service health validation phase."""
-        progress_tracker.update_progress(
-            2.0, "🔍 Validating service dependencies...", "health_check"
-        )
-
         try:
             # Check critical services
             health_report = await self._health_monitor.get_comprehensive_health_report()
@@ -360,22 +372,14 @@ class ServiceOrchestrator:
                 "health_monitor"
             )
 
-            progress_tracker.update_progress(
-                10.0, "✅ Service health validation completed", "health_check"
-            )
-
         except Exception as e:
             self._metrics.record_service_error("health_monitor")
             raise ServiceDependencyError(f"Health validation failed: {e}") from e
 
     async def _execute_scraping_phase(
-        self, workflow_id: str, job_query: JobQuery, progress_tracker
+        self, workflow_id: str, job_query: JobQuery, progress
     ) -> list[Any]:
         """Execute unified scraping phase."""
-        progress_tracker.update_progress(
-            15.0, "📋 Initiating unified job scraping...", "scraping"
-        )
-
         try:
             scraper = self._get_unified_scraper()
             self._metrics.record_service_call("unified_scraper")
@@ -394,7 +398,7 @@ class ServiceOrchestrator:
                 # Map scraping progress to workflow progress (15% -> 60%)
                 workflow_progress = 15.0 + (scraping_status.progress_percentage * 0.45)
 
-                progress_tracker.update_progress(
+                progress.update(
                     workflow_progress,
                     f"🔍 Scraping: {scraping_status.jobs_found} jobs found",
                     "scraping",
@@ -408,10 +412,6 @@ class ServiceOrchestrator:
                 if scraping_status.status == "failed":
                     raise Exception(f"Scraping failed: {scraping_status.error_message}")
 
-            progress_tracker.update_progress(
-                60.0, f"✅ Scraping completed - {len(jobs_data)} jobs found", "scraping"
-            )
-
             return jobs_data
 
         except Exception as e:
@@ -419,13 +419,9 @@ class ServiceOrchestrator:
             raise WorkflowExecutionError(f"Scraping phase failed: {e}") from e
 
     async def _execute_ai_enhancement_phase(
-        self, workflow_id: str, jobs_data: list[Any], progress_tracker
+        self, workflow_id: str, jobs_data: list[Any], progress
     ) -> list[Any]:
         """Execute AI enhancement phase."""
-        progress_tracker.update_progress(
-            65.0, f"🧠 Enhancing {len(jobs_data)} jobs with AI...", "ai_enhancement"
-        )
-
         try:
             # AI enhancement would be coordinated here using the hybrid AI router
             self._metrics.record_service_call("ai_router")
@@ -437,12 +433,6 @@ class ServiceOrchestrator:
             # In real implementation, we'd enhance each job with AI
             enhanced_jobs = jobs_data  # Placeholder - no actual enhancement
 
-            progress_tracker.update_progress(
-                75.0,
-                f"✨ AI enhancement completed for {len(enhanced_jobs)} jobs",
-                "ai_enhancement",
-            )
-
             return enhanced_jobs
 
         except Exception as e:
@@ -450,13 +440,9 @@ class ServiceOrchestrator:
             raise WorkflowExecutionError(f"AI enhancement phase failed: {e}") from e
 
     async def _execute_database_storage_phase(
-        self, workflow_id: str, jobs_data: list[Any], progress_tracker
+        self, workflow_id: str, jobs_data: list[Any], progress
     ) -> int:
         """Execute database storage phase."""
-        progress_tracker.update_progress(
-            80.0, f"💾 Storing {len(jobs_data)} jobs to database...", "database_storage"
-        )
-
         try:
             # Database storage coordination
             self._metrics.record_service_call("database_sync")
@@ -466,24 +452,14 @@ class ServiceOrchestrator:
             await asyncio.sleep(1.0)  # Simulate database operations
             stored_count = len(jobs_data)
 
-            progress_tracker.update_progress(
-                85.0, f"✅ {stored_count} jobs stored to database", "database_storage"
-            )
-
             return stored_count
 
         except Exception as e:
             self._metrics.record_service_error("database_sync")
             raise WorkflowExecutionError(f"Database storage phase failed: {e}") from e
 
-    async def _execute_search_indexing_phase(
-        self, workflow_id: str, progress_tracker
-    ) -> None:
+    async def _execute_search_indexing_phase(self, workflow_id: str, progress) -> None:
         """Execute search indexing phase."""
-        progress_tracker.update_progress(
-            90.0, "🔍 Updating search indexes...", "search_indexing"
-        )
-
         try:
             # Search indexing coordination
             self._metrics.record_service_call("search_service")
@@ -494,22 +470,14 @@ class ServiceOrchestrator:
             # For now, simulate search indexing
             await asyncio.sleep(0.5)  # Simulate indexing operations
 
-            progress_tracker.update_progress(
-                95.0, "✅ Search indexes updated successfully", "search_indexing"
-            )
-
         except Exception as e:
             self._metrics.record_service_error("search_service")
             raise WorkflowExecutionError(f"Search indexing phase failed: {e}") from e
 
     async def _execute_ui_updates_phase(
-        self, workflow_id: str, jobs_data: list[Any], progress_tracker
+        self, workflow_id: str, jobs_data: list[Any], progress
     ) -> None:
         """Execute UI updates phase."""
-        progress_tracker.update_progress(
-            98.0, "📱 Updating mobile-first UI with new jobs...", "ui_updates"
-        )
-
         try:
             # UI updates coordination - integrate with mobile cards
             self._metrics.record_service_call("ui_components")
@@ -524,10 +492,6 @@ class ServiceOrchestrator:
                 "timestamp": datetime.now(UTC).isoformat(),
                 "status": "completed",
             }
-
-            progress_tracker.update_progress(
-                99.0, f"✅ UI updated with {len(jobs_data)} jobs", "ui_updates"
-            )
 
         except Exception as e:
             self._metrics.record_service_error("ui_components")
@@ -588,16 +552,40 @@ class ServiceOrchestrator:
         while workflow_id in self._active_workflows:
             workflow_status = self._active_workflows[workflow_id]
 
-            # Get progress tracker data if available
-            progress_tracker = self._progress_manager.get_tracker(workflow_id)
-            if progress_tracker:
-                current_progress = progress_tracker.get_current_progress()
-                if current_progress:
-                    workflow_status["current_progress"] = current_progress.to_dict()
+            # Get native progress data if available
+            progress_data = self._native_progress_manager.get_progress_data(workflow_id)
+            if progress_data:
+                workflow_status["current_progress"] = {
+                    "percentage": progress_data.get("current_percentage", 0.0),
+                    "message": progress_data.get("current_message", ""),
+                    "phase": progress_data.get("current_phase", ""),
+                    "is_active": progress_data.get("is_active", True),
+                    "start_time": progress_data.get("start_time", "").isoformat()
+                    if progress_data.get("start_time")
+                    else None,
+                    "last_update": progress_data.get("last_update", "").isoformat()
+                    if progress_data.get("last_update")
+                    else None,
+                }
 
-                estimate = progress_tracker.get_progress_estimate()
-                if estimate:
-                    workflow_status["eta_estimate"] = estimate.to_dict()
+                # Simple ETA calculation
+                if (
+                    progress_data.get("is_active", True)
+                    and progress_data.get("current_percentage", 0) > 0
+                ):
+                    start_time = progress_data.get("start_time")
+                    if start_time:
+                        elapsed = (datetime.now(UTC) - start_time).total_seconds()
+                        percentage = progress_data.get("current_percentage", 0)
+                        if elapsed > 0 and percentage > 0:
+                            estimated_total = elapsed / (percentage / 100.0)
+                            remaining = max(0, estimated_total - elapsed)
+                            workflow_status["eta_estimate"] = {
+                                "estimated_time_remaining": remaining,
+                                "estimated_completion_time": (
+                                    datetime.now(UTC) + timedelta(seconds=remaining)
+                                ).isoformat(),
+                            }
 
             yield workflow_status
 
@@ -727,8 +715,9 @@ class ServiceOrchestrator:
         for workflow_id in workflows_to_remove:
             del self._active_workflows[workflow_id]
 
-            # Also clean up progress tracker
-            self._progress_manager.remove_tracker(workflow_id)
+            # Also clean up native progress data
+            if "native_progress" in st.session_state:
+                st.session_state.native_progress.pop(workflow_id, None)
 
         if workflows_to_remove:
             self.logger.info("🧹 Cleaned up %d old workflows", len(workflows_to_remove))

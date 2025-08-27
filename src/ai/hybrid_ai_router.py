@@ -15,6 +15,31 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+# Import streamlit with fallback for non-Streamlit environments
+try:
+    import streamlit as st
+
+    STREAMLIT_AVAILABLE = True
+except ImportError:
+    STREAMLIT_AVAILABLE = False
+
+    class _DummyStreamlit:
+        @staticmethod
+        def cache_data(**_kwargs):
+            def decorator(wrapped_func):
+                return wrapped_func
+
+            return decorator
+
+        @staticmethod
+        def cache_resource(**_kwargs):
+            def decorator(wrapped_func):
+                return wrapped_func
+
+            return decorator
+
+    st = _DummyStreamlit()
+
 from src.ai.cloud_ai_service import get_cloud_ai_service
 from src.ai.local_vllm_service import get_local_vllm_service
 from src.ai.task_complexity_analyzer import (
@@ -24,6 +49,56 @@ from src.ai.task_complexity_analyzer import (
 from src.config import Settings
 
 logger = logging.getLogger(__name__)
+
+
+# Module-level cached functions for Streamlit compatibility
+@st.cache_data(ttl=60, show_spinner=False)  # Cache metrics for 1 minute
+def _calculate_routing_metrics_cached(
+    metrics_snapshot: dict[str, Any],
+) -> dict[str, Any]:
+    """Calculate routing metrics (cached version).
+
+    Caches computed metrics to avoid recalculating on every access.
+    Uses short TTL (1 minute) to keep metrics relatively fresh.
+    """
+    total_requests = metrics_snapshot["total_requests"]
+    local_requests = metrics_snapshot["local_requests"]
+    cloud_requests = metrics_snapshot["cloud_requests"]
+
+    # Calculate success rates
+    local_success_rate = (
+        metrics_snapshot["local_successes"] / max(local_requests, 1)
+    ) * 100
+    cloud_success_rate = (
+        metrics_snapshot["cloud_successes"] / max(cloud_requests, 1)
+    ) * 100
+
+    # Calculate average response times
+    local_times = metrics_snapshot["local_response_times"]
+    cloud_times = metrics_snapshot["cloud_response_times"]
+
+    avg_local_response_time = sum(local_times) / max(len(local_times), 1)
+    avg_cloud_response_time = sum(cloud_times) / max(len(cloud_times), 1)
+
+    # Estimate cost savings from local routing
+    cost_savings = local_requests * 0.00002 * 1000  # Rough estimate of cost avoided
+
+    return {
+        "total_requests": total_requests,
+        "local_requests": local_requests,
+        "cloud_requests": cloud_requests,
+        "local_success_rate": local_success_rate,
+        "cloud_success_rate": cloud_success_rate,
+        "average_local_response_time": avg_local_response_time,
+        "average_cloud_response_time": avg_cloud_response_time,
+        "total_cost": metrics_snapshot["total_cost"],
+        "cost_savings": cost_savings,
+        "cache_info": {
+            "cached": True,
+            "cache_ttl_seconds": 60,
+            "streamlit_caching_enabled": STREAMLIT_AVAILABLE,
+        },
+    }
 
 
 class RoutingDecision(BaseModel):
@@ -609,38 +684,20 @@ class HybridAIRouter:
         Returns:
             RoutingMetrics with detailed performance data
         """
-        total_requests = self._routing_metrics["total_requests"]
-        local_requests = self._routing_metrics["local_requests"]
-        cloud_requests = self._routing_metrics["cloud_requests"]
-
-        # Calculate success rates
-        local_success_rate = (
-            self._routing_metrics["local_successes"] / max(local_requests, 1)
-        ) * 100
-        cloud_success_rate = (
-            self._routing_metrics["cloud_successes"] / max(cloud_requests, 1)
-        ) * 100
-
-        # Calculate average response times
-        local_times = self._routing_metrics["local_response_times"]
-        cloud_times = self._routing_metrics["cloud_response_times"]
-
-        avg_local_response_time = sum(local_times) / max(len(local_times), 1)
-        avg_cloud_response_time = sum(cloud_times) / max(len(cloud_times), 1)
-
-        # Estimate cost savings from local routing
-        cost_savings = local_requests * 0.00002 * 1000  # Rough estimate of cost avoided
+        # Create snapshot of current metrics for caching
+        metrics_snapshot = dict(self._routing_metrics)
+        cached_metrics = _calculate_routing_metrics_cached(metrics_snapshot)
 
         return RoutingMetrics(
-            total_requests=total_requests,
-            local_requests=local_requests,
-            cloud_requests=cloud_requests,
-            local_success_rate=local_success_rate,
-            cloud_success_rate=cloud_success_rate,
-            average_local_response_time=avg_local_response_time,
-            average_cloud_response_time=avg_cloud_response_time,
-            total_cost=self._routing_metrics["total_cost"],
-            cost_savings=cost_savings,
+            total_requests=cached_metrics["total_requests"],
+            local_requests=cached_metrics["local_requests"],
+            cloud_requests=cached_metrics["cloud_requests"],
+            local_success_rate=cached_metrics["local_success_rate"],
+            cloud_success_rate=cached_metrics["cloud_success_rate"],
+            average_local_response_time=cached_metrics["average_local_response_time"],
+            average_cloud_response_time=cached_metrics["average_cloud_response_time"],
+            total_cost=cached_metrics["total_cost"],
+            cost_savings=cached_metrics["cost_savings"],
         )
 
     def reset_metrics(self) -> None:
@@ -670,6 +727,40 @@ class HybridAIRouter:
         )
 
         logger.info("Hybrid AI Router shutdown complete")
+
+    @staticmethod
+    def clear_all_caches() -> None:
+        """Clear all Streamlit caches used by the hybrid AI router.
+
+        Useful for forcing fresh health checks and metrics recalculation.
+        """
+        if STREAMLIT_AVAILABLE:
+            # Clear all data caches
+            st.cache_data.clear()
+            logger.info("✅ All HybridAIRouter caches cleared")
+        else:
+            logger.info("ℹ️ Streamlit not available - no caches to clear")
+
+    @staticmethod
+    def get_cache_stats() -> dict[str, Any]:
+        """Get cache utilization statistics for the hybrid AI router.
+
+        Returns information about cache performance and memory usage.
+        """
+        return {
+            "streamlit_available": STREAMLIT_AVAILABLE,
+            "caching_enabled": STREAMLIT_AVAILABLE,
+            "cached_functions": [
+                "_calculate_routing_metrics_cached",
+            ],
+            "cache_ttls": {
+                "routing_metrics": 60,  # 1 minute
+            },
+            "performance_benefits": {
+                "reduced_metrics_computation": "1min metrics caching",
+                "improved_routing_performance": "Cached metrics calculations",
+            },
+        }
 
 
 # Module-level singleton for easy access

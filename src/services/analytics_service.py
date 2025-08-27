@@ -134,7 +134,49 @@ class AnalyticsService:
             if STREAMLIT_AVAILABLE:
                 st.error(f"Analytics unavailable: {e}")
 
-    @st.cache_data(ttl=300)  # Cache for 5 minutes
+    @staticmethod
+    def clear_all_caches() -> None:
+        """Clear all Streamlit caches used by the analytics service.
+
+        Useful for forcing fresh analytics calculations.
+        """
+        if STREAMLIT_AVAILABLE:
+            st.cache_data.clear()
+            logger.info("✅ All AnalyticsService caches cleared")
+        else:
+            logger.info("ℹ️ Streamlit not available - no caches to clear")
+
+    @staticmethod
+    def get_cache_stats() -> dict[str, Any]:
+        """Get cache utilization statistics for the analytics service.
+
+        Returns information about cache performance and memory usage.
+        """
+        return {
+            "streamlit_available": STREAMLIT_AVAILABLE,
+            "caching_enabled": STREAMLIT_AVAILABLE,
+            "cached_methods": [
+                "get_job_trends",
+                "get_company_analytics",
+                "get_salary_analytics",
+            ],
+            "cache_config": {
+                "ttl_seconds": 300,  # 5 minutes
+                "max_entries_trends": 100,  # Job trends cache size
+                "max_entries_company": 50,  # Company analytics cache size
+                "max_entries_salary": 50,  # Salary analytics cache size
+            },
+            "performance_benefits": {
+                "reduced_duckdb_queries": "5min analytics caching",
+                "improved_dashboard_responsiveness": "Cached analytics computations",
+                "reduced_database_load": "Less frequent DuckDB operations",
+            },
+            "analytics_method": "duckdb_sqlite_scanner",
+        }
+
+    @st.cache_data(
+        ttl=300, max_entries=100, show_spinner="Analyzing job trends..."
+    )  # Cache for 5 minutes
     def get_job_trends(_self, days: int = 30) -> AnalyticsResponse:  # noqa: N805
         """Get job posting trends using DuckDB's native SQL capabilities.
 
@@ -181,7 +223,9 @@ class AnalyticsService:
                 "method": "duckdb_sqlite_scanner",
             }
 
-    @st.cache_data(ttl=300)  # Cache for 5 minutes
+    @st.cache_data(
+        ttl=300, max_entries=50, show_spinner="Computing company analytics..."
+    )  # Cache for 5 minutes
     def get_company_analytics(_self) -> AnalyticsResponse:  # noqa: N805
         """Get company hiring analytics using DuckDB's aggregation functions.
 
@@ -235,7 +279,9 @@ class AnalyticsService:
                 "method": "duckdb_sqlite_scanner",
             }
 
-    @st.cache_data(ttl=300)  # Cache for 5 minutes
+    @st.cache_data(
+        ttl=300, max_entries=50, show_spinner="Analyzing salary data..."
+    )  # Cache for 5 minutes
     def get_salary_analytics(_self, days: int = 90) -> AnalyticsResponse:  # noqa: N805
         """Get salary analytics using DuckDB's statistical functions.
 
@@ -312,6 +358,8 @@ class AnalyticsService:
             "database_path": self.db_path,
             "connection_active": self._conn is not None,
             "status": "active" if self._conn else "unavailable",
+            "cache_enabled": STREAMLIT_AVAILABLE,
+            "cached_analytics_methods": 3 if STREAMLIT_AVAILABLE else 0,
         }
 
     def __del__(self) -> None:
@@ -321,3 +369,12 @@ class AnalyticsService:
 
             with suppress(Exception):
                 self._conn.close()
+
+    def refresh_all_caches(self) -> None:
+        """Refresh all analytics caches by clearing them.
+
+        Forces fresh data retrieval on next analytics call.
+        Useful after database updates or for periodic data refresh.
+        """
+        self.clear_all_caches()
+        logger.info("🔄 Analytics caches refreshed - next calls will fetch fresh data")
