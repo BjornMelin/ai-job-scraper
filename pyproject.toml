@@ -347,6 +347,7 @@ markers = [
     "integration: marks tests as integration tests",
     "unit: marks tests as unit tests",
     "performance: marks tests as performance tests",
+    "e2e: marks tests as end-to-end workflow tests",
     "fast: marks tests as fast unit tests",
 ]
 filterwarnings = [
@@ -438,5 +439,11 @@ dev = [
     "pytest-cov>=6.2.1",
     "pytest-xdist>=3.6.0", # For parallel test execution
     "pytest-benchmark>=4.0.0", # For performance testing
+    "factory-boy>=3.3.3",
+    "faker>=37.6.0",
+    "freezegun>=1.5.5",
+    "responses>=0.25.8",
+    "vcrpy>=7.0.0",
+    "hypothesis>=6.138.3",
 ]
 

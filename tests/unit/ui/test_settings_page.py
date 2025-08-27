@@ -219,10 +219,10 @@ class TestSettingsValidation:
 
     def test_invalid_token_threshold_handled(self):
         """Test invalid token threshold value."""
-        st.session_state["ai_token_threshold"] = "InvalidThreshold"
+        st.session_state["ai_token_threshold"] = "InvalidThreshold"  # noqa: S105
         settings = load_settings()
         # Should still return the stored value, validation happens at UI level
-        assert settings["ai_token_threshold"] == "InvalidThreshold"
+        assert settings["ai_token_threshold"] == "InvalidThreshold"  # noqa: S105
 
     def test_negative_max_jobs_handled(self):
         """Test negative max jobs value."""

@@ -5,14 +5,18 @@ This module contains tests for the job scraping functionality including:
 - Full scraping workflow integration
 - Job board scraping with filtering
 - Company page scraping with mock responses
+- Proxy configuration and integration
 - Data validation and transformation
 """
+
+import os
 
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from unittest.mock import patch
 
 import pandas as pd
+import pytest
 
 from sqlmodel import Session, select
 
@@ -22,6 +26,7 @@ from src.scraper_company_pages import scrape_company_pages
 from src.scraper_job_boards import scrape_job_boards
 
 
+@pytest.mark.unit
 def test_update_db_new_jobs(session: Session) -> None:
     """Test database update with new job insertion.
 
@@ -49,6 +54,7 @@ def test_update_db_new_jobs(session: Session) -> None:
 
 
 @patch("src.scraper.engine")
+@pytest.mark.integration
 def test_update_db_upsert_and_delete(mock_engine: "Any", session: Session) -> None:
     """Test database upsert and stale job deletion with mocked engine.
 
@@ -138,6 +144,7 @@ def test_update_db_upsert_and_delete(mock_engine: "Any", session: Session) -> No
 
 @patch("src.scraper.scrape_job_boards")
 @patch("src.scraper_company_pages.scrape_company_pages")
+@pytest.mark.integration
 def test_scrape_all_workflow(
     mock_scrape_company_pages: "Any",
     mock_scrape_boards: "Any",
@@ -202,6 +209,7 @@ def test_scrape_all_workflow(
 
 @patch("src.scraper.scrape_job_boards")
 @patch("src.scraper_company_pages.scrape_company_pages")
+@pytest.mark.integration
 def test_scrape_all_filtering(
     mock_scrape_company_pages: "Any",
     mock_scrape_boards: "Any",
@@ -263,6 +271,7 @@ def test_scrape_all_filtering(
 @patch("src.scraper_company_pages.save_jobs")
 @patch("src.scraper_company_pages.SmartScraperMultiGraph")
 @patch("src.scraper_company_pages.load_active_companies")
+@pytest.mark.integration
 def test_scrape_company_pages(
     mock_load_companies: "Any",
     mock_scraper_class: "Any",
@@ -298,6 +307,7 @@ def test_scrape_company_pages(
 
 
 @patch("src.scraper_job_boards.scrape_jobs")
+@pytest.mark.integration
 def test_scrape_job_boards(mock_scrape_jobs: "Any") -> None:
     """Test job board scraping with pandas DataFrame mocking.
 
@@ -332,3 +342,82 @@ def test_scrape_job_boards(mock_scrape_jobs: "Any") -> None:
         assert "title" in job
         assert "job_url" in job
         assert "company" in job
+
+
+@pytest.mark.unit
+def test_jobspy_proxy():
+    """Test that JobSpy receives proxy configuration correctly."""
+    with patch("src.scraper_job_boards.scrape_jobs") as mock_scrape_jobs:
+        # Mock DataFrame return
+        mock_df = pd.DataFrame(
+            {
+                "title": ["AI Engineer"],
+                "job_url": ["test.com"],
+                "company": ["Test"],
+                "location": ["Remote"],
+                "description": ["Test"],
+            },
+        )
+        mock_scrape_jobs.return_value = mock_df
+
+        # Test with proxies enabled
+        with patch.dict(
+            os.environ,
+            {
+                "USE_PROXIES": "true",
+                "PROXY_POOL": '["http://test:8080"]',
+                "OPENAI_API_KEY": "test",
+                "GROQ_API_KEY": "test",
+            },
+        ):
+            from src.config import Settings
+
+            settings = Settings()
+
+            with patch("src.scraper_job_boards.settings", settings):
+                from src.scraper_job_boards import scrape_job_boards
+
+                scrape_job_boards(["ai"], ["remote"])
+
+                # Check that proxies parameter was passed
+                call_kwargs = mock_scrape_jobs.call_args.kwargs
+                assert "proxies" in call_kwargs
+                assert call_kwargs["proxies"] == ["http://test:8080"]
+
+
+@pytest.mark.unit
+def test_proxy_disabled():
+    """Test that proxies are disabled when USE_PROXIES=false."""
+    with patch("src.scraper_job_boards.scrape_jobs") as mock_scrape_jobs:
+        mock_df = pd.DataFrame(
+            {
+                "title": ["test"],
+                "job_url": ["test"],
+                "company": ["test"],
+                "location": ["test"],
+                "description": ["test"],
+            },
+        )
+        mock_scrape_jobs.return_value = mock_df
+
+        with patch.dict(
+            os.environ,
+            {
+                "USE_PROXIES": "false",
+                "PROXY_POOL": '["http://test:8080"]',
+                "OPENAI_API_KEY": "test",
+                "GROQ_API_KEY": "test",
+            },
+        ):
+            from src.config import Settings
+
+            settings = Settings()
+
+            with patch("src.scraper_job_boards.settings", settings):
+                from src.scraper_job_boards import scrape_job_boards
+
+                scrape_job_boards(["ai"], ["remote"])
+
+                # Check that proxies parameter is None
+                call_kwargs = mock_scrape_jobs.call_args.kwargs
+                assert call_kwargs["proxies"] is None

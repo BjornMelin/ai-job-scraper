@@ -19,8 +19,6 @@ from unittest.mock import patch
 import pytest
 import streamlit as st
 
-from tests.ui.components.test_utils import MockSessionState
-
 from src.constants import APPLICATION_STATUSES, SALARY_DEFAULT_MAX, SALARY_DEFAULT_MIN
 from src.ui.components.search_bar import (
     DEFAULT_SEARCH_LIMIT,
@@ -36,6 +34,7 @@ from src.ui.components.search_bar import (
     export_search_results,
     get_search_suggestions,
 )
+from tests.ui.components.test_utils import MockSessionState
 
 
 class TestSearchServiceIntegration:

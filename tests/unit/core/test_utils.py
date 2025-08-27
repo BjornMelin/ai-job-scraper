@@ -4,6 +4,8 @@ import time
 
 from unittest.mock import patch
 
+import pytest
+
 from src.core_utils import (
     get_proxy,
     random_delay,
@@ -11,6 +13,7 @@ from src.core_utils import (
 )
 
 
+@pytest.mark.unit
 class TestGetProxy:
     """Test proxy selection."""
 
@@ -66,7 +69,31 @@ class TestGetProxy:
         for result in results:
             assert result in mock_settings.proxy_pool
 
+    def test_all_functions_importable(self):
+        """Test that all utility functions can be imported."""
+        # This test ensures all functions are properly exported
+        functions = [
+            get_proxy,
+            random_user_agent,
+            random_delay,
+        ]
 
+        for func in functions:
+            assert callable(func)
+
+    @patch("src.core_utils.settings")
+    def test_utils_respect_settings(self, mock_settings):
+        """Test that utility functions respect settings configuration."""
+        # Configure mock settings
+        mock_settings.use_proxies = False
+        mock_settings.proxy_pool = []
+
+        # Test that functions use the settings
+        proxy = get_proxy()
+        assert proxy is None  # Should be None when disabled
+
+
+@pytest.mark.unit
 class TestRandomUserAgent:
     """Test random user agent generation."""
 
@@ -124,6 +151,7 @@ class TestRandomUserAgent:
             assert user_agent.strip() == user_agent  # No leading/trailing whitespace
 
 
+@pytest.mark.unit
 class TestRandomDelay:
     """Test random delay functionality."""
 
@@ -199,30 +227,3 @@ class TestRandomDelay:
         # Should have some variability in delays (not all exactly the same)
         unique_delays = len({round(delay, 2) for delay in delays})
         assert unique_delays >= 2  # Should have at least some variation
-
-
-class TestUtilsIntegration:
-    """Test integration between utility functions."""
-
-    def test_all_functions_importable(self):
-        """Test that all utility functions can be imported."""
-        # This test ensures all functions are properly exported
-        functions = [
-            get_proxy,
-            random_user_agent,
-            random_delay,
-        ]
-
-        for func in functions:
-            assert callable(func)
-
-    @patch("src.core_utils.settings")
-    def test_utils_respect_settings(self, mock_settings):
-        """Test that utility functions respect settings configuration."""
-        # Configure mock settings
-        mock_settings.use_proxies = False
-        mock_settings.proxy_pool = []
-
-        # Test that functions use the settings
-        proxy = get_proxy()
-        assert proxy is None  # Should be None when disabled
