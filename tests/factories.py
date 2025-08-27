@@ -71,6 +71,7 @@ class CompanyFactory(SQLAlchemyModelFactory):
 
     class Meta:
         """Factory configuration for CompanySQL model."""
+
         model = CompanySQL
         sqlalchemy_session_persistence = "commit"
         # Will be set by calling code
@@ -115,6 +116,7 @@ class JobFactory(SQLAlchemyModelFactory):
 
     class Meta:
         """Factory configuration for JobSQL model."""
+
         model = JobSQL
         sqlalchemy_session_persistence = "commit"
         # Will be set by calling code
@@ -238,6 +240,7 @@ class CompanyDictFactory(factory.Factory):
 
     class Meta:
         """Factory configuration for dictionary model."""
+
         model = dict
 
     name = Faker("company")
@@ -255,6 +258,7 @@ class JobDictFactory(factory.Factory):
 
     class Meta:
         """Factory configuration for dictionary model."""
+
         model = dict
 
     company = Faker("company")
@@ -307,3 +311,153 @@ def create_sample_jobs(
         return JobFactory.create_batch(count, company_id=company.id, **traits)
     # Let factory create companies as needed
     return JobFactory.create_batch(count, **traits)
+
+
+def create_realistic_dataset(
+    session: Any,
+    companies: int = 10,
+    jobs_per_company: int = 5,
+    include_inactive_companies: bool = True,
+    include_archived_jobs: bool = True,
+    senior_ratio: float = 0.3,
+    remote_ratio: float = 0.4,
+    favorited_ratio: float = 0.1,
+    **kwargs,
+) -> dict[str, Any]:
+    """Create a comprehensive, realistic test dataset with companies and jobs.
+
+    This function generates a complete test dataset with realistic distributions
+    of companies and jobs, including various states and scenarios for testing.
+
+    Args:
+        session: SQLAlchemy session to use.
+        companies: Number of companies to create.
+        jobs_per_company: Average number of jobs per company.
+        include_inactive_companies: Whether to include some inactive companies.
+        include_archived_jobs: Whether to include some archived jobs.
+        senior_ratio: Ratio of senior-level positions (0.0 to 1.0).
+        remote_ratio: Ratio of remote positions (0.0 to 1.0).
+        favorited_ratio: Ratio of favorited jobs (0.0 to 1.0).
+        **kwargs: Additional keyword arguments passed to factories.
+
+    Returns:
+        Dictionary containing:
+            - companies: List of created CompanySQL objects
+            - jobs: List of created JobSQL objects
+            - stats: Statistics about the generated dataset
+    """
+    import random
+
+    random.seed(42)  # For reproducibility in tests
+
+    # Configure factories with session
+    CompanyFactory._meta.sqlalchemy_session = session
+    JobFactory._meta.sqlalchemy_session = session
+
+    # Create companies with various states
+    companies_list = []
+
+    # Calculate company distribution
+    active_companies = int(companies * 0.8) if include_inactive_companies else companies
+    inactive_companies = (
+        companies - active_companies if include_inactive_companies else 0
+    )
+
+    # Create active companies with varying success rates
+    for i in range(active_companies):
+        if i < active_companies * 0.3:  # 30% are well-established
+            company = CompanyFactory.create(established=True, **kwargs)
+        else:
+            company = CompanyFactory.create(active=True, **kwargs)
+        companies_list.append(company)
+
+    # Create inactive companies if requested
+    for _ in range(inactive_companies):
+        company = CompanyFactory.create(inactive=True, **kwargs)
+        companies_list.append(company)
+
+    # Create jobs for each company
+    jobs_list = []
+    total_senior = 0
+    total_remote = 0
+    total_favorited = 0
+    total_archived = 0
+
+    for company in companies_list:
+        # Skip job creation for some inactive companies
+        if not company.active and random.random() < 0.5:
+            continue
+
+        # Vary job count per company (normal distribution around mean)
+        job_count = max(1, int(random.gauss(jobs_per_company, jobs_per_company * 0.3)))
+
+        for _ in range(job_count):
+            # Determine job traits based on ratios
+            traits = {}
+
+            # Senior level positions
+            if random.random() < senior_ratio:
+                traits["senior"] = True
+                total_senior += 1
+            elif random.random() < 0.2:  # 20% junior positions
+                traits["junior"] = True
+
+            # Remote positions
+            if random.random() < remote_ratio:
+                traits["remote"] = True
+                total_remote += 1
+
+            # Favorited jobs
+            if random.random() < favorited_ratio:
+                traits["favorited"] = True
+                total_favorited += 1
+
+            # Applied jobs (subset of favorited)
+            if traits.get("favorited") and random.random() < 0.5:
+                traits["applied"] = True
+
+            # Create the job
+            job = JobFactory.create(company_id=company.id, **traits, **kwargs)
+
+            # Archive some jobs if requested
+            if include_archived_jobs and random.random() < 0.15:  # 15% archived
+                job.archived = True
+                total_archived += 1
+
+            jobs_list.append(job)
+
+    # Commit all changes
+    session.commit()
+
+    # Calculate statistics
+    avg_jobs_per_company = len(jobs_list) / len(companies_list) if companies_list else 0
+
+    stats = {
+        "total_companies": len(companies_list),
+        "active_companies": active_companies,
+        "inactive_companies": inactive_companies,
+        "total_jobs": len(jobs_list),
+        "avg_jobs_per_company": round(avg_jobs_per_company, 2),
+        "senior_jobs": total_senior,
+        "remote_jobs": total_remote,
+        "favorited_jobs": total_favorited,
+        "archived_jobs": total_archived,
+        "senior_ratio_actual": round(total_senior / len(jobs_list), 2)
+        if jobs_list
+        else 0,
+        "remote_ratio_actual": round(total_remote / len(jobs_list), 2)
+        if jobs_list
+        else 0,
+        "favorited_ratio_actual": round(total_favorited / len(jobs_list), 2)
+        if jobs_list
+        else 0,
+        "archived_ratio_actual": round(total_archived / len(jobs_list), 2)
+        if jobs_list
+        else 0,
+    }
+
+    return {
+        "companies": companies_list,
+        "jobs": jobs_list,
+        "stats": stats,
+    }
