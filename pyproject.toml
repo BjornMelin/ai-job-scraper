@@ -57,12 +57,14 @@ dependencies = [
     "python-dotenv>=1.1.1,<2.0.0",
     "price-parser>=0.4.0",
     "humanize>=4.12.3",
+    "tenacity>=8.0.0,<9.0.0",
     "hatchling>=1.27.0",
     "pytest-cov>=6.2.1",
     "pytest-xdist>=3.8.0",
     "pytest-benchmark>=5.1.0",
     "psutil>=7.0.0",
     "responses>=0.25.8",
+    "vllm>=0.6.0",
 ]
 
 [project.optional-dependencies]
@@ -98,6 +100,10 @@ data = [
 database = [
     "psycopg2-binary>=2.9.0,<3.0.0",
     "asyncpg>=0.29.0,<1.0.0",
+]
+
+local-ai = [
+    "vllm>=0.6.0,<1.0.0",
 ]
 
 [project.urls]
@@ -516,6 +522,7 @@ dev = [
     "faker>=25.9.2",
     "hypothesis>=6.138.3",
     "pytest-mock>=3.14.1",
+    "responses>=0.25.8",
     "vcrpy>=7.0.0",
 ]
 

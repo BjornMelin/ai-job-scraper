@@ -13,8 +13,8 @@ from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel
 from tests.factories import (
     create_realistic_dataset,
-    create_test_companies,
-    create_test_jobs,
+    create_sample_companies,
+    create_sample_jobs,
 )
 
 
@@ -145,13 +145,13 @@ def benchmark_data_creation(session: Session, scale: int = 1000) -> dict[str, An
     num_companies = max(10, scale // 100)
     jobs_per_company = scale // num_companies
 
-    companies = create_test_companies(session, num_companies)
+    companies = create_sample_companies(session, num_companies)
     companies_time = time.time()
 
     # Create jobs distributed across companies
     all_jobs = []
     for company in companies:
-        jobs = create_test_jobs(session, jobs_per_company, company=company)
+        jobs = create_sample_jobs(session, jobs_per_company, company=company)
         all_jobs.extend(jobs)
 
     jobs_time = time.time()

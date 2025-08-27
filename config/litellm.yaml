@@ -31,13 +31,8 @@ litellm_settings:
   fallbacks: 
     - "local-qwen": ["gpt-4o-mini"]
   
-  # Performance optimizations
-  drop_params: true
+  # Performance optimizations  
   set_verbose: false
-  
-  # Basic observability (optional)
-  success_callback: ["langfuse"]  # Only if LANGFUSE_PUBLIC_KEY is set
-  failure_callback: []
 
 # Router configuration
 router_settings:

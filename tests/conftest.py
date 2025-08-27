@@ -87,9 +87,18 @@ def session(engine) -> Generator[Session, None, None]:
     transaction = connection.begin()
     session = Session(bind=connection)
 
+    # Configure factories to use this session
+    CompanyFactory._meta.sqlalchemy_session = session
+    JobFactory._meta.sqlalchemy_session = session
+
     try:
         yield session
     finally:
+        # Reset factory sequences to prevent ID conflicts
+        CompanyFactory.reset_sequence()
+        JobFactory.reset_sequence()
+
+        # Clean up session and transaction
         session.close()
         transaction.rollback()
         connection.close()
@@ -181,19 +190,22 @@ def cassettes_cleanup():
 @pytest.fixture
 def sample_company(session: Session):
     """Create and insert a sample company for testing."""
-    return CompanyFactory.create(session=session)
+    CompanyFactory._meta.sqlalchemy_session = session
+    return CompanyFactory.create()
 
 
 @pytest.fixture
 def sample_job(session: Session):
     """Create and insert a sample job for testing."""
-    return JobFactory.create(session=session)
+    JobFactory._meta.sqlalchemy_session = session
+    return JobFactory.create()
 
 
 @pytest.fixture
 def multiple_companies(session: Session):
     """Create multiple companies for testing list operations."""
-    return CompanyFactory.create_batch(5, session=session)
+    CompanyFactory._meta.sqlalchemy_session = session
+    return CompanyFactory.create_batch(5)
 
 
 @pytest.fixture

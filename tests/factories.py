@@ -126,7 +126,7 @@ class JobFactory(SQLAlchemyModelFactory):
     company_id = SubFactory(CompanyFactory)
     title = fuzzy.FuzzyChoice(AI_ML_TITLES)
     description = Faker("text", max_nb_chars=800)
-    link = Faker("url", schemes=["https"])
+    link = Sequence(lambda n: f"https://jobs.example{n % 50}.com/job/{n}")
     location = fuzzy.FuzzyChoice(TECH_LOCATIONS)
 
     # Realistic posting dates - mostly recent with some older

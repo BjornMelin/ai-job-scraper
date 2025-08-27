@@ -158,7 +158,6 @@ def create_mock_streamlit_widgets():
         "expander": Mock(),
         "form": Mock(),
         "empty": Mock(),
-        "placeholder": Mock(),
     }
 
     # Configure widgets to store values in session state

@@ -617,7 +617,6 @@ class TestServiceLevelErrorHandling:
             },
         ]
 
-
         for invalid_data in invalid_job_data_cases:
             try:
                 # Should either validate and reject, or handle gracefully
@@ -670,7 +669,7 @@ class TestServiceLevelErrorHandling:
 
     def test_search_service_malformed_query_handling(self):
         """Test search service handling of malformed search queries."""
-        from src.services.search_service import SearchService
+        from src.services.search_service import JobSearchService
 
         malformed_queries = [
             "",  # Empty query
@@ -690,7 +689,7 @@ class TestServiceLevelErrorHandling:
                     continue
 
                 # Should handle malformed queries gracefully
-                search_service = SearchService()
+                search_service = JobSearchService()
                 with contextlib.suppress(Exception):
                     results = search_service.search_jobs(query)
                     # Should return empty results or error, not crash

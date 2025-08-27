@@ -27,7 +27,6 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel
-from tests.factories import create_sample_companies, create_sample_jobs
 
 from src.database import db_session
 from src.models import CompanySQL, JobSQL
@@ -36,7 +35,8 @@ from src.services.analytics_service import DUCKDB_AVAILABLE, AnalyticsService
 from src.services.company_service import CompanyService
 from src.services.cost_monitor import CostMonitor
 from src.services.job_service import JobService
-from src.services.search_service import SearchService
+from src.services.search_service import JobSearchService
+from tests.factories import create_sample_companies, create_sample_jobs
 
 # Disable logging during tests
 logging.disable(logging.CRITICAL)
@@ -93,7 +93,7 @@ def e2e_services(e2e_database, tmp_path):
     services = {
         "job_service": JobService(),
         "company_service": CompanyService(),
-        "search_service": SearchService(),
+        "search_service": JobSearchService(),
         "analytics_service": AnalyticsService(db_path=e2e_database),
         "cost_monitor": CostMonitor(db_path=str(costs_db)),
     }

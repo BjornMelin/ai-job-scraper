@@ -27,7 +27,7 @@ from sqlmodel import SQLModel
 from src.models import JobSQL
 from src.schemas import Company, Job, JobCreate
 from src.services.analytics_service import AnalyticsService
-from src.services.search_service import SearchService
+from src.services.search_service import JobSearchService
 
 # Disable logging during tests
 logging.disable(logging.CRITICAL)
@@ -295,7 +295,7 @@ class TestSearchQueryProperties:
         note(f"Testing search with query: '{query}' (length: {len(query)})")
 
         try:
-            search_service = SearchService()
+            search_service = JobSearchService()
 
             # Search should handle any string input gracefully
             results = search_service.search_jobs(query)
@@ -350,7 +350,7 @@ class TestSearchQueryProperties:
         note(f"Testing search filters: {filters}")
 
         try:
-            search_service = SearchService()
+            search_service = JobSearchService()
 
             # Convert date objects to strings if needed
             processed_filters = {}
@@ -688,7 +688,7 @@ class TestUnicodeAndEncodingProperties:
 
         try:
             # Test search functionality with mixed text
-            search_service = SearchService()
+            search_service = JobSearchService()
             results = search_service.search_jobs(mixed_text)
 
             # Should handle mixed encoding gracefully

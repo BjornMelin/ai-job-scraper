@@ -292,23 +292,24 @@ def render_action_buttons(job: "Job", notes_value: str) -> None:
 
 
 def select_view_mode(tab_key: str) -> tuple[str, int | None]:
-    """Create view mode selector with grid/list options.
+    """Create view mode selector with responsive, card, and list options.
 
     Args:
         tab_key: Unique key for the tab to ensure unique widget keys.
 
     Returns:
-        tuple: (view_mode, grid_columns) where view_mode is 'Card' or 'List'
-               and grid_columns is the number of columns for card view or None for list.
+        tuple: (view_mode, grid_columns) where view_mode is 'Responsive', 'Card', or 'List'
+               and grid_columns is the number of columns for card view or None for responsive/list.
     """
     _, menu_col = st.columns([2, 1])
 
     with menu_col:
         view_mode = st.selectbox(
             "View",
-            ["Card", "List"],
+            ["Responsive", "Card", "List"],
             key=f"view_mode_{tab_key}",
-            help="Choose how to display jobs",
+            help="Choose how to display jobs - Responsive adapts automatically to your device",
+            index=0,  # Default to Responsive for best mobile experience
         )
 
     grid_columns = None
@@ -331,16 +332,25 @@ def apply_view_mode(
     view_mode: str,
     grid_columns: int | None = None,
 ) -> None:
-    """Apply the selected view mode to render jobs.
+    """Apply the selected view mode to render jobs with responsive support.
 
     Args:
         jobs: List of jobs to display.
-        view_mode: Either 'Card' or 'List'.
-        grid_columns: Number of columns for card view, ignored for list view.
+        view_mode: Either 'Card', 'Responsive', or 'List'.
+        grid_columns: Number of columns for card view, ignored for responsive/list view.
     """
-    from src.ui.components.cards.job_card import render_jobs_grid, render_jobs_list
+    from src.ui.components.cards.job_card import (
+        render_jobs_grid,
+        render_jobs_list,
+        render_jobs_responsive_grid,
+    )
 
-    if view_mode == "Card" and grid_columns:
+    if view_mode == "Responsive":
+        # Use the new mobile-first responsive grid system
+        render_jobs_responsive_grid(jobs)
+    elif view_mode == "Card" and grid_columns:
+        # Legacy column-based card view
         render_jobs_grid(jobs, num_columns=grid_columns)
     else:
+        # List view
         render_jobs_list(jobs)
