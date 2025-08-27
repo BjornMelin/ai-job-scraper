@@ -1,4 +1,4 @@
-# ADR-011: Simple Data Management with SQLModel Foundation
+# ADR-006: Simple Data Management with SQLModel Foundation
 
 ## Metadata
 

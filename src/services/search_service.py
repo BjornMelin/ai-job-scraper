@@ -26,7 +26,11 @@ import sqlite_utils
 # Import streamlit for caching decorators
 try:
     import streamlit as st
+
+    STREAMLIT_AVAILABLE = True
 except ImportError:
+    STREAMLIT_AVAILABLE = False
+
     # Create dummy decorator for non-Streamlit environments
     class _DummyStreamlit:
         """Dummy Streamlit class for non-Streamlit environments."""
@@ -158,7 +162,12 @@ class JobSearchService:
         else:
             return True
 
-    @st.cache_data(ttl=300, hash_funcs={"JobSearchService": id})  # Cache for 5 minutes
+    @st.cache_data(
+        ttl=300,
+        max_entries=500,
+        show_spinner="Searching jobs...",
+        hash_funcs={"JobSearchService": id},
+    )  # Cache for 5 minutes with enhanced config
     def search_jobs(
         _self,  # noqa: N805  # Streamlit caching requires _ prefix to avoid hashing
         query: str,
@@ -295,6 +304,15 @@ class JobSearchService:
         logger.info(
             "FTS5 search found %d results for query: '%s'", len(search_results), query
         )
+
+        # Add cache performance info to results
+        for result in search_results:
+            result["_cache_info"] = {
+                "cached": True,
+                "search_method": "fts5_cached",
+                "cache_ttl_seconds": 300,
+            }
+
         return search_results
 
     def _search_with_fallback(
@@ -389,6 +407,15 @@ class JobSearchService:
             len(search_results),
             query,
         )
+
+        # Add cache performance info to results
+        for result in search_results:
+            result["_cache_info"] = {
+                "cached": True,
+                "search_method": "fallback_cached",
+                "cache_ttl_seconds": 300,
+            }
+
         return search_results
 
     def _build_filter_conditions(
@@ -627,7 +654,92 @@ class JobSearchService:
         else:
             return stats
 
+    @staticmethod
+    def clear_all_caches() -> None:
+        """Clear all Streamlit caches used by the search service.
+
+        Useful for forcing fresh search results or troubleshooting.
+        """
+        if STREAMLIT_AVAILABLE:
+            st.cache_data.clear()
+            logger.info("✅ All JobSearchService caches cleared")
+        else:
+            logger.info("ℹ️ Streamlit not available - no caches to clear")
+
+    @staticmethod
+    def get_cache_stats() -> dict[str, Any]:
+        """Get cache utilization statistics for the search service.
+
+        Returns information about cache performance and memory usage.
+        """
+        return {
+            "streamlit_available": STREAMLIT_AVAILABLE,
+            "caching_enabled": STREAMLIT_AVAILABLE,
+            "cached_methods": [
+                "search_jobs",
+            ],
+            "cache_config": {
+                "ttl_seconds": 300,  # 5 minutes
+                "max_entries": 500,  # Maximum cached searches
+                "uses_custom_hash_func": True,  # JobSearchService hash function
+            },
+            "performance_benefits": {
+                "reduced_fts5_queries": "5min search result caching",
+                "improved_search_responsiveness": "Cached search operations",
+                "reduced_database_load": "Less frequent SQLite FTS5 queries",
+                "fallback_search_caching": "Cached LIKE query fallbacks",
+            },
+            "search_features": {
+                "fts5_enabled": "Dynamic based on database",
+                "porter_stemming": "Enabled in FTS5",
+                "relevance_ranking": "BM25 ranking in FTS5",
+                "multi_field_search": "title, description, company, location",
+            },
+        }
+
+    def refresh_search_cache(self) -> None:
+        """Refresh search caches by clearing them.
+
+        Forces fresh search results on next search call.
+        Useful after database updates or index rebuilds.
+        """
+        self.clear_all_caches()
+        logger.info("🔄 Search caches refreshed - next searches will be fresh")
+
+    @st.cache_data(ttl=60, show_spinner=False)  # Cache index stats for 1 minute
+    def get_cached_search_stats(_self) -> dict[str, Any]:
+        """Get cached search statistics to avoid frequent database queries.
+
+        Returns cached version of search index statistics.
+        """
+        return _self.get_search_stats()
+
 
 # Global search service instance for application use
 # Uses default database path "jobs.db" matching existing configuration
 search_service = JobSearchService()
+
+
+# Convenience functions for cache management
+def clear_search_caches() -> None:
+    """Clear all search-related caches globally.
+
+    Convenience function for cache management.
+    """
+    JobSearchService.clear_all_caches()
+
+
+def get_search_cache_stats() -> dict[str, Any]:
+    """Get search cache statistics globally.
+
+    Convenience function for cache monitoring.
+    """
+    return JobSearchService.get_cache_stats()
+
+
+def refresh_search_caches() -> None:
+    """Refresh all search caches globally.
+
+    Convenience function to force fresh search results.
+    """
+    search_service.refresh_search_cache()

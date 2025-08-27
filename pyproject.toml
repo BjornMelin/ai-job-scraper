@@ -57,12 +57,31 @@ dependencies = [
     "python-dotenv>=1.1.1,<2.0.0",
     "price-parser>=0.4.0",
     "humanize>=4.12.3",
+    "tenacity>=8.0.0,<9.0.0",
     "hatchling>=1.27.0",
+    "pytest-cov>=6.2.1",
+    "pytest-xdist>=3.8.0",
+    "pytest-benchmark>=5.1.0",
+    "psutil>=7.0.0",
+    "responses>=0.25.8",
+    "vllm>=0.6.0",
 ]
 
 [project.optional-dependencies]
 dev = [
+    # Core testing
     "pytest>=8.0.0,<9.0.0",
+    "pytest-xdist>=3.0.0,<4.0.0",          # Parallel test execution
+    "pytest-mock>=3.14.0,<4.0.0",          # Mocking support 
+    "pytest-asyncio>=0.21.0,<1.0.0",       # Async test support
+    # Test data generation
+    "factory-boy>=3.3.0,<4.0.0",           # Test factory patterns
+    "faker>=19.0.0,<26.0.0",               # Realistic test data
+    "hypothesis>=6.82.0,<7.0.0",           # Property-based testing
+    # HTTP mocking
+    "responses>=0.24.0,<1.0.0",            # HTTP response mocking
+    "vcrpy>=6.0.0,<8.0.0",                 # Record/replay HTTP interactions
+    # Development tools
     "ruff>=0.12.0,<1.0.0",
     "mypy>=1.8.0,<2.0.0",
     "pre-commit>=3.6.0,<4.0.0",
@@ -81,6 +100,10 @@ data = [
 database = [
     "psycopg2-binary>=2.9.0,<3.0.0",
     "asyncpg>=0.29.0,<1.0.0",
+]
+
+local-ai = [
+    "vllm>=0.6.0,<1.0.0",
 ]
 
 [project.urls]
@@ -332,29 +355,92 @@ ignore_missing_imports = true
 minversion = "8.0"
 addopts = [
     "-ra",
-    "--strict-markers",
+    "--strict-markers", 
     "--strict-config",
-    "--disable-warnings",
     "--tb=short",
+    "--cov=src",
+    "--cov-report=term-missing",
+    "--cov-report=html:htmlcov",
+    "--cov-report=xml:coverage.xml",
+    "--cov-branch",
+    "--cov-fail-under=80",
+    # Parallel execution - auto detect CPU count
+    "-n=auto",
+    "--dist=worksteal",
+    # Performance monitoring
+    "--benchmark-disable",  # Disable by default, enable with --benchmark-enable
 ]
 testpaths = ["tests"]
-python_files = ["test_*.py", "*_test.py"]
-python_classes = ["Test*"]
-python_functions = ["test_*"]
+python_files = ["test_*.py", "*_test.py", "test*.py"]
+python_classes = ["Test*", "*Test", "*Tests"] 
+python_functions = ["test_*", "*_test"]
 norecursedirs = ["src"]
+# Test isolation for parallel execution
+# asyncio_mode = "auto"  # Commented out - not supported in this pytest-asyncio version
+# timeout = 300  # 5 minute timeout per test - not supported in this version
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "integration: marks tests as integration tests",
-    "unit: marks tests as unit tests",
+    "unit: marks tests as unit tests", 
     "performance: marks tests as performance tests",
+    "benchmark: marks tests as benchmark tests (use --benchmark-enable)",
+    "e2e: marks tests as end-to-end workflow tests",
     "fast: marks tests as fast unit tests",
+    "property: marks tests as property-based tests using hypothesis",
+    "http: marks tests that make HTTP requests",
+    "database: marks tests requiring database access",
+    "ui: marks tests for UI components", 
+    "streamlit: marks tests for Streamlit components",
+    "api: marks tests for API interactions",
+    "vcr: marks tests using VCR cassettes for HTTP recording",
+    "parallel_safe: marks tests safe for parallel execution",
+    "serial: marks tests that must run serially",
+    "smoke: marks critical smoke tests for CI/CD",
+    "regression: marks regression tests",
+    "memory: marks tests that monitor memory usage",
+    "cpu: marks tests that monitor CPU usage",
+    "timeout: marks tests with custom timeout requirements",
 ]
 filterwarnings = [
     "error",
     "ignore::UserWarning",
-    "ignore::DeprecationWarning",
+    "ignore::DeprecationWarning", 
     "ignore::PendingDeprecationWarning",
+    "ignore::pytest.PytestUnraisableExceptionWarning",
+    "ignore::sqlalchemy.exc.SAWarning",
+    # Streamlit warnings
+    "ignore:.*Streamlit.*:UserWarning",
+    "ignore:.*streamlit.*:UserWarning",
+    "ignore:.*ScriptRunContext.*:UserWarning",
+    "ignore:.*missing ScriptRunContext.*:UserWarning",
+    "ignore:.*Thread.*missing ScriptRunContext.*:UserWarning",
+    "ignore:.*to view.*Streamlit.*:UserWarning",
+    # VCR warnings
+    "ignore:.*VCR.*:UserWarning",
+    # HTTP client warnings
+    "ignore:.*verify_ssl.*:UserWarning",
+    # Test framework warnings
+    "ignore:.*pytest_asyncio.*:UserWarning",
 ]
+# Pytest collection settings - collect_ignore not supported in this version
+# collect_ignore = [
+#     "setup.py",
+#     "build/", 
+#     "dist/",
+#     "*.egg-info/",
+# ]
+# Test execution settings - not supported in this version
+# timeout_method = "thread"
+# VCR settings for HTTP tests - not supported in this version
+# vcr_record_mode = "once"
+# Benchmark settings - most options not supported in this pytest-benchmark version
+# benchmark_min_rounds = 3
+# benchmark_max_time = 1.0
+# benchmark_min_time = 0.000005
+# benchmark_timer = "time.perf_counter"
+# benchmark_group_by = "group"
+# benchmark_sort = "mean"
+# benchmark_compare_fail = "mean:5%"
 
 # =============================================================================
 # COVERAGE CONFIGURATION
@@ -432,11 +518,12 @@ ignored-modules = [
 
 [dependency-groups]
 dev = [
-    "psutil>=7.0.0",
-    "pylint>=3.3.7",
-    "pytest-asyncio>=1.1.0",
-    "pytest-cov>=6.2.1",
-    "pytest-xdist>=3.6.0", # For parallel test execution
-    "pytest-benchmark>=4.0.0", # For performance testing
+    "factory-boy>=3.3.3",
+    "faker>=25.9.2",
+    "hypothesis>=6.138.3",
+    "pytest-mock>=3.14.1",
+    "responses>=0.25.8",
+    "vcrpy>=7.0.0",
 ]
+
 

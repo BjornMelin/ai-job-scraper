@@ -55,6 +55,7 @@ def render_scraping_page() -> None:
     # Show progress dashboard only if scraping is active
     if is_scraping_active():
         _render_progress_dashboard()
+        _render_native_progress_section()
         _handle_auto_refresh()
 
     # Recent activity summary
@@ -101,9 +102,12 @@ def _render_control_buttons() -> None:
         ):
             try:
                 start_background_scraping()
-                st.success(
-                    f"🚀 Scraping initiated! Monitoring {len(active_companies)} "
-                    f"companies. Progress will appear below.",
+                # Use native toast notification instead of st.success
+                from src.ui.components.native_progress import show_progress_toast
+
+                show_progress_toast(
+                    f"🚀 Scraping initiated! Monitoring {len(active_companies)} companies.",
+                    icon="🚀",
                 )
                 st.balloons()  # Celebratory feedback
                 st.rerun()
@@ -184,7 +188,7 @@ def _render_control_buttons() -> None:
         st.caption(companies_text)
 
 
-@st.fragment(run_every=2)  # Auto-refresh every 2 seconds
+@st.fragment(run_every=1)  # Auto-refresh every 1 second for responsive updates
 def _render_progress_dashboard() -> None:
     """Render the real-time progress dashboard with auto-updating fragments."""
     if not is_scraping_active():
@@ -199,9 +203,15 @@ def _render_progress_dashboard() -> None:
     with col_indicator:
         st.markdown("🔄 **Auto-updating**")
 
-    # Get progress data with debugging
+    # Get progress data with performance optimization
     company_progress = get_company_progress()
-    logger.info("Fragment update: %d companies in progress", len(company_progress))
+
+    # Early exit if no progress data to reduce CPU usage
+    if not company_progress:
+        st.info("⚡ Waiting for scraping tasks to start...")
+        return
+
+    logger.debug("Fragment update: %d companies in progress", len(company_progress))
 
     # Calculate overall metrics
     total_jobs_found = sum(company.jobs_found for company in company_progress.values())
@@ -345,6 +355,65 @@ def _render_metrics(items: list[tuple[str, object, str]]) -> None:
     for col, (label, value, help_text) in zip(cols, items, strict=False):
         with col:
             st.metric(label=label, value=value, help=help_text)
+
+
+@st.fragment(run_every=2)  # Auto-refresh native progress every 2 seconds
+def _render_native_progress_section() -> None:
+    """Render native progress tracking section using st.status() and st.progress()."""
+    # Check for active workflows
+    if "native_progress" in st.session_state and st.session_state.native_progress:
+        st.markdown("---")
+        st.markdown("### 🔄 Live Progress Tracking (Native)")
+
+        # Show progress for each active workflow
+        for workflow_id, progress_data in st.session_state.native_progress.items():
+            if progress_data.get("is_active", True):
+                percentage = progress_data.get("current_percentage", 0.0)
+                message = progress_data.get("current_message", "Processing...")
+                phase = progress_data.get("current_phase", "processing")
+
+                # Create a native progress display
+                with st.container(border=True):
+                    col1, col2 = st.columns([3, 1])
+
+                    with col1:
+                        st.markdown(f"**Workflow:** {workflow_id[:8]}...")
+                        st.progress(
+                            percentage / 100.0, text=f"{message} ({percentage:.1f}%)"
+                        )
+
+                    with col2:
+                        # Status indicator
+                        if percentage >= 100.0:
+                            st.success("✅ Complete")
+                        elif "error" in phase.lower():
+                            st.error("❌ Error")
+                        else:
+                            st.info(f"🔄 {phase.title()}")
+
+                # Show ETA if available
+                start_time = progress_data.get("start_time")
+                if start_time and percentage > 0:
+                    elapsed = (datetime.now(UTC) - start_time).total_seconds()
+                    if elapsed > 0:
+                        estimated_total = elapsed / (percentage / 100.0)
+                        remaining = max(0, estimated_total - elapsed)
+                        st.caption(f"⏱️ ETA: {remaining:.1f}s remaining")
+
+    else:
+        # No active workflows - show placeholder
+        with st.container():
+            st.info(
+                "🔍 No active workflows to display. Start a scraping operation to see live progress!"
+            )
+
+
+def _show_native_completion_toast() -> None:
+    """Show native completion toast when workflow finishes."""
+    # Dynamic import to avoid circular imports
+    from src.ui.components.native_progress import show_progress_toast
+
+    show_progress_toast("🎉 Scraping completed successfully!", icon="🎉")
 
 
 # Execute page when loaded by st.navigation()

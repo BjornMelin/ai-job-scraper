@@ -9,9 +9,8 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from tests.ui.components.test_utils import MockSessionState
-
 from src.schemas import Company, Job
+from tests.ui.components.test_utils import MockSessionState
 
 
 @pytest.fixture

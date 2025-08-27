@@ -1,0 +1,29 @@
+{
+  "timestamp": 1756257472.3360498,
+  "search_service": {
+    "current": 524,
+    "original": 653,
+    "reduction_pct": 20
+  },
+  "analytics_service": {
+    "current": 241,
+    "original": 915,
+    "reduction_pct": 74
+  },
+  "background_helpers": {
+    "current": 265,
+    "original": 432,
+    "reduction_pct": 39
+  },
+  "total_project": {
+    "source": 11094,
+    "tests": 26800,
+    "total": 37894
+  },
+  "test_coverage": {
+    "unit_tests": 5162,
+    "integration_tests": 3406,
+    "service_tests": 3230,
+    "ui_tests": 8928
+  }
+}

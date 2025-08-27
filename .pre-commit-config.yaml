@@ -1,0 +1,37 @@
+repos:
+  - repo: local
+    hooks:
+      - id: no-dead-code
+        name: Check dead code
+        entry: python scripts/check_dead_code.py
+        language: system
+        pass_filenames: false
+        stages: [pre-commit]
+
+      - id: validate-adrs
+        name: Validate ADRs
+        entry: python scripts/validate_adrs.py
+        language: system
+        pass_filenames: false
+        stages: [pre-commit]
+
+      - id: duplicate-tests
+        name: Check duplicate tests
+        entry: python scripts/find_duplicate_tests.py
+        language: system
+        pass_filenames: false
+        stages: [pre-commit]
+
+      - id: ruff-check
+        name: Ruff linting
+        entry: uv run ruff check --fix
+        language: system
+        types: [python]
+        require_serial: false
+
+      - id: ruff-format
+        name: Ruff formatting
+        entry: uv run ruff format
+        language: system
+        types: [python]
+        require_serial: false

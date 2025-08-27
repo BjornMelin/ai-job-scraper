@@ -5,8 +5,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 import streamlit as st
 
-from tests.ui.components.test_utils import MockSessionState
-
 from src.ui.components.search_bar import (
     _build_search_filters,
     _clear_all_filters,
@@ -14,6 +12,7 @@ from src.ui.components.search_bar import (
     _init_search_state,
     render_job_search,
 )
+from tests.ui.components.test_utils import MockSessionState
 
 
 class TestSearchBarComponent:

@@ -381,6 +381,59 @@ class JobService:
             raise
 
     @staticmethod
+    def get_recently_updated_jobs(
+        job_ids: list[int], since: datetime, limit: int = 10
+    ) -> list[Job]:
+        """Get jobs that have been recently updated since a given timestamp.
+
+        This method is used by fragment-based components to detect real-time changes
+        and display update notifications without full page refreshes.
+
+        Args:
+            job_ids: List of job IDs to check for updates.
+            since: Only return jobs updated after this datetime.
+            limit: Maximum number of updated jobs to return.
+
+        Returns:
+            List of Job DTO objects that have been updated since the given time.
+
+        Raises:
+            Exception: If database query fails.
+        """
+        try:
+            with db_session() as session:
+                # Query for jobs updated since the given timestamp
+                query = (
+                    select(JobSQL, CompanySQL.name.label("company_name"))
+                    .join(CompanySQL, JobSQL.company_id == CompanySQL.id)
+                    .filter(JobSQL.id.in_(job_ids), JobSQL.updated_at > since)
+                    .order_by(JobSQL.updated_at.desc())
+                    .limit(limit)
+                )
+
+                results = session.exec(query).all()
+
+                # Convert to DTOs
+                updated_jobs = []
+                for job_sql, company_name in results:
+                    updated_jobs.append(
+                        JobService._to_dto_with_company(job_sql, company_name)
+                    )
+
+                logger.debug(
+                    "Found %d recently updated jobs from %d candidates since %s",
+                    len(updated_jobs),
+                    len(job_ids),
+                    since.isoformat(),
+                )
+
+                return updated_jobs
+
+        except Exception:
+            logger.exception("Failed to get recently updated jobs")
+            raise
+
+    @staticmethod
     @st.cache_data(ttl=120)  # Cache for 2 minutes
     def get_job_counts_by_status() -> JobCountStats:
         """Get count of jobs grouped by application status.
