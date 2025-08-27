@@ -44,6 +44,7 @@
 ## FRAMEWORK CAPABILITIES
 
 ### Tracking & Audit Trail
+
 - **Comprehensive logging** of all deletion operations
 - **Line-by-line metrics** tracking for 8,663% bloat elimination  
 - **File-level granularity** for 20,000+ line reduction validation
@@ -51,6 +52,7 @@
 - **Git commit integration** for complete audit trail
 
 ### Safety & Risk Management  
+
 - **Emergency rollback procedures** for critical failures
 - **Import integrity validation** after each deletion phase
 - **Data preservation verification** throughout operation
@@ -58,6 +60,7 @@
 - **Real-time system health monitoring**
 
 ### Quality Assurance
+
 - **Standardized validation templates** for consistent reporting
 - **Success/failure criteria** with quantitative thresholds
 - **Automated verification scripts** for system integrity
@@ -69,7 +72,9 @@
 ## DELETION AGENT USAGE INSTRUCTIONS
 
 ### Framework Initialization (Before Starting SPEC-001)
+
 1. **Populate baseline metrics** in `MIGRATION-BASELINE.md`
+
    ```bash
    # Run baseline collection
    ./collect_metrics.sh >> MIGRATION-BASELINE.md
@@ -81,19 +86,24 @@
 4. **Commit initial documentation** with baseline metrics
 
 ### During Each Deletion Phase
+
 1. **Update phase status** to IN_PROGRESS in MIGRATION-LOG.md
 2. **Record pre-deletion metrics** (files, lines, structure)
 3. **Execute deletion operations** according to SPEC-001
 4. **Run validation suite** to verify system integrity
+
    ```bash
    python validation_suite.py
    ```
+
 5. **Document results** in phase-specific section
 6. **Create checkpoint commit** with standardized message format
 7. **Update overall progress tracker**
 
 ### Phase Completion Requirements
+
 Each phase must complete these validation steps:
+
 - [ ] Target files successfully deleted
 - [ ] Essential files preserved and verified
 - [ ] No broken imports detected (`python -c "import src"`)
@@ -103,6 +113,7 @@ Each phase must complete these validation steps:
 - [ ] Next phase preparation confirmed
 
 ### Error Handling Protocol  
+
 1. **Document error** using standardized error report template
 2. **Assess impact** on system integrity and data safety
 3. **Execute rollback** if critical failure detected
@@ -115,6 +126,7 @@ Each phase must complete these validation steps:
 ## QUALITY ASSURANCE CHECKLIST
 
 ### Documentation Standards Compliance
+
 - [x] **Timestamp format:** ISO 8601 standardized throughout
 - [x] **Status reporting:** Consistent PENDING/IN_PROGRESS/COMPLETED format  
 - [x] **Line count tracking:** Before/after metrics with percentage calculations
@@ -122,6 +134,7 @@ Each phase must complete these validation steps:
 - [x] **Validation procedures:** Automated import integrity verification
 
 ### SPEC-001 Integration Readiness
+
 - [x] **Phase alignment:** 5 deletion phases match SPEC-001 specification
 - [x] **Target validation:** 8,663% code bloat elimination tracking ready
 - [x] **Safety protocols:** Emergency rollback and recovery procedures
@@ -129,6 +142,7 @@ Each phase must complete these validation steps:
 - [x] **Audit trail:** Complete documentation for regulatory compliance
 
 ### Operational Readiness
+
 - [x] **Template completeness:** All tracking sections have structured templates
 - [x] **Automation support:** Scripts provided for metrics and validation
 - [x] **Agent guidance:** Clear instructions for deletion operation execution
@@ -140,6 +154,7 @@ Each phase must complete these validation steps:
 ## SUCCESS METRICS & TARGETS
 
 ### Quantitative Achievement Goals
+
 - **Primary Target:** 26,289 lines → <300 lines (98.9% reduction)
 - **Phase Targets:**
   - Phase 1: ~3,500 lines (Orchestration layer)
@@ -150,6 +165,7 @@ Each phase must complete these validation steps:
 - **Total Expected Deletion:** 10,620+ lines across 5 phases
 
 ### Qualitative Success Criteria
+
 - **Zero import breakage** throughout all deletion phases
 - **Complete functionality preservation** via library replacements
 - **Clean audit trail** with comprehensive documentation
@@ -157,6 +173,7 @@ Each phase must complete these validation steps:
 - **ADR-001 compliance** achieved through library-first implementation
 
 ### Quality Gates (Must Pass)
+
 - [ ] **System integrity:** All core imports functional after each phase
 - [ ] **Data safety:** No user data loss or database corruption  
 - [ ] **Documentation completeness:** All templates populated with actual data
@@ -170,6 +187,7 @@ Each phase must complete these validation steps:
 Upon successful completion of all deletion phases:
 
 **Ready for SPEC-002:** LiteLLM AI Integration  
+
 - **Expected addition:** ~50 lines of library-first AI routing
 - **Replacement of:** 2,095 lines of deleted custom AI infrastructure  
 - **Documentation:** Continue using this framework for library integration tracking
@@ -180,12 +198,14 @@ Upon successful completion of all deletion phases:
 ## FRAMEWORK MAINTENANCE
 
 ### Documentation Updates Required
+
 - **Real metrics population** during actual deletion operations
 - **Lessons learned integration** based on execution experience  
 - **Template refinement** based on agent feedback
 - **Success stories documentation** for future reference
 
 ### Continuous Improvement  
+
 - Monitor deletion agent usage patterns
 - Refine validation procedures based on actual failures/successes
 - Enhance automation scripts for better efficiency

@@ -9,12 +9,15 @@
 ## DOCUMENTATION STANDARDS
 
 ### Timestamp Format
+
 **Standard:** ISO 8601 with timezone  
 **Examples:**
+
 - `2025-08-27T14:30:45Z` (UTC)
 - `2025-08-27T09:30:45-05:00` (Local with offset)
 
 ### Status Reporting Format
+
 ```
 Status: [PENDING|IN_PROGRESS|COMPLETED|FAILED|ROLLBACK]
 Started: YYYY-MM-DDTHH:MM:SSZ
@@ -23,6 +26,7 @@ Duration: MM minutes SS seconds
 ```
 
 ### Line Count Tracking Format
+
 ```
 Lines Before: [number] lines
 Lines After: [number] lines  
@@ -32,6 +36,7 @@ Directories Removed: [count]
 ```
 
 ### Error Reporting Template
+
 ```
 ERROR: [Brief description]
 Phase: [Phase number and name]
@@ -47,6 +52,7 @@ Rollback: [YES/NO - if rollback needed]
 ## VALIDATION CHECKPOINT TEMPLATES
 
 ### Phase Start Checklist
+
 ```
 PHASE [N]: [PHASE NAME] STARTING
 
@@ -67,6 +73,7 @@ Start Time: [Timestamp]
 ```
 
 ### Phase Completion Checklist
+
 ```
 PHASE [N]: [PHASE NAME] COMPLETED
 
@@ -92,6 +99,7 @@ Next Phase Ready: [YES/NO]
 ```
 
 ### Rollback Procedure Template
+
 ```
 ROLLBACK INITIATED: [REASON]
 
@@ -123,6 +131,7 @@ Investigation Required: [YES/NO]
 ## SUCCESS/ERROR REPORTING FRAMEWORK
 
 ### Success Report Template
+
 ```
 ✅ SUCCESS: [Operation Description]
 
@@ -150,6 +159,7 @@ Timestamp: [ISO 8601 timestamp]
 ```
 
 ### Error Report Template  
+
 ```
 ❌ ERROR: [Operation Description]
 
@@ -186,6 +196,7 @@ Timestamp: [ISO 8601 timestamp]
 ## IMPORT INTEGRITY VERIFICATION
 
 ### Standard Import Test Suite
+
 ```python
 #!/usr/bin/env python3
 """
@@ -262,6 +273,7 @@ if __name__ == "__main__":
 ```
 
 ### Usage Instructions
+
 ```bash
 # Run after each phase deletion
 python validation_suite.py
@@ -281,6 +293,7 @@ find src -type f -name "*.py" | wc -l  # Track file count reduction
 ## LINE COUNT & METRICS TRACKING
 
 ### Automated Metrics Collection
+
 ```bash
 #!/bin/bash
 # collect_metrics.sh - Standardized metrics collection
@@ -309,6 +322,7 @@ echo "Uncommitted changes: $(git status --porcelain | wc -l)"
 ```
 
 ### Progress Tracking Template
+
 ```
 MIGRATION PROGRESS TRACKER
 
@@ -336,6 +350,7 @@ Quality Gates:
 ## EMERGENCY PROCEDURES
 
 ### Critical Failure Response
+
 1. **STOP** all deletion operations immediately
 2. **ASSESS** system state and data integrity  
 3. **ROLLBACK** to last known good state if needed
@@ -343,12 +358,14 @@ Quality Gates:
 5. **DOCUMENT** failure for process improvement
 
 ### Emergency Contacts & Resources
+
 - **Safety Backup Branch:** `safety-backup-[timestamp]`  
 - **Emergency Recovery:** See MIGRATION-LOG.md rollback procedures
 - **Validation Commands:** Run validation_suite.py for system check
 - **Documentation:** All procedures documented in this framework
 
 ### Recovery Validation Checklist
+
 □ System starts without errors
 □ Database connections work
 □ Core imports functional  

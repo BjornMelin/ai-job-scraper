@@ -9,6 +9,7 @@
 The AI Job Scraper has been extensively benchmarked and validated for production deployment. Performance targets have been met or exceeded across all system components, with demonstrated scalability from personal use (1K jobs) to enterprise capacity (500K jobs tested).
 
 ### Key Performance Achievements
+
 - ✅ **Search Response**: 5-300ms (scales with dataset size)
 - ✅ **AI Processing**: <3s local, <5s cloud fallback  
 - ✅ **UI Rendering**: <200ms for 50 cards
@@ -21,6 +22,7 @@ The AI Job Scraper has been extensively benchmarked and validated for production
 ### Search Performance (SQLite FTS5)
 
 #### Response Time Scaling
+
 | Dataset Size | Storage | Search Response | Index Size | Query Type |
 |-------------|---------|-----------------|------------|------------|
 | 1,000 jobs | 2.5 MB | 5-15 ms | 0.3 MB | Simple term |
@@ -33,6 +35,7 @@ The AI Job Scraper has been extensively benchmarked and validated for production
 | 500,000 jobs | 1.375 GB | 200-300 ms | 137.5 MB | Complex filters |
 
 #### Search Query Performance Breakdown
+
 ```python
 # Benchmark results from test suite
 SEARCH_BENCHMARKS = {
@@ -60,6 +63,7 @@ SEARCH_BENCHMARKS = {
 ### AI Processing Performance
 
 #### Hybrid AI Router Benchmarks
+
 | Content Size | Processing Route | Response Time | Cost per Request | Success Rate |
 |-------------|------------------|---------------|------------------|---------------|
 | <1K tokens | Local vLLM | 0.8-1.2s | $0.000 | 98.5% |
@@ -69,6 +73,7 @@ SEARCH_BENCHMARKS = {
 | 16K+ tokens | Cloud GPT-4o-mini | 3.5-5.0s | $0.00008 | 98.8% |
 
 #### AI Model Performance Comparison
+
 ```python
 LOCAL_AI_PERFORMANCE = {
     "model": "Qwen2.5-4B-Instruct",
@@ -93,12 +98,14 @@ CLOUD_AI_PERFORMANCE = {
 ### Scraping Performance Metrics
 
 #### 2-Tier Scraping Benchmarks
+
 | Tier | Source Type | Success Rate | Avg Response | Proxy Usage | Error Recovery |
 |------|-------------|--------------|-------------|-------------|----------------|
 | Tier 1 | Job Boards (JobSpy) | 95.2% | 2-5s | Optional | 3 retries |
 | Tier 2 | Company Pages (ScrapeGraphAI) | 92.8% | 8-15s | Recommended | AI + fallback |
 
 #### Scraping Throughput Analysis
+
 ```python
 SCRAPING_METRICS = {
     "job_boards": {
@@ -122,6 +129,7 @@ SCRAPING_METRICS = {
 ### UI Performance Metrics
 
 #### Mobile-First Responsive Cards
+
 | Device Category | Viewport | Card Count | Render Time | Memory Usage |
 |----------------|----------|------------|-------------|--------------|
 | Mobile | 320-640px | 10 cards | <150ms | 45-60 MB |
@@ -129,6 +137,7 @@ SCRAPING_METRICS = {
 | Desktop | 1025px+ | 50 cards | <200ms | 85-120 MB |
 
 #### UI Component Performance
+
 ```python
 UI_PERFORMANCE_METRICS = {
     "card_rendering": {
@@ -157,6 +166,7 @@ UI_PERFORMANCE_METRICS = {
 ### Database Performance Characteristics
 
 #### SQLite Optimization Results
+
 | Configuration | Connection Time | Query Cache Hit | Write Performance | Concurrent Users |
 |--------------|----------------|-----------------|------------------|------------------|
 | Default SQLite | 5-10ms | 60-70% | 1000 ops/sec | 1 |
@@ -164,6 +174,7 @@ UI_PERFORMANCE_METRICS = {
 | Memory-mapped | 1-3ms | 90-98% | 8000 ops/sec | 5-8 |
 
 #### Database Scaling Performance
+
 ```python
 DATABASE_SCALING = {
     "sqlite_performance": {
@@ -190,6 +201,7 @@ DATABASE_SCALING = {
 ### Architecture Capacity Tiers
 
 #### Tier 1: Personal Scale (1K-10K jobs)
+
 ```yaml
 Target Users: Individual job seekers
 Storage Requirements: 2.5MB - 27.5MB
@@ -209,6 +221,7 @@ Recommended Configuration:
 ```
 
 #### Tier 2: Professional Scale (10K-50K jobs)
+
 ```yaml
 Target Users: Small companies, recruitment agencies
 Storage Requirements: 27.5MB - 137.5MB
@@ -228,6 +241,7 @@ Recommended Configuration:
 ```
 
 #### Tier 3: Enterprise Scale (50K-500K jobs)
+
 ```yaml
 Target Users: Large companies, job boards
 Storage Requirements: 137.5MB - 1.375GB
@@ -247,6 +261,7 @@ Recommended Configuration:
 ```
 
 #### Tier 4: Large Scale (500K+ jobs)
+
 ```yaml
 Target Users: Major job platforms
 Storage Requirements: 1.375GB+
@@ -268,6 +283,7 @@ Recommended Configuration:
 ### Resource Utilization Metrics
 
 #### Memory Usage Scaling
+
 ```python
 MEMORY_USAGE_PROFILE = {
     "base_application": {
@@ -294,6 +310,7 @@ MEMORY_USAGE_PROFILE = {
 ```
 
 #### CPU Utilization Profile
+
 ```python
 CPU_UTILIZATION = {
     "normal_operation": {
@@ -318,6 +335,7 @@ CPU_UTILIZATION = {
 ### Network Performance
 
 #### Bandwidth Requirements
+
 | Operation | Bandwidth Usage | Latency Sensitivity | Cache Efficiency |
 |-----------|----------------|-------------------|------------------|
 | Job Board Scraping | 1-5 MB/min | Medium | 70% cache hit |
@@ -326,6 +344,7 @@ CPU_UTILIZATION = {
 | UI Updates | 50-200 KB/min | High | 90% cache hit |
 
 #### Network Optimization Results
+
 ```python
 NETWORK_PERFORMANCE = {
     "http_client_optimization": {
@@ -349,6 +368,7 @@ NETWORK_PERFORMANCE = {
 ## Cost Performance Analysis
 
 ### Operational Cost Breakdown
+
 | Component | Monthly Cost | Usage Pattern | Cost per Job |
 |-----------|-------------|----------------|---------------|
 | AI Processing (Local) | $0.00 | 98% of requests | $0.00 |
@@ -358,6 +378,7 @@ NETWORK_PERFORMANCE = {
 | **Total Monthly** | **$17.50-77.50** | **Average usage** | **$0.003** |
 
 ### Cost Optimization Achievements
+
 ```python
 COST_OPTIMIZATION = {
     "ai_processing_savings": {
@@ -382,6 +403,7 @@ COST_OPTIMIZATION = {
 ## Performance Testing Results
 
 ### Load Testing Benchmarks
+
 ```python
 LOAD_TEST_RESULTS = {
     "search_performance_under_load": {
@@ -409,6 +431,7 @@ LOAD_TEST_RESULTS = {
 ```
 
 ### Stress Testing Results
+
 ```python
 STRESS_TEST_RESULTS = {
     "maximum_capacity": {
@@ -435,18 +458,21 @@ STRESS_TEST_RESULTS = {
 ## Performance Optimization Recommendations
 
 ### Immediate Optimizations (0-30 days)
+
 1. **Database Query Optimization**: Implement query result caching for frequently accessed searches
 2. **UI Performance**: Enable browser caching for static assets and implement service workers
 3. **AI Routing Optimization**: Fine-tune complexity threshold based on usage patterns
 4. **Memory Management**: Implement automatic cleanup of old search results and cached data
 
 ### Medium-term Optimizations (30-90 days)  
+
 1. **Search Enhancement**: Implement incremental search indexing for faster updates
 2. **Concurrency Improvements**: Add connection pooling for database operations
 3. **Caching Strategy**: Implement Redis cache layer for high-frequency operations
 4. **Analytics Performance**: Auto-trigger DuckDB analytics based on query complexity
 
 ### Long-term Scalability (90+ days)
+
 1. **Horizontal Scaling**: Design multi-instance deployment with shared data layer
 2. **Advanced Caching**: Implement distributed cache with consistency guarantees
 3. **Database Sharding**: Partition large datasets across multiple SQLite files
@@ -455,6 +481,7 @@ STRESS_TEST_RESULTS = {
 ## Monitoring and Alerting Thresholds
 
 ### Performance Alert Thresholds
+
 ```python
 PERFORMANCE_ALERTS = {
     "critical_thresholds": {

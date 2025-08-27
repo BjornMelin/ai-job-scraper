@@ -1,0 +1,62 @@
+{
+  "overall_success": false,
+  "total_tests": 7,
+  "passed_tests": 0,
+  "failed_tests": 7,
+  "success_rate": 0.0,
+  "total_duration_ms": 60,
+  "test_results": [
+    {
+      "test_name": "vLLM Health Check",
+      "passed": false,
+      "duration_ms": 16,
+      "error_message": "vLLM service not responding to health check",
+      "details": {}
+    },
+    {
+      "test_name": "Model Availability",
+      "passed": false,
+      "duration_ms": 13,
+      "error_message": "Model 'Qwen3-4B-Instruct-2507-FP8' not available",
+      "details": {
+        "available_models": []
+      }
+    },
+    {
+      "test_name": "Simple Completion",
+      "passed": false,
+      "duration_ms": 6,
+      "error_message": "from_litellm() missing 1 required positional argument: 'completion'",
+      "details": {}
+    },
+    {
+      "test_name": "Structured Extraction",
+      "passed": false,
+      "duration_ms": 19,
+      "error_message": "litellm.BadRequestError: LLM Provider NOT provided. Pass in the LLM provider you are trying to call. You passed model=local-qwen\n Pass model as E.g. For 'Huggingface' inference endpoints pass in `completion(model='huggingface/starcoder',..)` Learn more: https://docs.litellm.ai/docs/providers",
+      "details": {}
+    },
+    {
+      "test_name": "Fallback Behavior",
+      "passed": false,
+      "duration_ms": 2,
+      "error_message": "from_litellm() missing 1 required positional argument: 'completion'",
+      "details": {}
+    },
+    {
+      "test_name": "Error Handling",
+      "passed": false,
+      "duration_ms": 2,
+      "error_message": "from_litellm() missing 1 required positional argument: 'completion'",
+      "details": {}
+    },
+    {
+      "test_name": "Backward Compatibility",
+      "passed": false,
+      "duration_ms": 2,
+      "error_message": "from_litellm() missing 1 required positional argument: 'completion'",
+      "details": {}
+    }
+  ],
+  "timestamp": "2025-08-27T16:30:46.443042"
+}

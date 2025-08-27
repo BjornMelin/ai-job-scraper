@@ -11,18 +11,17 @@ from typing import Any
 
 import streamlit as st
 
-from openai import OpenAI
-
+from src.ai_client import get_ai_client
 from src.ui.utils import is_streamlit_context
 
 logger = logging.getLogger(__name__)
 
 
 def test_openai_connection(api_key: str) -> tuple[bool, str]:
-    """Test OpenAI API connection for cloud fallback.
+    """Test OpenAI API connection for cloud fallback using centralized AI client.
 
     Makes actual API calls to validate connectivity and authentication.
-    Uses lightweight endpoints to minimize cost and latency.
+    Uses ai_client with specific OpenAI model to test the connection.
 
     Args:
         api_key: The OpenAI API key to test.
@@ -41,12 +40,28 @@ def test_openai_connection(api_key: str) -> tuple[bool, str]:
         if not api_key.startswith("sk-"):
             message = "Invalid OpenAI API key format (should start with 'sk-')"
         else:
-            # Test actual API connectivity using lightweight models.list() endpoint
-            client = OpenAI(api_key=api_key)
-            models = client.models.list()
-            model_count = len(models.data) if models.data else 0
-            success = True
-            message = f"✅ Connected successfully. {model_count} models available"
+            # Test actual API connectivity using ai_client with GPT-4o-mini
+            # Set environment variable temporarily for this test
+            import os
+
+            old_key = os.environ.get("OPENAI_API_KEY")
+            os.environ["OPENAI_API_KEY"] = api_key
+
+            try:
+                ai_client = get_ai_client()
+                # Test with a minimal completion using OpenAI model
+                test_messages = [{"role": "user", "content": "Hello"}]
+                ai_client.get_simple_completion(
+                    messages=test_messages, model="gpt-4o-mini", max_tokens=1
+                )
+                success = True
+                message = "✅ Connected successfully. OpenAI API key is valid"
+            finally:
+                # Restore original environment variable
+                if old_key is None:
+                    os.environ.pop("OPENAI_API_KEY", None)
+                else:
+                    os.environ["OPENAI_API_KEY"] = old_key
 
     except Exception as e:
         logger.exception("API connection test failed for OpenAI")

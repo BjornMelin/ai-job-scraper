@@ -9,7 +9,8 @@
 This operations manual provides comprehensive guidance for monitoring, maintaining, and troubleshooting the AI Job Scraper system in production. All procedures are validated and production-tested.
 
 ### Quick Reference
-- **Health Dashboard**: http://localhost:8501/_stcore/health
+
+- **Health Dashboard**: <http://localhost:8501/_stcore/health>
 - **Logs Location**: `/var/log/ai-job-scraper/` or `docker logs ai-job-scraper`
 - **Emergency Contact**: System administrator
 - **Escalation Path**: Application → Infrastructure → External services
@@ -19,6 +20,7 @@ This operations manual provides comprehensive guidance for monitoring, maintaini
 ### Health Check Endpoints
 
 #### Primary Health Checks
+
 ```python
 # Main application health check
 GET http://localhost:8501/_stcore/health
@@ -34,6 +36,7 @@ Expected Response: JSON with component status
 ```
 
 #### Comprehensive Health Check Script
+
 ```python
 #!/usr/bin/env python3
 # scripts/system_health_check.py
@@ -161,6 +164,7 @@ if __name__ == "__main__":
 ### Monitoring Dashboard Setup
 
 #### Prometheus Metrics (Optional)
+
 ```python
 # monitoring/prometheus_metrics.py
 from prometheus_client import Counter, Histogram, Gauge, start_http_server
@@ -185,6 +189,7 @@ def start_metrics_server(port=9090):
 ```
 
 #### Custom Health Dashboard
+
 ```python
 # monitoring/health_dashboard.py
 import streamlit as st
@@ -231,6 +236,7 @@ def render_health_dashboard():
 ## Logging and Monitoring
 
 ### Log Configuration
+
 ```python
 # Logging configuration in production
 LOGGING_CONFIG = {
@@ -290,6 +296,7 @@ LOGGING_CONFIG = {
 ```
 
 ### Log Analysis Scripts
+
 ```bash
 #!/bin/bash
 # scripts/log_analysis.sh
@@ -318,6 +325,7 @@ awk '{print $(NF-1)}' | sort | uniq -c
 ## Backup and Recovery
 
 ### Database Backup Procedures
+
 ```bash
 #!/bin/bash
 # scripts/backup_database.sh
@@ -352,6 +360,7 @@ tar -czf "$BACKUP_DIR/config_${TIMESTAMP}.tar.gz" config/ .env
 ```
 
 ### Recovery Procedures
+
 ```bash
 #!/bin/bash
 # scripts/restore_database.sh
@@ -392,6 +401,7 @@ fi
 ```
 
 ### Configuration Backup
+
 ```bash
 #!/bin/bash
 # scripts/backup_config.sh
@@ -422,6 +432,7 @@ echo "Configuration backup completed: config_${TIMESTAMP}.tar.gz"
 ### Common Issues and Solutions
 
 #### Issue: Application Won't Start
+
 ```bash
 # Symptom: Docker container exits immediately or port 8501 unreachable
 
@@ -450,6 +461,7 @@ echo "Configuration backup completed: config_${TIMESTAMP}.tar.gz"
 ```
 
 #### Issue: Slow Search Performance
+
 ```bash
 # Symptom: Search queries taking >500ms consistently
 
@@ -475,6 +487,7 @@ export USE_DUCKDB_ANALYTICS=true
 ```
 
 #### Issue: AI Processing Failures
+
 ```bash
 # Symptom: AI enhancement failing or timing out
 
@@ -506,6 +519,7 @@ export USE_DUCKDB_ANALYTICS=true
 ```
 
 #### Issue: Scraping Failures
+
 ```bash
 # Symptom: Job scraping returning empty results or failing
 
@@ -536,6 +550,7 @@ export USE_DUCKDB_ANALYTICS=true
 ```
 
 #### Issue: High Memory Usage
+
 ```bash
 # Symptom: System memory usage >80% or OOM kills
 
@@ -567,6 +582,7 @@ export USE_DUCKDB_ANALYTICS=true
 ### Emergency Procedures
 
 #### Service Recovery Protocol
+
 ```bash
 #!/bin/bash
 # scripts/emergency_recovery.sh
@@ -607,6 +623,7 @@ echo "Emergency recovery completed. Check health status above."
 ```
 
 #### Data Recovery from Corruption
+
 ```python
 #!/usr/bin/env python3
 # scripts/data_recovery.py
@@ -682,6 +699,7 @@ if __name__ == "__main__":
 ## Performance Monitoring
 
 ### Key Performance Indicators (KPIs)
+
 ```python
 # Performance monitoring thresholds
 KPI_THRESHOLDS = {
@@ -705,6 +723,7 @@ CRITICAL_ALERTS = {
 ```
 
 ### Automated Performance Reports
+
 ```python
 #!/usr/bin/env python3
 # scripts/performance_report.py
@@ -771,6 +790,7 @@ if __name__ == "__main__":
 ### Regular Maintenance Checklist
 
 #### Daily Maintenance (Automated)
+
 ```bash
 #!/bin/bash
 # scripts/daily_maintenance.sh
@@ -790,6 +810,7 @@ find /tmp -name "ai-job-scraper-*" -mtime +1 -delete
 ```
 
 #### Weekly Maintenance
+
 ```bash
 #!/bin/bash
 # scripts/weekly_maintenance.sh
@@ -811,6 +832,7 @@ python3 scripts/performance_report.py > "/var/log/ai-job-scraper/weekly_report_$
 ```
 
 #### Monthly Maintenance
+
 ```bash
 #!/bin/bash
 # scripts/monthly_maintenance.sh

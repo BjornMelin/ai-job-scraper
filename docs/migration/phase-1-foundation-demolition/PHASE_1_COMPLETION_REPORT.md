@@ -35,7 +35,7 @@
 
 ### Current Position vs Ultimate Goal
 
-- **Current Lines**: 15,053 
+- **Current Lines**: 15,053
 - **ADR-001 Target**: <300 lines
 - **Gap Remaining**: 14,753+ lines (97.9% more reduction needed)
 - **Phase 1 Progress**: 2.1% toward ADR-001 target
@@ -87,12 +87,14 @@
 ### Phase 1 vs Future Requirements
 
 **Phase 1 Achieved** ✅:
+
 - Foundation demolition complete
 - Over-engineered systems eliminated
 - Architecture massively simplified
 - Library integration path cleared
 
 **Phase 2 Required** 🎯:
+
 - LiteLLM integration (AI complexity → 50 lines)
 - JobSpy integration (scraping complexity → direct usage)  
 - Native Streamlit patterns (@st.fragment, @st.cache_data)
@@ -103,6 +105,7 @@
 ### Before vs After Architecture
 
 **Before (26,289 lines)**:
+
 - Complex orchestration systems
 - Custom AI routing and processing
 - Fragment wrapper architecture  
@@ -111,6 +114,7 @@
 - Over-engineered service patterns
 
 **After (15,053 lines)**:
+
 - Simplified core modules
 - Basic AI client (ready for LiteLLM)
 - Direct Streamlit components
