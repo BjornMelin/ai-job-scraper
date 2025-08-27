@@ -1,4 +1,4 @@
-# ADR-012: Smart Database Synchronization Engine
+# ADR-008: Smart Database Synchronization Engine
 
 ## Metadata
 

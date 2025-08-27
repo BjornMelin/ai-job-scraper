@@ -10,14 +10,13 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from groq import Groq
 from openai import OpenAI
 
 from src.ui.pages.settings import (
     load_settings,
     save_settings,
     show_settings_page,
-    test_api_connection,
+    test_openai_connection,
 )
 
 
@@ -36,7 +35,7 @@ class TestApiConnectionTesting:
             mock_models_attr.list.return_value = mock_models
 
             # Act
-            success, message = test_api_connection("OpenAI", api_key)
+            success, message = test_openai_connection(api_key)
 
             # Assert
             assert success is True
@@ -49,7 +48,7 @@ class TestApiConnectionTesting:
         api_key = "invalid-key-format"
 
         # Act
-        success, message = test_api_connection("OpenAI", api_key)
+        success, message = test_openai_connection(api_key)
 
         # Assert
         assert success is False
@@ -65,103 +64,29 @@ class TestApiConnectionTesting:
             mock_models_attr.list.side_effect = Exception("401 Unauthorized")
 
             # Act
-            success, message = test_api_connection("OpenAI", api_key)
+            success, message = test_openai_connection(api_key)
 
             # Assert
             assert success is False
             assert "❌ Authentication failed" in message
             assert "Please check your API key" in message
 
-    def test_test_api_connection_groq_success(self):
-        """Test successful Groq API connection returns success message."""
-        # Arrange
-        api_key = "gsk_long_valid_groq_key_12345"
-
-        mock_completion = Mock()
-        mock_completion.id = "chatcmpl-123456789"
-
-        with patch.object(Groq, "chat") as mock_chat:
-            mock_chat.completions.create.return_value = mock_completion
-
-            # Act
-            success, message = test_api_connection("Groq", api_key)
-
-            # Assert
-            assert success is True
-            assert "✅ Connected successfully" in message
-            assert "Response ID: chatcmpl-" in message
-
-    def test_test_api_connection_groq_key_too_short(self):
-        """Test Groq API connection with key that's too short."""
-        # Arrange
-        api_key = "short_key"
-
-        # Act
-        success, message = test_api_connection("Groq", api_key)
-
-        # Assert
-        assert success is False
-        assert "Groq API key appears to be too short" in message
-
-    def test_test_api_connection_groq_network_error(self):
-        """Test Groq API connection with network error."""
-        # Arrange
-        api_key = "gsk_long_valid_groq_key_12345"
-
-        with patch.object(Groq, "chat") as mock_chat:
-            mock_chat.completions.create.side_effect = Exception("Connection timeout")
-
-            # Act
-            success, message = test_api_connection("Groq", api_key)
-
-            # Assert
-            assert success is False
-            assert "❌ Network connection failed" in message
-            assert "Please check your internet connection" in message
-
-    def test_test_api_connection_groq_rate_limit(self):
-        """Test Groq API connection with rate limit error."""
-        # Arrange
-        api_key = "gsk_long_valid_groq_key_12345"
-
-        with patch.object(Groq, "chat") as mock_chat:
-            mock_chat.completions.create.side_effect = Exception(
-                "429 rate limit exceeded",
-            )
-
-            # Act
-            success, message = test_api_connection("Groq", api_key)
-
-            # Assert
-            assert success is False
-            assert "❌ Rate limit exceeded" in message
-            assert "Please try again later" in message
-
     def test_test_api_connection_empty_api_key(self):
         """Test API connection with empty or whitespace-only API key."""
         # Act & Assert for empty key
-        success, message = test_api_connection("OpenAI", "")
+        success, message = test_openai_connection("")
         assert success is False
         assert "API key is required" in message
 
         # Act & Assert for whitespace-only key
-        success, message = test_api_connection("OpenAI", "   ")
+        success, message = test_openai_connection("   ")
         assert success is False
         assert "API key is required" in message
 
         # Act & Assert for None key
-        success, message = test_api_connection("OpenAI", None)
+        success, message = test_openai_connection(None)
         assert success is False
         assert "API key is required" in message
-
-    def test_test_api_connection_unknown_provider(self):
-        """Test API connection with unknown provider."""
-        # Act
-        success, message = test_api_connection("UnknownProvider", "test-key")
-
-        # Assert
-        assert success is False
-        assert "Unknown provider: UnknownProvider" in message
 
     @pytest.mark.parametrize(
         ("error_message", "expected_message"),
@@ -181,7 +106,7 @@ class TestApiConnectionTesting:
             mock_models_attr.list.side_effect = Exception(error_message)
 
             # Act
-            success, message = test_api_connection("OpenAI", api_key)
+            success, message = test_openai_connection(api_key)
 
             # Assert
             assert success is False
@@ -199,14 +124,13 @@ class TestSettingsLoading:
                 os.environ,
                 {
                     "OPENAI_API_KEY": "sk-env-openai-key",
-                    "GROQ_API_KEY": "gsk_env_groq_key",
                 },
             ),
             patch("streamlit.session_state", new_callable=dict) as mock_session,
         ):
             mock_session.update(
                 {
-                    "llm_provider": "Groq",
+                    "ai_token_threshold": 10000,
                     "max_jobs_per_company": 75,
                 },
             )
@@ -216,8 +140,7 @@ class TestSettingsLoading:
 
             # Assert
             assert settings["openai_api_key"] == "sk-env-openai-key"
-            assert settings["groq_api_key"] == "gsk_env_groq_key"
-            assert settings["llm_provider"] == "Groq"
+            assert settings["ai_token_threshold"] == 10000
             assert settings["max_jobs_per_company"] == 75
 
     def test_load_settings_with_defaults(self):
@@ -232,8 +155,7 @@ class TestSettingsLoading:
 
             # Assert
             assert settings["openai_api_key"] == ""
-            assert settings["groq_api_key"] == ""
-            assert settings["llm_provider"] == "OpenAI"  # Default
+            assert settings["ai_token_threshold"] == 8000  # Default
             assert settings["max_jobs_per_company"] == 50  # Default
 
     def test_load_settings_mixed_sources(self):
@@ -249,7 +171,7 @@ class TestSettingsLoading:
         ):
             mock_session.update(
                 {
-                    "llm_provider": "OpenAI",
+                    "ai_token_threshold": 12000,
                     "max_jobs_per_company": 100,
                 },
             )
@@ -259,8 +181,7 @@ class TestSettingsLoading:
 
             # Assert
             assert settings["openai_api_key"] == "sk-env-key"  # From env
-            assert settings["groq_api_key"] == ""  # Not set
-            assert settings["llm_provider"] == "OpenAI"  # From session
+            assert settings["ai_token_threshold"] == 12000  # From session
             assert settings["max_jobs_per_company"] == 100  # From session
 
 
@@ -272,8 +193,7 @@ class TestSettingsSaving:
         # Arrange
         test_settings = {
             "openai_api_key": "sk-test-key",
-            "groq_api_key": "gsk_test_key",
-            "llm_provider": "Groq",
+            "ai_token_threshold": 10000,
             "max_jobs_per_company": 80,
         }
 
@@ -282,7 +202,7 @@ class TestSettingsSaving:
             save_settings(test_settings)
 
             # Assert
-            assert mock_session["llm_provider"] == "Groq"
+            assert mock_session["ai_token_threshold"] == 10000
             assert mock_session["max_jobs_per_company"] == 80
 
     def test_save_settings_with_defaults(self):
@@ -297,14 +217,14 @@ class TestSettingsSaving:
             save_settings(incomplete_settings)
 
             # Assert
-            assert mock_session["llm_provider"] == "OpenAI"  # Default
+            assert mock_session["ai_token_threshold"] == 8000  # Default
             assert mock_session["max_jobs_per_company"] == 50  # Default
 
     def test_save_settings_logs_information(self):
         """Test that save_settings logs the configuration."""
         # Arrange
         test_settings = {
-            "llm_provider": "OpenAI",
+            "ai_token_threshold": 9000,
             "max_jobs_per_company": 60,
         }
 
@@ -319,7 +239,7 @@ class TestSettingsSaving:
             mock_logger.info.assert_called_once()
             call_args = mock_logger.info.call_args[0]
             assert "Settings updated" in call_args[0]
-            assert "OpenAI" in str(call_args)
+            assert "9000" in str(call_args)
             assert "60" in str(call_args)
 
 
@@ -594,9 +514,8 @@ class TestSettingsPageRendering:
     ):
         """Test settings page handles errors during save operation."""
         # Arrange
-        mock_streamlit["radio"].return_value = "OpenAI"
-        mock_streamlit["text_input"].side_effect = ["sk-key", "gsk_key"]
-        mock_streamlit["slider"].return_value = 60
+        mock_streamlit["text_input"].return_value = "sk-key"
+        mock_streamlit["slider"].side_effect = [9000, 60]  # token threshold, max jobs
         mock_streamlit["button"].return_value = True  # Save button clicked
 
         with patch("src.ui.pages.settings.save_settings") as mock_save:
@@ -618,9 +537,8 @@ class TestSettingsPageRendering:
     ):
         """Test settings page displays security reminder for API keys."""
         # Arrange
-        mock_streamlit["radio"].return_value = "OpenAI"
-        mock_streamlit["text_input"].side_effect = ["sk-key", "gsk_key"]
-        mock_streamlit["slider"].return_value = 60
+        mock_streamlit["text_input"].return_value = "sk-key"
+        mock_streamlit["slider"].side_effect = [8500, 60]  # token threshold, max jobs
         mock_streamlit["button"].return_value = True  # Save button clicked
 
         # Act
@@ -637,25 +555,27 @@ class TestSettingsPageRendering:
         )
         assert security_reminder
 
-    def test_settings_page_provider_icons_display_correctly(
+    def test_settings_page_displays_ai_configuration_info(
         self,
         mock_streamlit,
         mock_session_state,
     ):
-        """Test settings page displays correct provider icons."""
+        """Test settings page displays AI configuration information."""
         # Arrange
-        mock_streamlit["radio"].return_value = "OpenAI"
         with patch.dict(os.environ, {}, clear=True):
             # Act
             show_settings_page()
 
             # Assert
-            markdown_calls = mock_streamlit["markdown"].call_args_list
-            markdown_texts = [call.args[0] for call in markdown_calls]
+            info_calls = mock_streamlit["info"].call_args_list
+            info_messages = [call.args[0] for call in info_calls]
 
-            # Check for provider icons
-            assert any("🤖 OpenAI GPT" in text for text in markdown_texts)
-            assert any("⚡ Groq (Ultra-fast)" in text for text in markdown_texts)
+            # Check for AI configuration info
+            ai_config_info = any(
+                "Local Model" in msg and "Cloud Fallback" in msg
+                for msg in info_messages
+            )
+            assert ai_config_info
 
 
 class TestSettingsPageBoundaryConditions:
@@ -683,7 +603,7 @@ class TestSettingsPageBoundaryConditions:
         # Arrange
         mock_session_state.update(
             {
-                "llm_provider": "InvalidProvider",  # Invalid provider
+                "ai_token_threshold": "not_a_number",  # Invalid type
                 "max_jobs_per_company": "not_a_number",  # Invalid type
             },
         )
@@ -734,8 +654,8 @@ class TestSettingsPageBoundaryConditions:
             markdown_texts = [call.args[0] for call in markdown_calls]
 
             # Check environment variable status display
-            assert any("OPENAI_API_KEY: ✅ Set" in text for text in markdown_texts)
-            assert any("GROQ_API_KEY: ❌ Not Set" in text for text in markdown_texts)
+            assert any("✅ Set" in text for text in markdown_texts)
+            assert any("❌ Not Set" in text for text in markdown_texts)
 
 
 class TestSettingsPageIntegration:
@@ -749,16 +669,14 @@ class TestSettingsPageIntegration:
         """Test complete workflow of configuring and saving settings."""
         # Arrange - Simulate user interactions
         call_sequence = [
-            "Groq",  # Provider selection
             "sk-openai-key-123",  # OpenAI key
-            "gsk_groq_key_456",  # Groq key
+            9000,  # Token threshold
             100,  # Max jobs slider
             True,  # Save button
         ]
-        mock_streamlit["radio"].return_value = call_sequence[0]
-        mock_streamlit["text_input"].side_effect = call_sequence[1:3]
-        mock_streamlit["slider"].return_value = call_sequence[3]
-        mock_streamlit["button"].return_value = call_sequence[4]
+        mock_streamlit["text_input"].return_value = call_sequence[0]
+        mock_streamlit["slider"].side_effect = [call_sequence[1], call_sequence[2]]
+        mock_streamlit["button"].return_value = call_sequence[3]
 
         with patch("src.ui.pages.settings.save_settings") as mock_save:
             # Act
@@ -766,68 +684,50 @@ class TestSettingsPageIntegration:
 
             # Assert - Complete workflow executed
             # 1. Form was rendered with inputs
-            assert mock_streamlit["radio"].called
-            assert mock_streamlit["text_input"].call_count >= 2
-            assert mock_streamlit["slider"].called
+            assert mock_streamlit["text_input"].called
+            assert mock_streamlit["slider"].call_count >= 2
             assert mock_streamlit["button"].called
 
             # 2. Settings were saved with correct values
             mock_save.assert_called_once()
             saved_settings = mock_save.call_args[0][0]
-            assert saved_settings["llm_provider"] == "Groq"
             assert saved_settings["openai_api_key"] == "sk-openai-key-123"
-            assert saved_settings["groq_api_key"] == "gsk_groq_key_456"
+            assert saved_settings["ai_token_threshold"] == 9000
             assert saved_settings["max_jobs_per_company"] == 100
 
             # 3. Success feedback was shown
             mock_streamlit["success"].assert_called()
 
-    def test_api_testing_workflow_with_both_providers(
+    def test_api_testing_workflow_openai_only(
         self,
         mock_streamlit,
         mock_session_state,
     ):
-        """Test API testing workflow for both providers."""
+        """Test API testing workflow for OpenAI provider."""
         # Arrange
         mock_streamlit["button"].side_effect = [
             True,
             False,
             False,
-            True,
-        ]  # Test buttons
+        ]  # Test button clicked
 
         with (
             patch.dict(
                 os.environ,
-                {"OPENAI_API_KEY": "sk-test", "GROQ_API_KEY": "gsk_test"},
+                {"OPENAI_API_KEY": "sk-test"},
             ),
-            patch("src.ui.pages.settings.test_api_connection") as mock_test,
+            patch("src.ui.pages.settings.test_openai_connection") as mock_test,
         ):
-            mock_test.side_effect = [
-                (True, "✅ OpenAI connected"),
-                (False, "❌ Groq failed"),
-            ]
+            mock_test.return_value = (True, "✅ OpenAI connected")
 
             # Act
             show_settings_page()
 
-            # Assert - Both APIs were tested
-            assert mock_test.call_count == 2
-            test_calls = mock_test.call_args_list
-
-            # Check OpenAI test
-            openai_call = test_calls[0]
-            assert openai_call.args[0] == "OpenAI"
-            assert openai_call.args[1] == "sk-test"
-
-            # Check Groq test
-            groq_call = test_calls[1]
-            assert groq_call.args[0] == "Groq"
-            assert groq_call.args[1] == "gsk_test"
+            # Assert - OpenAI API was tested
+            mock_test.assert_called_once_with("sk-test")
 
             # Check feedback was displayed
             mock_streamlit["success"].assert_called()
-            mock_streamlit["error"].assert_called()
 
     def test_settings_persistence_across_page_loads(
         self,
@@ -838,29 +738,25 @@ class TestSettingsPageIntegration:
         # Arrange - Set initial session state
         mock_session_state.update(
             {
-                "llm_provider": "Groq",
+                "ai_token_threshold": 12000,
                 "max_jobs_per_company": 75,
             },
         )
 
         with patch.dict(
             os.environ,
-            {"OPENAI_API_KEY": "sk-persistent", "GROQ_API_KEY": "gsk_persistent"},
+            {"OPENAI_API_KEY": "sk-persistent"},
         ):
             # Act - Load page multiple times
             show_settings_page()
             show_settings_page()
 
             # Assert - Settings are loaded consistently
-            radio_calls = mock_streamlit["radio"].call_args_list
-
-            # Check that provider selection uses persisted value
-            for call in radio_calls:
-                if "LLM Provider" in call.args:
-                    assert call.kwargs["index"] == 1  # Groq (index 1)
-
-            # Check that slider uses persisted value
             slider_calls = mock_streamlit["slider"].call_args_list
+
+            # Check that token threshold slider uses persisted value
             for call in slider_calls:
-                if "Maximum Jobs Per Company" in call.args:
+                if "Token Threshold" in call.args:
+                    assert call.kwargs["value"] == 12000
+                elif "Maximum Jobs Per Company" in call.args:
                     assert call.kwargs["value"] == 75

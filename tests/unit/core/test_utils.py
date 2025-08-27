@@ -2,111 +2,13 @@
 
 import time
 
-from unittest.mock import MagicMock, patch
-
-from groq import Groq
-from openai import OpenAI
+from unittest.mock import patch
 
 from src.core_utils import (
-    get_extraction_model,
-    get_llm_client,
     get_proxy,
     random_delay,
     random_user_agent,
 )
-
-
-class TestGetLLMClient:
-    """Test LLM client selection."""
-
-    @patch("src.core_utils.settings")
-    def test_get_llm_client_openai(self, mock_settings):
-        """Test getting OpenAI client when use_groq is False."""
-        mock_settings.use_groq = False
-        mock_settings.openai_api_key = "test-openai-key"
-
-        with patch("src.core_utils.OpenAI") as mock_openai:
-            mock_client = MagicMock()
-            mock_openai.return_value = mock_client
-
-            client = get_llm_client()
-
-            mock_openai.assert_called_once_with(api_key="test-openai-key")
-            assert client == mock_client
-
-    @patch("src.core_utils.settings")
-    def test_get_llm_client_groq(self, mock_settings):
-        """Test getting Groq client when use_groq is True."""
-        mock_settings.use_groq = True
-        mock_settings.groq_api_key = "test-groq-key"
-
-        with patch("src.core_utils.Groq") as mock_groq:
-            mock_client = MagicMock()
-            mock_groq.return_value = mock_client
-
-            client = get_llm_client()
-
-            mock_groq.assert_called_once_with(api_key="test-groq-key")
-            assert client == mock_client
-
-    def test_get_llm_client_returns_correct_type(self):
-        """Test that get_llm_client returns the expected client types."""
-        # This test uses actual settings but mocks the API calls
-        with patch("src.core_utils.settings") as mock_settings:
-            # Test OpenAI path
-            mock_settings.use_groq = False
-            mock_settings.openai_api_key = "test-key"
-
-            with patch("src.core_utils.OpenAI") as mock_openai:
-                mock_openai.return_value = MagicMock(spec=OpenAI)
-                client = get_llm_client()
-                assert isinstance(client, type(mock_openai.return_value))
-
-            # Test Groq path
-            mock_settings.use_groq = True
-            mock_settings.groq_api_key = "test-key"
-
-            with patch("src.core_utils.Groq") as mock_groq:
-                mock_groq.return_value = MagicMock(spec=Groq)
-                client = get_llm_client()
-                assert isinstance(client, type(mock_groq.return_value))
-
-
-class TestGetExtractionModel:
-    """Test extraction model selection."""
-
-    @patch("src.core_utils.settings")
-    def test_get_extraction_model_groq(self, mock_settings):
-        """Test getting Groq model when use_groq is True."""
-        mock_settings.use_groq = True
-
-        model = get_extraction_model()
-
-        assert model == "llama-3.3-70b-versatile"
-
-    @patch("src.core_utils.settings")
-    def test_get_extraction_model_openai(self, mock_settings):
-        """Test getting OpenAI model when use_groq is False."""
-        mock_settings.use_groq = False
-        mock_settings.extraction_model = "gpt-4o-mini"
-
-        model = get_extraction_model()
-
-        assert model == "gpt-4o-mini"
-
-    def test_get_extraction_model_returns_string(self):
-        """Test that get_extraction_model always returns a string."""
-        with patch("src.core_utils.settings") as mock_settings:
-            mock_settings.use_groq = True
-            model = get_extraction_model()
-            assert isinstance(model, str)
-            assert len(model) > 0
-
-            mock_settings.use_groq = False
-            mock_settings.extraction_model = "test-model"
-            model = get_extraction_model()
-            assert isinstance(model, str)
-            assert len(model) > 0
 
 
 class TestGetProxy:
@@ -306,8 +208,6 @@ class TestUtilsIntegration:
         """Test that all utility functions can be imported."""
         # This test ensures all functions are properly exported
         functions = [
-            get_llm_client,
-            get_extraction_model,
             get_proxy,
             random_user_agent,
             random_delay,
@@ -320,19 +220,9 @@ class TestUtilsIntegration:
     def test_utils_respect_settings(self, mock_settings):
         """Test that utility functions respect settings configuration."""
         # Configure mock settings
-        mock_settings.use_groq = False
         mock_settings.use_proxies = False
-        mock_settings.extraction_model = "test-model"
         mock_settings.proxy_pool = []
-        mock_settings.openai_api_key = "test-key"
 
         # Test that functions use the settings
-        with patch("src.core_utils.OpenAI"):
-            client = get_llm_client()
-            assert client is not None  # Should return a client
-
-        model = get_extraction_model()
-        assert model == "test-model"
-
         proxy = get_proxy()
         assert proxy is None  # Should be None when disabled

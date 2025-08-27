@@ -31,6 +31,13 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Feature flags for future enhancements
+FEATURE_FLAGS = {
+    "search_suggestions": False,
+    "export_results": False,
+    "save_queries": False,
+}
+
 # FTS5 search hints for better user experience
 FTS5_SEARCH_HINTS = [
     '"python developer"',  # Exact phrase
@@ -686,20 +693,24 @@ def _clear_all_filters() -> None:
 
 # Utility functions for search features
 def get_search_suggestions() -> list[str]:
-    """Get search suggestions (future enhancement)."""
-    raise NotImplementedError("Search suggestions functionality not yet implemented.")
+    """Get search suggestions (disabled in MVP)."""
+    if not FEATURE_FLAGS["search_suggestions"]:
+        return []  # Safe fallback
+    raise NotImplementedError("Feature coming in v2")
 
 
-def export_search_results(results: list["Job"], export_format: str = "csv") -> None:
-    """Export search results to various formats (future enhancement)."""
-    # Placeholder for future export functionality
-    # Could export search results to CSV, JSON, etc.
-    raise NotImplementedError(
-        "Export search results functionality not yet implemented."
-    )
+def export_search_results(_results: list["Job"], _export_format: str = "csv") -> None:
+    """Export search results (disabled in MVP)."""
+    if not FEATURE_FLAGS["export_results"]:
+        import streamlit as st
+
+        st.info("Export feature coming soon! 🚀")
+        return
+    raise NotImplementedError("Feature coming in v2")
 
 
 def save_search_query() -> None:
-    """Save search query for future use (future enhancement)."""
-    # Placeholder for saved searches functionality
-    raise NotImplementedError("Save search query functionality not yet implemented.")
+    """Save search query (disabled in MVP)."""
+    if not FEATURE_FLAGS["save_queries"]:
+        return  # Silent no-op
+    raise NotImplementedError("Feature coming in v2")
