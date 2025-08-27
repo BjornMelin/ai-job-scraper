@@ -29,3 +29,9 @@ If you want to understand the **"why"** behind the project's design and future d
 * **[📋 Product Requirements Document (PRD)](./PRD.md):** The formal definition of the project's scope, goals, features, and success criteria.
 
 * **[🏛️ Architectural Decision Records (ADRs)](./adrs/):** A collection of documents that record the key architectural decisions made throughout the project's development.
+
+## 🔄 For Migration & Transformation
+
+If you want to understand the **library-first migration** and codebase transformation efforts:
+
+* **[📁 Migration Documentation](./migration/):** Complete documentation of the SPEC-001 Foundation Demolition phase and library-first rewrite migration, including safety backups, completion reports, and transformation metrics.
