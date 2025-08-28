@@ -196,11 +196,13 @@ class JobService:
         return query.order_by(JobSQL.posted_date.desc().nullslast())
 
     @staticmethod
-    @st.cache_data(ttl=300)  # Cache for 5 minutes
+    @st.cache_data(
+        ttl=300, show_spinner="Loading jobs..."
+    )  # Optimized cache for job data
     def get_filtered_jobs(filters: FilterDict | None = None) -> list[Job]:
         """Get jobs filtered by the provided criteria.
 
-        Uses Streamlit-based caching for improved performance.
+        Uses optimized Streamlit-based caching for improved performance.
 
         Args:
             filters: Dictionary containing filter criteria:
@@ -392,7 +394,7 @@ class JobService:
     ) -> list[Job]:
         """Get jobs that have been recently updated since a given timestamp.
 
-        This method is used by fragment-based components to detect real-time changes
+        This method is used by UI components to detect real-time changes
         and display update notifications without full page refreshes.
 
         Args:
