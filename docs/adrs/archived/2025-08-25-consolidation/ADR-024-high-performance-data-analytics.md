@@ -95,7 +95,15 @@ graph TD
 - **ADR-033** (Metrics-Driven Architecture Evolution): Provides framework for determining when to evolve analytics capabilities
 - **ADR-025** (Simplified Performance Strategy): Coordinates performance monitoring for analytics evolution trigger detection
 - **ADR-017** (Local Development Architecture): Establishes Streamlit framework integration requirements
-- **ADR-036** (Streamlit Column Configuration): Provides rich dataframe display patterns for enhanced analytics visualization
+
+## Scope Clarification
+
+**IMPORTANT**: This ADR covers **Data Analytics Architecture Only**. ADR-024 does NOT address UI components, fragments, progress components, or session state management. 
+
+**Incorrect Supersession References**: ADR-035 and ADR-036 previously claimed "Superseded by ADR-024" but this was incorrect - ADR-024 covers analytics, not UI patterns. These UI-related decisions are now properly addressed by:
+- **ADR-037** (UI Component Architecture Modernization): Complete UI architecture decisions
+- **ADR-038** (Mobile Responsiveness Strategy): Mobile UI patterns  
+- **ADR-039** (Session State Management Pattern): State management approaches
 
 ## Design
 
