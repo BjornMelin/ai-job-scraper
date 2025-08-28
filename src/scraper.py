@@ -24,8 +24,18 @@ async def scrape_all() -> dict[str, int]:
             - 'skipped': Number of jobs skipped (0)
     """
     logger.info("scrape_all called - using placeholder implementation")
+
+    # TODO: CRITICAL - Replace placeholder with full implementation
+    # TIMELINE: Phase 2 implementation (after SPEC-001/SPEC-002 completion)
+    # IMPLEMENTATION STEPS:
+    # 1. Create concrete IScrapingService implementation with JobSpy integration
+    # 2. Add company data enrichment using ScrapeGraphAI
+    # 3. Implement intelligent job relevance filtering using AI client
+    # 4. Add database synchronization with smart deduplication
+    # 5. Include progress tracking and error resilience
+    # FIXME: This placeholder MUST be replaced before production deployment
     logger.warning(
-        "TODO: Implement full scraping service using IScrapingService interface"
+        "PLACEHOLDER: Full scraping service implementation required for production"
     )
 
     return {"inserted": 0, "updated": 0, "skipped": 0}
