@@ -1,321 +1,261 @@
-"""Native Progress System Demo - Library-First Implementation.
+"""Native Streamlit Progress Components Demo - Zero Custom Code.
 
-This demo showcases the 612→25 line native progress system replacement,
-demonstrating 96% code reduction with enhanced functionality.
+This demo showcases using native Streamlit components (st.progress, st.status, st.toast)
+directly without any custom wrapper classes. This demonstrates the library-first approach
+where we leverage built-in Streamlit functionality instead of writing custom code.
 
 Run with: streamlit run examples/native_progress_demo.py
 """
 
-import asyncio
+import threading
 import time
 
-from typing import Any
+from datetime import UTC, datetime
 
 import streamlit as st
 
-# Import our native progress components
-from src.ui.components.native_progress import (
-    NativeProgressContext,
-    get_native_progress_manager,
-    render_real_time_progress,
-    show_progress_toast,
-)
-
 
 def demo_basic_progress() -> None:
-    """Demonstrate basic progress tracking with native components."""
-    st.markdown("## 📊 Basic Progress Demo")
+    """Demonstrate basic progress tracking with native st.progress()."""
+    st.markdown("## 📊 Basic Progress with st.progress()")
 
     if st.button("Start Basic Progress", key="basic"):
-        manager = get_native_progress_manager()
+        # Native progress bar
+        progress_bar = st.progress(0.0, text="Starting...")
 
-        # Show progress with native components
-        with st.status("Processing basic task...", expanded=True) as status:
-            progress_bar = st.progress(0.0, text="Starting...")
+        # Simulate work with progress updates
+        for i in range(101):
+            percentage = i
+            message = f"Processing step {i + 1}/101"
+            progress_bar.progress(percentage / 100.0, text=f"{message} ({percentage}%)")
+            time.sleep(0.02)  # Simulate work
 
-            for i in range(101):
-                percentage = float(i)
-                message = f"Processing step {i}/100"
-
-                # Update native progress
-                manager.update_progress("basic_demo", percentage, message, "processing")
-
-                # Update UI
-                progress_bar.progress(percentage / 100.0, text=message)
-
-                # Update status
-                if percentage >= 100.0:
-                    status.update(label="✅ Completed", state="complete")
-                else:
-                    status.update(label=f"🔄 {message}", state="running")
-
-                time.sleep(0.05)  # Simulate work
-
-            # Show completion toast
-            show_progress_toast("✅ Basic progress completed!", icon="✅")
-            st.balloons()
+        # Show completion toast
+        st.toast("✅ Basic progress completed!", icon="✅")
+        st.balloons()
 
 
-def demo_context_manager() -> None:
-    """Demonstrate progress tracking with context manager."""
-    st.markdown("## 🎯 Context Manager Demo")
+def demo_status_container() -> None:
+    """Demonstrate progress tracking with native st.status()."""
+    st.markdown("## 🎯 Progress with st.status()")
 
-    if st.button("Start Context Progress", key="context"):
-        # Use our native progress context
-        with NativeProgressContext(
-            "context_demo", "🔍 Context Manager Demo", expanded=True
-        ) as progress:
-            # Simulate multi-phase operation
-            progress.update(10.0, "🔍 Initializing system...", "init")
-            time.sleep(1)
+    if st.button("Start Status Progress", key="status"):
+        # Native status container
+        with st.status("Processing data...", expanded=True) as status:
+            # Step 1
+            status.update(label="🔍 Analyzing data...", state="running")
+            progress_bar = st.progress(0.0, text="Analyzing...")
+            for i in range(34):
+                progress_bar.progress(i / 100.0, text=f"Analyzing... {i}%")
+                time.sleep(0.03)
 
-            progress.update(30.0, "📋 Loading data...", "loading")
-            time.sleep(1.5)
+            # Step 2
+            status.update(label="🔄 Processing results...", state="running")
+            for i in range(34, 67):
+                progress_bar.progress(i / 100.0, text=f"Processing... {i}%")
+                time.sleep(0.03)
 
-            progress.update(60.0, "🧠 Processing with AI...", "ai_processing")
+            # Step 3
+            status.update(label="💾 Saving results...", state="running")
+            for i in range(67, 101):
+                progress_bar.progress(i / 100.0, text=f"Saving... {i}%")
+                time.sleep(0.03)
+
+            # Complete
+            progress_bar.progress(1.0, text="Complete!")
+            status.update(label="✅ All steps completed!", state="complete")
+
+        st.toast("🎉 Status progress completed!", icon="🎉")
+
+
+def demo_spinner() -> None:
+    """Demonstrate progress with native st.spinner()."""
+    st.markdown("## 🌀 Progress with st.spinner()")
+
+    if st.button("Start Spinner Demo", key="spinner"):
+        with st.spinner("Loading data..."):
             time.sleep(2)
+            st.success("✅ Data loaded!")
 
-            progress.update(85.0, "💾 Saving results...", "saving")
+        with st.spinner("Processing results..."):
+            time.sleep(1.5)
+            st.success("✅ Processing complete!")
+
+        with st.spinner("Saving to database..."):
             time.sleep(1)
+            st.success("✅ Saved successfully!")
 
-            progress.update(95.0, "📱 Updating UI...", "ui_update")
-            time.sleep(0.5)
-
-            progress.complete("🎉 All done! Processed 150 items.", show_balloons=True)
+        st.toast("🎯 Spinner demo completed!", icon="🎯")
 
 
-async def demo_async_progress() -> None:
-    """Demonstrate async progress tracking."""
-    manager = get_native_progress_manager()
+def demo_session_state_progress() -> None:
+    """Demonstrate progress tracking with session state."""
+    st.markdown("## 💾 Progress with Session State")
 
-    async def simulate_async_work(progress_id: str, total_steps: int) -> list[Any]:
-        results = []
-        for i in range(total_steps):
-            # Simulate async work
-            await asyncio.sleep(0.1)
+    if st.button("Start Session Progress", key="session"):
+        # Initialize progress in session state
+        if "demo_progress" not in st.session_state:
+            st.session_state.demo_progress = {
+                "percentage": 0,
+                "message": "Starting...",
+                "is_active": True,
+                "start_time": datetime.now(UTC),
+            }
 
-            percentage = (i + 1) / total_steps * 100
-            message = f"Async step {i + 1}/{total_steps}"
-
-            manager.update_progress(
-                progress_id, percentage, message, "async_processing"
+        # Update progress
+        for i in range(101):
+            st.session_state.demo_progress.update(
+                {
+                    "percentage": i,
+                    "message": f"Processing item {i}/100",
+                    "is_active": i < 100,
+                }
             )
 
-            results.append(f"result_{i + 1}")
-
-        manager.complete_progress(
-            progress_id, f"✅ Async completed! {len(results)} items processed"
-        )
-        return results
-
-    # Start async work
-    return await simulate_async_work("async_demo", 20)
-
-
-def demo_real_time_fragment() -> None:
-    """Demonstrate real-time progress with fragments."""
-    st.markdown("## ⚡ Real-Time Fragment Demo")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        if st.button("Start Fragment Progress", key="fragment"):
-            manager = get_native_progress_manager()
-
-            # Initialize progress
-            manager.update_progress(
-                "fragment_demo", 0.0, "Starting fragment demo...", "init"
+            # Display current state
+            progress_data = st.session_state.demo_progress
+            st.progress(
+                progress_data["percentage"] / 100.0,
+                text=f"{progress_data['message']} ({progress_data['percentage']}%)",
             )
 
-            # Simulate background work
-            import threading
+            if progress_data["is_active"]:
+                elapsed = (
+                    datetime.now(UTC) - progress_data["start_time"]
+                ).total_seconds()
+                if elapsed > 0 and i > 0:
+                    eta = (elapsed / i) * (100 - i)
+                    st.caption(f"⏱️ ETA: {eta:.1f}s remaining")
 
-            def background_work():
-                for i in range(51):
-                    percentage = i * 2.0  # 0 to 100
-                    message = f"Background step {i}/50"
+            time.sleep(0.03)
 
-                    manager.update_progress(
-                        "fragment_demo", percentage, message, "background_work"
-                    )
-
-                    time.sleep(0.2)
-
-                manager.complete_progress(
-                    "fragment_demo", "🎉 Fragment demo completed!"
-                )
-
-            # Start background thread
-            thread = threading.Thread(target=background_work)
-            thread.daemon = True
-            thread.start()
-
-    with col2:
-        # Real-time progress display
-        render_real_time_progress("fragment_demo")
+        st.toast("💾 Session state progress completed!", icon="💾")
+        st.session_state.demo_progress["is_active"] = False
 
 
-def demo_error_handling() -> None:
-    """Demonstrate error handling with native progress."""
-    st.markdown("## ⚠️ Error Handling Demo")
-
-    if st.button("Simulate Error", key="error"):
-        try:
-            with NativeProgressContext(
-                "error_demo", "🔥 Error Simulation", expanded=True
-            ) as progress:
-                progress.update(20.0, "🔍 Starting risky operation...", "risky")
-                time.sleep(1)
-
-                progress.update(50.0, "⚠️ Entering danger zone...", "danger")
-                time.sleep(1)
-
-                # Simulate error
-                raise ValueError("Simulated error for demonstration!")
-
-        except Exception as e:
-            st.error(f"❌ Error caught and handled: {e}")
-            show_progress_toast("❌ Operation failed - see error above", icon="❌")
-
-
-def demo_multiple_progress() -> None:
+def demo_concurrent_progress() -> None:
     """Demonstrate multiple concurrent progress trackers."""
-    st.markdown("## 🔀 Multiple Progress Demo")
+    st.markdown("## 🔀 Concurrent Progress")
 
-    if st.button("Start Multiple Progress", key="multiple"):
-        manager = get_native_progress_manager()
+    if st.button("Start Concurrent Demo", key="concurrent"):
+        # Initialize session state for multiple workers
+        if "workers" not in st.session_state:
+            st.session_state.workers = {}
 
-        # Start three concurrent operations
-        import threading
+        # Create worker function
+        def worker(worker_id: str, steps: int, delay: float) -> None:
+            """Worker function that updates progress."""
+            st.session_state.workers[worker_id] = {
+                "percentage": 0,
+                "message": f"Worker {worker_id} starting...",
+                "is_active": True,
+            }
 
-        def worker(worker_id: str, steps: int, delay: float):
             for i in range(steps + 1):
-                percentage = (i / steps) * 100
-                message = f"Worker {worker_id} - step {i}/{steps}"
-
-                manager.update_progress(
-                    f"worker_{worker_id}", percentage, message, f"worker_{worker_id}"
-                )
-
+                if worker_id in st.session_state.workers:
+                    st.session_state.workers[worker_id].update(
+                        {
+                            "percentage": (i / steps) * 100,
+                            "message": f"Worker {worker_id} step {i}/{steps}",
+                            "is_active": i < steps,
+                        }
+                    )
                 time.sleep(delay)
 
-            manager.complete_progress(
-                f"worker_{worker_id}", f"✅ Worker {worker_id} completed!"
-            )
+        # Start three workers with different speeds
+        workers = [("A", 50, 0.05), ("B", 30, 0.08), ("C", 40, 0.06)]
 
-        # Start workers
-        for worker_id, (steps, delay) in [
-            ("A", (10, 0.3)),
-            ("B", (15, 0.2)),
-            ("C", (8, 0.4)),
-        ]:
+        for worker_id, steps, delay in workers:
             thread = threading.Thread(target=worker, args=(worker_id, steps, delay))
             thread.daemon = True
             thread.start()
 
-        show_progress_toast("🚀 Started 3 concurrent workers!", icon="🚀")
+        st.toast("🚀 Started 3 concurrent workers!", icon="🚀")
 
-    # Show progress for all workers
-    if "native_progress" in st.session_state:
-        for worker_id in ["worker_A", "worker_B", "worker_C"]:
-            render_real_time_progress(worker_id)
+    # Display worker progress if any exist
+    if "workers" in st.session_state and st.session_state.workers:
+        st.markdown("### Worker Progress")
+
+        for worker_id, worker_data in st.session_state.workers.items():
+            with st.container(border=True):
+                col1, col2 = st.columns([3, 1])
+
+                with col1:
+                    st.markdown(f"**{worker_data['message']}**")
+                    st.progress(
+                        worker_data["percentage"] / 100.0,
+                        text=f"{worker_data['percentage']:.1f}%",
+                    )
+
+                with col2:
+                    if not worker_data["is_active"]:
+                        st.success("✅ Done")
+                    else:
+                        st.info("🔄 Active")
 
 
 def main() -> None:
     """Main demo application."""
     st.set_page_config(
         page_title="Native Progress Demo",
-        page_icon="🚀",
+        page_icon="📊",
         layout="wide",
+        initial_sidebar_state="expanded",
     )
 
-    st.title("🚀 Native Progress System Demo")
-    st.markdown("""
-    **Library-First Implementation**: 612 lines → 25 lines (96% reduction)
+    st.title("📊 Native Streamlit Progress Components")
+    st.markdown("**Zero custom code - Pure native Streamlit components**")
 
-    This demo showcases the native Streamlit progress components replacing
-    our custom ProgressTracker with maximum library leverage:
-    - `st.status()` - Expandable containers with state
-    - `st.progress()` - Native progress bars with text
-    - `st.toast()` - Non-intrusive notifications
-    - `@st.fragment()` - Real-time auto-updating components
-    - `st.session_state` - Persistence across reruns
+    # Sidebar info
+    st.sidebar.markdown("## 🎯 Library-First Approach")
+    st.sidebar.markdown("""
+    This demo uses only native Streamlit components:
+    - `st.progress()` for progress bars
+    - `st.status()` for status containers  
+    - `st.toast()` for notifications
+    - `st.spinner()` for loading states
+    - `st.session_state` for progress tracking
+    - `st.fragment()` for real-time updates
     """)
 
-    # Sidebar controls
-    st.sidebar.title("🎛️ Demo Controls")
-
-    # Cleanup button
-    if st.sidebar.button("🧹 Clear All Progress"):
-        if "native_progress" in st.session_state:
-            st.session_state.native_progress.clear()
-        show_progress_toast("🧹 All progress data cleared!", icon="🧹")
+    # Cleanup controls
+    st.sidebar.markdown("## 🧹 Controls")
+    if st.sidebar.button("Clear All Progress"):
+        # Clear session state
+        for key in ["demo_progress", "workers"]:
+            if key in st.session_state:
+                del st.session_state[key]
+        st.toast("🧹 All progress data cleared!", icon="🧹")
         st.rerun()
-
-    # Auto-cleanup
-    manager = get_native_progress_manager()
-    cleaned = manager.cleanup_completed(max_age_minutes=2)
-    if cleaned > 0:
-        st.sidebar.success(f"🧹 Auto-cleaned {cleaned} old trackers")
 
     # Demo sections
     demo_basic_progress()
     st.markdown("---")
-    demo_context_manager()
-    st.markdown("---")
-    demo_real_time_fragment()
-    st.markdown("---")
-    demo_error_handling()
-    st.markdown("---")
-    demo_multiple_progress()
 
-    # Performance comparison
+    demo_status_container()
     st.markdown("---")
-    st.markdown("## 📈 Performance Comparison")
 
-    col1, col2 = st.columns(2)
+    demo_spinner()
+    st.markdown("---")
+
+    demo_session_state_progress()
+    st.markdown("---")
+
+    demo_concurrent_progress()
+
+    # Footer
+    st.markdown("---")
+    st.markdown("### ✨ Key Benefits")
+    col1, col2, col3 = st.columns(3)
 
     with col1:
-        st.metric(
-            "Custom ProgressTracker",
-            "612 lines",
-            delta="100% complexity",
-            delta_color="inverse",
-        )
+        st.info("**📦 Library-First**\nNo custom progress classes")
 
     with col2:
-        st.metric(
-            "Native Progress System",
-            "25 lines",
-            delta="96% reduction",
-            delta_color="normal",
-        )
+        st.info("**🚀 Native Performance**\nDirect Streamlit components")
 
-    # Features comparison
-    st.markdown("### ✨ Feature Comparison")
-
-    comparison_data = {
-        "Feature": [
-            "Real-time Updates",
-            "Toast Notifications",
-            "ETA Calculation",
-            "Error Handling",
-            "Mobile Responsive",
-            "Fragment Auto-refresh",
-            "Session Persistence",
-            "Memory Management",
-            "Code Maintainability",
-            "Library Leverage",
-        ],
-        "Custom System": ["✅", "❌", "✅", "✅", "⚠️", "❌", "✅", "⚠️", "❌", "❌"],
-        "Native System": ["✅", "✅", "✅", "✅", "✅", "✅", "✅", "✅", "✅", "✅"],
-    }
-
-    st.table(comparison_data)
-
-    st.success(
-        "🎉 Native progress system provides enhanced functionality with 96% less code!"
-    )
+    with col3:
+        st.info("**🔧 Zero Maintenance**\nNo custom code to maintain")
 
 
 if __name__ == "__main__":
