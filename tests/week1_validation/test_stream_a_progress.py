@@ -48,9 +48,9 @@ class StreamAProgressValidator(BaseStreamValidator):
         """Validate progress component functionality preservation."""
         try:
             with (
-                patch("streamlit.progress") as mock_progress,
+                patch("streamlit.progress"),
                 patch("streamlit.status") as mock_status,
-                patch("streamlit.toast") as mock_toast,
+                patch("streamlit.toast"),
             ):
                 # Mock context manager for status
                 mock_status_ctx = MagicMock()
@@ -108,7 +108,7 @@ class StreamAProgressValidator(BaseStreamValidator):
             return ValidationMetrics()
 
         # Calculate average metrics
-        avg_metrics = ValidationMetrics(
+        return ValidationMetrics(
             execution_time_ms=total_time / successful_runs,
             memory_usage_mb=metrics.memory_usage_mb,
             cpu_usage_percent=metrics.cpu_usage_percent,
@@ -118,8 +118,6 @@ class StreamAProgressValidator(BaseStreamValidator):
             if successful_runs == iterations
             else (successful_runs / iterations * 100),
         )
-
-        return avg_metrics
 
     def compare_with_baseline(self, baseline_func, optimized_func) -> ValidationResult:
         """Compare custom vs native progress implementations."""
@@ -190,9 +188,9 @@ class StreamAProgressValidator(BaseStreamValidator):
     def _test_native_progress(self) -> dict:
         """Test native progress implementation."""
         with (
-            patch("streamlit.progress") as mock_progress,
+            patch("streamlit.progress"),
             patch("streamlit.status") as mock_status,
-            patch("streamlit.toast") as mock_toast,
+            patch("streamlit.toast"),
         ):
             # Mock status context manager
             mock_status_ctx = MagicMock()

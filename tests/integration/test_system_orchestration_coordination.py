@@ -270,23 +270,6 @@ class TestServiceHealthMonitoring:
         setup = orchestration_test_setup
 
         # Mock service failure scenarios
-        failure_scenarios = [
-            {
-                "failed_service": "unified_scraper",
-                "failure_type": "connection_timeout",
-                "expected_degradation": "scraping_disabled",
-            },
-            {
-                "failed_service": "ai_router",
-                "failure_type": "service_overloaded",
-                "expected_degradation": "ai_processing_limited",
-            },
-            {
-                "failed_service": "database_sync",
-                "failure_type": "connection_pool_exhausted",
-                "expected_degradation": "read_only_mode",
-            },
-        ]
 
         with patch(
             "src.coordination.system_health_monitor.SystemHealthMonitor"
@@ -697,8 +680,6 @@ class TestProgressTrackingCoordination:
     @pytest.mark.coordination
     async def test_multi_phase_progress_tracking(self, orchestration_test_setup):
         """Test progress tracking across multi-phase workflows."""
-        setup = orchestration_test_setup
-
         with patch(
             "src.coordination.progress_tracker.ProgressTrackingManager"
         ) as MockProgressManager:
@@ -851,8 +832,6 @@ class TestProgressTrackingCoordination:
     @pytest.mark.coordination
     async def test_concurrent_progress_tracking(self, orchestration_test_setup):
         """Test progress tracking handles concurrent workflows correctly."""
-        setup = orchestration_test_setup
-
         with patch(
             "src.coordination.progress_tracker.ProgressTrackingManager"
         ) as MockProgressManager:
@@ -936,7 +915,6 @@ class TestProgressTrackingCoordination:
             ]
 
             # Execute concurrent workflows
-            workflow_results = {}
 
             # Create all trackers
             trackers = {}

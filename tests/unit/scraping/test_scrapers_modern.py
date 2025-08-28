@@ -114,7 +114,7 @@ def test_scrape_company_pages_with_real_responses() -> None:
     <html>
         <body>
             <h1>Senior AI Engineer</h1>
-            <p>Full job description here. We need someone with 5+ years experience 
+            <p>Full job description here. We need someone with 5+ years experience
                in machine learning and AI systems.</p>
             <div class="salary">$120,000 - $180,000</div>
             <div class="location">San Francisco, CA</div>
@@ -329,8 +329,8 @@ def test_factory_performance_batch_creation(session: Session) -> None:
     start_time = time.time()
 
     # Create large batch of test data
-    companies = create_sample_companies(session, count=10)
-    jobs = create_sample_jobs(session, count=100)  # 100 jobs across companies
+    create_sample_companies(session, count=10)
+    create_sample_jobs(session, count=100)  # 100 jobs across companies
 
     creation_time = time.time() - start_time
 

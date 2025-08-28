@@ -109,8 +109,7 @@ async def demo_async_progress() -> None:
         return results
 
     # Start async work
-    results = await simulate_async_work("async_demo", 20)
-    return results
+    return await simulate_async_work("async_demo", 20)
 
 
 def demo_real_time_fragment() -> None:
@@ -233,7 +232,7 @@ def main() -> None:
     st.title("🚀 Native Progress System Demo")
     st.markdown("""
     **Library-First Implementation**: 612 lines → 25 lines (96% reduction)
-    
+
     This demo showcases the native Streamlit progress components replacing
     our custom ProgressTracker with maximum library leverage:
     - `st.status()` - Expandable containers with state

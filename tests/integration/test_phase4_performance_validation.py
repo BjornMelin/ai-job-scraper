@@ -86,7 +86,6 @@ class TestJobSpyScrapingPerformance:
         self, performance_validation_setup
     ):
         """Test that job board queries complete within 500ms."""
-        setup = performance_validation_setup
         scraper = UnifiedScrapingService()
 
         # Mock JobSpy responses with realistic delays
@@ -167,7 +166,6 @@ class TestJobSpyScrapingPerformance:
     @pytest.mark.performance
     async def test_scraping_success_rate_validation(self, performance_validation_setup):
         """Test that scraping achieves 95%+ success rate."""
-        setup = performance_validation_setup
         scraper = UnifiedScrapingService()
 
         # Simulate realistic scraping scenarios with mixed success/failure
@@ -237,9 +235,7 @@ class TestJobSpyScrapingPerformance:
                 else:
                     # Mock expected failure
                     if scenario["failure_type"] == "network_timeout":
-                        mock_scrape.side_effect = TimeoutError(
-                            "Request timeout"
-                        )
+                        mock_scrape.side_effect = TimeoutError("Request timeout")
                     else:
                         mock_scrape.side_effect = Exception("Parsing failed")
 
@@ -270,7 +266,6 @@ class TestJobSpyScrapingPerformance:
     @pytest.mark.performance
     async def test_concurrent_scraping_performance(self, performance_validation_setup):
         """Test concurrent scraping maintains performance targets."""
-        setup = performance_validation_setup
         scraper = UnifiedScrapingService()
 
         # Create concurrent scraping tasks
@@ -336,8 +331,6 @@ class TestHybridAIProcessingPerformance:
     @pytest.mark.performance
     async def test_ai_enhancement_processing_target(self, performance_validation_setup):
         """Test that AI enhancement processing completes within 3 seconds."""
-        setup = performance_validation_setup
-
         # Mock hybrid AI router with realistic processing
         with patch("src.ai.hybrid_ai_router.HybridAIRouter") as MockRouter:
             mock_router = Mock()
@@ -415,7 +408,7 @@ class TestHybridAIProcessingPerformance:
 
                 # Measure AI processing performance
                 start_time = time.perf_counter()
-                results = await mock_router.enhance_job_data(
+                await mock_router.enhance_job_data(
                     raw_job_data[: len(expected_results)]
                 )
                 end_time = time.perf_counter()
@@ -451,8 +444,6 @@ class TestHybridAIProcessingPerformance:
         self, performance_validation_setup
     ):
         """Test hybrid AI routing decisions are made quickly."""
-        setup = performance_validation_setup
-
         with patch("src.ai.hybrid_ai_router.HybridAIRouter") as MockRouter:
             mock_router = Mock()
             MockRouter.return_value = mock_router
@@ -668,8 +659,6 @@ class TestSystemIntegrationPerformance:
     @pytest.mark.performance
     async def test_end_to_end_pipeline_performance(self, performance_validation_setup):
         """Test complete pipeline: search → scrape → AI enhance → render."""
-        setup = performance_validation_setup
-
         # Mock integrated services
         with (
             patch("src.services.unified_scraper.UnifiedScrapingService") as MockScraper,
@@ -789,8 +778,6 @@ class TestSystemIntegrationPerformance:
         self, performance_validation_setup
     ):
         """Test background task coordination meets performance requirements."""
-        setup = performance_validation_setup
-
         with (
             patch(
                 "src.coordination.background_task_manager.BackgroundTaskManager"
@@ -878,7 +865,9 @@ class TestSystemIntegrationPerformance:
             ]
 
             # Coordination time should scale sub-linearly
-            time_per_task = [ct / tc for ct, tc in zip(coordination_times, task_counts, strict=False)]
+            time_per_task = [
+                ct / tc for ct, tc in zip(coordination_times, task_counts, strict=False)
+            ]
             assert max(time_per_task) / min(time_per_task) < 2.0, (
                 "Background coordination scaling efficiency too poor"
             )

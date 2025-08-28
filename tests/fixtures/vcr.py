@@ -244,7 +244,6 @@ def clean_cassettes(service_name: str | None = None, older_than_days: int = 30) 
     """
     import time
 
-
     cassettes_dir = get_cassettes_dir()
     if service_name:
         cassettes_dir = cassettes_dir / service_name

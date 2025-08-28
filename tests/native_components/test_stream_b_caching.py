@@ -248,7 +248,7 @@ class CachingPerformanceValidator(NativeComponentValidator):
                 patch("streamlit.cache_data", self.mock_cache.mock_cache_data),
                 patch("streamlit.cache_resource", self.mock_cache.mock_cache_resource),
             ):
-                result = test_func(*args, **kwargs)
+                test_func(*args, **kwargs)
 
             # Update metrics
             self.metrics.cache_hits = self.tracker.cache_hits
@@ -678,7 +678,7 @@ class TestStreamBCachingPerformance:
 
             return results
 
-        with caching_validator.performance_monitoring() as metrics:
+        with caching_validator.performance_monitoring():
             result = caching_validator.validate_functionality(
                 performance_improvement_test
             )
@@ -813,7 +813,7 @@ class TestStreamBCachingPerformance:
         # Cached version should have better performance characteristics
         assert benchmark.optimized_metrics.cache_hits >= 0
 
-    @pytest.mark.parametrize("ttl_seconds", [30, 60, 300, 600])
+    @pytest.mark.parametrize("ttl_seconds", (30, 60, 300, 600))
     def test_cache_data_ttl_variations(self, caching_validator, ttl_seconds):
         """Test st.cache_data with different TTL values."""
 

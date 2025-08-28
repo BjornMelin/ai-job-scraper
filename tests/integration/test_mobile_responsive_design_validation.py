@@ -320,7 +320,7 @@ class TestTouchInteractionValidation:
                 """Create mock interactive elements with proper touch targets."""
                 base_button_size = 48 if viewport_width <= 768 else 44
 
-                elements = [
+                return [
                     {
                         "type": "favorite_button",
                         "width": base_button_size,
@@ -346,8 +346,6 @@ class TestTouchInteractionValidation:
                         "touch_accessible": True,
                     },
                 ]
-
-                return elements
 
             mock_elements.side_effect = create_mock_interactive_elements
 

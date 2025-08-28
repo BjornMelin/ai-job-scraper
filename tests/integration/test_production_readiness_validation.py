@@ -93,8 +93,6 @@ class TestHealthMonitoringSystem:
     @pytest.mark.production
     def test_health_check_endpoints(self, production_test_setup):
         """Test health check endpoints respond properly."""
-        setup = production_test_setup
-
         # Mock health check components
         with patch(
             "src.coordination.system_health_monitor.SystemHealthMonitor"
@@ -240,8 +238,6 @@ class TestHealthMonitoringSystem:
     @pytest.mark.production
     def test_monitoring_alerting_system(self, production_test_setup):
         """Test monitoring system triggers alerts appropriately."""
-        setup = production_test_setup
-
         with patch(
             "src.coordination.system_health_monitor.SystemHealthMonitor"
         ) as MockMonitor:
@@ -351,8 +347,6 @@ class TestConfigurationManagement:
     @pytest.mark.production
     def test_configuration_validation(self, production_test_setup):
         """Test production configuration validation."""
-        setup = production_test_setup
-
         # Test configuration scenarios
         config_scenarios = [
             {
@@ -462,8 +456,6 @@ class TestConfigurationManagement:
     @pytest.mark.production
     def test_environment_configuration_loading(self, production_test_setup):
         """Test loading configuration from different environments."""
-        setup = production_test_setup
-
         # Test environment scenarios
         env_scenarios = [
             {
@@ -713,8 +705,6 @@ class TestLoadTestingAndConcurrency:
     @pytest.mark.slow
     async def test_sustained_load_performance(self, production_test_setup):
         """Test system performance under sustained load."""
-        setup = production_test_setup
-
         # Mock sustained load scenario
         load_scenarios = [
             {
@@ -850,7 +840,7 @@ class TestMemoryUsageAndProfiling:
 
         # Get baseline memory usage
         process = psutil.Process(os.getpid())
-        baseline_memory = process.memory_info().rss / 1024 / 1024  # MB
+        process.memory_info().rss / 1024 / 1024  # MB
 
         memory_scenarios = [
             {
@@ -1103,8 +1093,6 @@ class TestErrorRecoveryAndResilience:
     @pytest.mark.production
     async def test_production_error_scenarios(self, production_test_setup):
         """Test system handles production error scenarios properly."""
-        setup = production_test_setup
-
         # Production error scenarios
         error_scenarios = [
             {
@@ -1229,8 +1217,6 @@ class TestErrorRecoveryAndResilience:
     @pytest.mark.production
     async def test_graceful_shutdown_and_restart(self, production_test_setup):
         """Test system can shutdown gracefully and restart properly."""
-        setup = production_test_setup
-
         # Mock system components
         with patch(
             "src.coordination.service_orchestrator.ServiceOrchestrator"
@@ -1344,8 +1330,6 @@ class TestSecurityAndDataValidation:
     @pytest.mark.production
     def test_input_validation_security(self, production_test_setup):
         """Test input validation prevents security vulnerabilities."""
-        setup = production_test_setup
-
         # Security test scenarios
         security_scenarios = [
             {
@@ -1462,8 +1446,6 @@ class TestSecurityAndDataValidation:
     @pytest.mark.production
     def test_data_sanitization_and_validation(self, production_test_setup):
         """Test data is properly sanitized and validated."""
-        setup = production_test_setup
-
         # Data validation scenarios
         data_scenarios = [
             {

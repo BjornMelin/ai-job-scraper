@@ -251,7 +251,7 @@ class TestCompleteWorkflowPipeline:
             for i in range(15)
         ]
 
-        mock_ai_enhanced_results = [
+        [
             {
                 **job.model_dump(),
                 "ai_insights": f"Enhanced job {i} with skills analysis",
@@ -422,7 +422,7 @@ class TestPerformanceBenchmarkValidation:
 
             # Measure job board query performance
             start_time = time.perf_counter()
-            jobs = await scraper.scrape_job_boards_async(query)
+            await scraper.scrape_job_boards_async(query)
             job_board_duration = (time.perf_counter() - start_time) * 1000
 
             assert job_board_duration < targets["job_board_query_ms"], (
@@ -455,7 +455,7 @@ class TestPerformanceBenchmarkValidation:
 
             ai_router = get_hybrid_ai_router()
             start_time = time.perf_counter()
-            enhanced_job = await ai_router.enhance_job_content(test_job)
+            await ai_router.enhance_job_content(test_job)
             ai_duration = (time.perf_counter() - start_time) * 1000
 
             assert ai_duration < targets["ai_enhancement_ms"], (
@@ -488,7 +488,7 @@ class TestPerformanceBenchmarkValidation:
 
             start_time = time.perf_counter()
             # Mock card rendering call
-            rendered_cards = mock_render(test_jobs)
+            mock_render(test_jobs)
             card_duration = (time.perf_counter() - start_time) * 1000
 
             assert card_duration < targets["card_rendering_ms"], (

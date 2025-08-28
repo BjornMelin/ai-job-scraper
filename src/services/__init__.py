@@ -1,5 +1,17 @@
-"""Services package for AI Job Scraper application.
+"""Services Module - Library-first implementations.
 
-This package contains business logic services for data processing,
-synchronization, and other core application functionality.
+Simplified service layer using proven libraries.
 """
+
+from .analytics_service import AnalyticsService
+from .company_service import CompanyService
+from .job_service import JobService, job_service
+from .search_service import search_service
+
+__all__ = [
+    "AnalyticsService",
+    "CompanyService",
+    "JobService",
+    "job_service",
+    "search_service",
+]

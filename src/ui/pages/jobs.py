@@ -14,8 +14,9 @@ from typing import TYPE_CHECKING
 import pandas as pd
 import streamlit as st
 
-from src.scraper import scrape_all
-from src.services.company_service import CompanyService
+from src.scraping.scrape_all import scrape_all
+
+# CompanyService replaced by JobService methods
 from src.services.job_service import JobService
 from src.ui.components.sidebar import render_sidebar
 from src.ui.ui_rendering import (
@@ -221,7 +222,8 @@ def _handle_refresh_jobs() -> None:
         try:
             # Log active companies count before scraping
             try:
-                active_count = CompanyService.get_active_companies_count()
+                active_companies = JobService.get_active_companies()
+                active_count = len(active_companies)
                 st.write(f"Found {active_count} active companies to scrape")
                 logger.info(
                     "REFRESH_JOBS_SOURCES: Found %d active companies for scraping",
@@ -341,7 +343,8 @@ def _render_last_refresh_status() -> None:
 def _render_active_sources_metric() -> None:
     """Render the active sources metric using service layer."""
     try:
-        active_companies = CompanyService.get_active_companies_count()
+        active_companies_list = JobService.get_active_companies()
+        active_companies = len(active_companies_list)
         st.metric("Active Sources", active_companies)
     except Exception:
         logger.exception("Failed to get active sources count")

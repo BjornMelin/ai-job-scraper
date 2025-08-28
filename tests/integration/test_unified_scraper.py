@@ -157,7 +157,7 @@ class TestUnifiedScrapingService:
             mock_load_companies.return_value = [mock_company]
 
             # Execute company page scraping
-            jobs = await scraper_service.scrape_company_pages_async(sample_job_query)
+            await scraper_service.scrape_company_pages_async(sample_job_query)
 
             # Verify SmartScraperMultiGraph was called
             assert mock_multi_graph.called
@@ -227,9 +227,7 @@ class TestUnifiedScrapingService:
             )
         ]
 
-        with patch.object(
-            scraper_service, "scrape_unified", return_value=mock_jobs
-        ) as mock_scrape:
+        with patch.object(scraper_service, "scrape_unified", return_value=mock_jobs):
             # Start background scraping
             task_id = await scraper_service.start_background_scraping(sample_job_query)
 

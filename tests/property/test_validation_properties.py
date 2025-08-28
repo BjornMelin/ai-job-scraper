@@ -392,9 +392,12 @@ def test_realistic_job_creation_properties(session):
 
     # Property: all jobs should have required fields
     for job in jobs:
-        assert job.title is not None and len(job.title.strip()) > 0
-        assert job.description is not None and len(job.description.strip()) > 0
-        assert job.location is not None and len(job.location.strip()) > 0
+        assert job.title is not None
+        assert len(job.title.strip()) > 0
+        assert job.description is not None
+        assert len(job.description.strip()) > 0
+        assert job.location is not None
+        assert len(job.location.strip()) > 0
 
         # Property: salary should be reasonable if present
         if job.salary and job.salary != (None, None):

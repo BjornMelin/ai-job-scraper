@@ -10,7 +10,7 @@ import os
 import time
 import tracemalloc
 
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -252,10 +252,8 @@ def benchmark_isolation():
     finally:
         # Restore original priority
         if original_priority is not None:
-            try:
+            with suppress(psutil.AccessDenied, OSError):
                 process.nice(original_priority)
-            except (psutil.AccessDenied, OSError):
-                pass
 
         # Clean up after benchmark
         gc.collect()

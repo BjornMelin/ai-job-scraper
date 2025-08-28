@@ -493,7 +493,7 @@ class TestStreamIntegration:
         config = {}
 
         # Let the test run longer to see full integration
-        start_time = datetime.now()
+        datetime.now()
         assert integration_validator.validate_full_stream_integration(config)
 
         # Should have comprehensive integration
@@ -636,7 +636,7 @@ class TestStreamIntegration:
             @st.fragment(run_every="3s")
             def live_analytics_fragment():
                 """Fragment showing live analytics updates."""
-                connection = get_analytics_connection()  # Cached resource
+                get_analytics_connection()  # Cached resource
 
                 # Compute different metrics (with caching)
                 metrics = {}
@@ -819,7 +819,7 @@ class TestStreamIntegration:
 
         assert integration_validator.validate_component_behavior(error_resilience_test)
 
-    @pytest.mark.parametrize("complexity_level", ["simple", "moderate", "complex"])
+    @pytest.mark.parametrize("complexity_level", ("simple", "moderate", "complex"))
     def test_integration_complexity_scaling(
         self, integration_validator, complexity_level
     ):

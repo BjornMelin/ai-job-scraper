@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""AI Integration Test Script
+"""AI Integration Test Script.
 
 Comprehensive testing of the AI integration system including:
 - vLLM health check and connectivity
@@ -203,14 +203,14 @@ class AIIntegrationTester:
             Senior Python Developer at TechCorp Inc.
             Location: San Francisco, CA
             Remote work available
-            
+
             We are seeking an experienced Python developer to join our team.
-            
+
             Requirements:
             - 5+ years Python experience
             - Django/FastAPI knowledge
             - AWS/Docker expertise
-            
+
             Benefits:
             - Competitive salary
             - Health insurance
@@ -540,9 +540,6 @@ async def main():
 
 if __name__ == "__main__":
     # Check Python version
-    if sys.version_info < (3, 9):
-        print("❌ Python 3.9+ required for this script")
-        sys.exit(1)
 
     # Check required packages
     try:

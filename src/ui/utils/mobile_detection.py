@@ -126,7 +126,6 @@ def get_viewport_info() -> dict[str, Any]:
     }
 
 
-
 @st.cache_data(ttl=30)  # Cache for 30 seconds to avoid repeated calculations
 def get_responsive_columns(total_items: int, default_desktop: int = 3) -> int:
     """Calculate optimal number of columns for responsive grid layout.

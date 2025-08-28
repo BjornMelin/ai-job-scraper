@@ -41,7 +41,9 @@ class FragmentMetrics:
         self.fragment_states = {}  # fragment_id -> state_dict
         self.coordination_events = []  # list of coordination events
 
-    def record_execution(self, fragment_id: str, execution_time: datetime = None):
+    def record_execution(
+        self, fragment_id: str, execution_time: datetime | None = None
+    ):
         """Record fragment execution."""
         if execution_time is None:
             execution_time = datetime.now()
@@ -131,7 +133,7 @@ class MockStreamlitFragment:
         self.timers = {}  # fragment_id -> timer
         self.running = set()  # active fragment IDs
 
-    def mock_fragment(self, run_every: str | float = None):
+    def mock_fragment(self, run_every: str | float | None = None):
         """Mock st.fragment decorator."""
 
         def decorator(func: Callable):
@@ -415,8 +417,7 @@ class FragmentSystemValidator(StreamlitComponentValidator):
             @st.fragment(run_every="1s")
             def consumer_fragment():
                 if coordination_data["messages"]:
-                    consumed = coordination_data["messages"].pop(0)
-                    return consumed
+                    return coordination_data["messages"].pop(0)
                 return None
 
             # Start both fragments
@@ -473,7 +474,7 @@ class FragmentSystemValidator(StreamlitComponentValidator):
             "fragment_count": len(self.fragment_metrics.executions),
             "avg_execution_rate": sum(
                 self.fragment_metrics.get_execution_rate(fid)
-                for fid in self.fragment_metrics.executions.keys()
+                for fid in self.fragment_metrics.executions
             )
             / len(self.fragment_metrics.executions)
             if self.fragment_metrics.executions
@@ -506,8 +507,7 @@ class TestStreamCFragmentSystem:
             def simple_fragment():
                 return "fragment_result"
 
-            result = simple_fragment()
-            return result
+            return simple_fragment()
 
         assert fragment_validator.validate_component_behavior(basic_fragment_test)
 
@@ -575,8 +575,7 @@ class TestStreamCFragmentSystem:
                 return fragment_states["c"]
 
             # Execute all fragments
-            results = [fragment_a(), fragment_b(), fragment_c()]
-            return results
+            return [fragment_a(), fragment_b(), fragment_c()]
 
         assert fragment_validator.validate_component_behavior(multi_fragment_test)
 
@@ -659,8 +658,7 @@ class TestStreamCFragmentSystem:
             except ValueError:
                 pass  # Expected error
 
-            result = normal_fragment()
-            return result
+            return normal_fragment()
 
         # Should handle errors gracefully
         result = fragment_validator.validate_component_behavior(error_handling_test)
@@ -751,7 +749,7 @@ class TestStreamCFragmentSystem:
         # Should have executions from both fragments
         assert len(fragment_validator.fragment_metrics.executions) >= 2
 
-    @pytest.mark.parametrize("interval", ["0.5s", "1s", "2s"])
+    @pytest.mark.parametrize("interval", ("0.5s", "1s", "2s"))
     def test_fragment_different_intervals(self, fragment_validator, interval):
         """Test fragments with different run_every intervals."""
         config = {"interval": interval, "test_duration": 2.0}
@@ -764,7 +762,7 @@ class TestStreamCFragmentSystem:
         )
         assert len(intervals) > 0
 
-    @pytest.mark.parametrize("fragment_count", [1, 3, 5])
+    @pytest.mark.parametrize("fragment_count", (1, 3, 5))
     def test_fragment_scalability(self, fragment_validator, fragment_count):
         """Test fragment system scalability with different counts."""
         config = {"fragment_count": fragment_count, "interval": "1s"}
@@ -891,7 +889,7 @@ class TestFragmentSystemBenchmarks:
 
             return True
 
-        benchmark = benchmarking_tester.benchmark_component_performance(
+        benchmarking_tester.benchmark_component_performance(
             "fragment_system", auto_refresh_performance, iterations=3
         )
 

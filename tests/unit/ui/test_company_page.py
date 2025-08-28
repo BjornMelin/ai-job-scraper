@@ -352,7 +352,7 @@ class TestToggleCompanyFunctionality:
         with patch(
             "src.services.company_service.CompanyService.toggle_company_active",
             return_value=False,
-        ) as mock_toggle:
+        ):
             tester.run_component(company_id)
 
             # Verify success feedback for deactivation
@@ -456,7 +456,7 @@ class TestBulkSelectionOperations:
             patch(
                 "src.services.company_service.CompanyService.get_all_companies",
                 return_value=sample_companies,
-            ) as mock_get_companies,
+            ),
             patch(
                 "src.ui.utils.url_state.update_url_from_company_selection"
             ) as mock_url_update,
@@ -613,7 +613,7 @@ class TestBulkOperations:
                 "src.services.company_service.CompanyService.bulk_update_status",
                 return_value=2,
             ) as mock_bulk_update,
-            patch("streamlit.rerun") as mock_rerun,
+            patch("streamlit.rerun"),
         ):
             tester.run_component()
 
@@ -695,7 +695,7 @@ class TestBulkDeleteFunctionality:
             patch(
                 "uuid.uuid4",
                 return_value=uuid.UUID("12345678-1234-5678-9abc-123456789abc"),
-            ) as mock_uuid,
+            ),
             patch("streamlit.rerun") as mock_rerun,
         ):
             tester.run_component()
@@ -746,7 +746,7 @@ class TestBulkDeleteFunctionality:
         )
 
         with (
-            patch("uuid.uuid4", return_value=uuid.UUID(operation_token)) as mock_uuid,
+            patch("uuid.uuid4", return_value=uuid.UUID(operation_token)),
             patch(
                 "src.services.company_service.CompanyService.bulk_delete_companies"
             ) as mock_bulk_delete,
@@ -1320,7 +1320,7 @@ class TestCompaniesPageIntegration:
                 "src.ui.ui_rendering.render_company_card_with_selection"
             ) as mock_render_card,
             patch("src.ui.pages.companies._company_scraping_progress_fragment"),
-            patch("streamlit.success") as mock_success,
+            patch("streamlit.success"),
         ):  # Feedback should be displayed
             tester.run_component()
 

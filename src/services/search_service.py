@@ -664,7 +664,7 @@ class JobSearchService:
             st.cache_data.clear()
             logger.info("✅ All JobSearchService caches cleared")
         else:
-            logger.info("ℹ️ Streamlit not available - no caches to clear")
+            logger.info("INFO: Streamlit not available - no caches to clear")
 
     @staticmethod
     def get_cache_stats() -> dict[str, Any]:
@@ -707,12 +707,12 @@ class JobSearchService:
         logger.info("🔄 Search caches refreshed - next searches will be fresh")
 
     @st.cache_data(ttl=60, show_spinner=False)  # Cache index stats for 1 minute
-    def get_cached_search_stats(_self) -> dict[str, Any]:
+    def get_cached_search_stats(self) -> dict[str, Any]:
         """Get cached search statistics to avoid frequent database queries.
 
         Returns cached version of search index statistics.
         """
-        return _self.get_search_stats()
+        return self.get_search_stats()
 
 
 # Global search service instance for application use

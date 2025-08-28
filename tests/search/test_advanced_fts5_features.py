@@ -762,7 +762,7 @@ class TestFTS5ErrorRecovery:
                     company TEXT, location TEXT
                 );
 
-                INSERT INTO jobs VALUES 
+                INSERT INTO jobs VALUES
                 (1, 'C++ Developer', 'Work with C++, C#, and .NET framework', 'Tech Corp', 'NYC'),
                 (2, 'Full-Stack Engineer', 'React.js & Node.js developer needed', 'Web Co', 'SF'),
                 (3, 'AI/ML Engineer', 'Work on AI/ML algorithms & data science', 'AI Corp', 'Boston'),
@@ -902,7 +902,7 @@ class TestFTS5ThreadSafety:
             """Worker that only performs read operations."""
             try:
                 worker_service = JobSearchService(thread_safe_db.db_path)
-                for i in range(20):
+                for _i in range(20):
                     search_results = worker_service.search_jobs("Job")
                     results.append(("read", worker_id, len(search_results)))
                     time.sleep(0.001)
@@ -913,7 +913,7 @@ class TestFTS5ThreadSafety:
             """Worker that performs write operations (index rebuilds)."""
             try:
                 worker_service = JobSearchService(thread_safe_db.db_path)
-                for i in range(5):
+                for _i in range(5):
                     if worker_service._is_fts_available():
                         success = worker_service.rebuild_search_index()
                         results.append(("write", worker_id, success))
@@ -983,7 +983,7 @@ class TestFTS5ThreadSafety:
             """Continuously search while updates happen."""
             try:
                 searcher_service = JobSearchService(thread_safe_db.db_path)
-                for i in range(50):
+                for _i in range(50):
                     results = searcher_service.search_jobs("Job")
                     search_results.append(len(results))
                     time.sleep(0.01)

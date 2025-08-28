@@ -89,7 +89,7 @@ class MockStreamlitContext:
 
 @contextmanager
 def mock_streamlit_context(
-    initial_state: dict[str, Any] = None,
+    initial_state: dict[str, Any] | None = None,
     session: MockStreamlitSession = None,
 ) -> Generator[MockStreamlitContext, None, None]:
     """Create a mock Streamlit context for testing.
@@ -122,7 +122,7 @@ def mock_streamlit_context(
 
 @contextmanager
 def isolated_streamlit_session(
-    initial_state: dict[str, Any] = None,
+    initial_state: dict[str, Any] | None = None,
 ) -> Generator[MockStreamlitSession, None, None]:
     """Create an isolated Streamlit session for testing.
 
@@ -162,7 +162,7 @@ def create_mock_streamlit_widgets():
 
     # Configure widgets to store values in session state
     def make_stateful_widget(widget_name: str, default_value: Any):
-        def widget_func(*args, key: str = None, **kwargs):
+        def widget_func(*args, key: str | None = None, **kwargs):
             if key and "session_state" in globals():
                 if key not in session_state:  # type: ignore
                     session_state[key] = default_value  # type: ignore
@@ -247,7 +247,7 @@ class StreamlitComponentTester:
         """Set session state values."""
         self.session.update(kwargs)
 
-    def get_session_state(self, key: str = None) -> Any:
+    def get_session_state(self, key: str | None = None) -> Any:
         """Get session state value or entire state."""
         if key:
             return self.session.get(key)
@@ -285,7 +285,7 @@ def test_streamlit_component(component_func: Callable):
 class MockStreamlitFragment:
     """Mock Streamlit fragment for testing."""
 
-    def __init__(self, func: Callable, run_every: float = None):
+    def __init__(self, func: Callable, run_every: float | None = None):
         """Initialize mock fragment.
 
         Args:
@@ -328,7 +328,7 @@ class MockStreamlitFragment:
             self._schedule_next_run()
 
 
-def mock_streamlit_fragment(run_every: float = None):
+def mock_streamlit_fragment(run_every: float | None = None):
     """Mock st.fragment decorator for testing.
 
     Args:
@@ -345,7 +345,7 @@ def mock_streamlit_fragment(run_every: float = None):
 
 
 @contextmanager
-def mock_database_connection(mock_data: dict[str, list] = None):
+def mock_database_connection(mock_data: dict[str, list] | None = None):
     """Mock database connection for Streamlit tests.
 
     Args:
@@ -375,7 +375,7 @@ def mock_database_connection(mock_data: dict[str, list] = None):
 def assert_streamlit_component_output(
     component_func: Callable,
     expected_outputs: dict[str, Any],
-    session_state: dict[str, Any] = None,
+    session_state: dict[str, Any] | None = None,
     *args,
     **kwargs,
 ):
@@ -412,7 +412,7 @@ def assert_streamlit_component_output(
 def simulate_streamlit_interaction(
     component_func: Callable,
     interactions: list[dict[str, Any]],
-    initial_state: dict[str, Any] = None,
+    initial_state: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     """Simulate user interactions with Streamlit component.
 

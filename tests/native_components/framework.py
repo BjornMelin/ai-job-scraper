@@ -412,13 +412,12 @@ class NativeComponentTester:
             Performance benchmark
         """
         if validator_name not in self.validators:
-            benchmark = PerformanceBenchmark(
+            return PerformanceBenchmark(
                 component_name=validator_name,
                 stream_type=StreamType.STREAM_A,  # Default
                 test_name=getattr(test_func, "__name__", str(test_func)),
                 error_message="Validator not found",
             )
-            return benchmark
 
         validator = self.validators[validator_name]
 
@@ -472,13 +471,12 @@ class NativeComponentTester:
             Comparison benchmark
         """
         if validator_name not in self.validators:
-            benchmark = PerformanceBenchmark(
+            return PerformanceBenchmark(
                 component_name=validator_name,
                 stream_type=StreamType.STREAM_A,  # Default
                 test_name="comparison",
                 error_message="Validator not found",
             )
-            return benchmark
 
         validator = self.validators[validator_name]
 
@@ -525,7 +523,7 @@ class NativeComponentTester:
                 continue
 
             # Validate functionality
-            result = self.validate_component(
+            self.validate_component(
                 validator_name, test_func, **scenario.get("kwargs", {})
             )
 
@@ -558,7 +556,7 @@ class NativeComponentTester:
         for scenario in integration_scenarios:
             scenario_name = scenario.get("name", "unnamed")
             test_func = scenario.get("test_func")
-            involved_streams = scenario.get("streams", [])
+            scenario.get("streams", [])
 
             try:
                 # Set up integrated test environment
@@ -723,7 +721,7 @@ def assert_functionality_preserved(
         assert set(baseline_result.keys()) == set(optimized_result.keys()), (
             f"Result keys differ: {baseline_result.keys()} vs {optimized_result.keys()}"
         )
-        for key in baseline_result.keys():
+        for key in baseline_result:
             assert_functionality_preserved(
                 baseline_result[key], optimized_result[key], tolerance
             )

@@ -337,8 +337,6 @@ class TestConnectionPoolBehavior:
 
     def test_connection_pool_recovery_after_failures(self, transaction_services):
         """Test connection pool recovery after transaction failures."""
-        services = transaction_services
-
         connection_attempts = []
 
         def mock_connection_attempt(attempt_id):
@@ -391,7 +389,6 @@ class TestConnectionPoolBehavior:
         import concurrent.futures
         import threading
 
-        services = transaction_services
         pool_usage_results = []
         result_lock = threading.Lock()
 
@@ -613,7 +610,6 @@ class TestDataConsistencyAfterRollbacks:
         import concurrent.futures
         import threading
 
-        services = transaction_services
         deadlock_scenarios = []
         result_lock = threading.Lock()
 

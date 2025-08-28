@@ -571,7 +571,7 @@ class TestCallbackFunctions:
             patch(
                 "src.services.job_service.JobService.update_job_status",
                 side_effect=Exception("Service error"),
-            ) as mock_update,
+            ),
             patch("streamlit.error") as mock_error,
             patch("streamlit.rerun") as mock_rerun,
         ):
@@ -611,7 +611,7 @@ class TestCallbackFunctions:
             patch(
                 "src.services.job_service.JobService.toggle_favorite",
                 side_effect=Exception("Database error"),
-            ) as mock_toggle,
+            ),
             patch("streamlit.error") as mock_error,
             patch("streamlit.rerun") as mock_rerun,
         ):
@@ -647,7 +647,7 @@ class TestJobGridRendering:
             patch("src.ui.styles.styles.apply_job_grid_styles") as mock_apply_styles,
             patch("streamlit.columns") as mock_columns,
             patch("streamlit.container") as mock_container,
-            patch("streamlit.markdown") as mock_markdown,
+            patch("streamlit.markdown"),
             patch(
                 "src.ui.components.cards.job_card.render_job_card"
             ) as mock_render_card,
@@ -1002,7 +1002,7 @@ class TestJobCardIntegration:
             patch("src.ui.styles.styles.apply_job_grid_styles"),
             patch("streamlit.columns") as mock_grid_columns,
             patch("streamlit.container") as mock_container,
-            patch("streamlit.markdown") as mock_grid_markdown,
+            patch("streamlit.markdown"),
             patch("src.ui.components.cards.job_card.render_job_card"),
         ):
             mock_grid_columns.return_value = [Mock(), Mock(), Mock()]

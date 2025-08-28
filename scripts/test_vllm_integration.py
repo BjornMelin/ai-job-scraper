@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """vLLM Integration Test Script
-Test integration between vLLM server and LiteLLM configuration
+Test integration between vLLM server and LiteLLM configuration.
 """
 
 import asyncio
@@ -52,9 +52,7 @@ class VLLMIntegrationTester:
                 if response.status_code == 200:
                     self.log("✅ Server is reachable and healthy", "SUCCESS")
                     return True
-                self.log(
-                    f"❌ Server returned status {response.status_code}", "ERROR"
-                )
+                self.log(f"❌ Server returned status {response.status_code}", "ERROR")
                 return False
 
         except Exception as e:
@@ -270,7 +268,7 @@ class VLLMIntegrationTester:
 
                 if response.status_code == 200:
                     completion_data = response.json()
-                    message = completion_data["choices"][0]["message"]["content"]
+                    completion_data["choices"][0]["message"]["content"]
                     self.log("✅ LiteLLM integration pattern working", "SUCCESS")
                     return True
                 self.log(

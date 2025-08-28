@@ -228,13 +228,9 @@ async def demonstrate_service_orchestration():
         # Get workflow status
         workflow_status = orchestrator.get_workflow_status(workflow_id)
         if workflow_status:
-            print(
-                f"📊 Services Used: {', '.join(workflow_status['services_used'])}"
-            )
+            print(f"📊 Services Used: {', '.join(workflow_status['services_used'])}")
             print(f"⏱️ Duration: {workflow_status['results']['duration']:.1f}s")
-            print(
-                f"📈 Jobs Processed: {workflow_status['results']['jobs_processed']}"
-            )
+            print(f"📈 Jobs Processed: {workflow_status['results']['jobs_processed']}")
 
     except Exception as e:
         print(f"❌ Workflow failed: {e}")

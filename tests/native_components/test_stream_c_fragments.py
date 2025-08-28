@@ -355,7 +355,7 @@ class FragmentBehaviorValidator(NativeComponentValidator):
                 patch("streamlit.fragment", self.mock_fragment.mock_fragment),
                 patch("streamlit.rerun", self.mock_fragment.mock_rerun()),
             ):
-                result = test_func(*args, **kwargs)
+                test_func(*args, **kwargs)
 
             # Update metrics
             self.metrics.fragment_executions = sum(self.tracker.executions.values())
@@ -372,7 +372,7 @@ class FragmentBehaviorValidator(NativeComponentValidator):
             if self.tracker.run_every_configs:
                 accuracies = [
                     self.tracker.get_timing_accuracy(fid)
-                    for fid in self.tracker.run_every_configs.keys()
+                    for fid in self.tracker.run_every_configs
                 ]
                 self.metrics.timing_accuracy = (
                     sum(accuracies) / len(accuracies) if accuracies else 0.0
@@ -415,7 +415,7 @@ class FragmentBehaviorValidator(NativeComponentValidator):
                 total_metrics.timing_accuracy += metrics.timing_accuracy
 
         # Average the metrics
-        avg_metrics = NativeComponentMetrics(
+        return NativeComponentMetrics(
             execution_time=total_metrics.execution_time / iterations,
             memory_usage_mb=total_metrics.memory_usage_mb / iterations,
             cpu_usage_percent=total_metrics.cpu_usage_percent / iterations,
@@ -427,8 +427,6 @@ class FragmentBehaviorValidator(NativeComponentValidator):
             if total_metrics.timing_accuracy > 0
             else 0,
         )
-
-        return avg_metrics
 
     def compare_implementations(
         self, baseline_func, optimized_func, iterations: int = 10
@@ -480,7 +478,7 @@ class FragmentBehaviorValidator(NativeComponentValidator):
             "isolation_violations": self.tracker.isolation_violations,
             "timing_accuracies": {
                 fid: self.tracker.get_timing_accuracy(fid)
-                for fid in self.tracker.run_every_configs.keys()
+                for fid in self.tracker.run_every_configs
             },
         }
 
@@ -506,10 +504,7 @@ class FragmentBehaviorValidator(NativeComponentValidator):
             )
 
             # Optimized should have at least as many executions due to auto-refresh
-            if optimized_executions < baseline_executions:
-                return False
-
-            return True
+            return not optimized_executions < baseline_executions
 
         except (KeyError, TypeError, ValueError):
             return False
@@ -634,8 +629,7 @@ class FragmentBehaviorValidator(NativeComponentValidator):
 
                 return f"rerun_triggered_{rerun_scope}"
 
-            result = rerun_fragment()
-            return result
+            return rerun_fragment()
 
         self.validate_functionality(rerun_test)
 
@@ -670,8 +664,7 @@ class TestStreamCFragmentBehavior:
                 return "fragment_executed"
 
             # Execute fragment
-            result = simple_fragment()
-            return result
+            return simple_fragment()
 
         success = fragment_validator.validate_functionality(basic_fragment_test)
         assert success is True
@@ -696,7 +689,7 @@ class TestStreamCFragmentBehavior:
                 return len(execution_log)
 
             # Start fragment
-            initial_count = auto_refresh_fragment()
+            auto_refresh_fragment()
 
             # Let it auto-refresh
             time.sleep(1.2)  # Should trigger ~2 auto-refreshes
@@ -900,7 +893,7 @@ class TestStreamCFragmentBehavior:
         # Should have executed fragments despite errors
         assert fragment_validator.metrics.fragment_executions >= 1
 
-    @pytest.mark.parametrize("interval", ["0.2s", "0.5s", "1s", "2s"])
+    @pytest.mark.parametrize("interval", ("0.2s", "0.5s", "1s", "2s"))
     def test_fragment_different_intervals(self, fragment_validator, interval):
         """Test fragments with different run_every intervals."""
 
@@ -916,7 +909,7 @@ class TestStreamCFragmentBehavior:
                 return execution_count
 
             # Start fragment
-            initial_count = interval_fragment()
+            interval_fragment()
 
             # Let it run for a duration proportional to interval
             test_duration = max(1.5, float(interval[:-1]) * 3)
@@ -972,7 +965,7 @@ class TestStreamCFragmentBehavior:
                 return len(execution_log)
 
             # Start fragment and let it run
-            initial_result = fragment_task()
+            fragment_task()
             time.sleep(1.5)  # Let auto-refresh work
 
             return execution_log

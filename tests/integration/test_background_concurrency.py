@@ -41,8 +41,7 @@ logging.disable(logging.CRITICAL)
 @pytest.fixture
 def mock_streamlit_state():
     """Create mock Streamlit session state for testing."""
-    mock_state = {}
-    return mock_state
+    return {}
 
 
 @pytest.fixture
@@ -363,7 +362,7 @@ class TestSessionStateManagement:
         for task_id, data_prefix in task_configs:
             task_keys[task_id] = [
                 key
-                for key in mock_st.session_state.keys()
+                for key in mock_st.session_state
                 if key.startswith(f"{data_prefix}_{task_id}")
             ]
             assert len(task_keys[task_id]) == 5  # Each task created 5 keys
@@ -537,7 +536,7 @@ class TestBackgroundTaskLifecycle:
 
             # Start background scraping that should fail
             mock_st.session_state.clear()
-            task_id = start_background_scraping(stay_active_in_tests=False)
+            start_background_scraping(stay_active_in_tests=False)
 
             # Allow time for background thread to process and fail
             time.sleep(0.2)
@@ -567,7 +566,7 @@ class TestBackgroundTaskLifecycle:
 
             def long_scrape(*args, **kwargs):
                 # Simulate long-running task
-                for i in range(100):
+                for _i in range(100):
                     if not mock_st.session_state.get("scraping_active", False):
                         break
                     time.sleep(0.01)
@@ -576,7 +575,7 @@ class TestBackgroundTaskLifecycle:
 
             # Start multiple background tasks
             task_ids = []
-            for i in range(3):
+            for _i in range(3):
                 mock_st.session_state.clear()
                 task_id = start_background_scraping(stay_active_in_tests=True)
                 task_ids.append(task_id)
@@ -642,14 +641,12 @@ class TestMemoryAndResourceManagement:
         created_objects.clear()
 
         # Verify session state contains results but large objects are cleaned up
-        task_data_keys = [key for key in mock_st.session_state.keys() if "task_" in key]
+        task_data_keys = [key for key in mock_st.session_state if "task_" in key]
         assert len(task_data_keys) == 5  # Results preserved
         assert len(created_objects) == 0  # Large objects cleaned up
 
     def test_thread_lifecycle_management(self, background_test_environment):
         """Test proper thread creation, execution, and termination."""
-        mock_st = background_test_environment
-
         # Track thread lifecycle
         thread_events = []
         event_lock = threading.Lock()
@@ -722,7 +719,7 @@ class TestEdgeCasesAndRaceConditions:
             # Rapidly start and stop scraping
             operation_results = []
 
-            for cycle in range(10):
+            for _cycle in range(10):
                 # Clear previous state
                 mock_st.session_state.clear()
 
@@ -805,7 +802,7 @@ class TestEdgeCasesAndRaceConditions:
         assert len(modification_results) == total_expected
 
         # Check for errors
-        errors = [r for r in modification_results if r[0] == "error"]
+        [r for r in modification_results if r[0] == "error"]
         success_count = len([r for r in modification_results if r[0] == "success"])
 
         # Should have mostly successes (some race conditions are acceptable)

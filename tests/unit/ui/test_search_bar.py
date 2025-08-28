@@ -257,10 +257,10 @@ class TestSearchInput:
 
         with (
             patch("streamlit.columns") as mock_columns,
-            patch("streamlit.text_input") as mock_text_input,
+            patch("streamlit.text_input"),
             patch("streamlit.expander") as mock_expander,
             patch("streamlit.button") as mock_button,
-            patch("streamlit.markdown") as mock_markdown,
+            patch("streamlit.markdown"),
         ):
             mock_columns.return_value = [Mock(), Mock()]
             mock_expander.return_value.__enter__ = Mock()
@@ -291,7 +291,7 @@ class TestSearchInput:
 
         with (
             patch("streamlit.columns") as mock_columns,
-            patch("streamlit.text_input") as mock_text_input,
+            patch("streamlit.text_input"),
             patch("streamlit.expander") as mock_expander,
             patch("streamlit.button") as mock_button,
         ):
@@ -351,7 +351,7 @@ class TestAdvancedFilters:
             patch("streamlit.selectbox") as mock_selectbox,
             patch("streamlit.date_input") as mock_date_input,
             patch("streamlit.button") as mock_button,
-            patch("streamlit.markdown") as mock_markdown,
+            patch("streamlit.markdown"),
         ):
             # Mock expander context manager
             mock_expander.return_value.__enter__ = Mock()
@@ -399,7 +399,7 @@ class TestAdvancedFilters:
             patch("streamlit.selectbox") as mock_selectbox,
             patch("streamlit.date_input") as mock_date_input,
             patch("streamlit.button") as mock_button,
-            patch("streamlit.markdown") as mock_markdown,
+            patch("streamlit.markdown"),
         ):
             mock_expander.return_value.__enter__ = Mock()
             mock_expander.return_value.__exit__ = Mock(return_value=None)
@@ -443,7 +443,7 @@ class TestAdvancedFilters:
             patch("streamlit.selectbox") as mock_selectbox,
             patch("streamlit.date_input") as mock_date_input,
             patch("streamlit.button") as mock_button,
-            patch("streamlit.markdown") as mock_markdown,
+            patch("streamlit.markdown"),
         ):
             mock_expander.return_value.__enter__ = Mock()
             mock_expander.return_value.__exit__ = Mock(return_value=None)
@@ -492,7 +492,7 @@ class TestSearchResults:
         tester.session = init_tester.session
 
         with (
-            patch("src.ui.components.search_bar._render_search_status") as mock_status,
+            patch("src.ui.components.search_bar._render_search_status"),
             patch(
                 "src.ui.components.search_bar._render_empty_state"
             ) as mock_empty_state,
@@ -556,9 +556,9 @@ class TestSearchResults:
         tester.set_session_state(search_results=sample_search_results)
 
         with (
-            patch("src.ui.components.search_bar._render_search_status") as mock_status,
+            patch("src.ui.components.search_bar._render_search_status"),
             patch("streamlit.columns") as mock_columns,
-            patch("streamlit.markdown") as mock_markdown,
+            patch("streamlit.markdown"),
             patch("streamlit.selectbox") as mock_selectbox,
             patch(
                 "src.ui.components.search_bar._render_search_results_list"
@@ -611,7 +611,7 @@ class TestSearchResults:
         with (
             patch("streamlit.container") as mock_container,
             patch("streamlit.columns") as mock_columns,
-            patch("streamlit.markdown") as mock_markdown,
+            patch("streamlit.markdown"),
             patch("streamlit.metric") as mock_metric,
             patch("streamlit.button") as mock_button,
         ):
@@ -947,7 +947,7 @@ class TestEmptyStateRendering:
 
         with (
             patch("streamlit.info") as mock_info,
-            patch("streamlit.markdown") as mock_markdown,
+            patch("streamlit.markdown"),
             patch("streamlit.columns") as mock_columns,
             patch("streamlit.button") as mock_button,
         ):
@@ -979,7 +979,7 @@ class TestEmptyStateRendering:
         with (
             patch("streamlit.warning") as mock_warning,
             patch("streamlit.expander") as mock_expander,
-            patch("streamlit.markdown") as mock_markdown,
+            patch("streamlit.markdown"),
             patch("streamlit.columns") as mock_columns,
             patch("streamlit.button") as mock_button,
         ):
@@ -1262,7 +1262,7 @@ class TestSearchEdgeCases:
             patch("streamlit.selectbox") as mock_selectbox,
             patch("streamlit.date_input") as mock_date_input,
             patch("streamlit.button") as mock_button,
-            patch("streamlit.markdown") as mock_markdown,
+            patch("streamlit.markdown"),
         ):
             mock_expander.return_value.__enter__ = Mock()
             mock_expander.return_value.__exit__ = Mock(return_value=None)

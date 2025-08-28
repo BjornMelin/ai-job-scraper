@@ -75,7 +75,7 @@ class StreamBCachingValidator(BaseStreamValidator):
         total_cache_hits = 0
         total_cache_misses = 0
 
-        for iteration in range(iterations):
+        for _iteration in range(iterations):
             # Reset cache tracking for each iteration
             self.cache_hits = 0
             self.cache_misses = 0
@@ -101,7 +101,7 @@ class StreamBCachingValidator(BaseStreamValidator):
             else 0.0
         )
 
-        avg_metrics = ValidationMetrics(
+        return ValidationMetrics(
             execution_time_ms=total_time / successful_runs,
             memory_usage_mb=metrics.memory_usage_mb,
             cpu_usage_percent=metrics.cpu_usage_percent,
@@ -113,8 +113,6 @@ class StreamBCachingValidator(BaseStreamValidator):
             if successful_runs == iterations
             else (successful_runs / iterations * 100),
         )
-
-        return avg_metrics
 
     def compare_with_baseline(
         self, baseline_func: Callable, optimized_func: Callable

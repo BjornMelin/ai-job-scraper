@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """vLLM Server Validation Script
 Tests server connectivity, model loading, and OpenAI API compatibility
-Based on ADR-010 specifications
+Based on ADR-010 specifications.
 """
 
 import asyncio
