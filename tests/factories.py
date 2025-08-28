@@ -291,7 +291,7 @@ def create_sample_companies(session: Any, count: int = 5, **traits) -> list[Comp
 
 
 def create_sample_jobs(
-    session: Any, count: int = 10, company: CompanySQL | None = None, **traits
+    session: Any, count: int = 10, company=None, **traits
 ) -> list[JobSQL]:
     """Create multiple jobs with a shared session.
 
