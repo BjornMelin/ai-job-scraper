@@ -15,10 +15,10 @@ import pandas as pd
 import streamlit as st
 
 from src.scraping.scrape_all import scrape_all
+from src.ui.components.sidebar import render_sidebar
 
 # CompanyService replaced by JobService methods
-from src.services.job_service import JobService
-from src.ui.components.sidebar import render_sidebar
+from src.ui.state.session_state import get_current_filters
 from src.ui.ui_rendering import (
     apply_view_mode,
     render_action_buttons,
@@ -29,7 +29,8 @@ from src.ui.ui_rendering import (
     select_view_mode,
 )
 from src.ui.utils import is_streamlit_context
-from src.ui.utils.background_helpers import background_task_status_fragment
+from src.ui.utils.background_helpers import render_background_task_status
+from src.ui.utils.service_cache import get_job_service
 
 if TYPE_CHECKING:
     from src.schemas import Job
@@ -52,17 +53,18 @@ def show_job_details_modal(job: "Job") -> None:
 
 
 def _handle_job_details_modal(jobs: list["Job"]) -> None:
-    """Handle showing the job details modal when a job is selected.
+    """Handle showing the job details modal using UNIFIED modal state.
 
     Args:
         jobs: List of available jobs to find the selected job.
     """
-    if view_job_id := st.session_state.get("view_job_id"):
-        if selected_job := next((job for job in jobs if job.id == view_job_id), None):
+    # Use unified modal_job_id instead of view_job_id
+    if modal_job_id := st.session_state.get("modal_job_id"):
+        if selected_job := next((job for job in jobs if job.id == modal_job_id), None):
             show_job_details_modal(selected_job)
         else:
             # Job not found in current filtered list, clear the selection
-            st.session_state.view_job_id = None
+            st.session_state.modal_job_id = None
 
 
 def _execute_scraping_safely() -> dict[str, int]:
@@ -140,7 +142,7 @@ def render_jobs_page() -> None:
         )
         return
 
-    # Render job tabs using fragments
+    # Render job tabs using native Streamlit components
     _render_job_tabs()
 
     # Render statistics dashboard
@@ -150,7 +152,7 @@ def render_jobs_page() -> None:
     _handle_job_details_modal(jobs)
 
     # Show background task status if active
-    background_task_status_fragment()
+    render_background_task_status()
 
 
 def _render_page_header() -> None:
@@ -182,25 +184,16 @@ def _render_page_header() -> None:
 
 
 def _render_action_bar() -> None:
-    """Render the action bar with refresh button and status info using containers."""
+    """Render the action bar with status info using containers."""
     # Use horizontal flex container for better responsive layout
     with st.container():
-        # Use better proportions for action bar elements
-        action_cols = st.columns([3, 2, 2], gap="medium")
+        # Use better proportions for status elements
+        action_cols = st.columns([1, 1], gap="medium")
 
         with action_cols[0]:
-            if st.button(
-                "🔄 Refresh Jobs",
-                use_container_width=True,
-                type="primary",
-                help="Scrape latest job postings from all active companies",
-            ):
-                _handle_refresh_jobs()
-
-        with action_cols[1]:
             _render_last_refresh_status()
 
-        with action_cols[2]:
+        with action_cols[1]:
             _render_active_sources_metric()
 
 
@@ -222,7 +215,9 @@ def _handle_refresh_jobs() -> None:
         try:
             # Log active companies count before scraping
             try:
-                active_companies = JobService.get_active_companies()
+                # Use cached service for active companies
+                job_service = get_job_service()
+                active_companies = job_service.get_active_companies()
                 active_count = len(active_companies)
                 st.write(f"Found {active_count} active companies to scrape")
                 logger.info(
@@ -341,9 +336,11 @@ def _render_last_refresh_status() -> None:
 
 
 def _render_active_sources_metric() -> None:
-    """Render the active sources metric using service layer."""
+    """Render the active sources metric using CACHED service layer."""
     try:
-        active_companies_list = JobService.get_active_companies()
+        # Use cached service instead of direct static calls
+        job_service = get_job_service()
+        active_companies_list = job_service.get_active_companies()
         active_companies = len(active_companies_list)
         st.metric("Active Sources", active_companies)
     except Exception:
@@ -352,24 +349,29 @@ def _render_active_sources_metric() -> None:
 
 
 def _get_filtered_jobs() -> list["Job"]:
-    """Get jobs filtered by current filter settings.
+    """Get jobs filtered by current WIDGET-based filter settings.
 
     Returns:
         List of filtered Job DTO objects.
     """
     try:
-        # Convert session state filters to JobService format
+        # Get filter values from widget keys instead of session state
+        current_filters = get_current_filters()
+
+        # Convert widget-based filters to JobService format
         filters = {
-            "text_search": st.session_state.filters.get("keyword", ""),
-            "company": st.session_state.filters.get("company", []),
+            "text_search": current_filters.get("keyword", ""),
+            "company": current_filters.get("company", []),
             "application_status": [],  # We'll handle status filtering in tabs
-            "date_from": st.session_state.filters.get("date_from"),
-            "date_to": st.session_state.filters.get("date_to"),
+            "date_from": current_filters.get("date_from"),
+            "date_to": current_filters.get("date_to"),
             "favorites_only": False,
             "include_archived": False,
         }
 
-        return JobService.get_filtered_jobs(filters)
+        # Use cached service instead of direct static calls
+        job_service = get_job_service()
+        return job_service.get_filtered_jobs(filters)
 
     except Exception:
         logger.exception("Job query failed")
@@ -377,7 +379,7 @@ def _get_filtered_jobs() -> list["Job"]:
 
 
 def _construct_job_filters(favorites_only: bool = False, **kwargs) -> dict:
-    """Shared utility to construct job filters for database queries.
+    """Shared utility to construct job filters using WIDGET-based values.
 
     Args:
         favorites_only (bool): Whether to filter for favorite jobs.
@@ -386,12 +388,15 @@ def _construct_job_filters(favorites_only: bool = False, **kwargs) -> dict:
     Returns:
         dict: Filter parameters for JobService.
     """
+    # Get current filter values from widget keys
+    current_filters = get_current_filters()
+
     filters = {
-        "text_search": st.session_state.filters.get("keyword", ""),
-        "company": st.session_state.filters.get("company", []),
+        "text_search": current_filters.get("keyword", ""),
+        "company": current_filters.get("company", []),
         "application_status": kwargs.get("application_status", []),
-        "date_from": st.session_state.filters.get("date_from"),
-        "date_to": st.session_state.filters.get("date_to"),
+        "date_from": current_filters.get("date_from"),
+        "date_to": current_filters.get("date_to"),
         "favorites_only": favorites_only,
         "include_archived": False,
     }
@@ -401,7 +406,7 @@ def _construct_job_filters(favorites_only: bool = False, **kwargs) -> dict:
 
 
 def _get_favorites_jobs() -> list["Job"]:
-    """Get favorite jobs filtered by current filter settings using database query.
+    """Get favorite jobs filtered by current filter settings using CACHED service.
 
     Returns:
         List of filtered favorite Job DTO objects.
@@ -410,7 +415,9 @@ def _get_favorites_jobs() -> list["Job"]:
         # Use shared filter construction utility
         filters = _construct_job_filters(favorites_only=True)
 
-        return JobService.get_filtered_jobs(filters)
+        # Use cached service instead of direct static calls
+        job_service = get_job_service()
+        return job_service.get_filtered_jobs(filters)
 
     except Exception:
         logger.exception("Favorites job query failed")
@@ -418,7 +425,7 @@ def _get_favorites_jobs() -> list["Job"]:
 
 
 def _get_applied_jobs() -> list["Job"]:
-    """Get applied jobs filtered by current filter settings using database query.
+    """Get applied jobs filtered by current filter settings using CACHED service.
 
     Returns:
         List of filtered applied Job DTO objects.
@@ -427,19 +434,19 @@ def _get_applied_jobs() -> list["Job"]:
         # Use shared filter construction utility with applied status filter
         filters = _construct_job_filters(application_status=["Applied"])
 
-        return JobService.get_filtered_jobs(filters)
+        # Use cached service instead of direct static calls
+        job_service = get_job_service()
+        return job_service.get_filtered_jobs(filters)
 
     except Exception:
         logger.exception("Applied job query failed")
         return []
 
 
-@st.fragment(run_every="30s")
-def _job_list_fragment():
-    """Fragment for job list display that auto-refreshes every 30 seconds.
+def _render_job_list():
+    """Render job list display with unified refresh pattern.
 
-    This fragment displays job data and can refresh independently from
-    the main page filters and controls.
+    This function displays job data with manual refresh capability.
     """
     # Get filtered jobs using current session state filters
     jobs = _get_filtered_jobs()
@@ -460,9 +467,9 @@ def _job_list_fragment():
     total_favorites = len(favorites_jobs)
     total_applied = len(applied_jobs)
 
-    # Initialize selected tab from session state (synced from URL)
-    if "selected_tab" not in st.session_state:
-        st.session_state.selected_tab = "all"
+    # Get selected tab from session state (essential cross-page state)
+    # This is one of the few remaining session state keys we preserve
+    current_tab = st.session_state.get("selected_tab", "all")
 
     # Create tab selector with URL sync support
     tab_col1, tab_col2, tab_col3, tab_col4 = st.columns([1, 1, 1, 2])
@@ -471,7 +478,7 @@ def _job_list_fragment():
         if st.button(
             f"All Jobs 📋 ({total_all:,})",
             key="tab_all",
-            type="primary" if st.session_state.selected_tab == "all" else "secondary",
+            type="primary" if current_tab == "all" else "secondary",
             use_container_width=True,
         ):
             st.session_state.selected_tab = "all"
@@ -484,9 +491,7 @@ def _job_list_fragment():
         if st.button(
             f"Favorites ⭐ ({total_favorites:,})",
             key="tab_favorites",
-            type="primary"
-            if st.session_state.selected_tab == "favorites"
-            else "secondary",
+            type="primary" if current_tab == "favorites" else "secondary",
             use_container_width=True,
         ):
             st.session_state.selected_tab = "favorites"
@@ -499,9 +504,7 @@ def _job_list_fragment():
         if st.button(
             f"Applied ✅ ({total_applied:,})",
             key="tab_applied",
-            type="primary"
-            if st.session_state.selected_tab == "applied"
-            else "secondary",
+            type="primary" if current_tab == "applied" else "secondary",
             use_container_width=True,
         ):
             st.session_state.selected_tab = "applied"
@@ -527,7 +530,7 @@ def _job_list_fragment():
     # Render content based on selected tab
     st.markdown("---")
 
-    if st.session_state.selected_tab == "all":
+    if current_tab == "all":
         if total_all == 0:
             st.info(
                 "🔍 No jobs found. Try adjusting your filters or refreshing the "
@@ -536,7 +539,7 @@ def _job_list_fragment():
         else:
             _render_job_display(all_jobs, "all")
 
-    elif st.session_state.selected_tab == "favorites":
+    elif current_tab == "favorites":
         if total_favorites == 0:
             st.info(
                 "💡 No favorite jobs yet. Star jobs you're interested in "
@@ -545,7 +548,7 @@ def _job_list_fragment():
         else:
             _render_job_display(favorites_jobs, "favorites")
 
-    elif st.session_state.selected_tab == "applied":
+    elif current_tab == "applied":
         if total_applied == 0:
             st.info(
                 "🚀 No applications yet. Update job status to 'Applied' "
@@ -555,20 +558,31 @@ def _job_list_fragment():
             _render_job_display(applied_jobs, "applied")
 
 
-@st.fragment
-def _filter_controls_fragment():
-    """Fragment for filter controls that don't auto-refresh.
+def _render_filter_controls():
+    """Render filter controls with unified refresh pattern.
 
-    This fragment handles the main filter controls and search functionality.
+    This function handles the main filter controls and search functionality.
     """
-    # This would render filter controls if they were moved here
-    # For now, we keep filters in the main page to trigger job list updates
+    # Filter controls are handled in the main page flow
 
 
 def _render_job_tabs() -> None:
-    """Render the job tabs using fragments for better performance."""
-    # Use the fragment for job list display
-    _job_list_fragment()
+    """Render the job tabs with unified refresh pattern."""
+    # Add unified refresh interface
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        if st.button(
+            "🔄 Refresh Jobs",
+            use_container_width=True,
+            type="primary",
+            key="unified_refresh_jobs",
+        ):
+            st.cache_data.clear()
+            st.toast("Jobs data refreshed!", icon="✅")
+            st.rerun()
+
+    # Render job list display
+    _render_job_list()
 
 
 def _render_job_display(jobs: list["Job"], tab_key: str) -> None:

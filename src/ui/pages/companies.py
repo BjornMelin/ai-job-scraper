@@ -16,10 +16,6 @@ from src.ui.utils.background_helpers import (
     get_company_progress,
     is_scraping_active,
 )
-from src.ui.utils.database_helpers import (
-    display_feedback_messages,
-    init_session_state_keys,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -27,50 +23,48 @@ logger = logging.getLogger(__name__)
 def _add_company_callback() -> None:
     """Callback function to handle adding a new company.
 
-    This callback processes form data from session state and adds the company,
-    providing proper error handling and user feedback.
+    Uses native Streamlit patterns with immediate feedback via toast notifications.
+    Eliminates session state bloat by handling validation and feedback inline.
     """
     try:
         company_name = st.session_state.get("company_name", "").strip()
         company_url = st.session_state.get("company_url", "").strip()
 
-        # Validate inputs
+        # Validate inputs - errors will be shown when form is submitted
         if not company_name:
-            st.session_state.add_company_error = "Company name is required"
+            st.error("⚠️ Company name is required")
             return
         if not company_url:
-            st.session_state.add_company_error = "Company URL is required"
+            st.error("⚠️ Company URL is required")
             return
 
         # Add the company
         company = CompanyService.add_company(name=company_name, url=company_url)
-        st.session_state.add_company_success = (
-            f"Successfully added company: {company.name}"
-        )
+
+        # Success feedback via native toast
+        st.toast(f"✅ Successfully added company: {company.name}", icon="✅")
         logger.info("User added new company: %s", company.name)
 
-        # Clear form inputs on success
+        # Clear form inputs by resetting widget keys
         st.session_state.company_name = ""
         st.session_state.company_url = ""
-        st.session_state.add_company_error = None
 
-        # Trigger immediate UI refresh
+        # Auto-refresh to show new company
         st.rerun()
 
     except ValueError as e:
-        st.session_state.add_company_error = str(e)
-        st.session_state.add_company_success = None
+        st.error(f"❌ {e}")
         logger.warning("Failed to add company due to validation: %s", e)
     except Exception:
-        st.session_state.add_company_error = "Failed to add company. Please try again."
-        st.session_state.add_company_success = None
+        st.error("❌ Failed to add company. Please try again.")
         logger.exception("Failed to add company")
 
 
 def _delete_company_callback(company_id: int) -> None:
     """Callback function to handle company deletion.
 
-    This callback deletes a company and all associated jobs after confirmation.
+    Uses native Streamlit patterns with immediate toast feedback.
+    Eliminates session state bloat for temporary messages.
 
     Args:
         company_id: Database ID of the company to delete.
@@ -81,21 +75,23 @@ def _delete_company_callback(company_id: int) -> None:
         if st.session_state.get(confirm_key):
             # User confirmed deletion
             if CompanyService.delete_company(company_id):
-                st.session_state.delete_success = "Company deleted successfully"
+                st.toast("✅ Company deleted successfully", icon="✅")
                 # Clear the confirmation state
                 st.session_state.pop(confirm_key, None)
                 # Force page rerun to refresh the list
                 st.rerun()
             else:
-                st.session_state.delete_error = "Company not found"
+                st.error("❌ Company not found")
 
     except Exception as e:
-        st.session_state.delete_error = f"Failed to delete company: {e}"
+        st.error(f"❌ Failed to delete company: {e}")
         logger.exception("Failed to delete company %s", company_id)
 
 
 def _toggle_company_callback(company_id: int) -> None:
     """Callback function to toggle a company's active status.
+
+    Uses native toast notifications eliminating session state bloat.
 
     Args:
         company_id: Database ID of the company to toggle.
@@ -103,13 +99,12 @@ def _toggle_company_callback(company_id: int) -> None:
     try:
         new_status = CompanyService.toggle_company_active(company_id)
 
-        # Store feedback in session state for display after rerun
+        # Immediate feedback via native toast
         if new_status:
-            st.session_state.toggle_success = "Enabled scraping"
+            st.toast("✅ Enabled scraping", icon="✅")
         else:
-            st.session_state.toggle_success = "Disabled scraping"
+            st.toast("🔄 Disabled scraping", icon="🔄")
 
-        st.session_state.toggle_error = None
         logger.info(
             "User toggled company ID %s active status to %s",
             company_id,
@@ -117,8 +112,7 @@ def _toggle_company_callback(company_id: int) -> None:
         )
 
     except Exception as e:
-        st.session_state.toggle_error = f"Failed to update company status: {e}"
-        st.session_state.toggle_success = None
+        st.error(f"❌ Failed to update company status: {e}")
         logger.exception("Failed to toggle company status for ID %s", company_id)
 
 
@@ -162,7 +156,7 @@ def _select_all_callback() -> None:
         update_url_from_company_selection()
         st.rerun()
     except Exception as e:
-        st.session_state.bulk_operation_error = f"Failed to select all companies: {e}"
+        st.error(f"❌ Failed to select all companies: {e}")
         logger.exception("Failed to select all companies")
 
 
@@ -181,7 +175,7 @@ def _select_none_callback() -> None:
         update_url_from_company_selection()
         st.rerun()
     except Exception as e:
-        st.session_state.bulk_operation_error = f"Failed to clear selections: {e}"
+        st.error(f"❌ Failed to clear selections: {e}")
         logger.exception("Failed to clear selections")
 
 
@@ -205,11 +199,11 @@ def _show_bulk_delete_dialog() -> None:
 
 
 def _execute_bulk_delete() -> None:
-    """Execute bulk deletion with proper error handling."""
+    """Execute bulk deletion with native feedback patterns."""
     try:
         selected_ids = list(st.session_state.get("selected_companies", set()))
         if not selected_ids:
-            st.session_state.bulk_operation_error = "No companies selected for deletion"
+            st.error("❌ No companies selected for deletion")
             return
 
         # Generate idempotency token for this operation
@@ -231,11 +225,9 @@ def _execute_bulk_delete() -> None:
         executed_tokens.add(operation_token)
         st.session_state.executed_delete_tokens = executed_tokens
 
-        # Clear state and show success
-        st.session_state.bulk_operation_success = (
-            f"Successfully deleted {deleted_count} companies"
-        )
+        # Clear selection and show success via toast
         st.session_state.selected_companies.clear()
+        st.toast(f"✅ Successfully deleted {deleted_count} companies", icon="✅")
 
         logger.info(
             "User bulk deleted %d companies with token %s",
@@ -245,8 +237,7 @@ def _execute_bulk_delete() -> None:
         st.rerun()
 
     except Exception as e:
-        st.session_state.bulk_operation_error = f"Failed to delete companies: {e}"
-        st.session_state.bulk_operation_success = None
+        st.error(f"❌ Failed to delete companies: {e}")
         logger.exception("Failed to bulk delete companies")
 
 
@@ -254,7 +245,7 @@ def _bulk_delete_callback() -> None:
     """Callback function to show bulk delete confirmation dialog."""
     selected_ids = list(st.session_state.get("selected_companies", set()))
     if not selected_ids:
-        st.session_state.bulk_operation_error = "No companies selected for deletion"
+        st.error("❌ No companies selected for deletion")
         return
 
     # Set flag to show confirmation dialog
@@ -267,22 +258,17 @@ def _bulk_activate_callback() -> None:
     try:
         selected_ids = list(st.session_state.get("selected_companies", set()))
         if not selected_ids:
-            st.session_state.bulk_operation_error = (
-                "No companies selected for activation"
-            )
+            st.error("❌ No companies selected for activation")
             return
 
         updated_count = CompanyService.bulk_update_status(selected_ids, active=True)
-        st.session_state.bulk_operation_success = (
-            f"Successfully activated {updated_count} companies"
-        )
+        st.toast(f"✅ Successfully activated {updated_count} companies", icon="✅")
         st.session_state.selected_companies.clear()
         logger.info("User bulk activated %d companies", updated_count)
         st.rerun()
 
     except Exception as e:
-        st.session_state.bulk_operation_error = f"Failed to activate companies: {e}"
-        st.session_state.bulk_operation_success = None
+        st.error(f"❌ Failed to activate companies: {e}")
         logger.exception("Failed to bulk activate companies")
 
 
@@ -291,63 +277,28 @@ def _bulk_deactivate_callback() -> None:
     try:
         selected_ids = list(st.session_state.get("selected_companies", set()))
         if not selected_ids:
-            st.session_state.bulk_operation_error = (
-                "No companies selected for deactivation"
-            )
+            st.error("❌ No companies selected for deactivation")
             return
 
         updated_count = CompanyService.bulk_update_status(selected_ids, active=False)
-        st.session_state.bulk_operation_success = (
-            f"Successfully deactivated {updated_count} companies"
-        )
+        st.toast(f"🔄 Successfully deactivated {updated_count} companies", icon="🔄")
         st.session_state.selected_companies.clear()
         logger.info("User bulk deactivated %d companies", updated_count)
         st.rerun()
 
     except Exception as e:
-        st.session_state.bulk_operation_error = f"Failed to deactivate companies: {e}"
-        st.session_state.bulk_operation_success = None
+        st.error(f"❌ Failed to deactivate companies: {e}")
         logger.exception("Failed to bulk deactivate companies")
 
 
-def _init_and_display_feedback() -> None:
-    """Initialize session state and display feedback messages."""
-    # Initialize all feedback keys using helper
-    init_session_state_keys(
-        [
-            "add_company_error",
-            "add_company_success",
-            "toggle_error",
-            "toggle_success",
-            "bulk_operation_error",
-            "bulk_operation_success",
-            "selected_companies",
-        ],
-        None,
-    )
-
+def _init_essential_state() -> None:
+    """Initialize only essential session state for company selection."""
     # Initialize selected_companies as empty set if not present or None
     if (
         "selected_companies" not in st.session_state
         or st.session_state.selected_companies is None
     ):
         st.session_state.selected_companies = set()
-
-    # Display feedback messages using helper
-    display_feedback_messages(
-        success_keys=[
-            "add_company_success",
-            "toggle_success",
-            "delete_success",
-            "bulk_operation_success",
-        ],
-        error_keys=[
-            "add_company_error",
-            "toggle_error",
-            "delete_error",
-            "bulk_operation_error",
-        ],
-    )
 
 
 def show_companies_page() -> None:
@@ -378,7 +329,7 @@ def show_companies_page() -> None:
     st.markdown("Manage companies for job scraping")
 
     # Initialize session state and display feedback
-    _init_and_display_feedback()
+    _init_essential_state()
 
     # Add new company section using form with clear visual hierarchy
     st.markdown("### + Add New Company")
@@ -509,24 +460,29 @@ def show_companies_page() -> None:
         _render_company_statistics(companies)
 
         # Show scraping progress if active
-        _company_scraping_progress_fragment()
+        _render_company_scraping_progress()
 
     except Exception as e:
         st.error(f"❌ Failed to load companies: {e!s}")
         logger.exception("Failed to load companies")
 
 
-@st.fragment(run_every="2s")
-def _company_scraping_progress_fragment():
-    """Fragment for displaying real-time company scraping progress.
+def _render_company_scraping_progress():
+    """Display company scraping progress with manual refresh.
 
-    This fragment auto-refreshes every 2 seconds during active scraping
-    to show progress updates without affecting the main company list.
+    Shows progress updates for active scraping with a manual refresh button.
     """
     if not is_scraping_active():
         return
 
     st.markdown("### 🔄 Scraping Progress")
+
+    # Manual refresh button following SPEC-UI-001
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        if st.button("🔄 Refresh Progress", use_container_width=True):
+            st.cache_data.clear()
+            st.rerun()
 
     company_progress = get_company_progress()
 

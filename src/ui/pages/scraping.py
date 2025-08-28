@@ -5,10 +5,10 @@ background task management, and user controls for starting and stopping scraping
 operations.
 
 Key improvements from library-first-optimization branch:
-- Replaced manual refresh buttons with auto-refreshing fragments
+- Implemented unified manual refresh pattern for better user control
 - Simplified status displays using native st.success/st.info
 - Removed complex st.status usage in favor of cleaner UX
-- Added throttled auto-refresh for real-time updates
+- User-triggered refresh for real-time updates
 """
 
 import logging
@@ -17,7 +17,6 @@ from datetime import UTC, datetime
 
 import streamlit as st
 
-from src.services.job_service import JobService
 from src.ui.components.progress.company_progress_card import (
     render_company_progress_card,
 )
@@ -27,7 +26,6 @@ from src.ui.utils.background_helpers import (
     is_scraping_active,
     start_background_scraping,
     stop_all_scraping,
-    throttled_rerun,
 )
 
 logger = logging.getLogger(__name__)
@@ -37,17 +35,16 @@ def render_scraping_page() -> None:
     """Render the complete scraping page with controls and progress display.
 
     This function orchestrates the rendering of the scraping dashboard including
-    the header, control buttons, and real-time progress monitoring.
+    the header, control buttons, and manual refresh interface.
     """
-    # Initialize auto-refresh tracking in session state
-    if "last_refresh" not in st.session_state:
-        st.session_state.last_refresh = 0.0
-
     # Page header
     st.markdown("# 🔍 Job Scraping Dashboard")
     st.markdown(
-        "Monitor and control job scraping operations with real-time progress tracking",
+        "Monitor and control job scraping operations with manual refresh for updates",
     )
+
+    # Unified refresh interface
+    _render_unified_refresh()
 
     # Control buttons section
     _render_control_buttons()
@@ -56,7 +53,6 @@ def render_scraping_page() -> None:
     if is_scraping_active():
         _render_progress_dashboard()
         _render_native_progress_section()
-        _handle_auto_refresh()
 
     # Recent activity summary
     _render_activity_summary()
@@ -70,9 +66,12 @@ def _render_control_buttons() -> None:
     # Get current state
     is_scraping = is_scraping_active()
 
-    # Get active companies
+    # Get active companies using cached service
     try:
-        active_companies = JobService.get_active_companies()
+        from src.services.cache_manager import get_job_service
+
+        job_service = get_job_service()
+        active_companies = job_service.get_active_companies()
     except Exception:
         logger.exception("Failed to get active companies")
         active_companies = []
@@ -103,10 +102,9 @@ def _render_control_buttons() -> None:
             try:
                 start_background_scraping()
                 # Use native toast notification instead of st.success
-                from src.ui.components.native_progress import show_progress_toast
-
-                show_progress_toast(
-                    f"🚀 Scraping initiated! Monitoring {len(active_companies)} companies.",
+                companies_count = len(active_companies)
+                st.toast(
+                    f"🚀 Scraping started! Monitoring {companies_count} companies.",
                     icon="🚀",
                 )
                 st.balloons()  # Celebratory feedback
@@ -188,20 +186,15 @@ def _render_control_buttons() -> None:
         st.caption(companies_text)
 
 
-@st.fragment(run_every=1)  # Auto-refresh every 1 second for responsive updates
 def _render_progress_dashboard() -> None:
-    """Render the real-time progress dashboard with auto-updating fragments."""
+    """Render the progress dashboard with unified refresh pattern."""
     if not is_scraping_active():
         return  # Don't render if not scraping
 
     st.markdown("---")
 
-    # Header with real-time indicator
-    col_header, col_indicator = st.columns([4, 1])
-    with col_header:
-        st.markdown("### 📊 Real-time Progress Dashboard")
-    with col_indicator:
-        st.markdown("🔄 **Auto-updating**")
+    # Header
+    st.markdown("### 📊 Progress Dashboard")
 
     # Get progress data with performance optimization
     company_progress = get_company_progress()
@@ -337,16 +330,26 @@ def _render_activity_summary() -> None:
     )
 
 
-def _handle_auto_refresh() -> None:
-    """Handle automatic page refresh while scraping is active.
+def _render_unified_refresh() -> None:
+    """Render unified refresh interface for scraping page."""
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        if st.button(
+            "🔄 Refresh Scraping",
+            use_container_width=True,
+            type="primary",
+            key="unified_refresh_scraping",
+        ):
+            # Use cache manager for optimized cache clearing
+            from src.services.cache_manager import get_cache_manager
 
-    Implements throttled refresh every ~2 seconds to provide real-time updates
-    without excessive refresh calls that could cause UI flicker.
-    """
-    try:
-        throttled_rerun(should_rerun=is_scraping_active())
-    except Exception:
-        logger.exception("Error in auto-refresh handler")
+            cache_manager = get_cache_manager()
+            cleared_count = cache_manager.invalidate_all_caches()
+            st.toast(
+                f"Scraping data refreshed! ({cleared_count} cache types cleared)",
+                icon="✅",
+            )
+            st.rerun()
 
 
 def _render_metrics(items: list[tuple[str, object, str]]) -> None:
@@ -357,63 +360,75 @@ def _render_metrics(items: list[tuple[str, object, str]]) -> None:
             st.metric(label=label, value=value, help=help_text)
 
 
-@st.fragment(run_every=2)  # Auto-refresh native progress every 2 seconds
 def _render_native_progress_section() -> None:
-    """Render native progress tracking section using st.status() and st.progress()."""
-    # Check for active workflows
-    if "native_progress" in st.session_state and st.session_state.native_progress:
+    """Render progress tracking using native Streamlit components."""
+    # Check for active task or company progress from background_helpers
+    task_progress = st.session_state.get("task_progress", {})
+    company_progress = st.session_state.get("company_progress", {})
+
+    if task_progress or company_progress:
         st.markdown("---")
-        st.markdown("### 🔄 Live Progress Tracking (Native)")
+        st.markdown("### 🔄 Live Progress Tracking")
 
-        # Show progress for each active workflow
-        for workflow_id, progress_data in st.session_state.native_progress.items():
-            if progress_data.get("is_active", True):
-                percentage = progress_data.get("current_percentage", 0.0)
-                message = progress_data.get("current_message", "Processing...")
-                phase = progress_data.get("current_phase", "processing")
+        # Show task progress
+        for task_id, progress_info in task_progress.items():
+            percentage = getattr(progress_info, "progress", 0.0)
+            message = getattr(progress_info, "message", "Processing...")
 
-                # Create a native progress display
-                with st.container(border=True):
-                    col1, col2 = st.columns([3, 1])
+            with st.container(border=True):
+                col1, col2 = st.columns([3, 1])
 
-                    with col1:
-                        st.markdown(f"**Workflow:** {workflow_id[:8]}...")
-                        st.progress(
-                            percentage / 100.0, text=f"{message} ({percentage:.1f}%)"
-                        )
+                with col1:
+                    st.markdown(f"**Task:** {task_id[:8]}...")
+                    st.progress(
+                        percentage / 100.0, text=f"{message} ({percentage:.1f}%)"
+                    )
 
-                    with col2:
-                        # Status indicator
-                        if percentage >= 100.0:
-                            st.success("✅ Complete")
-                        elif "error" in phase.lower():
-                            st.error("❌ Error")
-                        else:
-                            st.info(f"🔄 {phase.title()}")
+                with col2:
+                    if percentage >= 100.0:
+                        st.success("✅ Complete")
+                    else:
+                        st.info("🔄 Running")
 
-                # Show ETA if available
-                start_time = progress_data.get("start_time")
-                if start_time and percentage > 0:
-                    elapsed = (datetime.now(UTC) - start_time).total_seconds()
-                    if elapsed > 0:
-                        estimated_total = elapsed / (percentage / 100.0)
-                        remaining = max(0, estimated_total - elapsed)
-                        st.caption(f"⏱️ ETA: {remaining:.1f}s remaining")
+        # Show company progress
+        for company_name, company_info in company_progress.items():
+            status = getattr(company_info, "status", "Pending")
+            jobs_found = getattr(company_info, "jobs_found", 0)
+            error = getattr(company_info, "error", None)
+
+            with st.container(border=True):
+                col1, col2 = st.columns([3, 1])
+
+                with col1:
+                    st.markdown(f"**Company:** {company_name}")
+                    st.write(f"Status: {status}")
+                    if jobs_found > 0:
+                        st.write(f"Jobs Found: {jobs_found}")
+                    if error:
+                        st.error(f"Error: {error}")
+
+                with col2:
+                    if status == "Completed":
+                        st.success("✅ Complete")
+                    elif error:
+                        st.error("❌ Error")
+                    elif status == "Scraping":
+                        st.info("🔄 Active")
+                    else:
+                        st.info("⏳ Pending")
 
     else:
         # No active workflows - show placeholder
         with st.container():
             st.info(
-                "🔍 No active workflows to display. Start a scraping operation to see live progress!"
+                "🔍 No active workflows to display. "
+                "Start a scraping operation to see live progress!"
             )
 
 
 def _show_native_completion_toast() -> None:
     """Show native completion toast when workflow finishes."""
-    # Dynamic import to avoid circular imports
-    from src.ui.components.native_progress import show_progress_toast
-
-    show_progress_toast("🎉 Scraping completed successfully!", icon="🎉")
+    st.toast("🎉 Scraping completed successfully!", icon="🎉")
 
 
 # Execute page when loaded by st.navigation()
