@@ -30,9 +30,8 @@ from src.database import (
 
 # Models - removed from __init__.py to prevent double import conflicts with Alembic
 # Import models directly in modules where they are needed instead
-# Scraper modules - imports removed to prevent double model imports in Streamlit
-# Import scraper functions directly in modules where needed instead
-from src.scraper_job_boards import scrape_job_boards
+# Scraper modules - removed during SPEC-001 Phase 4 scraping service deletion
+# Custom scraping logic replaced with direct JobSpy library usage
 
 __all__ = [
     # Constants
@@ -54,8 +53,7 @@ __all__ = [
     "random_delay",
     "random_user_agent",
     "resolve_jobspy_proxies",
-    # Main scraper functions - removed to prevent double model imports
-    # Job board scraper
-    "scrape_job_boards",
+    # Main scraper functions - removed during SPEC-001 Phase 4 deletion
+    # Custom scraping replaced with direct JobSpy library usage
     # Seed module - removed to prevent double model imports
 ]

@@ -363,6 +363,7 @@ uv run ruff format . --check
 ### Immediate Actions (Ready Now)
 
 1. **Environment Setup**
+
    ```bash
    # Copy environment template
    cp .env.example .env
@@ -372,6 +373,7 @@ uv run ruff format . --check
    ```
 
 2. **Start Local vLLM** (Optional)
+
    ```bash
    # Follow vLLM deployment guide
    vllm serve qwen/Qwen2.5-4B-Instruct \
@@ -381,6 +383,7 @@ uv run ruff format . --check
    ```
 
 3. **Test AI Requests**
+
    ```python
    # Verify integration
    from src.ai_client import get_ai_client
@@ -396,16 +399,19 @@ uv run ruff format . --check
 ### Future Development Phases
 
 #### Phase 2: Direct Integration (When Needed)
+
 - Integrate Instructor directly in scraper modules
 - Implement streaming responses for large extractions
 - Add advanced retry strategies
 
 #### Phase 3: Observability Enhancement (Optional)
+
 - Full Langfuse integration for request tracking
 - Custom metrics and monitoring dashboards
 - Performance optimization based on usage patterns
 
 #### Performance Optimization (As Required)
+
 - Optimize local model deployment for production
 - Implement semantic caching for repeated queries
 - Add request batching for efficiency

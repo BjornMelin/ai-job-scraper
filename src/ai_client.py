@@ -62,7 +62,7 @@ class AIClient:
 
         # Create instructor client from LiteLLM
         self.instructor_client = instructor.from_litellm(
-            completion_func=self.router.completion,
+            completion=self.router.completion,
             mode=instructor.Mode.JSON,
         )
 

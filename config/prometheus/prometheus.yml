@@ -1,0 +1,29 @@
+# Prometheus configuration for vLLM monitoring
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+# Load rules once and periodically evaluate them according to the global 'evaluation_interval'.
+rule_files:
+  # - "first_rules.yml"
+  # - "second_rules.yml"
+
+# A scrape configuration containing exactly one endpoint to scrape:
+scrape_configs:
+  # vLLM server metrics
+  - job_name: 'vllm-server'
+    static_configs:
+      - targets: ['vllm-server:8001']
+    scrape_interval: 10s
+    metrics_path: '/metrics'
+    
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']

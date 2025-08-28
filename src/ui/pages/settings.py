@@ -11,18 +11,16 @@ from typing import Any
 
 import streamlit as st
 
-from openai import OpenAI
-
 from src.ui.utils import is_streamlit_context
 
 logger = logging.getLogger(__name__)
 
 
 def test_openai_connection(api_key: str) -> tuple[bool, str]:
-    """Test OpenAI API connection for cloud fallback.
+    """Test OpenAI API connection for cloud fallback using direct API key passing.
 
     Makes actual API calls to validate connectivity and authentication.
-    Uses lightweight endpoints to minimize cost and latency.
+    Uses LiteLLM's direct API key parameter to avoid environment variable manipulation.
 
     Args:
         api_key: The OpenAI API key to test.
@@ -41,12 +39,19 @@ def test_openai_connection(api_key: str) -> tuple[bool, str]:
         if not api_key.startswith("sk-"):
             message = "Invalid OpenAI API key format (should start with 'sk-')"
         else:
-            # Test actual API connectivity using lightweight models.list() endpoint
-            client = OpenAI(api_key=api_key)
-            models = client.models.list()
-            model_count = len(models.data) if models.data else 0
+            # Test actual API connectivity using LiteLLM's direct API key passing
+            # This avoids global environment variable manipulation
+            from litellm import completion
+
+            test_messages = [{"role": "user", "content": "Hello"}]
+            completion(
+                model="gpt-4o-mini",
+                messages=test_messages,
+                api_key=api_key,  # Pass API key directly to avoid env manipulation
+                max_tokens=1,
+            )
             success = True
-            message = f"✅ Connected successfully. {model_count} models available"
+            message = "✅ Connected successfully. OpenAI API key is valid"
 
     except Exception as e:
         logger.exception("API connection test failed for OpenAI")

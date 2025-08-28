@@ -20,12 +20,30 @@ If you want to **understand the code, contribute, or deploy** the application, t
 
 * **[📖 API Reference](./developers/api-reference.md):** Detailed reference for the database schema, data models, and core service functions.
 
-* **[🚀 Deployment Guide](./developers/deployment.md):** Comprehensive instructions for deploying the application in various production environments, including Docker and cloud platforms.
+* **[🏗️ Technical Architecture](./developers/architecture-overview.md):** Comprehensive technical architecture documentation covering system design, component integration, and API specifications.
+
+## 🚀 For Operations & System Administration
+
+If you want to **deploy, monitor, and maintain** the application in production environments:
+
+* **[📦 Deployment Guide](./operations/deployment-guide.md):** Comprehensive deployment instructions for Docker, native Python, and production server environments, including local AI (vLLM) setup.
+
+* **[⚙️ Operations Manual](./operations/operations-manual.md):** Complete operations procedures for monitoring, maintaining, and troubleshooting the system in production.
+
+* **[📊 Performance Benchmarks](./operations/performance-benchmarks.md):** Detailed performance characteristics, scalability metrics, and benchmark results across different system scales.
+
+* **[✅ Production Readiness](./operations/production-readiness.md):** Production deployment assessment with comprehensive validation results and deployment approval documentation.
 
 ## 🏗️ For Project Planners & Architects
 
 If you want to understand the **"why"** behind the project's design and future direction, explore these documents:
 
-* **[📋 Product Requirements Document (PRD)](./PRD.md):** The formal definition of the project's scope, goals, features, and success criteria.
+* **[📋 Product Requirements Document (PRD)](./planning/product-requirements.md):** The formal definition of the project's scope, goals, features, and success criteria.
 
 * **[🏛️ Architectural Decision Records (ADRs)](./adrs/):** A collection of documents that record the key architectural decisions made throughout the project's development.
+
+## 🔄 For Migration & Transformation
+
+If you want to understand the **library-first migration** and codebase transformation efforts:
+
+* **[📁 Migration Documentation](./migration/):** Complete documentation of the SPEC-001 Foundation Demolition phase and library-first rewrite migration, including safety backups, completion reports, and transformation metrics.

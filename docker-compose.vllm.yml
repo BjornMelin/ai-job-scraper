@@ -1,0 +1,93 @@
+version: '3.8'
+
+services:
+  vllm-server:
+    image: vllm/vllm-openai:latest
+    container_name: ai-job-scraper-vllm
+    ports:
+      - "8000:8000"
+      - "8001:8001"  # Metrics port
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+      - VLLM_LOGGING_LEVEL=INFO
+      - VLLM_API_KEY=${VLLM_API_KEY:-vllm-server-key}
+    volumes:
+      - ~/.cache/huggingface:/root/.cache/huggingface:rw
+      - ./config/vllm:/app/config:ro
+      - ./logs/vllm:/app/logs:rw
+    command: >
+      --model Qwen/Qwen3-4B-Instruct-2507-FP8
+      --quantization fp8
+      --max-model-len 8192
+      --gpu-memory-utilization 0.9
+      --swap-space 4
+      --enable-prefix-caching
+      --max-num-seqs 128
+      --disable-log-requests
+      --port 8000
+      --host 0.0.0.0
+      --served-model-name Qwen3-4B-Instruct-2507-FP8
+      --enable-chunked-prefill
+      --max-num-batched-tokens 2048
+      --kv-cache-dtype fp8
+      --trust-remote-code
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+        limits:
+          memory: 20G  # Host RAM for swap space + overhead
+          cpus: "8"
+    restart: unless-stopped
+    
+    # Health check configuration
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s  # Allow time for model loading
+    
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
+    
+    networks:
+      - vllm-network
+
+  # Optional: Prometheus metrics scraper
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: vllm-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./config/prometheus:/etc/prometheus:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.enable-lifecycle'
+    networks:
+      - vllm-network
+    depends_on:
+      - vllm-server
+    profiles:
+      - monitoring
+
+networks:
+  vllm-network:
+    driver: bridge
+
+volumes:
+  prometheus-data:
+    driver: local

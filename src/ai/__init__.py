@@ -1,37 +1,31 @@
-"""Hybrid AI Integration Module for AI Job Scraper.
+"""AI Integration Module for AI Job Scraper.
 
-This module provides a comprehensive hybrid AI architecture that combines:
-- Local vLLM inference for fast, cost-effective processing
-- Cloud AI fallback for complex tasks requiring advanced capabilities
-- Intelligent routing based on task complexity assessment
-- Structured output processing with Instructor for enhanced reliability
+This module provides essential AI services for the job scraper application:
+- Centralized AI client (ai_client.py) for all AI operations
+- Local AI processor with Instructor integration for structured outputs
+- Local vLLM service for AI inference when available
 
-The hybrid approach optimizes for both performance and cost while ensuring
-graceful degradation when local resources are unavailable.
+The architecture has been simplified to eliminate complexity and focus on
+core functionality with library-first implementations.
 """
 
-from .background_ai_processor import BackgroundAIProcessor, get_background_ai_processor
-from .cloud_ai_service import CloudAIService, get_cloud_ai_service
-from .hybrid_ai_router import HybridAIRouter, get_hybrid_ai_router
-from .local_vllm_service import LocalVLLMService, get_local_vllm_service
-from .structured_output_processor import (
-    StructuredOutputProcessor,
-    get_structured_output_processor,
+# Import centralized AI client from root src
+from src.ai_client import get_ai_client
+
+from .local_processor import (
+    JobExtraction,
+    LocalAIProcessor,
+    enhance_job_description,
+    extract_job_skills,
 )
-from .task_complexity_analyzer import TaskComplexityAnalyzer, get_complexity_analyzer
+from .local_vllm_service import LocalVLLMService, local_service
 
 __all__ = [
-    "BackgroundAIProcessor",
-    "CloudAIService",
-    "HybridAIRouter",
+    "JobExtraction",
+    "LocalAIProcessor",
     "LocalVLLMService",
-    "StructuredOutputProcessor",
-    "TaskComplexityAnalyzer",
-    # Singleton accessor functions
-    "get_background_ai_processor",
-    "get_cloud_ai_service",
-    "get_hybrid_ai_router",
-    "get_local_vllm_service",
-    "get_structured_output_processor",
-    "get_complexity_analyzer",
+    "enhance_job_description",
+    "extract_job_skills",
+    "get_ai_client",
+    "local_service",
 ]
