@@ -517,7 +517,6 @@ def _render_fragment_metrics(company_progress: "CompanyProgress") -> None:
 
 def _render_fragment_timing(company_progress: "CompanyProgress") -> None:
     """Render live timing information for fragments."""
-    timing_parts = []
 
 
 def _render_completed_static_card(company_progress: "CompanyProgress") -> None:

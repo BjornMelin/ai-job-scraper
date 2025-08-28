@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """vLLM Server Health Monitoring Script
-Continuous monitoring of vLLM server health and performance
+Continuous monitoring of vLLM server health and performance.
 """
 
 import asyncio
@@ -301,7 +301,7 @@ class VLLMMonitor:
         except KeyboardInterrupt:
             self.log("Monitoring stopped by user", "INFO")
 
-    async def save_metrics_report(self, filename: str = None):
+    async def save_metrics_report(self, filename: str | None = None):
         """Save metrics history to JSON file."""
         if not self.history:
             self.log("No metrics data to save", "WARNING")

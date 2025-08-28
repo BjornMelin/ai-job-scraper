@@ -466,7 +466,7 @@ def assert_functionality_preserved(
         assert set(baseline_result.keys()) == set(optimized_result.keys()), (
             f"Result keys differ: {baseline_result.keys()} vs {optimized_result.keys()}"
         )
-        for key in baseline_result.keys():
+        for key in baseline_result:
             assert_functionality_preserved(
                 baseline_result[key], optimized_result[key], tolerance
             )

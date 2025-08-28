@@ -85,7 +85,7 @@ async def main():
         try:
             jobs = await scraper.scrape_job_boards_async(job_boards_query)
             logger.info("🎯 Found %d jobs from job boards", len(jobs))
-        except Exception as e:
+        except Exception:
             logger.exception("❌ Job boards scraping failed")
 
         # Example 3: Company pages only (Tier 2)
@@ -104,7 +104,7 @@ async def main():
         try:
             jobs = await scraper.scrape_company_pages_async(company_pages_query)
             logger.info("🤖 Found %d jobs from company pages", len(jobs))
-        except Exception as e:
+        except Exception:
             logger.exception("❌ Company pages scraping failed")
 
         # Example 4: Background scraping with progress monitoring
@@ -147,7 +147,7 @@ async def main():
             logger.info("  Jobs found: %d", final_status.jobs_found)
             logger.info("  Success rate: %.2f%%", final_status.success_rate)
 
-        except Exception as e:
+        except Exception:
             logger.exception("❌ Background scraping failed")
 
         # Example 5: Performance metrics and success rate monitoring
@@ -165,7 +165,7 @@ async def main():
                 logger.info("    Successes: %d", data["successes"])
                 logger.info("    Success Rate: %.2f%%", data["success_rate"])
 
-        except Exception as e:
+        except Exception:
             logger.exception("❌ Failed to get metrics")
 
         # Example 6: AI-powered job data enhancement
@@ -208,7 +208,7 @@ async def main():
             # - Salary range predictions
             # - Company culture insights
 
-        except Exception as e:
+        except Exception:
             logger.exception("❌ AI enhancement failed")
 
     logger.info("\n🎉 Unified Scraper Service Example Completed!")
@@ -266,6 +266,6 @@ if __name__ == "__main__":
         asyncio.run(main())
     except KeyboardInterrupt:
         logger.info("\n⚠️ Example interrupted by user")
-    except Exception as e:
+    except Exception:
         logger.exception("\n❌ Example failed")
         raise

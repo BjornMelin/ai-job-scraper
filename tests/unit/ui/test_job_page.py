@@ -349,7 +349,7 @@ class TestJobFiltering:
             "src.services.job_service.JobService.get_filtered_jobs",
             return_value=sample_jobs,
         ) as mock_get_jobs:
-            result = tester.run_component()
+            tester.run_component()
 
             # Verify JobService is called with correct filters
             mock_get_jobs.assert_called_once()
@@ -385,7 +385,7 @@ class TestJobFiltering:
             "src.services.job_service.JobService.get_filtered_jobs",
             return_value=favorites,
         ) as mock_get_jobs:
-            result = tester.run_component()
+            tester.run_component()
 
             # Verify favorites_only filter is set
             call_args = mock_get_jobs.call_args[0][0]
@@ -402,7 +402,7 @@ class TestJobFiltering:
             "src.services.job_service.JobService.get_filtered_jobs",
             return_value=applied,
         ) as mock_get_jobs:
-            result = tester.run_component()
+            tester.run_component()
 
             # Verify application_status filter is set
             call_args = mock_get_jobs.call_args[0][0]
@@ -446,7 +446,7 @@ class TestJobTabs:
             patch("src.ui.ui_rendering.select_view_mode") as mock_select_view,
             patch("src.ui.ui_rendering.apply_view_mode") as mock_apply_view,
         ):
-            result = tester.run_component([], "all")
+            tester.run_component([], "all")
 
             # Should return early without calling view functions
             mock_select_view.assert_not_called()
@@ -520,7 +520,7 @@ class TestStatisticsDashboard:
         with (
             patch("src.ui.pages.jobs._render_metric_cards") as mock_metrics,
             patch("src.ui.pages.jobs._render_progress_visualization") as mock_progress,
-            patch("streamlit.markdown") as mock_markdown,
+            patch("streamlit.markdown"),
         ):
             tester.run_component(sample_jobs)
 
@@ -561,7 +561,7 @@ class TestStatisticsDashboard:
         tester = StreamlitComponentTester(_render_progress_visualization)
 
         with (
-            patch("streamlit.markdown") as mock_markdown,
+            patch("streamlit.markdown"),
             patch("streamlit.columns") as mock_columns,
             patch("streamlit.progress") as mock_progress,
             patch("streamlit.metric") as mock_metric,

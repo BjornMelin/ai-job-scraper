@@ -273,8 +273,6 @@ class TestResponsiveLayoutAdaptation:
     @pytest.mark.mobile
     def test_responsive_component_behavior(self, mobile_test_setup):
         """Test individual component responsiveness."""
-        setup = mobile_test_setup
-
         component_tests = [
             {
                 "component": "job_card",
@@ -385,7 +383,7 @@ class TestTouchInteractionValidation:
     def test_touch_target_sizes(self, mobile_test_setup):
         """Test touch targets meet minimum size requirements (44px)."""
         setup = mobile_test_setup
-        test_jobs = setup["test_jobs"][:10]
+        setup["test_jobs"][:10]
 
         touch_target_tests = [
             {
@@ -459,7 +457,7 @@ class TestTouchInteractionValidation:
     def test_touch_interaction_responsiveness(self, mobile_test_setup):
         """Test touch interactions respond within acceptable time."""
         setup = mobile_test_setup
-        test_jobs = setup["test_jobs"][:5]
+        setup["test_jobs"][:5]
 
         interaction_tests = [
             {
@@ -525,8 +523,6 @@ class TestTouchInteractionValidation:
     @pytest.mark.mobile
     def test_gesture_support_validation(self, mobile_test_setup):
         """Test gesture support for mobile interactions."""
-        setup = mobile_test_setup
-
         gesture_tests = [
             {
                 "gesture": "pinch_to_zoom",
@@ -704,8 +700,6 @@ class TestMobilePerformanceOptimization:
     @pytest.mark.performance
     def test_mobile_image_optimization(self, mobile_test_setup):
         """Test image loading optimization for mobile devices."""
-        setup = mobile_test_setup
-
         image_optimization_tests = [
             {
                 "image_type": "company_logo",
@@ -798,7 +792,7 @@ class TestCrossDeviceCompatibility:
     def test_feature_parity_across_devices(self, mobile_test_setup):
         """Test feature parity between mobile and desktop versions."""
         setup = mobile_test_setup
-        test_jobs = setup["test_jobs"][:10]
+        setup["test_jobs"][:10]
 
         core_features = [
             {

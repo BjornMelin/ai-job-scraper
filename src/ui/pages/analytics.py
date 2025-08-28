@@ -305,11 +305,10 @@ def render_cost_monitoring_fragment() -> None:
 
             # Calculate usage percentage for color coding
             usage_pct = summary["utilization_percent"]
-            color = "normal"
             if usage_pct > 90:
-                color = "inverse"  # Red
+                pass  # Red
             elif usage_pct > 75:
-                color = "off"  # Orange-ish
+                pass  # Orange-ish
 
             col1.metric("Monthly Spend", f"${summary['total_cost']:.2f}")
             col2.metric("Remaining", f"${summary['remaining']:.2f}")

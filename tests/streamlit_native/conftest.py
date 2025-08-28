@@ -325,7 +325,7 @@ def performance_monitor():
     process = psutil.Process(os.getpid())
     start_time = time.time()
     start_memory = process.memory_info().rss
-    start_cpu = process.cpu_percent()
+    process.cpu_percent()
 
     yield
 
@@ -428,7 +428,7 @@ def assert_fragment_timing(
     fragment_metrics, expected_interval: float, tolerance: float = 0.1
 ):
     """Assert fragment timing accuracy."""
-    for fragment_id in fragment_metrics.executions.keys():
+    for fragment_id in fragment_metrics.executions:
         if fragment_id in fragment_metrics.run_every_intervals:
             accuracy = fragment_metrics.get_timing_accuracy(fragment_id)
             assert accuracy >= (1.0 - tolerance), (

@@ -95,7 +95,7 @@ class StreamlitComponentState:
     status_states: dict[str, str] = field(default_factory=dict)
     toast_messages: list[dict[str, Any]] = field(default_factory=list)
 
-    def capture_progress_state(self, key: str, value: float, text: str = None):
+    def capture_progress_state(self, key: str, value: float, text: str | None = None):
         """Capture progress component state."""
         self.progress_values[key] = {
             "value": value,
@@ -103,7 +103,7 @@ class StreamlitComponentState:
             "timestamp": datetime.now(),
         }
 
-    def capture_status_state(self, key: str, state: str, expanded: bool = None):
+    def capture_status_state(self, key: str, state: str, expanded: bool | None = None):
         """Capture status component state."""
         self.status_states[key] = {
             "state": state,
@@ -111,7 +111,7 @@ class StreamlitComponentState:
             "timestamp": datetime.now(),
         }
 
-    def capture_toast_message(self, message: str, icon: str = None):
+    def capture_toast_message(self, message: str, icon: str | None = None):
         """Capture toast notification."""
         self.toast_messages.append(
             {"message": message, "icon": icon, "timestamp": datetime.now()}
@@ -136,7 +136,7 @@ class StreamlitComponentValidator(ABC):
     def measure_performance(self, *args, **kwargs) -> ComponentTestMetrics:
         """Measure component performance."""
 
-    def setup_test_environment(self, initial_state: dict[str, Any] = None):
+    def setup_test_environment(self, initial_state: dict[str, Any] | None = None):
         """Set up test environment with mock Streamlit context."""
         if initial_state:
             self.session.update(initial_state)
@@ -399,12 +399,12 @@ class StreamlitNativeTester:
 # Utility functions for native component testing
 
 
-def mock_streamlit_progress(progress_tracker: dict[str, Any] = None):
+def mock_streamlit_progress(progress_tracker: dict[str, Any] | None = None):
     """Mock st.progress with state tracking."""
     if progress_tracker is None:
         progress_tracker = {}
 
-    def progress_mock(value: float, text: str = None):
+    def progress_mock(value: float, text: str | None = None):
         progress_tracker["value"] = value
         progress_tracker["text"] = text
         progress_tracker["timestamp"] = datetime.now()
@@ -413,13 +413,15 @@ def mock_streamlit_progress(progress_tracker: dict[str, Any] = None):
     return progress_mock
 
 
-def mock_streamlit_status(status_tracker: dict[str, Any] = None):
+def mock_streamlit_status(status_tracker: dict[str, Any] | None = None):
     """Mock st.status with state tracking."""
     if status_tracker is None:
         status_tracker = {}
 
     class MockStatus:
-        def __init__(self, label: str, expanded: bool = None, state: str = "running"):
+        def __init__(
+            self, label: str, expanded: bool | None = None, state: str = "running"
+        ):
             status_tracker["label"] = label
             status_tracker["expanded"] = expanded
             status_tracker["state"] = state
@@ -431,7 +433,12 @@ def mock_streamlit_status(status_tracker: dict[str, Any] = None):
         def __exit__(self, exc_type, exc_val, exc_tb):
             pass
 
-        def update(self, label: str = None, state: str = None, expanded: bool = None):
+        def update(
+            self,
+            label: str | None = None,
+            state: str | None = None,
+            expanded: bool | None = None,
+        ):
             if label:
                 status_tracker["label"] = label
             if state:
@@ -443,12 +450,12 @@ def mock_streamlit_status(status_tracker: dict[str, Any] = None):
     return MockStatus
 
 
-def mock_streamlit_toast(toast_tracker: list[dict[str, Any]] = None):
+def mock_streamlit_toast(toast_tracker: list[dict[str, Any]] | None = None):
     """Mock st.toast with message tracking."""
     if toast_tracker is None:
         toast_tracker = []
 
-    def toast_mock(message: str, icon: str = None):
+    def toast_mock(message: str, icon: str | None = None):
         toast_tracker.append(
             {"message": message, "icon": icon, "timestamp": datetime.now()}
         )
@@ -457,12 +464,12 @@ def mock_streamlit_toast(toast_tracker: list[dict[str, Any]] = None):
     return toast_mock
 
 
-def mock_streamlit_fragment(fragment_tracker: dict[str, Any] = None):
+def mock_streamlit_fragment(fragment_tracker: dict[str, Any] | None = None):
     """Mock st.fragment with execution tracking."""
     if fragment_tracker is None:
         fragment_tracker = {}
 
-    def fragment_decorator(run_every: str | float = None):
+    def fragment_decorator(run_every: str | float | None = None):
         def decorator(func: Callable):
             fragment_tracker["function"] = func.__name__
             fragment_tracker["run_every"] = run_every

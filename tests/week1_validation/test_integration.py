@@ -54,7 +54,7 @@ class Week1IntegrationValidator:
 
         try:
             with (
-                patch("streamlit.progress") as mock_progress,
+                patch("streamlit.progress"),
                 patch("streamlit.status") as mock_status,
                 patch("streamlit.cache_data") as mock_cache_data,
                 patch("streamlit.cache_resource") as mock_cache_resource,
@@ -272,9 +272,9 @@ class Week1IntegrationValidator:
                     return f"Companies: {metrics['active_companies']} active"
 
                 # Simulate fragment auto-refresh cycles
-                for cycle in range(5):
-                    analytics_result = analytics_fragment()
-                    company_result = company_fragment()
+                for _cycle in range(5):
+                    analytics_fragment()
+                    company_fragment()
 
                     time.sleep(0.001)  # Small delay between cycles
 
@@ -330,7 +330,7 @@ class Week1IntegrationValidator:
         try:
             with (
                 patch("streamlit.fragment") as mock_fragment,
-                patch("streamlit.progress") as mock_progress,
+                patch("streamlit.progress"),
                 patch("streamlit.status") as mock_status,
             ):
                 # Configure mocks
@@ -411,10 +411,10 @@ class Week1IntegrationValidator:
                     return f"Overall: {overall_percentage:.1f}%"
 
                 # Simulate fragment execution cycles
-                for cycle in range(3):
-                    scraping_result = scraping_progress_fragment()
-                    processing_result = processing_progress_fragment()
-                    overall_result = overall_progress_fragment()
+                for _cycle in range(3):
+                    scraping_progress_fragment()
+                    processing_progress_fragment()
+                    overall_progress_fragment()
 
                     time.sleep(0.001)
 
@@ -473,11 +473,11 @@ class Week1IntegrationValidator:
 
             with (
                 patch("streamlit.fragment") as mock_fragment,
-                patch("streamlit.progress") as mock_progress,
+                patch("streamlit.progress"),
                 patch("streamlit.status") as mock_status,
                 patch("streamlit.cache_data") as mock_cache_data,
                 patch("streamlit.cache_resource") as mock_cache_resource,
-                patch("streamlit.toast") as mock_toast,
+                patch("streamlit.toast"),
             ):
                 # Configure all mocks
                 mock_status_ctx = MagicMock()
@@ -645,10 +645,10 @@ class Week1IntegrationValidator:
                     return f"System: {progress_avg:.1f}%"
 
                 # Simulate complete workflow
-                for cycle in range(8):  # Multiple cycles to show integration
-                    progress_result = integrated_progress_fragment()
-                    analytics_result = analytics_dashboard_fragment()
-                    coordination_result = system_coordination_fragment()
+                for _cycle in range(8):  # Multiple cycles to show integration
+                    integrated_progress_fragment()
+                    analytics_dashboard_fragment()
+                    system_coordination_fragment()
 
                     # Small delay between cycles
                     time.sleep(0.001)

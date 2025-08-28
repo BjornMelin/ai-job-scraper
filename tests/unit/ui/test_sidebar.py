@@ -113,9 +113,7 @@ class TestSearchFilters:
             patch("streamlit.slider") as mock_slider,
             patch("streamlit.button") as mock_button,
             patch("src.ui.components.sidebar._get_company_list") as mock_get_companies,
-            patch(
-                "src.ui.components.sidebar._display_salary_range"
-            ) as mock_display_salary,
+            patch("src.ui.components.sidebar._display_salary_range"),
             patch("src.ui.utils.url_state.update_url_from_filters") as mock_update_url,
         ):
             # Mock company list
@@ -259,7 +257,7 @@ class TestViewSettings:
         tester.set_session_state(view_mode="Card")  # Start in card view
 
         with (
-            patch("streamlit.markdown") as mock_markdown,
+            patch("streamlit.markdown"),
             patch("streamlit.columns") as mock_columns,
             patch("streamlit.button") as mock_button,
             patch("streamlit.rerun") as mock_rerun,
@@ -283,7 +281,7 @@ class TestViewSettings:
         tester.set_session_state(view_mode="List")  # Start in list view
 
         with (
-            patch("streamlit.markdown") as mock_markdown,
+            patch("streamlit.markdown"),
             patch("streamlit.columns") as mock_columns,
             patch("streamlit.button") as mock_button,
             patch("streamlit.rerun") as mock_rerun,
@@ -452,7 +450,8 @@ class TestUtilityFunctions:
             caption_calls = [call[0][0] for call in mock_caption.call_args_list]
             range_calls = [call for call in caption_calls if "Selected:" in call]
             assert len(range_calls) == 1
-            assert "$80k" in range_calls[0] and "$150k" in range_calls[0]
+            assert "$80k" in range_calls[0]
+            assert "$150k" in range_calls[0]
 
     def test_display_salary_range_high_value(self):
         """Test salary range display with high-value positions."""

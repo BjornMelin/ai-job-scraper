@@ -156,10 +156,8 @@ class TestAnalyticsPageInitialization:
                 "src.ui.pages.analytics._render_analytics_status_section"
             ) as mock_status,
             patch("streamlit.title") as mock_title,
-            patch(
-                "src.services.analytics_service.AnalyticsService"
-            ) as mock_analytics_service,
-            patch("src.services.cost_monitor.CostMonitor") as mock_cost_monitor,
+            patch("src.services.analytics_service.AnalyticsService"),
+            patch("src.services.cost_monitor.CostMonitor"),
         ):
             tester.run_component()
 

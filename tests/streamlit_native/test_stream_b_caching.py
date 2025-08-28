@@ -11,6 +11,7 @@ Tests for Streamlit native caching components:
 Ensures 100% functionality preservation during library optimization migration.
 """
 
+import contextlib
 import hashlib
 import time
 
@@ -87,7 +88,7 @@ class MockStreamlitCache:
         self.cache_resource_store = {}
         self.expiration_times = {}
 
-    def mock_cache_data(self, ttl: int = None, hash_funcs: dict = None):
+    def mock_cache_data(self, ttl: int | None = None, hash_funcs: dict | None = None):
         """Mock st.cache_data decorator."""
 
         def decorator(func: Callable):
@@ -128,7 +129,7 @@ class MockStreamlitCache:
 
         return decorator
 
-    def mock_cache_resource(self, hash_funcs: dict = None):
+    def mock_cache_resource(self, hash_funcs: dict | None = None):
         """Mock st.cache_resource decorator."""
 
         def decorator(func: Callable):
@@ -158,7 +159,7 @@ class MockStreamlitCache:
         return decorator
 
     def _generate_cache_key(
-        self, func: Callable, args: tuple, kwargs: dict, hash_funcs: dict = None
+        self, func: Callable, args: tuple, kwargs: dict, hash_funcs: dict | None = None
     ) -> str:
         """Generate cache key for function call."""
         # Simple key generation for testing
@@ -233,7 +234,7 @@ class CachingSystemValidator(StreamlitComponentValidator):
             # Test multiple calls
             call_count = cache_config.get("call_count", 3)
             results = []
-            for i in range(call_count):
+            for _i in range(call_count):
                 result = cached_function(
                     cache_config.get("x", 1), cache_config.get("y", "test")
                 )
@@ -265,7 +266,7 @@ class CachingSystemValidator(StreamlitComponentValidator):
             # Test multiple calls
             call_count = resource_config.get("call_count", 3)
             resources = []
-            for i in range(call_count):
+            for _i in range(call_count):
                 resource = create_resource(
                     resource_config.get("connection_string", "localhost")
                 )
@@ -553,14 +554,14 @@ class TestStreamBCachingSystem:
 
             # First run - will cache results
             results = []
-            for i in range(5):
+            for _i in range(5):
                 result = expensive_computation(100)
                 results.append(result)
 
             return results
 
         # Benchmark with caching
-        benchmark = streamlit_tester.benchmark_component_performance(
+        streamlit_tester.benchmark_component_performance(
             "caching_system", performance_test, iterations=3
         )
 
@@ -648,10 +649,8 @@ class TestStreamBCachingSystem:
             results.append(function_with_errors(1))  # Should hit cache
 
             # Error case - should not be cached
-            try:
+            with contextlib.suppress(ValueError):
                 function_with_errors(-1)
-            except ValueError:
-                pass
 
             # Normal call after error
             results.append(function_with_errors(2))
@@ -702,7 +701,7 @@ class TestStreamBCachingSystem:
         # All concurrent tests should succeed
         assert all(results)
 
-    @pytest.mark.parametrize("ttl_value", [30, 60, 300, 600])
+    @pytest.mark.parametrize("ttl_value", (30, 60, 300, 600))
     def test_cache_data_ttl_values(self, caching_validator, ttl_value):
         """Test st.cache_data with different TTL values."""
         config = {"ttl": ttl_value, "x": 42, "call_count": 2}
@@ -712,7 +711,7 @@ class TestStreamBCachingSystem:
         # Should use cache on repeat calls regardless of TTL
         assert caching_validator.cache_metrics.hits >= 1
 
-    @pytest.mark.parametrize("cache_size", [10, 100, 1000])
+    @pytest.mark.parametrize("cache_size", (10, 100, 1000))
     def test_cache_data_with_different_sizes(self, caching_validator, cache_size):
         """Test cache behavior with different data sizes."""
 
@@ -794,13 +793,13 @@ class TestCachingSystemBenchmarks:
 
             # Multiple access to same resource
             resources = []
-            for i in range(5):
+            for _i in range(5):
                 resource = create_expensive_resource("database")
                 resources.append(resource)
 
             return resources
 
-        benchmark = benchmarking_tester.benchmark_component_performance(
+        benchmarking_tester.benchmark_component_performance(
             "caching_system", resource_benchmark, iterations=3
         )
 
@@ -834,7 +833,7 @@ class TestCachingSystemBenchmarks:
 
             return results
 
-        benchmark = benchmarking_tester.benchmark_component_performance(
+        benchmarking_tester.benchmark_component_performance(
             "caching_system", mixed_performance, iterations=2
         )
 

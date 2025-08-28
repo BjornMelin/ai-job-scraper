@@ -211,7 +211,7 @@ async def demo_background_processing() -> None:
                     "Task 1 (%s): %s - %.1f%%",
                     task1.task_type,
                     task1.status,
-                    task1.progress
+                    task1.progress,
                 )
             if task2:
                 logger.info(

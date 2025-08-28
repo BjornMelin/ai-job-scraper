@@ -336,15 +336,13 @@ class TestCompleteScrapingPipeline:
                 mock_job.title = job_data["title"]
                 mock_create_job.return_value = mock_job
 
-                job = services["job_service"].create_job(job_create)
+                services["job_service"].create_job(job_create)
                 created_count += 1
 
         assert created_count == 3
 
     def test_ai_extraction_workflow_with_fallbacks(self, scraping_services):
         """Test AI extraction workflow with fallback mechanisms."""
-        services = scraping_services
-
         raw_html = """
         <html>
         <body>
@@ -408,11 +406,9 @@ class TestCompleteScrapingPipeline:
 
     def test_incremental_scraping_workflow(self, scraping_services, scraping_database):
         """Test incremental scraping that only processes new/updated jobs."""
-        services = scraping_services
-
         # Initial scraping - get current job count
         with db_session() as session:
-            initial_count = session.exec(select(JobSQL)).count()
+            session.exec(select(JobSQL)).count()
 
         # Mock existing job data
         existing_jobs = [
@@ -603,8 +599,6 @@ class TestDatabaseSynchronization:
 
     def test_duplicate_job_handling_workflow(self, scraping_services):
         """Test handling of duplicate jobs during scraping."""
-        services = scraping_services
-
         # Mock duplicate job scenarios
         jobs_with_duplicates = [
             # Original job
@@ -692,7 +686,6 @@ class TestScrapingPerformanceAndReliability:
         import concurrent.futures
         import threading
 
-        services = scraping_services
         scraping_results = []
         result_lock = threading.Lock()
 
@@ -763,8 +756,6 @@ class TestScrapingPerformanceAndReliability:
 
     def test_scraping_with_rate_limiting(self, scraping_services):
         """Test scraping behavior with rate limiting."""
-        services = scraping_services
-
         # Mock rate limiting scenario
         request_times = []
         rate_limit_delays = []
@@ -817,8 +808,6 @@ class TestScrapingPerformanceAndReliability:
 
     def test_scraping_memory_usage_monitoring(self, scraping_services):
         """Test monitoring of memory usage during large scraping operations."""
-        services = scraping_services
-
         # Mock memory usage tracking
         memory_snapshots = []
 

@@ -251,7 +251,7 @@ class TestScraperErrorHandling:
 
             from src.scraper import scrape_company_page
 
-            result = scrape_company_page("https://example.com/careers")
+            scrape_company_page("https://example.com/careers")
 
             # Should have used exponential backoff
             if mock_sleep.call_count > 0:
@@ -338,7 +338,7 @@ class TestDatabaseErrorHandling:
 
             # Should handle error gracefully
             with contextlib.suppress(Exception):
-                result = JobService.create_job(job_data)
+                JobService.create_job(job_data)
 
             # Verify rollback was called
             if hasattr(mock_session, "rollback"):
@@ -379,7 +379,7 @@ class TestDatabaseErrorHandling:
                     # Simulate holding connection for a while
                     time.sleep(0.1)
 
-                    companies = session.query(CompanySQL).limit(1).all()
+                    session.query(CompanySQL).limit(1).all()
                     with error_lock:
                         successful_queries.append(query_id)
 
@@ -419,7 +419,7 @@ class TestDatabaseErrorHandling:
             try:
                 with db_session() as session:
                     # This should timeout due to exclusive lock
-                    companies = session.query(CompanySQL).all()
+                    session.query(CompanySQL).all()
 
             except Exception as e:
                 lock_errors.append(str(e))
@@ -725,7 +725,7 @@ class TestIntegrationErrorScenarios:
             try:
                 from src.scraper import scrape_company_page
 
-                result = scrape_company_page("https://example.com/careers")
+                scrape_company_page("https://example.com/careers")
                 failure_scenarios.append(("http_failure", "handled"))
             except Exception as e:
                 failure_scenarios.append(("http_failure", f"error: {e}"))
@@ -740,7 +740,7 @@ class TestIntegrationErrorScenarios:
             mock_ai.side_effect = Exception("AI service down")
 
             try:
-                result = scrape_company_page("https://example.com/careers")
+                scrape_company_page("https://example.com/careers")
                 failure_scenarios.append(("ai_failure", "handled"))
             except Exception as e:
                 failure_scenarios.append(("ai_failure", f"error: {e}"))
@@ -757,7 +757,7 @@ class TestIntegrationErrorScenarios:
                 # This would be in the full pipeline
                 from src.services.job_service import JobService
 
-                result = JobService.create_job(
+                JobService.create_job(
                     JobCreate(
                         company_id=1,
                         title="Test Job",
@@ -771,7 +771,7 @@ class TestIntegrationErrorScenarios:
                 failure_scenarios.append(("database_failure", f"error: {e}"))
 
         # Verify failures were handled gracefully
-        for scenario, outcome in failure_scenarios:
+        for _scenario, outcome in failure_scenarios:
             assert "handled" in outcome or "error" in outcome
             # Should not have unhandled crashes
 
@@ -839,7 +839,7 @@ class TestIntegrationErrorScenarios:
         with patch.object(AnalyticsService, "_conn", None):
             analytics = AnalyticsService(db_path=test_database_with_data)
             try:
-                trends = analytics.get_job_trends(days=30)
+                analytics.get_job_trends(days=30)
                 component_results["analytics"] = "handled"
             except Exception:
                 component_results["analytics"] = "failed"
@@ -848,14 +848,14 @@ class TestIntegrationErrorScenarios:
         try:
             cost_monitor = CostMonitor(db_path="/tmp/test_costs.db")
             cost_monitor.track_ai_cost("test_model", 1000, 0.01, "test_operation")
-            summary = cost_monitor.get_monthly_summary()
+            cost_monitor.get_monthly_summary()
             component_results["cost_monitor"] = "success"
         except Exception:
             component_results["cost_monitor"] = "failed"
 
         # Test company service (should be independent)
         try:
-            companies = CompanyService.get_all_companies()
+            CompanyService.get_all_companies()
             component_results["company_service"] = "handled"
         except Exception:
             component_results["company_service"] = "failed"

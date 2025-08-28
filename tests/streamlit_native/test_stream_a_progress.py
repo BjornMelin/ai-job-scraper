@@ -452,8 +452,8 @@ class TestStreamAProgressSystem:
         assert all(results)
 
     @pytest.mark.parametrize(
-        "progress_value,expected",
-        [(0.0, 0.0), (0.25, 0.25), (0.5, 0.5), (0.75, 0.75), (1.0, 1.0)],
+        ("progress_value", "expected"),
+        ((0.0, 0.0), (0.25, 0.25), (0.5, 0.5), (0.75, 0.75), (1.0, 1.0)),
     )
     def test_progress_component_value_accuracy(
         self, progress_validator, progress_value, expected
@@ -465,8 +465,8 @@ class TestStreamAProgressSystem:
         assert progress_validator.progress_tracker["value"] == expected
 
     @pytest.mark.parametrize(
-        "state,expected_state",
-        [("running", "running"), ("complete", "complete"), ("error", "error")],
+        ("state", "expected_state"),
+        (("running", "running"), ("complete", "complete"), ("error", "error")),
     )
     def test_status_component_state_accuracy(
         self, progress_validator, state, expected_state

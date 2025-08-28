@@ -90,15 +90,13 @@ def e2e_services(e2e_database, tmp_path):
     """Set up all services for E2E testing."""
     costs_db = tmp_path / "e2e_costs.db"
 
-    services = {
+    return {
         "job_service": JobService(),
         "company_service": CompanyService(),
         "search_service": JobSearchService(),
         "analytics_service": AnalyticsService(db_path=e2e_database),
         "cost_monitor": CostMonitor(db_path=str(costs_db)),
     }
-
-    return services
 
 
 class TestCompleteScrapingWorkflow:
@@ -196,12 +194,6 @@ class TestCompleteScrapingWorkflow:
 
             # Step 6: Verify workflow completion
             successful_steps = [step for step, _ in workflow_results if step != "error"]
-            expected_steps = [
-                "company_added",
-                "job_created",
-                "scraping_completed",
-                "costs_tracked",
-            ]
 
             assert len(successful_steps) >= 5  # At least 5 successful steps
             assert "company_added" in successful_steps
@@ -267,12 +259,9 @@ class TestCompleteScrapingWorkflow:
 
     def test_incremental_scraping_workflow(self, e2e_services, e2e_database):
         """Test incremental scraping that only processes new/updated jobs."""
-        services = e2e_services
-
         # Initial scraping simulation
-        initial_job_count = 0
         with db_session() as session:
-            initial_job_count = session.query(JobSQL).count()
+            session.query(JobSQL).count()
 
         # Mock incremental scraping
         mock_new_jobs = [
@@ -378,9 +367,9 @@ class TestSearchAndFilterWorkflow:
         assert len(results_counts) >= 2  # At least 2 searches with results
 
         # Empty search should return 0 results
-        empty_search_result = [
+        empty_search_result = next(
             count for name, count in search_results if name == "empty_search"
-        ][0]
+        )
         assert empty_search_result == 0
 
     def test_search_performance_workflow(self, e2e_services):
@@ -441,7 +430,7 @@ class TestSearchAndFilterWorkflow:
         base_query = "python developer"
         results_sets = []
 
-        for i in range(5):
+        for _i in range(5):
             results = services["search_service"].search_jobs(base_query)
             if results:
                 results_sets.append(len(results))
@@ -686,7 +675,7 @@ class TestMultiUserConcurrentWorkflow:
         assert len(successful_searches) >= 10  # Most should succeed
 
         # Verify all users completed their workflows
-        user_ids = set(result[0] for result in concurrent_results)
+        user_ids = {result[0] for result in concurrent_results}
         assert len(user_ids) == 5
 
     def test_concurrent_analytics_generation(self, e2e_services):
@@ -774,7 +763,7 @@ class TestMultiUserConcurrentWorkflow:
                     # Mix of operations
                     if i % 3 == 0:
                         # Search operation
-                        results = services["search_service"].search_jobs("engineer")
+                        services["search_service"].search_jobs("engineer")
                         worker_results.append((worker_id, "search", "success"))
                     elif i % 3 == 1:
                         # Cost tracking

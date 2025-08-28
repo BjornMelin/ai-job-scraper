@@ -93,8 +93,6 @@ class TestPhase3AUnifiedScrapingIntegration:
     @pytest.mark.integration
     async def test_unified_scraper_service_integration(self, phases_integration_setup):
         """Test unified scraper integrates properly with other phases."""
-        setup = phases_integration_setup
-
         # Mock unified scraping service
         with patch(
             "src.services.unified_scraper.UnifiedScrapingService"
@@ -183,7 +181,7 @@ class TestPhase3AUnifiedScrapingIntegration:
                 execution_time_ms = (time.perf_counter() - start_time) * 1000
 
                 # Validate integration
-                sources_found = set(job["source"] for job in results)
+                sources_found = {job["source"] for job in results}
                 expected_sources = set(scenario["expected_sources"])
 
                 integration_results.append(
@@ -217,8 +215,6 @@ class TestPhase3AUnifiedScrapingIntegration:
     @pytest.mark.integration
     async def test_scraping_fallback_coordination(self, phases_integration_setup):
         """Test scraping fallback strategy coordination."""
-        setup = phases_integration_setup
-
         with patch(
             "src.services.unified_scraper.UnifiedScrapingService"
         ) as MockScraper:
@@ -493,8 +489,6 @@ class TestPhase3CHybridAIIntegration:
     @pytest.mark.integration
     async def test_hybrid_ai_processing_integration(self, phases_integration_setup):
         """Test hybrid AI integrates with scraping and UI phases."""
-        setup = phases_integration_setup
-
         with patch("src.ai.hybrid_ai_router.HybridAIRouter") as MockAI:
             mock_ai = Mock()
             MockAI.return_value = mock_ai
@@ -613,8 +607,6 @@ class TestPhase3CHybridAIIntegration:
     @pytest.mark.integration
     async def test_ai_routing_decision_integration(self, phases_integration_setup):
         """Test AI routing decisions integrate with system coordination."""
-        setup = phases_integration_setup
-
         with (
             patch("src.ai.hybrid_ai_router.HybridAIRouter") as MockAI,
             patch(
@@ -725,8 +717,6 @@ class TestPhase3DCoordinationIntegration:
     @pytest.mark.integration
     async def test_background_task_coordination(self, phases_integration_setup):
         """Test background task coordination across all phases."""
-        setup = phases_integration_setup
-
         with (
             patch(
                 "src.coordination.background_task_manager.BackgroundTaskManager"
@@ -870,8 +860,6 @@ class TestPhase3DCoordinationIntegration:
     @pytest.mark.integration
     async def test_system_health_monitoring_integration(self, phases_integration_setup):
         """Test system health monitoring integrates across all phases."""
-        setup = phases_integration_setup
-
         with patch(
             "src.coordination.system_health_monitor.SystemHealthMonitor"
         ) as MockHealthMonitor:
@@ -1010,7 +998,7 @@ class TestPhase3DCoordinationIntegration:
                     # Higher is better
                     if metrics[metric] < threshold:
                         return False
-                elif metric.endswith("_ms") or metric.endswith("errors"):
+                elif metric.endswith(("_ms", "errors")):
                     # Lower is better
                     if metrics[metric] > threshold:
                         return False
@@ -1024,8 +1012,6 @@ class TestCrossPhaseErrorHandlingIntegration:
     @pytest.mark.integration
     async def test_cascading_error_recovery(self, phases_integration_setup):
         """Test error recovery cascades properly across phases."""
-        setup = phases_integration_setup
-
         # Test error cascade scenarios
         error_scenarios = [
             {
@@ -1137,8 +1123,6 @@ class TestCrossPhaseErrorHandlingIntegration:
     @pytest.mark.integration
     async def test_graceful_degradation_integration(self, phases_integration_setup):
         """Test graceful degradation across integrated phases."""
-        setup = phases_integration_setup
-
         # Test degradation scenarios
         degradation_scenarios = [
             {
@@ -1238,8 +1222,6 @@ class TestEndToEndPhaseIntegration:
     @pytest.mark.integration
     async def test_complete_workflow_integration(self, phases_integration_setup):
         """Test complete workflow integrates all phases seamlessly."""
-        setup = phases_integration_setup
-
         # Mock complete workflow with all phases
         with (
             patch("src.services.unified_scraper.UnifiedScrapingService") as MockScraper,

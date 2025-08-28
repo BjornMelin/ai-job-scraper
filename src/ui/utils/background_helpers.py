@@ -186,8 +186,6 @@ def _update_company_progress(company: str, status: str, jobs_found: int) -> None
 
 def _run_unified_scrape(companies: list[str], status_ctx) -> None:
     """Unified logic for scraping with progress updates and cancellation support."""
-    from src.scraper import scrape_all
-
     # Initialize company progress
     with _session_state_lock:
         st.session_state.company_progress = {}
@@ -218,7 +216,9 @@ def _run_unified_scrape(companies: list[str], status_ctx) -> None:
         return
 
     # Execute full scraping
-    results = scrape_all()
+    from src.scraping.scrape_all import scrape_all_sync
+
+    results = scrape_all_sync()
     st.session_state.scraping_results = results
 
     # Update company progress to completed with proper job distribution

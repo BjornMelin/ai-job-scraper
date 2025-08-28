@@ -104,7 +104,7 @@ class StreamCFragmentValidator(BaseStreamValidator):
             else 0
         )
 
-        avg_metrics = ValidationMetrics(
+        return ValidationMetrics(
             execution_time_ms=total_time / successful_runs,
             memory_usage_mb=metrics.memory_usage_mb,
             cpu_usage_percent=metrics.cpu_usage_percent,
@@ -116,8 +116,6 @@ class StreamCFragmentValidator(BaseStreamValidator):
             if successful_runs == iterations
             else (successful_runs / iterations * 100),
         )
-
-        return avg_metrics
 
     def compare_with_baseline(
         self, baseline_func: Callable, optimized_func: Callable
@@ -355,7 +353,7 @@ class StreamCFragmentValidator(BaseStreamValidator):
             results = []
 
             # Simulate fragment auto-refresh (no full page reruns)
-            for i in range(10):
+            for _i in range(10):
                 # Fragment-level updates only
                 fragment_updates = [
                     {"fragment": "job_card_fragment", "run_every": "10s"},

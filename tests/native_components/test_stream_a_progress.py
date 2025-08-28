@@ -123,7 +123,7 @@ class ProgressComponentValidator(NativeComponentValidator):
                 patch("streamlit.status", status_mock),
                 patch("streamlit.toast", toast_mock),
             ):
-                result = test_func(*args, **kwargs)
+                test_func(*args, **kwargs)
 
             # Update metrics
             self.metrics.progress_updates = len(self.tracker.progress_calls)
@@ -162,7 +162,7 @@ class ProgressComponentValidator(NativeComponentValidator):
             total_metrics.render_count += metrics.render_count
 
         # Average the metrics
-        avg_metrics = NativeComponentMetrics(
+        return NativeComponentMetrics(
             execution_time=total_metrics.execution_time / iterations,
             memory_usage_mb=total_metrics.memory_usage_mb / iterations,
             cpu_usage_percent=total_metrics.cpu_usage_percent / iterations,
@@ -172,8 +172,6 @@ class ProgressComponentValidator(NativeComponentValidator):
             toast_notifications=total_metrics.toast_notifications,
             render_count=total_metrics.render_count,
         )
-
-        return avg_metrics
 
     def compare_implementations(
         self, baseline_func, optimized_func, iterations: int = 10
@@ -489,7 +487,7 @@ class TestStreamAProgressComponents:
         status_sequence = progress_validator.tracker.get_status_sequence()
         assert "error" in status_sequence
 
-    @pytest.mark.parametrize("progress_steps", [5, 10, 20, 50])
+    @pytest.mark.parametrize("progress_steps", (5, 10, 20, 50))
     def test_progress_component_scalability(self, progress_validator, progress_steps):
         """Test progress component with different numbers of steps."""
 

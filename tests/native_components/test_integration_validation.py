@@ -319,7 +319,7 @@ class IntegratedNativeComponentValidator:
             with st.status(
                 "Auto-updating task progress", expanded=True, state="running"
             ) as status:
-                final_progress = auto_progress_fragment()
+                auto_progress_fragment()
 
                 # Let fragment run and update progress
                 time.sleep(2.5)  # Allow multiple fragment executions
@@ -877,7 +877,7 @@ class TestNativeComponentsIntegration:
                 "Live Analytics Dashboard", expanded=True, state="running"
             ) as dashboard_status:
                 # Initialize infrastructure
-                infrastructure = initialize_analytics_infrastructure()
+                initialize_analytics_infrastructure()
 
                 # Show initial loading
                 st.progress(0.2, text="Loading analytics infrastructure...")
@@ -992,7 +992,7 @@ class TestNativeComponentsIntegration:
                 for i in range(5):
                     progress = (i + 1) / 5
                     st.progress(progress, text=f"Step {i + 1}/5")
-                    result = cached_computation(100 * (i + 1))
+                    cached_computation(100 * (i + 1))
 
                 status.update(label="Integration complete", state="complete")
                 st.toast("Test completed", icon="✅")
@@ -1014,10 +1014,9 @@ class TestNativeComponentsIntegration:
 
             @st.fragment(run_every="1s")
             def caching_fragment():
-                data = cached_data_fetch("test_key")
-                return data
+                return cached_data_fetch("test_key")
 
-            result = caching_fragment()
+            caching_fragment()
             time.sleep(2.1)  # Let fragment run twice
 
             return "fragment_caching_success"
@@ -1054,7 +1053,7 @@ class TestNativeComponentsIntegration:
 
                 return {"config": config, "processed": 3}
 
-            result = processing_fragment()
+            processing_fragment()
             time.sleep(3.5)  # Let fragment run multiple times
 
             return "all_streams_success"
@@ -1157,7 +1156,7 @@ class TestNativeComponentsIntegration:
 
             @st.fragment
             def simple_fragment():
-                with st.status("Test", state="complete") as status:
+                with st.status("Test", state="complete"):
                     st.progress(1.0, text="Complete")
                     result = simple_cache(5)
                     st.toast("Done", icon="✅")
