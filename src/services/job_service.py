@@ -9,7 +9,7 @@ Simple caching using Streamlit's native @st.cache_data decorator.
 
 import logging
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 # Import streamlit for caching decorators
 try:
@@ -37,7 +37,9 @@ from sqlmodel import select
 from src.constants import SALARY_DEFAULT_MIN, SALARY_UNBOUNDED_THRESHOLD
 from src.database import db_session
 from src.models import CompanySQL, JobSQL
+from src.models.job_models import JobPosting, JobScrapeRequest, JobScrapeResult, JobSite
 from src.schemas import Job
+from src.scraping.job_scraper import job_scraper
 
 logger = logging.getLogger(__name__)
 
@@ -52,8 +54,12 @@ class JobService:
 
     Provides static methods for querying, filtering, and updating job records
     in the database. This service acts as an abstraction layer between the UI
-    and the database models.
+    and the database models. Now includes JobSpy integration for scraping.
     """
+
+    def __init__(self):
+        """Initialize JobService with JobSpy scraper."""
+        self.scraper = job_scraper
 
     @staticmethod
     def _to_dto(job_sql: JobSQL) -> Job:
@@ -629,6 +635,236 @@ class JobService:
 
         except Exception:
             logger.exception("Failed to bulk update jobs")
+            raise
+
+    async def search_and_save_jobs(
+        self,
+        search_term: str,
+        location: str | None = None,
+        sites: list[str] | None = None,
+        results_wanted: int = 100,
+        save_to_db: bool = True,
+    ) -> JobScrapeResult:
+        """Search for jobs using JobSpy and optionally save to database.
+
+        Args:
+            search_term: Job search term (e.g., "software engineer").
+            location: Location to search (e.g., "San Francisco").
+            sites: List of job sites to search (e.g., ["linkedin", "indeed"]).
+            results_wanted: Number of results desired.
+            save_to_db: Whether to save jobs to database.
+
+        Returns:
+            JobScrapeResult with scraped jobs and metadata.
+        """
+        try:
+            # Convert string sites to JobSite enums
+            site_enums = []
+            if sites:
+                for site in sites:
+                    try:
+                        site_enum = JobSite.normalize(site)
+                        if site_enum:
+                            site_enums.append(site_enum)
+                    except ValueError:
+                        logger.warning("Unknown job site: %s", site)
+                        continue
+
+            if not site_enums:
+                site_enums = [JobSite.LINKEDIN]  # Default to LinkedIn
+
+            # Create scrape request
+            request = JobScrapeRequest(
+                site_name=site_enums,
+                search_term=search_term,
+                location=location,
+                results_wanted=results_wanted,
+                linkedin_fetch_description=True,
+            )
+
+            # Execute scraping
+            result = await self.scraper.scrape_jobs_async(request)
+
+            if save_to_db and result.jobs:
+                await self._save_jobs_to_database(result.jobs)
+                logger.info("Saved %d jobs to database", len(result.jobs))
+            return result  # noqa: TRY300
+
+        except Exception:
+            logger.exception("Failed to search and save jobs")
+            raise
+
+    async def _save_jobs_to_database(self, jobs: list[JobPosting]) -> None:
+        """Save scraped jobs to database with deduplication.
+
+        Args:
+            jobs: List of JobPosting objects to save.
+        """
+        try:
+            with db_session() as session:
+                for job_posting in jobs:
+                    # Check for existing job by link (primary deduplication)
+                    existing_job = session.exec(
+                        select(JobSQL).filter_by(
+                            link=job_posting.job_url or job_posting.job_url_direct
+                        )
+                    ).first()
+
+                    if existing_job:
+                        # Update last_seen timestamp
+                        existing_job.last_seen = datetime.now(UTC)
+                        continue
+
+                    # Get or create company
+                    company_id = await self._get_or_create_company(
+                        session, job_posting.company
+                    )
+
+                    if not company_id:
+                        logger.warning(
+                            "Could not create company for: %s", job_posting.company
+                        )
+                        continue
+
+                    # Create new job record
+                    job_data = {
+                        "company_id": company_id,
+                        "title": job_posting.title,
+                        "description": job_posting.description or "",
+                        "link": job_posting.job_url or job_posting.job_url_direct or "",
+                        "location": job_posting.location or "",
+                        "posted_date": job_posting.date_posted,
+                        "salary": self._convert_salary(job_posting),
+                        "last_seen": datetime.now(UTC),
+                    }
+
+                    # Create JobSQL instance with validation
+                    job_sql = JobSQL.create_validated(**job_data)
+                    session.add(job_sql)
+
+                # Commit all changes
+                session.commit()
+                logger.info("Successfully saved batch of jobs to database")
+
+        except Exception:
+            logger.exception("Failed to save jobs to database")
+            # Don't re-raise - let the calling method handle this gracefully
+
+    async def _get_or_create_company(self, session, company_name: str) -> int | None:
+        """Get existing company or create new one.
+
+        Args:
+            session: Database session.
+            company_name: Name of the company.
+
+        Returns:
+            Company ID if successful, None otherwise.
+        """
+        try:
+            # Try to find existing company
+            existing_company = session.exec(
+                select(CompanySQL).filter_by(name=company_name)
+            ).first()
+
+            if existing_company:
+                return existing_company.id
+
+            # Create new company
+            new_company = CompanySQL(
+                name=company_name,
+                url="",  # We don't have company URL from JobSpy
+                active=True,
+            )
+            session.add(new_company)
+            session.flush()  # Get the ID without committing
+            return new_company.id  # noqa: TRY300
+
+        except Exception:
+            logger.exception("Failed to get or create company: %s", company_name)
+            return None
+
+    def _convert_salary(self, job_posting: JobPosting) -> tuple[int | None, int | None]:
+        """Convert JobPosting salary to our format.
+
+        Args:
+            job_posting: JobPosting with salary information.
+
+        Returns:
+            Tuple of (min_salary, max_salary).
+        """
+        min_salary = None
+        max_salary = None
+
+        if job_posting.min_amount:
+            min_salary = int(job_posting.min_amount)
+        if job_posting.max_amount:
+            max_salary = int(job_posting.max_amount)
+
+        return (min_salary, max_salary)
+
+    @staticmethod
+    def get_recent_jobs(days: int = 7, limit: int = 100) -> list[Job]:
+        """Get recently posted jobs.
+
+        Args:
+            days: Number of days back to look.
+            limit: Maximum number of jobs to return.
+
+        Returns:
+            List of recently posted Job DTOs.
+        """
+        try:
+            with db_session() as session:
+                cutoff_date = datetime.now(UTC) - timedelta(days=days)
+
+                query = (
+                    select(JobSQL, CompanySQL.name.label("company_name"))
+                    .join(CompanySQL, JobSQL.company_id == CompanySQL.id)
+                    .filter(JobSQL.posted_date >= cutoff_date)
+                    .filter(JobSQL.archived.is_(False))
+                    .order_by(JobSQL.posted_date.desc())
+                    .limit(limit)
+                )
+
+                results = session.exec(query).all()
+
+                jobs = []
+                for job_sql, company_name in results:
+                    jobs.append(JobService._to_dto_with_company(job_sql, company_name))
+
+                logger.info(
+                    "Retrieved %d recent jobs from last %d days", len(jobs), days
+                )
+                return jobs
+
+        except Exception:
+            logger.exception("Failed to get recent jobs")
+            return []
+
+    async def refresh_company_jobs(self, company_name: str) -> JobScrapeResult:
+        """Refresh jobs for a specific company.
+
+        Args:
+            company_name: Name of company to refresh jobs for.
+
+        Returns:
+            JobScrapeResult with refreshed jobs.
+        """
+        try:
+            # Search for company-specific jobs
+            result = await self.search_and_save_jobs(
+                search_term=f"company:{company_name}",
+                results_wanted=50,
+                save_to_db=True,
+            )
+
+            logger.info(
+                "Refreshed %d jobs for company: %s", len(result.jobs), company_name
+            )
+            return result  # noqa: TRY300
+
+        except Exception:
+            logger.exception("Failed to refresh company jobs for: %s", company_name)
             raise
 
     @staticmethod
