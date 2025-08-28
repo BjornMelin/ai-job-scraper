@@ -106,7 +106,7 @@ class AnalyticsService:
                 self._conn = duckdb.connect(":memory:")
                 logger.info("DuckDB initialized for testing (no extensions)")
             except Exception as e:
-                logger.warning(f"Failed to initialize DuckDB for testing: {e}")
+                logger.warning("Failed to initialize DuckDB for testing: %s", e)
                 self._conn = None
             return
 
@@ -124,7 +124,7 @@ class AnalyticsService:
 
             except Exception as extension_error:
                 logger.warning(
-                    f"DuckDB extension failed, continuing without: {extension_error}"
+                    "DuckDB extension failed, continuing without: %s", extension_error
                 )
                 # Don't fail completely, just log and continue
 
@@ -144,7 +144,7 @@ class AnalyticsService:
             st.cache_data.clear()
             logger.info("✅ All AnalyticsService caches cleared")
         else:
-            logger.info("ℹ️ Streamlit not available - no caches to clear")
+            logger.info("INFO: Streamlit not available - no caches to clear")
 
     @staticmethod
     def get_cache_stats() -> dict[str, Any]:

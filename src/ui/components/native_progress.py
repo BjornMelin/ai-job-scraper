@@ -55,7 +55,7 @@ class NativeProgressManager:
         message: str,
         phase: str = "processing",
         show_toast: bool = False,
-        toast_icon: str = "ℹ️",
+        toast_icon: str = "INFO",
     ) -> None:
         """Update progress using native Streamlit components.
 
@@ -194,7 +194,7 @@ class NativeProgressManager:
 
 
 @contextmanager
-def NativeProgressContext(
+def native_progress_context(
     progress_id: str,
     title: str = "Processing...",
     expanded: bool = True,
@@ -337,7 +337,7 @@ def render_real_time_progress(progress_id: str) -> None:
                 st.caption(f"⏱️ Estimated time remaining: {remaining:.1f}s")
 
 
-def show_progress_toast(message: str, icon: str = "ℹ️") -> None:
+def show_progress_toast(message: str, icon: str = "INFO") -> None:
     """Show progress notification toast.
 
     Args:

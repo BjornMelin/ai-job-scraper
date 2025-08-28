@@ -966,3 +966,7 @@ class JobService:
             return False
 
         return True
+
+
+# Global service instance
+job_service = JobService()

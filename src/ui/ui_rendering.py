@@ -298,8 +298,9 @@ def select_view_mode(tab_key: str) -> tuple[str, int | None]:
         tab_key: Unique key for the tab to ensure unique widget keys.
 
     Returns:
-        tuple: (view_mode, grid_columns) where view_mode is 'Responsive', 'Card', or 'List'
-               and grid_columns is the number of columns for card view or None for responsive/list.
+        tuple: (view_mode, grid_columns) where view_mode is 'Responsive', 'Card',
+               or 'List' and grid_columns is the number of columns for card view or
+               None for responsive/list.
     """
     _, menu_col = st.columns([2, 1])
 
@@ -308,7 +309,7 @@ def select_view_mode(tab_key: str) -> tuple[str, int | None]:
             "View",
             ["Responsive", "Card", "List"],
             key=f"view_mode_{tab_key}",
-            help="Choose how to display jobs - Responsive adapts automatically to your device",
+            help="Choose how to display jobs - Responsive adapts automatically to device",
             index=0,  # Default to Responsive for best mobile experience
         )
 

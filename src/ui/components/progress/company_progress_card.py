@@ -422,7 +422,8 @@ def render_task_notifications_fragment() -> None:
         # Display toast notifications for completions
         for progress in new_completions:
             st.toast(
-                f"✅ {progress.company_name} completed! Found {progress.jobs_found} jobs",
+                f"✅ {progress.company_name} completed! "
+                f"Found {progress.jobs_found} jobs",
                 icon="✅",
             )
 
@@ -561,19 +562,3 @@ def _render_completed_static_card(company_progress: "CompanyProgress") -> None:
                 company_progress.end_time - company_progress.start_time
             ).total_seconds()
             st.caption(f"⏱️ Duration: {duration:.0f}s")
-
-    if company_progress.start_time:
-        start_str = company_progress.start_time.strftime("%H:%M:%S")
-        timing_parts.append(f"Started: {start_str}")
-
-    if company_progress.status == "Completed" and company_progress.end_time:
-        duration = (
-            company_progress.end_time - company_progress.start_time
-        ).total_seconds()
-        timing_parts.append(f"Duration: {duration:.0f}s")
-    elif company_progress.status == "Scraping" and company_progress.start_time:
-        elapsed = (datetime.now(UTC) - company_progress.start_time).total_seconds()
-        timing_parts.append(f"Elapsed: {elapsed:.0f}s")
-
-    if timing_parts:
-        st.caption(" | ".join(timing_parts))

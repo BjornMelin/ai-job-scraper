@@ -664,7 +664,7 @@ class JobSearchService:
             st.cache_data.clear()
             logger.info("✅ All JobSearchService caches cleared")
         else:
-            logger.info("ℹ️ Streamlit not available - no caches to clear")
+            logger.info("INFO: Streamlit not available - no caches to clear")
 
     @staticmethod
     def get_cache_stats() -> dict[str, Any]:

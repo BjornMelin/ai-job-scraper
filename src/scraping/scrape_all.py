@@ -65,15 +65,13 @@ async def scrape_all() -> dict[str, int]:
                 logger.warning("Failed to scrape jobs for '%s': %s", search_term, e)
                 # Continue with other search terms
                 continue
-
-        logger.info("Scrape_all completed successfully. Stats: %s", total_stats)
-
-        return total_stats
-
     except Exception:
         logger.exception("Critical error in scrape_all")
         # Return empty stats on total failure
         return {"inserted": 0, "updated": 0, "skipped": 0}
+    else:
+        logger.info("Scrape_all completed successfully. Stats: %s", total_stats)
+        return total_stats
 
 
 def scrape_all_sync() -> dict[str, int]:

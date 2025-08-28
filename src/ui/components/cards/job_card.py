@@ -266,7 +266,15 @@ def render_responsive_job_card(job: "Job") -> str:
                 📍 {html.escape(job.location)}
             </div>
 
-            {"<div class='job-card-description'>" + html.escape(description_preview) + "</div>" if card_config.get("show_descriptions") else ""}
+            {
+        (
+            "<div class='job-card-description'>"
+            + html.escape(description_preview)
+            + "</div>"
+        )
+        if card_config.get("show_descriptions")
+        else ""
+    }
 
             <div class="job-card-meta">
                 <span>{time_str}</span>
@@ -348,7 +356,9 @@ def render_jobs_responsive_grid(jobs: list["Job"]) -> None:
 
     # Render the complete grid in one HTML block for performance
     grid_html = f"""
-    <div class="job-cards-container" data-device="{device_type}" data-card-count="{len(display_jobs)}">
+    <div class="job-cards-container"
+         data-device="{device_type}"
+         data-card-count="{len(display_jobs)}">
         {"".join(cards_html)}
     </div>
 
@@ -503,7 +513,8 @@ def render_job_card_fragment(job: "Job", enable_auto_refresh: bool = False) -> N
 
     Args:
         job: Job DTO object containing job information.
-        enable_auto_refresh: Whether to enable automatic refreshing for real-time updates.
+        enable_auto_refresh: Whether to enable automatic refreshing for real-time
+            updates.
     """
     # Skip unnecessary updates when scraping is inactive
     try:
@@ -514,7 +525,8 @@ def render_job_card_fragment(job: "Job", enable_auto_refresh: bool = False) -> N
             # Reduce CPU usage when idle
             return
     except ImportError:
-        pass  # Fallback gracefully
+        # Background helpers not available, continue without auto-refresh optimization
+        pass
 
     # Fragment-scoped error handling
     try:

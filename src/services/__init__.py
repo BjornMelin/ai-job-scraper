@@ -1,5 +1,6 @@
-"""Services Module - Library-first implementations
-Simplified service layer using proven libraries
+"""Services Module - Library-first implementations.
+
+Simplified service layer using proven libraries.
 """
 
 from .analytics_service import AnalyticsService

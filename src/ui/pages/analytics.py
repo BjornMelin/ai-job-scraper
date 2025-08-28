@@ -20,7 +20,7 @@ component isolation and coordination simplification.
 
 import logging
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 import pandas as pd
 import plotly.express as px
@@ -392,11 +392,12 @@ def render_job_trends_fragment(time_range: str = "Last 7 Days") -> None:
                 col2.metric("Daily Avg", f"{trends_data['total_jobs'] / days:.0f}")
 
                 # Show last update time
-                st.caption(f"Last updated: {datetime.now().strftime('%H:%M:%S')}")
+                st.caption(f"Last updated: {datetime.now(UTC).strftime('%H:%M:%S')}")
 
             else:
                 st.warning(
-                    f"📊 Trends data loading... {trends_data.get('error', 'Retrying...')}"
+                    f"📊 Trends data loading... "
+                    f"{trends_data.get('error', 'Retrying...')}"
                 )
 
     except Exception as e:
@@ -457,7 +458,7 @@ def render_company_analytics_fragment() -> None:
                         st.dataframe(df_companies, use_container_width=True)
 
                 # Show last update time
-                st.caption(f"Last updated: {datetime.now().strftime('%H:%M:%S')}")
+                st.caption(f"Last updated: {datetime.now(UTC).strftime('%H:%M:%S')}")
 
             else:
                 st.warning(
@@ -517,7 +518,7 @@ def render_salary_analytics_fragment(salary_days: int = 90) -> None:
                     st.info("📊 No salary data available for selected period")
 
                 # Show last update time
-                st.caption(f"Last updated: {datetime.now().strftime('%H:%M:%S')}")
+                st.caption(f"Last updated: {datetime.now(UTC).strftime('%H:%M:%S')}")
 
             else:
                 st.warning(
