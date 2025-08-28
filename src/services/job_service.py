@@ -4,7 +4,7 @@ This module provides the JobService class with static methods for querying
 and updating job records. It handles database operations for job filtering,
 status updates, favorite toggling, and notes management.
 
-Simple caching using Streamlit's native @st.cache_data decorator.
+Streamlit caching using Streamlit's native @st.cache_data decorator.
 """
 
 import logging
@@ -200,7 +200,7 @@ class JobService:
     def get_filtered_jobs(filters: FilterDict | None = None) -> list[Job]:
         """Get jobs filtered by the provided criteria.
 
-        Uses simple Streamlit caching for improved performance.
+        Uses Streamlit-based caching for improved performance.
 
         Args:
             filters: Dictionary containing filter criteria:
@@ -444,7 +444,7 @@ class JobService:
     def get_job_counts_by_status() -> JobCountStats:
         """Get count of jobs grouped by application status.
 
-        Uses simple Streamlit caching for improved performance.
+        Uses Streamlit-based caching for improved performance.
 
         Returns:
             Dictionary mapping status names to counts.

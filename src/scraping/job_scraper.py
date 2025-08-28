@@ -1,7 +1,7 @@
 """Clean JobSpy wrapper service with Pydantic integration.
 
-This module provides a simple, library-first approach to job scraping using JobSpy
-with seamless integration to our Pydantic models. Replaces the complex unified_scraper
+This module provides a library-first approach to job scraping using JobSpy
+with direct integration to our Pydantic models. Replaces the complex unified_scraper
 with a minimal, maintainable implementation focused on core functionality.
 """
 
@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 class JobSpyScraper:
     """Clean JobSpy wrapper with Pydantic model integration.
 
-    Provides simple async/sync methods for job scraping with professional
+    Provides async/sync methods for job scraping with professional
     error handling and automatic DataFrame to Pydantic conversion.
     """
 
