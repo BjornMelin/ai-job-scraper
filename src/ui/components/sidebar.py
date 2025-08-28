@@ -7,20 +7,23 @@ for filtering jobs and managing company configurations.
 
 import logging
 
+from datetime import UTC, datetime, timedelta
+
 import pandas as pd
 import streamlit as st
 
 from src.constants import (
     SALARY_DEFAULT_MAX,
+    SALARY_DEFAULT_MIN,
     SALARY_SLIDER_FORMAT,
     SALARY_SLIDER_STEP,
     SALARY_UNBOUNDED_THRESHOLD,
 )
 
 # Removed direct database import - using service layer instead
-from src.services.company_service import CompanyService
-from src.ui.state.session_state import clear_filters
+from src.ui.state.session_state import clear_filters, get_current_filters
 from src.ui.utils import format_salary
+from src.ui.utils.service_cache import get_company_service
 
 logger = logging.getLogger(__name__)
 
@@ -47,79 +50,61 @@ def render_sidebar() -> None:
 
 
 def _render_search_filters() -> None:
-    """Render the search and filter section of the sidebar."""
+    """Render the search and filter section using WIDGET KEYS.
+
+    This eliminates manual session state management in favor of native
+    Streamlit widget key functionality for better performance.
+    """
     st.markdown("### 🔍 Search & Filter")
 
     with st.container():
-        # Get company list from database
+        # Get company list from cached service
         companies = _get_company_list()
 
-        # Company filter with better default
-        selected_companies = st.multiselect(
+        # WIDGET KEY: Company filter - no manual state management needed
+        st.multiselect(
             "Filter by Company",
             options=companies,
-            default=st.session_state.filters["company"] or None,
             placeholder="All companies",
             help="Select one or more companies to filter jobs",
+            key="company_filter",  # Widget handles its own state
         )
 
-        # Update filters in state manager and sync with URL
-        current_filters = st.session_state.filters.copy()
-        current_filters["company"] = selected_companies
-        st.session_state.filters = current_filters
-
-        # Keyword search with placeholder
-        keyword_value = st.text_input(
+        # WIDGET KEY: Keyword search - auto-managed state
+        st.text_input(
             "Search Keywords",
-            value=st.session_state.filters["keyword"],
             placeholder="e.g., Python, Machine Learning, Remote",
             help="Full-text search with stemming (e.g., 'develop' matches 'developer')",
+            key="keyword_search",  # Widget handles its own state
         )
 
-        # Update keyword in filters and sync with URL
-        current_filters = st.session_state.filters.copy()
-        current_filters["keyword"] = keyword_value
-        st.session_state.filters = current_filters
-
-        # Date range with column layout
+        # WIDGET KEYS: Date range with auto-managed state
         st.markdown("**Date Range**")
         col1, col2 = st.columns(2)
 
         with col1:
-            date_from = st.date_input(
+            st.date_input(
                 "From",
-                value=st.session_state.filters["date_from"],
+                value=datetime.now(UTC) - timedelta(days=30),  # Default value
                 help="Show jobs posted after this date",
+                key="date_from_filter",  # Widget handles its own state
             )
 
         with col2:
-            date_to = st.date_input(
+            st.date_input(
                 "To",
-                value=st.session_state.filters["date_to"],
+                value=datetime.now(UTC),  # Default value
                 help="Show jobs posted before this date",
+                key="date_to_filter",  # Widget handles its own state
             )
 
-        # Update date filters using single update call
-        st.session_state.filters.update(
-            {
-                "date_from": date_from,
-                "date_to": date_to,
-            },
-        )
-
-        # Salary range filter with high-value support
+        # WIDGET KEY: Salary range with auto-managed state
         st.markdown("**Salary Range**")
-        current_salary_min = st.session_state.filters.get("salary_min", 0)
-        current_salary_max = st.session_state.filters.get(
-            "salary_max",
-            SALARY_DEFAULT_MAX,
-        )
-
         salary_range = st.slider(
             "Annual Salary Range",
             min_value=0,
             max_value=SALARY_UNBOUNDED_THRESHOLD,
-            value=(current_salary_min, current_salary_max),
+            value=(SALARY_DEFAULT_MIN, SALARY_DEFAULT_MAX),  # Default value
             step=SALARY_SLIDER_STEP,
             format=SALARY_SLIDER_FORMAT,
             help=(
@@ -127,23 +112,18 @@ def _render_search_filters() -> None:
                 f"Set max to {format_salary(SALARY_UNBOUNDED_THRESHOLD)}+ "
                 f"to include all high-value positions."
             ),
+            key="salary_range_filter",  # Widget handles its own state
         )
 
-        # Update salary filters using single update call
-        st.session_state.filters.update(
-            {
-                "salary_min": salary_range[0],
-                "salary_max": salary_range[1],
-            },
-        )
-
-        # Display formatted salary range with improved formatting
+        # Display current salary range
         _display_salary_range(salary_range)
 
-        # Sync all filter changes with URL
+        # Sync widget-based filters with URL
         from src.ui.utils.url_state import update_url_from_filters
 
-        update_url_from_filters()
+        # Get current filter values from widgets and sync with URL
+        current_filters = get_current_filters()
+        update_url_from_filters(current_filters)
 
         # Clear filters button
         if st.button("Clear All Filters", use_container_width=True):
@@ -155,28 +135,22 @@ def _render_search_filters() -> None:
 
 
 def _render_view_settings() -> None:
-    """Render the view settings section of the sidebar."""
+    """Render view settings using WIDGET KEYS.
+
+    View mode selection now uses radio buttons with widget keys
+    instead of manual session state management.
+    """
     st.markdown("### 👁️ View Settings")
 
-    view_col1, view_col2 = st.columns(2)
-
-    with view_col1:
-        if st.button(
-            "📋 List View",
-            use_container_width=True,
-            type="secondary" if st.session_state.view_mode == "Card" else "primary",
-        ):
-            st.session_state.view_mode = "List"
-            st.rerun()
-
-    with view_col2:
-        if st.button(
-            "🎴 Card View",
-            use_container_width=True,
-            type="secondary" if st.session_state.view_mode == "List" else "primary",
-        ):
-            st.session_state.view_mode = "Card"
-            st.rerun()
+    # WIDGET KEY: View mode selection - auto-managed state
+    st.radio(
+        "Display Mode",
+        options=["Card", "List"],
+        index=0,  # Default to Card view
+        horizontal=True,
+        key="view_mode_selection",  # Widget handles its own state
+        label_visibility="collapsed",
+    )
 
 
 def _render_company_management() -> None:
@@ -187,8 +161,9 @@ def _render_company_management() -> None:
     companies.
     """
     with st.expander("🏢 Manage Companies", expanded=False):
-        # Get companies from service layer instead of direct DB access
-        companies_data = CompanyService.get_companies_for_management()
+        # Get companies from cached service layer
+        company_service = get_company_service()
+        companies_data = company_service.get_companies_for_management()
         comp_df = pd.DataFrame(companies_data)
 
         if not comp_df.empty:
@@ -226,13 +201,14 @@ def _render_company_management() -> None:
 
 
 def _get_company_list() -> list[str]:
-    """Get list of unique company names using service layer.
+    """Get list of unique company names using CACHED service layer.
 
     Returns:
         List of company names sorted alphabetically.
     """
     try:
-        companies = CompanyService.get_all_companies()
+        company_service = get_company_service()
+        companies = company_service.get_all_companies()
         return [company.name for company in companies]
 
     except Exception:
@@ -241,14 +217,15 @@ def _get_company_list() -> list[str]:
 
 
 def _save_company_changes(edited_comp: pd.DataFrame) -> None:
-    """Save changes to company settings using service layer.
+    """Save changes to company settings using CACHED service layer.
 
     Args:
         edited_comp: DataFrame containing edited company data.
     """
     try:
+        company_service = get_company_service()
         for _, row in edited_comp.iterrows():
-            CompanyService.update_company_active_status(row["id"], row["Active"])
+            company_service.update_company_active_status(row["id"], row["Active"])
         st.success("✅ Company settings saved!")
 
     except Exception:
@@ -303,7 +280,7 @@ def _display_salary_range(salary_range: tuple[int, int]) -> None:
 
 
 def _handle_add_company(name: str, url: str) -> None:
-    """Handle adding a new company using service layer.
+    """Handle adding a new company using CACHED service layer.
 
     Args:
         name: Company name.
@@ -318,7 +295,8 @@ def _handle_add_company(name: str, url: str) -> None:
         return
 
     try:
-        CompanyService.add_company(name, url)
+        company_service = get_company_service()
+        company_service.add_company(name, url)
         st.success(f"✅ Added {name} successfully!")
         st.rerun()
 

@@ -315,13 +315,20 @@ def throttled_rerun(
         st.rerun()
 
 
-@st.fragment(run_every="2s")
-def background_task_status_fragment():
-    """Fragment for displaying background task status with auto-refresh."""
+def render_background_task_status():
+    """Display background task status with manual refresh."""
     if not is_scraping_active():
         return
 
     st.markdown("### ⚙️ Background Tasks")
+
+    # Manual refresh button following SPEC-UI-001
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        if st.button("🔄 Refresh Tasks", use_container_width=True):
+            st.cache_data.clear()
+            st.rerun()
+
     status = st.session_state.get("scraping_status", "Processing...")
     st.info(f"🔄 {status}")
 

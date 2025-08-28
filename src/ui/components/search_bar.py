@@ -16,15 +16,15 @@ Key Features:
 import logging
 import time
 
-from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 import streamlit as st
 
 from src.constants import APPLICATION_STATUSES, SALARY_DEFAULT_MAX, SALARY_DEFAULT_MIN
-from src.services.search_service import search_service
 from src.ui.components.cards.job_card import render_job_card
 from src.ui.pages.jobs import show_job_details_modal
+from src.ui.state.session_state import get_current_filters
+from src.ui.utils.service_cache import get_search_service
 
 if TYPE_CHECKING:
     from src.schemas import Job
@@ -83,27 +83,20 @@ def render_job_search() -> None:
 
 
 def _init_search_state() -> None:
-    """Initialize search-specific session state variables."""
-    defaults = {
-        "search_query": "",
-        "search_results": [],
+    """Initialize MINIMAL search state using widget keys.
+
+    This eliminates the YAGNI violations by using widget keys instead of
+    manual session state management. Search results are temporarily cached
+    but not persistent across pages.
+    """
+    # MINIMAL state - only non-widget data that needs persistence
+    minimal_search_state = {
+        "search_results": [],  # Temporary results cache
         "search_stats": {"query_time": 0, "total_results": 0, "fts_enabled": False},
-        "search_filters": {
-            "location": "",
-            "salary_min": SALARY_DEFAULT_MIN,
-            "salary_max": SALARY_DEFAULT_MAX,
-            "remote_only": False,
-            "application_status": "All",
-            "date_from": datetime.now(UTC) - timedelta(days=30),
-            "date_to": datetime.now(UTC),
-            "favorites_only": False,
-        },
-        "show_advanced_filters": False,
-        "last_search_time": 0,
-        "search_limit": DEFAULT_SEARCH_LIMIT,
+        "last_search_time": 0,  # For debouncing
     }
 
-    for key, value in defaults.items():
+    for key, value in minimal_search_state.items():
         if key not in st.session_state:
             st.session_state[key] = value
 
@@ -113,14 +106,13 @@ def _render_search_input() -> None:
     col1, col2 = st.columns([4, 1])
 
     with col1:
-        # Search input with FTS5-optimized placeholder
+        # WIDGET KEY: Search input with auto-managed state
         st.text_input(
             label="Search Jobs",
-            value=st.session_state.search_query,
             placeholder=(
                 'Try: "python developer", machine AND learning, data* (FTS5 powered)'
             ),
-            key="search_input",
+            key="search_query_input",  # Widget handles its own state
             help=(
                 "Powered by SQLite FTS5 with Porter stemming. Use quotes for exact"
                 " phrases, AND/OR for logic, * for wildcards."
@@ -129,16 +121,17 @@ def _render_search_input() -> None:
             label_visibility="collapsed",
         )
 
-        # Show search hints in expandable section
-        if st.session_state.search_query == "":
+        # Show search hints when no search query is entered
+        current_query = st.session_state.get("search_query_input", "")
+        if not current_query:
             with st.expander("🔍 Search Tips & Examples", expanded=False):
                 st.markdown("**FTS5 Search Examples:**")
                 for i, hint in enumerate(FTS5_SEARCH_HINTS, 1):
                     if st.button(
                         f"{i}. {hint}", key=f"hint_{i}", use_container_width=True
                     ):
-                        st.session_state.search_query = hint
-                        st.session_state.search_input = hint
+                        # Set the widget key value directly
+                        st.session_state.search_query_input = hint
                         _perform_search()
                         st.rerun()
 
@@ -153,21 +146,21 @@ def _render_search_input() -> None:
 
     with col2:
         # Advanced filters toggle
-        if st.button(
-            "⚙️ Filters" + (" ✓" if _has_active_filters() else ""),
-            key="toggle_filters",
-            use_container_width=True,
-            type="primary" if st.session_state.show_advanced_filters else "secondary",
-        ):
-            st.session_state.show_advanced_filters = (
-                not st.session_state.show_advanced_filters
-            )
-            st.rerun()
+        # WIDGET KEY: Filter toggle using checkbox
+        st.checkbox(
+            "⚙️ Show Filters" + (" ✓" if _has_active_filters() else ""),
+            key="show_advanced_filters",  # Widget handles its own state
+            label_visibility="collapsed",
+        )
 
 
 def _render_advanced_filters() -> None:
-    """Render detailed filter controls in expandable section."""
-    if not st.session_state.show_advanced_filters:
+    """Render detailed filter controls using WIDGET KEYS.
+
+    This eliminates duplicate filter state by reusing the main filter widgets.
+    """
+    # Check if filters should be shown via widget key
+    if not st.session_state.get("show_advanced_filters", False):
         return
 
     with st.expander("Filter Options", expanded=True):
@@ -175,119 +168,61 @@ def _render_advanced_filters() -> None:
         col1, col2 = st.columns(2)
 
         with col1:
-            location = st.text_input(
+            # WIDGET KEY: Location filter - auto-managed state
+            st.text_input(
                 "Location",
-                value=st.session_state.search_filters["location"],
                 placeholder="e.g., San Francisco, Remote, New York",
                 help="Filter by job location or 'Remote' for remote positions",
+                key="location_filter",  # Widget handles its own state
+                on_change=_trigger_search_update,
             )
-            if location != st.session_state.search_filters["location"]:
-                st.session_state.search_filters["location"] = location
-                _trigger_search_update()
 
         with col2:
-            remote_only = st.checkbox(
+            # WIDGET KEY: Remote filter - auto-managed state
+            st.checkbox(
                 "Remote positions only",
-                value=st.session_state.search_filters["remote_only"],
                 help="Show only remote job opportunities",
+                key="remote_only_filter",  # Widget handles its own state
+                on_change=_trigger_search_update,
             )
-            if remote_only != st.session_state.search_filters["remote_only"]:
-                st.session_state.search_filters["remote_only"] = remote_only
-                _trigger_search_update()
 
         # Second row: Salary range
         st.markdown("**Salary Range**")
         col1, col2 = st.columns(2)
 
-        with col1:
-            salary_min = st.number_input(
-                "Minimum Salary",
-                value=int(st.session_state.search_filters["salary_min"]),
-                min_value=0,
-                max_value=500000,
-                step=5000,
-                format="%d",
-            )
-            if salary_min != st.session_state.search_filters["salary_min"]:
-                st.session_state.search_filters["salary_min"] = salary_min
-                _trigger_search_update()
-
-        with col2:
-            salary_max = st.number_input(
-                "Maximum Salary",
-                value=int(st.session_state.search_filters["salary_max"]),
-                min_value=0,
-                max_value=500000,
-                step=5000,
-                format="%d",
-            )
-            if salary_max != st.session_state.search_filters["salary_max"]:
-                st.session_state.search_filters["salary_max"] = salary_max
-                _trigger_search_update()
+        # NOTE: Salary filtering uses main sidebar salary_range_filter widget
+        # to avoid duplication. Search will read from the same widget.
+        st.info("💡 Use the main sidebar salary filter to set salary ranges")
 
         # Third row: Application status and favorites
         col1, col2 = st.columns(2)
 
         with col1:
-            application_status = st.selectbox(
+            # WIDGET KEY: Application status filter - auto-managed state
+            st.selectbox(
                 "Application Status",
                 options=["All", *APPLICATION_STATUSES],
-                index=0
-                if st.session_state.search_filters["application_status"] == "All"
-                else APPLICATION_STATUSES.index(
-                    st.session_state.search_filters["application_status"]
-                )
-                + 1,
+                index=0,  # Default to "All"
                 help="Filter by current application status",
+                key="application_status_filter",  # Widget handles its own state
+                on_change=_trigger_search_update,
             )
-            if (
-                application_status
-                != st.session_state.search_filters["application_status"]
-            ):
-                st.session_state.search_filters["application_status"] = (
-                    application_status
-                )
-                _trigger_search_update()
 
         with col2:
-            favorites_only = st.checkbox(
+            # WIDGET KEY: Favorites filter - auto-managed state
+            st.checkbox(
                 "Favorites only",
-                value=st.session_state.search_filters["favorites_only"],
                 help="Show only jobs marked as favorites",
+                key="favorites_only_filter",  # Widget handles its own state
+                on_change=_trigger_search_update,
             )
-            if favorites_only != st.session_state.search_filters["favorites_only"]:
-                st.session_state.search_filters["favorites_only"] = favorites_only
-                _trigger_search_update()
 
         # Fourth row: Date range
         st.markdown("**Posted Date Range**")
         col1, col2 = st.columns(2)
 
-        with col1:
-            date_from = st.date_input(
-                "From Date",
-                value=st.session_state.search_filters["date_from"].date(),
-                help="Show jobs posted after this date",
-            )
-            date_from_dt = datetime.combine(date_from, datetime.min.time()).replace(
-                tzinfo=UTC
-            )
-            if date_from_dt != st.session_state.search_filters["date_from"]:
-                st.session_state.search_filters["date_from"] = date_from_dt
-                _trigger_search_update()
-
-        with col2:
-            date_to = st.date_input(
-                "To Date",
-                value=st.session_state.search_filters["date_to"].date(),
-                help="Show jobs posted before this date",
-            )
-            date_to_dt = datetime.combine(date_to, datetime.max.time()).replace(
-                tzinfo=UTC
-            )
-            if date_to_dt != st.session_state.search_filters["date_to"]:
-                st.session_state.search_filters["date_to"] = date_to_dt
-                _trigger_search_update()
+        # NOTE: Date filtering uses main sidebar date filters to avoid duplication
+        st.info("💡 Use the main sidebar date filters to set date ranges")
 
         # Filter actions
         col1, col2, col3 = st.columns([1, 1, 2])
@@ -298,8 +233,8 @@ def _render_advanced_filters() -> None:
                 st.rerun()
 
         with col2:
-            if st.button("🗑️ Clear", use_container_width=True):
-                _clear_all_filters()
+            if st.button("🗑️ Clear Search", use_container_width=True):
+                _clear_search_filters()
                 st.rerun()
 
 
@@ -324,29 +259,27 @@ def _render_search_results() -> None:
         )
 
     with col2:
-        # View mode selector
+        # WIDGET KEY: View mode selector with auto-managed state
         view_mode = st.selectbox(
             "View",
             options=["Cards", "List"],
-            index=0,
-            key="search_view_mode",
+            index=0,  # Default to Cards
+            key="search_view_mode",  # Widget handles its own state
             label_visibility="collapsed",
         )
 
     with col3:
         # Results per page
+        # WIDGET KEY: Results limit with auto-managed state
         results_limit = st.selectbox(
             "Show",
             options=[25, 50, 100],
-            index=1,
-            key="search_limit_selector",
+            index=1,  # Default to 50
+            key="search_limit_selector",  # Widget handles its own state
             format_func=lambda x: f"{x} results",
             label_visibility="collapsed",
+            on_change=_perform_search,  # Auto-trigger search on change
         )
-        if results_limit != st.session_state.search_limit:
-            st.session_state.search_limit = results_limit
-            _perform_search()
-            st.rerun()
 
     st.markdown("---")
 
@@ -420,9 +353,9 @@ def _render_search_results_list(results: list["Job"]) -> None:
                     relevance_score = abs(job.rank) if job.rank < 0 else job.rank
                     st.metric("Relevance", f"{relevance_score:.1f}")
 
-                # View details button
+                # View details button using unified modal state
                 if st.button("View Details", key=f"search_details_{job.id}"):
-                    st.session_state.search_modal_job_id = job.id
+                    st.session_state.modal_job_id = job.id
                     st.rerun()
 
 
@@ -442,9 +375,8 @@ def _render_search_status() -> None:
         search_type = (
             "Full-text search" if stats.get("fts_enabled", False) else "Keyword search"
         )
-        st.markdown(
-            f"{fts_status} **{search_type}** for: `{st.session_state.search_query}`"
-        )
+        current_query = st.session_state.get("search_query_input", "")
+        st.markdown(f"{fts_status} **{search_type}** for: `{current_query}`")
 
     with col2:
         # Performance metrics
@@ -460,7 +392,8 @@ def _render_search_status() -> None:
 
 def _render_empty_state() -> None:
     """Render empty state with helpful suggestions."""
-    if not st.session_state.search_query:
+    current_query = st.session_state.get("search_query_input", "")
+    if not current_query:
         # No search performed yet
         st.info(
             "👋 **Welcome to Job Search!**\n\n"
@@ -485,8 +418,8 @@ def _render_empty_state() -> None:
                 if st.button(
                     f"🔍 {label}", key=f"example_{i}", use_container_width=True
                 ):
-                    st.session_state.search_query = query
-                    st.session_state.search_input = query
+                    # Set widget key directly
+                    st.session_state.search_query_input = query
                     _perform_search()
                     st.rerun()
 
@@ -507,20 +440,22 @@ def _render_empty_state() -> None:
             col1, col2 = st.columns(2)
             with col1:
                 if st.button("🗑️ Clear Filters", use_container_width=True):
-                    _clear_all_filters()
+                    _clear_search_filters()
                     st.rerun()
 
             with col2:
                 if st.button("🔄 Show All Jobs", use_container_width=True):
-                    st.session_state.search_query = ""
-                    st.session_state.search_input = ""
+                    # Clear search widget
+                    if "search_query_input" in st.session_state:
+                        del st.session_state.search_query_input
                     # Redirect to jobs page
                     st.switch_page("src/ui/pages/jobs.py")
 
 
 def _handle_search_modal() -> None:
-    """Handle job details modal for search results."""
-    if modal_job_id := st.session_state.get("search_modal_job_id"):
+    """Handle job details modal using UNIFIED modal state."""
+    # Use the unified modal_job_id instead of search-specific key
+    if modal_job_id := st.session_state.get("modal_job_id"):
         # Find the job in search results
         job = next(
             (job for job in st.session_state.search_results if job.id == modal_job_id),
@@ -530,34 +465,35 @@ def _handle_search_modal() -> None:
         if job:
             show_job_details_modal(job)
         else:
-            # Job not found, clear the modal
-            st.session_state.search_modal_job_id = None
+            # Job not found, clear the unified modal
+            st.session_state.modal_job_id = None
 
 
 def _handle_search_input_change() -> None:
-    """Handle search input changes with debouncing."""
-    current_query = st.session_state.search_input
-    st.session_state.search_query = current_query
+    """Handle search input changes with debouncing using WIDGET KEYS."""
+    current_query = st.session_state.get("search_query_input", "")
 
     # Debounced search - only search if enough time has passed
     current_time = time.time()
     if (
         current_query
-        and (current_time - st.session_state.last_search_time) > SEARCH_DEBOUNCE_DELAY
+        and (current_time - st.session_state.get("last_search_time", 0))
+        > SEARCH_DEBOUNCE_DELAY
     ):
         st.session_state.last_search_time = current_time
         _perform_search()
 
 
 def _trigger_search_update() -> None:
-    """Trigger search update when filters change."""
-    if st.session_state.search_query:
+    """Trigger search update when filters change using WIDGET KEYS."""
+    current_query = st.session_state.get("search_query_input", "")
+    if current_query:
         _perform_search()
 
 
 def _perform_search() -> None:
-    """Execute the search using the search service."""
-    query = st.session_state.search_query.strip()
+    """Execute the search using CACHED search service and WIDGET KEYS."""
+    query = st.session_state.get("search_query_input", "").strip()
 
     if not query:
         st.session_state.search_results = []
@@ -569,15 +505,19 @@ def _perform_search() -> None:
         return
 
     try:
-        # Prepare search filters
+        # Prepare search filters from widget keys
         search_filters = _build_search_filters()
 
         # Measure search performance
         start_time = time.time()
 
-        # Execute search
+        # Execute search using cached service
+        search_service = get_search_service()
+        search_limit = st.session_state.get(
+            "search_limit_selector", DEFAULT_SEARCH_LIMIT
+        )
         results = search_service.search_jobs(
-            query=query, filters=search_filters, limit=st.session_state.search_limit
+            query=query, filters=search_filters, limit=search_limit
         )
 
         # Calculate metrics
@@ -613,76 +553,83 @@ def _perform_search() -> None:
 
 
 def _build_search_filters() -> dict[str, Any]:
-    """Build search filters from UI state."""
-    filters = st.session_state.search_filters.copy()
+    """Build search filters from WIDGET KEYS instead of duplicate state."""
+    # Get filter values from main sidebar widgets and search-specific widgets
+    current_filters = get_current_filters()
 
-    # Convert UI filters to search service format
+    # Build search filters combining main filters with search-specific ones
     search_filters = {
-        "date_from": filters["date_from"],
-        "date_to": filters["date_to"],
-        "favorites_only": filters["favorites_only"],
-        "salary_min": filters["salary_min"]
-        if filters["salary_min"] > SALARY_DEFAULT_MIN
+        "date_from": current_filters.get("date_from"),
+        "date_to": current_filters.get("date_to"),
+        "favorites_only": st.session_state.get("favorites_only_filter", False),
+        "salary_min": current_filters.get("salary_min")
+        if current_filters.get("salary_min", 0) > SALARY_DEFAULT_MIN
         else None,
-        "salary_max": filters["salary_max"]
-        if filters["salary_max"] < SALARY_DEFAULT_MAX
+        "salary_max": current_filters.get("salary_max")
+        if current_filters.get("salary_max", SALARY_DEFAULT_MAX) < SALARY_DEFAULT_MAX
         else None,
     }
 
-    # Application status filter
-    if filters["application_status"] != "All":
-        search_filters["application_status"] = [filters["application_status"]]
+    # Application status filter from widget key
+    app_status = st.session_state.get("application_status_filter", "All")
+    if app_status != "All":
+        search_filters["application_status"] = [app_status]
 
-    # Location filter (combine with remote filter)
-    if filters["location"] or filters["remote_only"]:
+    # Location filter from widget key
+    location = st.session_state.get("location_filter", "")
+    remote_only = st.session_state.get("remote_only_filter", False)
+
+    if location or remote_only:
         location_terms = []
-        if filters["location"]:
-            location_terms.append(filters["location"])
-        if filters["remote_only"]:
+        if location:
+            location_terms.append(location)
+        if remote_only:
             location_terms.append("Remote")
-        # Note: Location filtering is handled via the main search query for FTS5
-        # We could extend the search service to handle location filters specifically
+        # Note: Location filtering could be enhanced in search service
 
     return search_filters
 
 
 def _has_active_filters() -> bool:
-    """Check if any advanced filters are active."""
-    filters = st.session_state.search_filters
-    defaults = {
-        "location": "",
-        "salary_min": SALARY_DEFAULT_MIN,
-        "salary_max": SALARY_DEFAULT_MAX,
-        "remote_only": False,
-        "application_status": "All",
-        "favorites_only": False,
-    }
-
-    for key, default_value in defaults.items():
-        if filters.get(key) != default_value:
-            return True
-
-    # Check date filters (allow some tolerance for default dates)
-    now = datetime.now(UTC)
-    if abs((filters["date_from"] - (now - timedelta(days=30))).days) > 1:
+    """Check if any advanced filters are active using WIDGET KEYS."""
+    # Check search-specific widget filters
+    if st.session_state.get("location_filter", ""):
         return True
-    return abs((filters["date_to"] - now).days) > 1
+    if st.session_state.get("remote_only_filter", False):
+        return True
+    if st.session_state.get("application_status_filter", "All") != "All":
+        return True
+    if st.session_state.get("favorites_only_filter", False):
+        return True
+
+    # Check main filter widgets for changes from defaults
+    main_filters = get_current_filters()
+    if main_filters.get("keyword", ""):
+        return True
+    if main_filters.get("company", []):
+        return True
+    if main_filters.get("salary_min", SALARY_DEFAULT_MIN) > SALARY_DEFAULT_MIN:
+        return True
+    return main_filters.get("salary_max", SALARY_DEFAULT_MAX) < SALARY_DEFAULT_MAX
 
 
-def _clear_all_filters() -> None:
-    """Clear all search filters and search query."""
-    st.session_state.search_query = ""
-    st.session_state.search_input = ""
-    st.session_state.search_filters = {
-        "location": "",
-        "salary_min": SALARY_DEFAULT_MIN,
-        "salary_max": SALARY_DEFAULT_MAX,
-        "remote_only": False,
-        "application_status": "All",
-        "date_from": datetime.now(UTC) - timedelta(days=30),
-        "date_to": datetime.now(UTC),
-        "favorites_only": False,
-    }
+def _clear_search_filters() -> None:
+    """Clear search-specific filters using WIDGET KEYS."""
+    # Clear search-specific widget keys
+    search_widgets = [
+        "search_query_input",
+        "location_filter",
+        "remote_only_filter",
+        "application_status_filter",
+        "favorites_only_filter",
+        "show_advanced_filters",
+    ]
+
+    for widget_key in search_widgets:
+        if widget_key in st.session_state:
+            del st.session_state[widget_key]
+
+    # Clear search results
     st.session_state.search_results = []
     st.session_state.search_stats = {
         "query_time": 0,
