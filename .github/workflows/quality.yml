@@ -1,0 +1,21 @@
+name: Quality Checks
+on: [push, pull_request]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: astral-sh/setup-uv@v1
+      
+      - name: Install dependencies
+        run: uv sync
+        
+      - name: Lint
+        run: uv run ruff check .
+        
+      - name: Format check
+        run: uv run ruff format --check .
+        
+      - name: Tests
+        run: uv run pytest
