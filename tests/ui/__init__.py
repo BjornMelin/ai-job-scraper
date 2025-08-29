@@ -1,1 +1,1 @@
-"""UI test package for AI Job Scraper."""
+"""UI tests for manual refresh patterns using st.testing.AppTest."""
