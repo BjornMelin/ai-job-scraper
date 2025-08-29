@@ -52,6 +52,7 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 cover/
+reports/junit.xml
 
 # =============================================================================
 # UV PACKAGE MANAGER

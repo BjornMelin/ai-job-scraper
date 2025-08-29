@@ -363,18 +363,20 @@ async def main():
 
 if __name__ == "__main__":
     # Check required packages
-    try:
-        import httpx
-        import pydantic
-    except ImportError as e:
-        print(f"❌ Missing required package: {e}")
-        print("Install with: uv add httpx pydantic")
+    import importlib.util
+
+    if not importlib.util.find_spec("httpx"):
+        print("❌ Missing required package: httpx")
+        print("Install with: uv add httpx")
+        sys.exit(1)
+
+    if not importlib.util.find_spec("pydantic"):
+        print("❌ Missing required package: pydantic")
+        print("Install with: uv add pydantic")
         sys.exit(1)
 
     # Optional packages
-    try:
-        import openai
-    except ImportError:
+    if not importlib.util.find_spec("openai"):
         print("ℹ️  OpenAI library not installed - some tests will be skipped")
         print("Install with: uv add openai")
 
