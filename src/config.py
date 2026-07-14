@@ -1,9 +1,11 @@
-"""Configuration settings for the AI Job Scraper application."""
+"""Configuration settings for Job Tracker."""
 
 from __future__ import annotations
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from sqlalchemy.engine import make_url
+from sqlalchemy.exc import ArgumentError
 
 
 class DatabaseURLError(ValueError):
@@ -14,17 +16,36 @@ class LogLevelError(ValueError):
     """Custom exception for invalid log level configuration."""
 
 
+def normalize_sqlite_url(value: str) -> str:
+    """Return one canonical SQLAlchemy SQLite URL or reject it."""
+    value = value.strip()
+    if not value:
+        raise DatabaseURLError(
+            "Database URL configuration is missing or invalid. "
+            "Please provide a valid SQLite database URL.",
+        )
+
+    candidate = value if ":" in value else f"sqlite:///{value}"
+    try:
+        url = make_url(candidate)
+        has_authority = any((url.username, url.password, url.host, url.port))
+    except (ArgumentError, ValueError) as error:
+        raise DatabaseURLError("Invalid SQLite database URL.") from error
+
+    if url.drivername != "sqlite":
+        raise DatabaseURLError("Only SQLite database URLs are supported.")
+    if has_authority or url.database == "":
+        raise DatabaseURLError("Invalid SQLite database URL.")
+    return url.render_as_string(hide_password=False)
+
+
 class Settings(BaseSettings):
     """Application settings loaded from environment variables or .env file.
 
     Attributes:
-        openai_api_key: OpenAI API key for LLM operations (cloud fallback).
-        ai_token_threshold: Token threshold for local vs cloud model routing.
-        proxy_pool: List of proxy URLs for scraping.
-        use_proxies: Flag to enable proxy usage.
-        use_checkpointing: Flag to enable checkpointing in workflows.
         db_url: Database connection URL.
-        sqlite_pragmas: List of SQLite PRAGMA statements for optimization.
+        sqlite_pragmas: SQLite PRAGMA statements applied to each connection.
+        log_level: Application logging level.
     """
 
     model_config = SettingsConfigDict(
@@ -33,16 +54,6 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    openai_api_key: str = ""
-    ai_token_threshold: int = Field(
-        default=8000,
-        description="Token threshold for routing between local and cloud models",
-        ge=1000,
-        le=32000,
-    )
-    proxy_pool: list[str] = []
-    use_proxies: bool = False
-    use_checkpointing: bool = False
     db_url: str = "sqlite:///jobs.db"
 
     # Database optimization settings
@@ -66,45 +77,8 @@ class Settings(BaseSettings):
     @field_validator("db_url")
     @classmethod
     def validate_db_url(cls, v: str) -> str:
-        """Validate database URL format.
-
-        Args:
-            v (str): Database URL to validate.
-
-        Returns:
-            str: Validated database URL.
-
-        Raises:
-            DatabaseURLError: If the database URL is invalid.
-        """
-        if not v:
-            raise DatabaseURLError(
-                "Database URL configuration is missing or invalid. "
-                "Please provide a valid database connection URL.",
-            )
-
-        supported_schemes = ("sqlite://", "postgresql://", "mysql://")
-        if not v.startswith(supported_schemes) and not v.startswith("sqlite:"):
-            # For relative paths, assume SQLite
-            return f"sqlite:///{v}"
-        return v
-
-    @field_validator("proxy_pool")
-    @classmethod
-    def validate_proxy_urls(cls, v: list[str]) -> list[str]:
-        """Validate proxy URLs format."""
-        validated_proxies = []
-        for original_proxy in v:
-            if original_proxy and not original_proxy.startswith(
-                ("http://", "https://", "socks5://"),
-            ):
-                # Assume HTTP proxy if no scheme specified
-                formatted_proxy = f"http://{original_proxy}"
-            else:
-                formatted_proxy = original_proxy
-            if formatted_proxy:  # Only add non-empty proxies
-                validated_proxies.append(formatted_proxy)
-        return validated_proxies
+        """Normalize the app's only supported database URL."""
+        return normalize_sqlite_url(v)
 
     @field_validator("log_level")
     @classmethod

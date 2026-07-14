@@ -1,181 +1,170 @@
-# Product Requirements Document (PRD): AI Job Scraper
+# What Job Tracker must do
 
-## 1. Introduction
+**Content type:** Conceptual
+**Status:** Active
+**Updated:** 2026-07-14
 
-### 1.1 Purpose
+This product requirements document defines the supported single-user workflow: configure saved searches, collect valid job postings, manage application state, and inspect the resulting job market data locally.
 
-This document outlines the product requirements for the **AI Job Scraper**, a local-first, privacy-focused Python application designed to automate the scraping, filtering, and management of AI/ML job postings. It serves as the single source of truth for development, aligning business goals with technical implementation.
+## Product goal
 
-### 1.2 Scope
+Help one job seeker maintain a trustworthy, searchable record of relevant openings without copying postings between tools.
 
-* **In Scope:**
-  * Scraping from major job boards (LinkedIn, Indeed, Glassdoor) and configurable company career pages
-  * 2-tier scraping strategy using JobSpy (90% structured sources) and ScrapeGraphAI (10% unstructured sources)
-  * Local AI processing using Qwen/Qwen3-4B-Instruct-2507-FP8 with vLLM inference
-  * Content-aware database synchronization with SQLite + SQLModel foundation
-  * SQLite FTS5 full-text search with porter stemming: 5-300ms response scaling from 1K-500K records
-  * Rich, interactive Streamlit UI with modern card-based job browsing and filtering
-  * Component-based, modular architecture for maintainability and extensibility
-  * Background task management using Python threading.Thread with real-time progress tracking
-  * Performance-triggered analytics scaling from SQLite to DuckDB (p95 >500ms threshold)
-  * Production-ready deployment via Docker with GPU support for RTX 4090
+The product succeeds when you can:
 
-* **Out of Scope:**
-  * Multi-user or enterprise deployment patterns
-  * Complex vector search or semantic similarity (over-engineered for personal use)
-  * Real-time push notifications or external integrations
-  * Custom UI frameworks beyond Streamlit native components
-  * Production hosting or SaaS deployment
+1. Define a repeatable job-board search
+2. Run one search or every enabled search
+3. See whether each run succeeded, failed, or was cancelled
+4. Review newly persisted jobs without duplicate rows
+5. Track favorites, notes, application status, and archived jobs
+6. Search and summarize the committed job data
 
-## 2. User Personas
+## Supported audience
 
-* **Alex, the Job Seeker (Primary):** A mid-level AI engineer who is actively or passively looking for new opportunities. Alex is tech-savvy but time-constrained and needs an efficient way to aggregate relevant job postings without manually checking dozens of sites.
+The application targets one technical user running Streamlit on a workstation or single Docker host. Multi-user authorization, shared workspaces, and distributed workers are outside the current scope.
 
-* **Sam, the Power User/Developer (Secondary):** An open-source contributor who wants to customize the tool, add new scraping sources, or integrate it into a larger workflow. Sam values clean, modular code and comprehensive documentation.
+## Saved-search requirements
 
-## 3. Functional Requirements
+A saved search is the only scrape configuration source. It stores:
 
-### 3.1 Scraping & Data Processing
+- Name and query
+- Location
+- One or more supported job sites
+- Remote-only flag
+- Optional job type
+- Result limit from 1 through 1000
+- Enabled state
 
-* **FR-SCR-01: 2-Tier Scraping Strategy:** The system must use JobSpy for 90% coverage of structured job boards (LinkedIn, Indeed, Glassdoor) with native proxy support and ScrapeGraphAI for 10% coverage of unstructured company career pages with AI-powered extraction.
+The application must support create, read, update, delete, run-one, and run-enabled operations. Deleting or disabling a saved search must not delete jobs.
 
-* **FR-SCR-02: Background Execution:** All scraping operations must run via threading.Thread with st.status for real-time progress display, allowing the user to continue interacting with the UI.
+Each run must expose the same health contract:
 
-* **FR-SCR-03: Real-Time Progress:** The UI must display real-time progress using st.rerun() + session_state for non-blocking updates, including overall progress, per-company status, and jobs found.
+- Completion time
+- Status: `never`, `running`, `succeeded`, `partial`, `failed`, or `cancelled`
+- Jobs seen
+- Jobs inserted
+- Duration in milliseconds
+- Latest error, when present
 
-* **FR-SCR-04: Structured Extraction:** AI-powered extraction must use LiteLLM + Instructor for structured outputs with reliable JSON parsing, eliminating custom parsing logic.
+A provider response with zero jobs is successful. A provider exception or explicit failed response is not.
 
-* **FR-SCR-05: Bot Evasion:** The system must employ bot evasion strategies, including IPRoyal residential proxy rotation, user-agent randomization, and respectful rate limiting.
+## Scraping and persistence requirements
 
-### 3.2 Database & Synchronization
+JobSpy supplies structured job-board results. The adapter must use typed site and job-type values, annualized salaries, and asynchronous thread delegation for its blocking provider call.
 
-* **FR-DB-01: SQLModel Foundation:** The database must use SQLModel + SQLite with type-safe operations and automatic relationship handling for personal scale (tested capacity 500K+ jobs).
+The ingestion boundary must reject a row without a title, company, or usable direct or listing URL. It must normalize provider scalar and list shapes before validation.
 
-* **FR-DB-02: Database Synchronization:** The system must use content hash-based synchronization to preserve user data during updates.
-  * **FR-DB-02a (Change Detection):** Use content hash of core job fields (title, company, description) to detect changes.
-  * **FR-DB-02b (User Data Preservation):** Application status, favorites, and notes must be preserved across job updates.
-  * **FR-DB-02c (Conflict Resolution):** Automatic merge of updated job content with existing user annotations.
+One provider result persists in one transaction. Any row-level persistence failure must roll back the result.
 
-* **FR-DB-03: Analytics Scaling:** The system must provide SQLite foundation with automatic DuckDB sqlite_scanner activation when p95 query latency exceeds 500ms threshold.
+Persistence must apply these rules:
 
-### 3.3 User Interface (UI)
+- Prefer the direct application URL over the listing URL
+- Use the application URL as the durable job identity
+- Create a company only for a valid persisted job
+- Update provider-owned fields on a repeated URL
+- Preserve favorite, notes, application status, application date, and archive state
+- Report exact inserted, updated, and skipped counts
 
-* **FR-UI-01: Component-Based UI:** The UI must be built with a modular, component-based architecture using Streamlit native components.
+## Job-management requirements
 
-* **FR-UI-02: Job Browser:** The primary interface must be a responsive, card-based grid of job postings with mobile-first design.
+You must be able to:
 
-* **FR-UI-03: Advanced Filtering:** Users must be able to filter jobs by text search (SQLite FTS5 with porter stemming), company, application status, salary range, and date posted with <10ms response time.
+- Filter jobs by company, application status, date, salary, favorite state, and archive state
+- Open one job by database identifier
+- Update application status and preserve the first application date
+- Toggle favorite state
+- Update notes
+- Archive a job
+- Apply batch updates to user-owned fields
 
-* **FR-UI-04: Application Tracking:** Users must be able to set and update the status of their job applications (`New`, `Interested`, `Applied`, `Rejected`) with visual status indicators.
+The default job list must exclude archived jobs.
 
-* **FR-UI-05: Job Details View:** Users must be able to view full job details and add personal notes using expandable interface components.
+## Company requirements
 
-* **FR-UI-06: Real-time Updates:** The UI must provide non-blocking background task progress using threading with st.status components and st.rerun() for session state updates.
+Companies are read-only facets derived from persisted jobs. A company response includes its identity, URL when known, total jobs, active jobs, and latest posting date.
 
-* **FR-UI-07: High-Performance Caching:** UI filter and search operations must complete in <100ms via st.cache_data (Streamlit native caching).
+Companies must not store scrape schedules, enabled flags, run counts, or run success rates.
 
-* **FR-UI-08: Analytics Dashboard:** The system must provide analytics with automatic method selection between SQLite (baseline) and DuckDB (high-performance) based on p95 query latency thresholds.
+## Search requirements
 
-* **FR-UI-09: Company Management:** A dedicated UI must exist for users to add, view, and activate/deactivate companies for scraping.
+Search must query the canonical application database and return detached `Job` data transfer objects. Every whitespace-separated term must match at least one of title, description, company, or location.
 
-* **FR-UI-10: Settings Management:** A settings page must allow users to manage API keys, configure AI processing thresholds, proxy usage, and database optimization settings.
+Search must reuse the job filter contract. It must treat `%` and `_` as literal text, exclude archived jobs by default, and paginate the full matching set without a hidden result cap.
 
-### 3.4 Analytics & Monitoring (ADR-019)
+Stemming, Boolean syntax, relevance ranking, and a second search connection are outside the current scope.
 
-* **FR-ANALYTICS-01: Automatic Method Selection:** The system must automatically select between SQLite and DuckDB analytics methods based on performance triggers (p95 latency >500ms).
+## Analytics and cost requirements
 
-* **FR-ANALYTICS-02: Streamlit Caching:** Performance tracking must use Streamlit native caching (st.cache_data) for optimized operations with minimal overhead.
+Analytics must query the same committed database state as job lists. It must report:
 
-* **FR-ANALYTICS-03: Cost Control Integration:** Real-time cost tracking must monitor the $50 monthly budget with automated alerts at 80% and 100% utilization.
+- Daily job trends
+- Top companies with salary summaries
+- Salary count, average, range, and standard deviation
+- Service status without claiming an external cache or engine
 
-* **FR-ANALYTICS-04: Visual Performance Indicators:** The analytics dashboard must display current method selection, performance metrics, and cost utilization with interactive visualizations.
+Cost monitoring must store typed JSON metadata in the application database. It must aggregate current-month costs by service and return budget health at 60%, 80%, and 100% utilization thresholds.
 
-### 3.5 Modern Card Interface (ADR-021)
+## Data-integrity requirements
 
-* **FR-CARDS-01: Mobile-First Design:** Job cards must automatically adapt to screen size with responsive grid layouts (desktop: 3 columns, mobile: 1 column).
+`src/database.py` is the only application engine and session owner. Services may accept an explicit SQLAlchemy bind for tests, but they must not create engines.
 
-* **FR-CARDS-02: Status Visual Indicators:** Cards must display color-coded status indicators with icons for application progress (new, interested, applied, rejected).
+The database must enforce:
 
-* **FR-CARDS-03: Interactive Actions:** Each card must provide quick actions for status updates, apply links, and additional options menu.
+- Unique, nonblank company names
+- Nonblank job titles and unique, nonblank job links
+- A required company foreign key for every job
+- Nonblank saved-search text, valid result limits, and nonnegative run health
+- Nonnegative costs and nonblank cost service and operation fields
 
-* **FR-CARDS-04: Enhanced Information Display:** Cards must present job information with clear hierarchy: company/title header, salary/location body, status/actions footer.
+Alembic migrations must run before the UI starts. A migration failure must stop startup.
 
-## 4. Non-Functional Requirements
+## User-interface requirements
 
-* **NFR-PERF-01: Search Performance:** SQLite FTS5 search operations must complete in <10ms for 1,000 jobs with porter stemming and BM25 relevance ranking.
+The Streamlit interface must provide exactly three top-level pages: **Jobs**, **Searches**, and **Insights**. Company facets belong in job filters and read-only insights. The interface must not expose the removed Companies, generic Scraping, Settings, or Analytics pages.
 
-* **NFR-PERF-02: AI Processing:** The system must route content <8K tokens to local Qwen3-4B processing and ≥8K tokens to GPT-4o-mini cloud fallback based on tiktoken measurement.
+Each saved search must expose one explicit **Run now** action. The interface must not poll, auto-refresh, or expose a generic refresh control. It must expose loading and error states, support keyboard operation, and respect reduced-motion preferences.
 
-* **NFR-PERF-03: UI Responsiveness:** Job card rendering must complete in <200ms for 50+ jobs with full content using Streamlit native caching and optimization.
+## Quality requirements
 
-* **NFR-SCALE-01: Personal Scale Architecture:** The application must be architected for single user with tested capacity of 500K jobs (1.3GB database), with performance-based scaling triggers.
+Every change must pass the relevant tests, Ruff checks, and Alembic drift check. Tests must use a temporary database per test and inject it through the canonical database helper.
 
-* **NFR-COST-01: Cost Optimization:** Monthly operational costs must remain under $50 budget ceiling with actual target of $25-30 through local/cloud processing allocation.
+Performance claims require measured evidence. Current acceptance targets are:
 
-* **NFR-MAINT-01: Maintenance Requirements:** The system must operate with monthly dependency updates and quarterly library maintenance through library-first architecture.
+- Search completes within 1000 ms on the maintained personal database
+- Common filter and analytics queries complete within 500 ms on the maintained personal database
+- The Docker health endpoint becomes healthy within its configured 40s startup period
 
-* **NFR-PRIV-01: Local-First Privacy:** All job data must be processed and stored locally with only processing-level API usage for cloud AI fallback, no data retention by external services.
+These targets are release criteria, not benchmark claims.
 
-* **NFR-LIB-01: Library-First Implementation:** The codebase must leverage modern Python libraries and frameworks to minimize custom code and maintenance overhead while maximizing reliability and performance.
+## Technology constraints
 
-## 5. Technical Stack
+The maintained stack is:
 
-### **Core Architecture - Library-Based Implementation**
+- Python 3.12 or newer
+- uv for dependency and lockfile management
+- Streamlit for the interface
+- SQLModel and SQLAlchemy for persistence and queries
+- SQLite for the single-user database
+- Alembic for schema changes
+- JobSpy for job-board collection
+- Pydantic for boundary validation
+- pytest and Ruff for verification
 
-* **AI Processing:** LiteLLM unified client + Instructor structured outputs + vLLM inference server
-* **Local AI:** Qwen/Qwen3-4B-Instruct-2507-FP8 with FP8 quantization on RTX 4090
-* **Token Routing:** 8K context window threshold measured via tiktoken for local/cloud processing routing  
-* **Cloud AI:** GPT-4o-mini for complex tasks and fallback scenarios
+DuckDB and sqlite-utils are not runtime dependencies.
 
-### **Data Layer**
+## Excluded scope
 
-* **Database:** SQLModel + SQLite with WAL mode and type-safe operations
-* **Search:** SQLite FTS5 with porter stemming and BM25 relevance ranking via sqlite-utils (ADR-018)
-* **Analytics:** Automatic method selection - SQLite baseline with DuckDB sqlite_scanner scaling (ADR-019)
-* **Performance Optimization:** Streamlit native caching for streamlined performance tracking
-* **Cost Control:** Real-time $50 budget monitoring with automated service-level cost tracking
-* **Synchronization:** Database sync with content hash detection and user data preservation
+The current release does not promise:
 
-### **Scraping & Data Collection**
+- Multi-user accounts or permissions
+- Distributed scraping workers
+- Company-career-page crawling
+- Automatic background refresh
+- Enterprise-scale search
+- A separate analytical warehouse
+- AI-assisted extraction or summarization
+- Guaranteed provider availability
 
-* **2-Tier Strategy:** JobSpy (90% structured job boards) + ScrapeGraphAI (10% company pages)
-* **Proxy Integration:** IPRoyal residential proxies with JobSpy native compatibility
-* **HTTP Resilience:** Native HTTPX transport retries (eliminates custom retry logic)
-* **Background Tasks:** Python threading.Thread with Streamlit st.status integration
+## Architecture decision
 
-### **User Interface**
-
-* **Framework:** Streamlit with native fragments, column configuration, and auto-refresh
-* **Modern UI:** Card-based job browser with mobile-first responsive design (ADR-021)
-* **Visual Design:** Status-coded cards for improved information scanning compared to table format
-* **Interactive Elements:** Real-time status updates, quick actions, and hover effects
-* **Search Integration:** Real-time FTS5 search with <10ms response time via sqlite-utils
-* **Analytics Dashboard:** Analytics visualization with method selection indicators
-* **State Management:** Native st.session_state with optimistic UI feedback
-
-### **Hardware Requirements**
-
-* **GPU:** RTX 4090 Laptop GPU with 16GB VRAM for local AI processing
-* **Software:** CUDA >=12.1, Python 3.12+
-* **Storage:** 2GB free disk space for models and database
-* **Network:** Internet connection for proxy services and cloud AI fallback
-
-### **Development & Deployment**
-
-* **Package Management:** uv for Python dependency management
-* **Code Quality:** ruff for linting and formatting
-* **Testing:** pytest with library-first testing patterns
-* **Containerization:** Docker + docker-compose for consistent development environment
-* **Timeline:** 7-day implementation with 4-phase deployment strategy
-
-### **Performance Characteristics**
-
-* **Search:** <10ms FTS5 queries with porter stemming and BM25 ranking via sqlite-utils (ADR-018)
-* **Analytics:** Automatic method selection triggers at p95 >500ms for DuckDB sqlite_scanner activation (ADR-019)
-* **AI Processing:** <2s local vLLM inference with FP8 optimization, 98% local processing rate (ADR-011/012)
-* **Performance Optimization:** Streamlit native caching provides streamlined operations vs custom monitoring (ADR-019)
-* **UI Rendering:** Card-based interface with improved scanning efficiency, <200ms rendering for 50+ jobs (ADR-021)
-* **GPU Utilization:** 90% efficiency with RTX 4090 FP8 quantization and continuous batching
-* **Cost Control:** $50 monthly budget with real-time monitoring and automated alerts (ADR-019)
-* **Success Rate:** JobSpy extraction reliability with native proxy integration and resilient HTTP transport
-* **Library Integration:** Significant code reduction through library utilization (ADR-001)
+[ADR-041](./developers/adrs/adr-041-canonical-data-boundary.md) records the weighted decision for the canonical data boundary and its migration consequences.

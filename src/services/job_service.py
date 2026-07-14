@@ -3,41 +3,27 @@
 This module provides the JobService class with static methods for querying
 and updating job records. It handles database operations for job filtering,
 status updates, favorite toggling, and notes management.
-
-Streamlit caching using Streamlit's native @st.cache_data decorator.
 """
 
 import logging
+from collections.abc import Sequence
+from datetime import UTC, date, datetime, time, timedelta
 
-from datetime import UTC, datetime, timedelta
-
-# Import streamlit for caching decorators
-try:
-    import streamlit as st
-except ImportError:
-    # Create dummy decorator for non-Streamlit environments
-    class _DummyStreamlit:
-        """Dummy Streamlit class for non-Streamlit environments."""
-
-        @staticmethod
-        def cache_data(**_kwargs):
-            """Dummy cache decorator that passes through the function unchanged."""
-
-            def decorator(wrapped_func):
-                """Inner decorator function."""
-                return wrapped_func
-
-            return decorator
-
-    st = _DummyStreamlit()
-
+from sqlalchemy import exc as sqlalchemy
 from sqlalchemy import func
-from sqlmodel import select
+from sqlmodel import Session, select
 
 from src.constants import SALARY_DEFAULT_MIN, SALARY_UNBOUNDED_THRESHOLD
 from src.database import db_session
-from src.models import CompanySQL, JobSQL
-from src.models.job_models import JobPosting, JobScrapeRequest, JobScrapeResult, JobSite
+from src.database_models import CompanySQL, JobSQL
+from src.models.job_models import (
+    ApplicationStage,
+    JobPosting,
+    JobScrapeRequest,
+    JobScrapeResult,
+    JobSite,
+    JobType,
+)
 from src.schemas import Job
 from src.scraping.job_scraper import job_scraper
 
@@ -81,14 +67,7 @@ class JobService:
         Raises:
             ValidationError: If SQLModel data doesn't match DTO schema.
         """
-        # Fallback for cases where company name is not available
-        company_name = "Unknown"
-
-        # Create a dictionary with the job data and the resolved company name
-        job_data = job_sql.model_dump()
-        job_data["company"] = company_name
-
-        return Job.model_validate(job_data)
+        return JobService._to_dto_with_company(job_sql, "Unknown")
 
     @staticmethod
     def _to_dto_with_company(job_sql: JobSQL, company_name: str) -> Job:
@@ -108,8 +87,12 @@ class JobService:
         Raises:
             ValidationError: If SQLModel data doesn't match DTO schema.
         """
-        # Create a dictionary with the job data and the provided company name
-        job_data = job_sql.model_dump()
+        job_data = {
+            field: getattr(job_sql, field)
+            for field in JobSQL.model_fields
+            if field != "salary"
+        }
+        job_data["salary"] = tuple(job_sql.salary or (None, None))
         job_data["company"] = company_name
 
         return Job.model_validate(job_data)
@@ -149,8 +132,7 @@ class JobService:
         # Note: Don't early return for empty filters as we still need to apply
         # default filters like archived
 
-        # Note: Text search filtering is handled by search_service.py using SQLite FTS5
-        # This service focuses on database filtering without text search capabilities
+        # Text search is owned by search_service.py; this method owns shared facets.
 
         # Apply company filter - assumes CompanySQL is already joined
         if (
@@ -193,14 +175,19 @@ class JobService:
             query = query.filter(JobSQL.archived.is_(False))
 
         # Order by posted date (newest first) by default
-        return query.order_by(JobSQL.posted_date.desc().nullslast())
+        return query.order_by(
+            JobSQL.posted_date.desc().nullslast(),
+            JobSQL.id.desc(),
+        )
 
     @staticmethod
-    @st.cache_data(ttl=300)  # Cache for 5 minutes
-    def get_filtered_jobs(filters: FilterDict | None = None) -> list[Job]:
+    def get_filtered_jobs(
+        filters: FilterDict | None = None,
+        *,
+        limit: int | None = None,
+        offset: int = 0,
+    ) -> list[Job]:
         """Get jobs filtered by the provided criteria.
-
-        Uses Streamlit-based caching for improved performance.
 
         Args:
             filters: Dictionary containing filter criteria:
@@ -219,6 +206,11 @@ class JobService:
             Exception: If database query fails.
         """
         try:
+            if limit is not None and limit < 1:
+                raise ValueError("limit must be positive")
+            if offset < 0:
+                raise ValueError("offset must be nonnegative")
+
             with db_session() as session:
                 # Handle empty filters
                 if filters is None:
@@ -231,6 +223,10 @@ class JobService:
 
                 # Apply filters using shared method
                 query = JobService._apply_filters_to_query(base_query, filters)
+                if offset:
+                    query = query.offset(offset)
+                if limit is not None:
+                    query = query.limit(limit)
 
                 results = session.exec(query).all()
 
@@ -242,12 +238,31 @@ class JobService:
                 logger.info("Retrieved %d jobs with filters: %s", len(jobs), filters)
                 return jobs
 
-        except Exception:
-            logger.exception("Failed to get filtered jobs")
+        except (sqlalchemy.DatabaseError, sqlalchemy.SQLAlchemyError) as e:
+            logger.exception("Database error getting filtered jobs: %s", e)
+            raise
+        except (ValueError, TypeError, AttributeError) as e:
+            logger.warning("Data processing error getting filtered jobs: %s", e)
+            raise
+        except Exception as e:
+            logger.exception("Unexpected error getting filtered jobs: %s", e)
             raise
 
     @staticmethod
-    def update_job_status(job_id: int, status: str) -> bool:
+    def count_filtered_jobs(filters: FilterDict | None = None) -> int:
+        """Count jobs matching the canonical filter contract."""
+        with db_session() as session:
+            query = select(func.count(JobSQL.id)).join(
+                CompanySQL,
+                JobSQL.company_id == CompanySQL.id,
+            )
+            query = JobService._apply_filters_to_query(query, filters or {}).order_by(
+                None
+            )
+            return session.exec(query).one()
+
+    @staticmethod
+    def update_job_status(job_id: int, status: ApplicationStage) -> bool:
         """Update the application status of a job.
 
         Args:
@@ -273,8 +288,8 @@ class JobService:
                 # Set application date only if status changed to "Applied"
                 # Preserve historical application data - never clear once set
                 if (
-                    status == "Applied"
-                    and old_status != "Applied"
+                    status == ApplicationStage.APPLIED
+                    and old_status != ApplicationStage.APPLIED
                     and job.application_date is None
                 ):
                     job.application_date = datetime.now(UTC)
@@ -287,8 +302,24 @@ class JobService:
                 )
                 return True
 
-        except Exception:
-            logger.exception("Failed to update job status for job %s", job_id)
+        except (sqlalchemy.DatabaseError, sqlalchemy.NoResultFound) as e:
+            logger.exception(
+                "Database error updating job status for job %s: %s", job_id, e
+            )
+            raise
+        except (ValueError, TypeError, AttributeError) as e:
+            logger.warning(
+                "Data validation error updating job status for job %s: %s",
+                job_id,
+                e,
+            )
+            raise
+        except Exception as e:
+            logger.exception(
+                "Unexpected error updating job status for job %s: %s",
+                job_id,
+                e,
+            )
             raise
 
     @staticmethod
@@ -316,8 +347,24 @@ class JobService:
                 logger.info("Toggled favorite for job %s to %s", job_id, job.favorite)
                 return job.favorite
 
-        except Exception:
-            logger.exception("Failed to toggle favorite for job %s", job_id)
+        except (sqlalchemy.DatabaseError, sqlalchemy.NoResultFound) as e:
+            logger.exception(
+                "Database error toggling favorite for job %s: %s", job_id, e
+            )
+            raise
+        except (ValueError, TypeError, AttributeError) as e:
+            logger.warning(
+                "Data validation error toggling favorite for job %s: %s",
+                job_id,
+                e,
+            )
+            raise
+        except Exception as e:
+            logger.exception(
+                "Unexpected error toggling favorite for job %s: %s",
+                job_id,
+                e,
+            )
             raise
 
     @staticmethod
@@ -346,8 +393,20 @@ class JobService:
                 logger.info("Updated notes for job %s", job_id)
                 return True
 
-        except Exception:
-            logger.exception("Failed to update notes for job %s", job_id)
+        except (sqlalchemy.DatabaseError, sqlalchemy.NoResultFound) as e:
+            logger.exception("Database error updating notes for job %s: %s", job_id, e)
+            raise
+        except (ValueError, TypeError, AttributeError) as e:
+            logger.warning(
+                "Data validation error updating notes for job %s: %s",
+                job_id,
+                e,
+            )
+            raise
+        except Exception as e:
+            logger.exception(
+                "Unexpected error updating notes for job %s: %s", job_id, e
+            )
             raise
 
     @staticmethod
@@ -382,69 +441,19 @@ class JobService:
                 logger.warning("Job with ID %s not found", job_id)
                 return None
 
-        except Exception:
-            logger.exception("Failed to get job %s", job_id)
+        except (sqlalchemy.DatabaseError, sqlalchemy.SQLAlchemyError) as e:
+            logger.exception("Database error getting job %s: %s", job_id, e)
+            raise
+        except (ValueError, TypeError, AttributeError) as e:
+            logger.warning("Data processing error getting job %s: %s", job_id, e)
+            raise
+        except Exception as e:
+            logger.exception("Unexpected error getting job %s: %s", job_id, e)
             raise
 
     @staticmethod
-    def get_recently_updated_jobs(
-        job_ids: list[int], since: datetime, limit: int = 10
-    ) -> list[Job]:
-        """Get jobs that have been recently updated since a given timestamp.
-
-        This method is used by fragment-based components to detect real-time changes
-        and display update notifications without full page refreshes.
-
-        Args:
-            job_ids: List of job IDs to check for updates.
-            since: Only return jobs updated after this datetime.
-            limit: Maximum number of updated jobs to return.
-
-        Returns:
-            List of Job DTO objects that have been updated since the given time.
-
-        Raises:
-            Exception: If database query fails.
-        """
-        try:
-            with db_session() as session:
-                # Query for jobs updated since the given timestamp
-                query = (
-                    select(JobSQL, CompanySQL.name.label("company_name"))
-                    .join(CompanySQL, JobSQL.company_id == CompanySQL.id)
-                    .filter(JobSQL.id.in_(job_ids), JobSQL.updated_at > since)
-                    .order_by(JobSQL.updated_at.desc())
-                    .limit(limit)
-                )
-
-                results = session.exec(query).all()
-
-                # Convert to DTOs
-                updated_jobs = []
-                for job_sql, company_name in results:
-                    updated_jobs.append(
-                        JobService._to_dto_with_company(job_sql, company_name)
-                    )
-
-                logger.debug(
-                    "Found %d recently updated jobs from %d candidates since %s",
-                    len(updated_jobs),
-                    len(job_ids),
-                    since.isoformat(),
-                )
-
-                return updated_jobs
-
-        except Exception:
-            logger.exception("Failed to get recently updated jobs")
-            raise
-
-    @staticmethod
-    @st.cache_data(ttl=120)  # Cache for 2 minutes
     def get_job_counts_by_status() -> JobCountStats:
         """Get count of jobs grouped by application status.
-
-        Uses Streamlit-based caching for improved performance.
 
         Returns:
             Dictionary mapping status names to counts.
@@ -464,8 +473,14 @@ class JobService:
                 logger.info("Job counts by status: %s", counts)
                 return counts
 
-        except Exception:
-            logger.exception("Failed to get job counts")
+        except (sqlalchemy.DatabaseError, sqlalchemy.SQLAlchemyError) as e:
+            logger.exception("Database error getting job counts: %s", e)
+            raise
+        except (ValueError, TypeError, AttributeError) as e:
+            logger.warning("Data processing error getting job counts: %s", e)
+            raise
+        except Exception as e:
+            logger.exception("Unexpected error getting job counts: %s", e)
             raise
 
     @staticmethod
@@ -493,41 +508,18 @@ class JobService:
                 logger.info("Archived job %s: %s", job_id, job.title)
                 return True
 
-        except Exception:
-            logger.exception("Failed to archive job %s", job_id)
+        except (sqlalchemy.DatabaseError, sqlalchemy.NoResultFound) as e:
+            logger.exception("Database error archiving job %s: %s", job_id, e)
+            raise
+        except (ValueError, TypeError, AttributeError) as e:
+            logger.warning("Data validation error archiving job %s: %s", job_id, e)
+            raise
+        except Exception as e:
+            logger.exception("Unexpected error archiving job %s: %s", job_id, e)
             raise
 
     @staticmethod
-    @st.cache_data(ttl=30)  # Cache for 30 seconds
-    def get_active_companies() -> list[str]:
-        """Get list of active company names for scraping.
-
-        Returns:
-            List of active company names.
-
-        Raises:
-            Exception: If database query fails.
-        """
-        try:
-            with db_session() as session:
-                # Query for active companies, ordered by name for consistency
-                query = (
-                    select(CompanySQL.name)
-                    .filter(CompanySQL.active.is_(True))
-                    .order_by(CompanySQL.name)
-                )
-
-                company_names = session.exec(query).all()
-
-                logger.info("Retrieved %d active companies", len(company_names))
-                return list(company_names)
-
-        except Exception:
-            logger.exception("Failed to get active companies")
-            raise
-
-    @staticmethod
-    def _parse_date(date_input: str | datetime | None) -> datetime | None:
+    def _parse_date(date_input: str | date | datetime | None) -> datetime | None:
         """Parse date input into datetime object.
 
         Supports common formats encountered when scraping job sites:
@@ -542,6 +534,10 @@ class JobService:
         Returns:
             Parsed datetime object or None if input is None/invalid.
         """
+        if isinstance(date_input, datetime):
+            return date_input if date_input.tzinfo else date_input.replace(tzinfo=UTC)
+        if isinstance(date_input, date):
+            return datetime.combine(date_input, time.min, tzinfo=UTC)
         if isinstance(date_input, str):
             date_input = date_input.strip()
             if not date_input:
@@ -552,7 +548,7 @@ class JobService:
                 dt = datetime.fromisoformat(date_input)
                 if dt.tzinfo is None:
                     dt = dt.replace(tzinfo=UTC)
-            except ValueError:  # noqa: S110
+            except ValueError:
                 # Expected: Continue to alternative date parsing if ISO format fails
                 pass
             else:
@@ -573,13 +569,13 @@ class JobService:
                         tzinfo=UTC,
                     )
 
-                except ValueError:  # noqa: S112
+                except ValueError:
                     # Expected: Try next date format if this one fails
                     continue
 
             # If all formats fail, log warning
             logger.warning("Could not parse date: %s", date_input)
-        elif date_input is not None and not isinstance(date_input, datetime):
+        elif date_input is not None:
             logger.warning("Unsupported date type: %s", type(date_input))
 
         return None
@@ -624,8 +620,8 @@ class JobService:
 
                         # Set application date if status changed to "Applied"
                         if (
-                            update.get("application_status") == "Applied"
-                            and job.application_status == "Applied"
+                            update.get("application_status") == ApplicationStage.APPLIED
+                            and job.application_status == ApplicationStage.APPLIED
                             and not job.application_date
                         ):
                             job.application_date = datetime.now(UTC)
@@ -633,15 +629,23 @@ class JobService:
                 logger.info("Bulk updated %d jobs", len(job_updates))
                 return True
 
-        except Exception:
-            logger.exception("Failed to bulk update jobs")
+        except (sqlalchemy.DatabaseError, sqlalchemy.IntegrityError) as e:
+            logger.exception("Database error bulk updating jobs: %s", e)
+            raise
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
+            logger.warning("Data validation error bulk updating jobs: %s", e)
+            raise
+        except Exception as e:
+            logger.exception("Unexpected error bulk updating jobs: %s", e)
             raise
 
     async def search_and_save_jobs(
         self,
         search_term: str,
         location: str | None = None,
-        sites: list[str] | None = None,
+        sites: Sequence[str | JobSite] | None = None,
+        is_remote: bool = False,
+        job_type: JobType | None = None,
         results_wanted: int = 100,
         save_to_db: bool = True,
     ) -> JobScrapeResult:
@@ -659,16 +663,16 @@ class JobService:
         """
         try:
             # Convert string sites to JobSite enums
-            site_enums = []
+            site_enums: list[JobSite] = []
             if sites:
                 for site in sites:
-                    try:
-                        site_enum = JobSite.normalize(site)
-                        if site_enum:
-                            site_enums.append(site_enum)
-                    except ValueError:
+                    site_enum = (
+                        site if isinstance(site, JobSite) else JobSite.normalize(site)
+                    )
+                    if site_enum:
+                        site_enums.append(site_enum)
+                    else:
                         logger.warning("Unknown job site: %s", site)
-                        continue
 
             if not site_enums:
                 site_enums = [JobSite.LINKEDIN]  # Default to LinkedIn
@@ -678,6 +682,8 @@ class JobService:
                 site_name=site_enums,
                 search_term=search_term,
                 location=location,
+                is_remote=is_remote,
+                job_type=job_type,
                 results_wanted=results_wanted,
                 linkedin_fetch_description=True,
             )
@@ -685,103 +691,134 @@ class JobService:
             # Execute scraping
             result = await self.scraper.scrape_jobs_async(request)
 
-            if save_to_db and result.jobs:
-                await self._save_jobs_to_database(result.jobs)
-                logger.info("Saved %d jobs to database", len(result.jobs))
-            return result  # noqa: TRY300
+            persistence = {"inserted": 0, "updated": 0, "skipped": 0}
+            if save_to_db:
+                persistence = self._save_jobs_to_database(result.jobs)
+                logger.info("Job persistence complete: %s", persistence)
+            result.metadata["persistence"] = persistence
+            return result
 
-        except Exception:
-            logger.exception("Failed to search and save jobs")
+        except (ValueError, AttributeError, TypeError) as e:
+            logger.warning("Data processing error searching and saving jobs: %s", e)
+            raise
+        except (ConnectionError, TimeoutError) as e:
+            logger.exception("Network error searching and saving jobs: %s", e)
+            raise
+        except Exception as e:
+            logger.exception("Unexpected error searching and saving jobs: %s", e)
             raise
 
-    async def _save_jobs_to_database(self, jobs: list[JobPosting]) -> None:
-        """Save scraped jobs to database with deduplication.
+    def _save_jobs_to_database(
+        self,
+        jobs: list[JobPosting],
+        *,
+        session: Session | None = None,
+    ) -> dict[str, int]:
+        """Persist jobs alone or within a caller-owned transaction."""
+        if session is not None:
+            return self._persist_jobs(session, jobs)
+        with db_session() as owned_session:
+            return self._persist_jobs(owned_session, jobs)
 
-        Args:
-            jobs: List of JobPosting objects to save.
-        """
-        try:
-            with db_session() as session:
-                for job_posting in jobs:
-                    # Check for existing job by link (primary deduplication)
-                    existing_job = session.exec(
-                        select(JobSQL).filter_by(
-                            link=job_posting.job_url or job_posting.job_url_direct
-                        )
-                    ).first()
+    def _persist_jobs(
+        self,
+        session: Session,
+        jobs: list[JobPosting],
+    ) -> dict[str, int]:
+        """Merge one provider result without erasing richer stored fields."""
+        stats = {"inserted": 0, "updated": 0, "skipped": 0}
+        for posting in jobs:
+            link = posting.job_url_direct or posting.job_url
+            if not link or not posting.company:
+                stats["skipped"] += 1
+                continue
 
-                    if existing_job:
-                        # Update last_seen timestamp
-                        existing_job.last_seen = datetime.now(UTC)
-                        continue
-
-                    # Get or create company
-                    company_id = await self._get_or_create_company(
-                        session, job_posting.company
-                    )
-
-                    if not company_id:
-                        logger.warning(
-                            "Could not create company for: %s", job_posting.company
-                        )
-                        continue
-
-                    # Create new job record
-                    job_data = {
-                        "company_id": company_id,
-                        "title": job_posting.title,
-                        "description": job_posting.description or "",
-                        "link": job_posting.job_url or job_posting.job_url_direct or "",
-                        "location": job_posting.location or "",
-                        "posted_date": job_posting.date_posted,
-                        "salary": self._convert_salary(job_posting),
-                        "last_seen": datetime.now(UTC),
-                    }
-
-                    # Create JobSQL instance with validation
-                    job_sql = JobSQL.create_validated(**job_data)
-                    session.add(job_sql)
-
-                # Commit all changes
-                session.commit()
-                logger.info("Successfully saved batch of jobs to database")
-
-        except Exception:
-            logger.exception("Failed to save jobs to database")
-            # Don't re-raise - let the calling method handle this gracefully
-
-    async def _get_or_create_company(self, session, company_name: str) -> int | None:
-        """Get existing company or create new one.
-
-        Args:
-            session: Database session.
-            company_name: Name of the company.
-
-        Returns:
-            Company ID if successful, None otherwise.
-        """
-        try:
-            # Try to find existing company
-            existing_company = session.exec(
-                select(CompanySQL).filter_by(name=company_name)
-            ).first()
-
-            if existing_company:
-                return existing_company.id
-
-            # Create new company
-            new_company = CompanySQL(
-                name=company_name,
-                url="",  # We don't have company URL from JobSpy
-                active=True,
+            company_id = self._get_or_create_company(
+                session,
+                posting.company,
+                posting.company_url_direct or posting.company_url,
             )
-            session.add(new_company)
-            session.flush()  # Get the ID without committing
-            return new_company.id  # noqa: TRY300
+            now = datetime.now(UTC)
+            existing = session.exec(
+                select(JobSQL).where(JobSQL.link == link),
+            ).first()
+            incoming_salary = self._convert_salary(posting)
+            if existing is None:
+                candidate = JobSQL.create_validated(
+                    company_id=company_id,
+                    title=posting.title,
+                    description=posting.description or "",
+                    link=link,
+                    location=posting.location or "",
+                    posted_date=self._parse_date(posting.date_posted),
+                    salary=incoming_salary,
+                    last_seen=now,
+                )
+                session.add(candidate)
+                stats["inserted"] += 1
+                continue
 
-        except Exception:
-            logger.exception("Failed to get or create company: %s", company_name)
-            return None
+            current_salary = tuple(existing.salary or (None, None))
+            merged_salary = tuple(
+                incoming if incoming is not None else current
+                for incoming, current in zip(
+                    incoming_salary, current_salary, strict=True
+                )
+            )
+            candidate = JobSQL.create_validated(
+                company_id=company_id,
+                title=posting.title,
+                description=(posting.description or "").strip() or existing.description,
+                link=link,
+                location=(posting.location or "").strip() or existing.location,
+                posted_date=self._parse_date(posting.date_posted)
+                or self._parse_date(existing.posted_date),
+                salary=merged_salary,
+                last_seen=now,
+            )
+            changed = False
+            for field in (
+                "company_id",
+                "title",
+                "description",
+                "location",
+                "posted_date",
+                "salary",
+                "content_hash",
+            ):
+                incoming = getattr(candidate, field)
+                current = getattr(existing, field)
+                if field == "salary":
+                    current = tuple(current or (None, None))
+                elif field == "posted_date":
+                    current = self._parse_date(current)
+                    incoming = self._parse_date(incoming)
+                if current != incoming:
+                    setattr(existing, field, incoming)
+                    changed = True
+            existing.last_seen = now
+            stats["updated" if changed else "skipped"] += 1
+        return stats
+
+    @staticmethod
+    def _get_or_create_company(
+        session,
+        company_name: str,
+        company_url: str | None,
+    ) -> int:
+        """Resolve the company facet owned by a persisted job."""
+        company = session.exec(
+            select(CompanySQL).where(CompanySQL.name == company_name),
+        ).first()
+        if company is None:
+            company = CompanySQL(name=company_name, url=company_url)
+            session.add(company)
+            session.flush()
+        elif not company.url and company_url:
+            company.url = company_url
+        if company.id is None:
+            raise RuntimeError("Company ID was not assigned")
+        return company.id
 
     def _convert_salary(self, job_posting: JobPosting) -> tuple[int | None, int | None]:
         """Convert JobPosting salary to our format.
@@ -837,135 +874,15 @@ class JobService:
                 )
                 return jobs
 
-        except Exception:
-            logger.exception("Failed to get recent jobs")
+        except (sqlalchemy.DatabaseError, sqlalchemy.SQLAlchemyError) as e:
+            logger.exception("Database error getting recent jobs: %s", e)
             return []
-
-    async def refresh_company_jobs(self, company_name: str) -> JobScrapeResult:
-        """Refresh jobs for a specific company.
-
-        Args:
-            company_name: Name of company to refresh jobs for.
-
-        Returns:
-            JobScrapeResult with refreshed jobs.
-        """
-        try:
-            # Search for company-specific jobs
-            result = await self.search_and_save_jobs(
-                search_term=f"company:{company_name}",
-                results_wanted=50,
-                save_to_db=True,
-            )
-
-            logger.info(
-                "Refreshed %d jobs for company: %s", len(result.jobs), company_name
-            )
-            return result  # noqa: TRY300
-
-        except Exception:
-            logger.exception("Failed to refresh company jobs for: %s", company_name)
-            raise
-
-    @staticmethod
-    def get_jobs_with_company_names_direct_join(
-        filters: FilterDict,
-    ) -> list[dict[str, object]]:
-        """Alternative implementation using direct SQL JOIN as suggested by Sourcery.
-
-        This method demonstrates the SQL join approach for fetching company names
-        directly in the query, as suggested in the PR feedback.
-
-        Args:
-            filters: Dictionary containing filter criteria.
-
-        Returns:
-            List of dictionaries with job data and company names.
-
-        Raises:
-            Exception: If database query fails.
-        """
-        try:
-            with db_session() as session:
-                # Use explicit JOIN to get company names directly
-
-                query = select(JobSQL, CompanySQL.name.label("company_name")).join(
-                    CompanySQL,
-                    JobSQL.company_id == CompanySQL.id,
-                )
-
-                # Apply the same filters as in get_filtered_jobs
-                # Note: Text search filtering is handled by search_service.py
-
-                if (
-                    company_filter := filters.get("company", [])
-                ) and "All" not in company_filter:
-                    query = query.filter(CompanySQL.name.in_(company_filter))
-
-                if (
-                    status_filter := filters.get("application_status", [])
-                ) and "All" not in status_filter:
-                    query = query.filter(JobSQL.application_status.in_(status_filter))
-
-                if date_from := filters.get("date_from"):
-                    date_from = JobService._parse_date(date_from)
-                    if date_from:
-                        query = query.filter(JobSQL.posted_date >= date_from)
-
-                if date_to := filters.get("date_to"):
-                    date_to = JobService._parse_date(date_to)
-                    if date_to:
-                        query = query.filter(JobSQL.posted_date <= date_to)
-
-                if filters.get("favorites_only", False):
-                    query = query.filter(JobSQL.favorite.is_(True))
-
-                if not filters.get("include_archived", False):
-                    query = query.filter(JobSQL.archived.is_(False))
-
-                query = query.order_by(JobSQL.posted_date.desc().nullslast())
-
-                results = session.exec(query).all()
-
-                # Convert results to dictionary format
-                jobs_data = []
-                for job_sql, company_name in results:
-                    job_dict = job_sql.model_dump()
-                    job_dict["company"] = company_name
-                    jobs_data.append(job_dict)
-
-                logger.info(
-                    "Retrieved %d jobs with direct JOIN approach",
-                    len(jobs_data),
-                )
-                return jobs_data
-
-        except Exception:
-            logger.exception("Failed to get jobs with direct JOIN")
-            raise
-
-    @staticmethod
-    def invalidate_job_cache(job_id: int | None = None) -> bool:  # noqa: ARG004  # pylint: disable=unused-argument
-        """Clear Streamlit cache for job-related data.
-
-        Args:
-            job_id: Ignored - Streamlit cache is cleared globally
-
-        Returns:
-            True if cache invalidation was successful
-        """
-        try:
-            # Clear relevant Streamlit caches
-            JobService.get_filtered_jobs.clear()
-            JobService.get_job_counts_by_status.clear()
-            JobService.get_active_companies.clear()
-
-            logger.info("Cleared Streamlit job caches")
-        except Exception:
-            logger.exception("Failed to clear Streamlit cache")
-            return False
-
-        return True
+        except (ValueError, TypeError, AttributeError) as e:
+            logger.warning("Data processing error getting recent jobs: %s", e)
+            return []
+        except Exception as e:
+            logger.exception("Unexpected error getting recent jobs: %s", e)
+            return []
 
 
 # Global service instance

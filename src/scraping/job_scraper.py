@@ -7,11 +7,9 @@ with a minimal, maintainable implementation focused on core functionality.
 
 import asyncio
 import logging
-
 from typing import Any
 
 import pandas as pd
-
 from jobspy import scrape_jobs
 
 from src.models.job_models import (
@@ -50,8 +48,7 @@ class JobSpyScraper:
         Returns:
             JobScrapeResult with structured job data or empty result on failure.
         """
-        loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(None, self.scrape_jobs_sync, request)
+        return await asyncio.to_thread(self.scrape_jobs_sync, request)
 
     def scrape_jobs_sync(self, request: JobScrapeRequest) -> JobScrapeResult:
         """Scrape jobs synchronously using JobSpy with Pydantic integration.
@@ -78,13 +75,25 @@ class JobSpyScraper:
             logger.info("JobSpy found %d jobs", len(jobs_df))
 
             # Convert DataFrame to Pydantic models
-            jobs = self._dataframe_to_models(jobs_df, request.site_name)
+            jobs, invalid_rows = self._dataframe_to_models(jobs_df, request.site_name)
+            raw_found = len(jobs_df)
+            metadata: dict[str, Any] = {
+                "scraping_method": "jobspy",
+                "success": bool(jobs),
+                "raw_found": raw_found,
+                "valid_rows": len(jobs),
+                "invalid_rows": invalid_rows,
+            }
+            if invalid_rows:
+                row_label = "row" if raw_found == 1 else "rows"
+                message = f"{invalid_rows} of {raw_found} provider {row_label} failed validation"
+                metadata["warning" if jobs else "error"] = message
 
             return JobScrapeResult(
                 jobs=jobs,
                 total_found=len(jobs),
                 request_params=request,
-                metadata={"scraping_method": "jobspy", "success": True},
+                metadata=metadata,
             )
 
         except Exception:
@@ -129,34 +138,49 @@ class JobSpyScraper:
         return {k: v for k, v in params.items() if v is not None}
 
     def _dataframe_to_models(
-        self, jobs_df: pd.DataFrame, _requested_sites: list[JobSite] | JobSite
-    ) -> list[JobPosting]:
+        self, jobs_df: pd.DataFrame, requested_sites: list[JobSite] | JobSite
+    ) -> tuple[list[JobPosting], int]:
         """Convert JobSpy DataFrame to list of JobPosting models.
 
         Args:
             jobs_df: Pandas DataFrame from JobSpy.
-            _requested_sites: Sites requested for scraping (unused, kept for future).
+            requested_sites: Sites requested for scraping.
 
         Returns:
-            List of validated JobPosting models.
+            Validated jobs and the number of rejected provider rows.
         """
         jobs = []
+
+        # Determine default site for jobs without explicit site info
+        default_site = (
+            requested_sites
+            if isinstance(requested_sites, JobSite)
+            else requested_sites[0]
+        )
 
         for _, row in jobs_df.iterrows():
             try:
                 # Convert pandas row to dict with safe value handling
                 job_data = {}
                 for col, value in row.items():
-                    if pd.isna(value) or (isinstance(value, str) and not value.strip()):
+                    if (pd.api.types.is_scalar(value) and pd.isna(value)) or (
+                        isinstance(value, str) and not value.strip()
+                    ):
                         job_data[col] = None
-                    elif isinstance(value, (pd.Timestamp, pd.DatetimeIndex)):
+                    elif isinstance(value, pd.Timestamp):
                         job_data[col] = value.date() if hasattr(value, "date") else None
                     else:
                         job_data[col] = value
 
                 # Ensure required fields with safe defaults
                 if "id" not in job_data or not job_data["id"]:
-                    job_data["id"] = f"job_{len(jobs)}_{hash(str(job_data))}"
+                    job_data["id"] = (
+                        job_data.get("job_url_direct") or job_data.get("job_url") or ""
+                    )
+
+                # Set site field if not present in data
+                if "site" not in job_data or not job_data["site"]:
+                    job_data["site"] = default_site
 
                 # Safe float conversion for salary fields
                 job_data["min_amount"] = self._safe_float(job_data.get("min_amount"))
@@ -169,12 +193,17 @@ class JobSpyScraper:
                 job_posting = JobPosting.model_validate(job_data)
                 jobs.append(job_posting)
 
-            except Exception:
-                logger.warning("Failed to convert job row to model")
+            except (TypeError, ValueError) as error:
+                logger.warning("Skipped invalid job row: %s", error)
                 continue
 
-        logger.info("Successfully converted %d jobs to Pydantic models", len(jobs))
-        return jobs
+        invalid_rows = len(jobs_df) - len(jobs)
+        logger.info(
+            "Converted %d provider rows; %d failed validation",
+            len(jobs),
+            invalid_rows,
+        )
+        return jobs, invalid_rows
 
     def _safe_float(self, value: Any) -> float | None:
         """Safely convert value to float, returning None on failure."""
@@ -189,7 +218,13 @@ class JobSpyScraper:
         self, request: JobScrapeRequest, error: str | None = None
     ) -> JobScrapeResult:
         """Create empty JobScrapeResult for error cases."""
-        metadata = {"scraping_method": "jobspy", "success": False}
+        metadata = {
+            "scraping_method": "jobspy",
+            "success": error is None,
+            "raw_found": 0,
+            "valid_rows": 0,
+            "invalid_rows": 0,
+        }
         if error:
             metadata["error"] = error
 
@@ -203,50 +238,3 @@ class JobSpyScraper:
 
 # Global instance for easy import and usage
 job_scraper = JobSpyScraper()
-
-
-# Backward compatibility function
-async def scrape_jobs_by_query(
-    query: str,
-    location: str | None = None,
-    sites: list[str] | None = None,
-    count: int = 100,
-) -> list[dict[str, Any]]:
-    """Backward compatibility function matching legacy interface.
-
-    Args:
-        query: Search terms for jobs.
-        location: Location to search in.
-        sites: List of site names to search.
-        count: Number of results to return.
-
-    Returns:
-        List of job dictionaries in legacy format.
-    """
-    try:
-        # Convert legacy parameters to new Pydantic model
-        site_enums = []
-        if sites:
-            for site in sites:
-                site_enum = JobSite.normalize(site)
-                if site_enum:
-                    site_enums.append(site_enum)
-
-        if not site_enums:
-            site_enums = [JobSite.LINKEDIN]  # Default fallback
-
-        request = JobScrapeRequest(
-            site_name=site_enums,
-            search_term=query,
-            location=location,
-            results_wanted=count,
-        )
-
-        result = await job_scraper.scrape_jobs_async(request)
-
-        # Convert JobPosting models back to dictionaries for backward compatibility
-        return [job.model_dump() for job in result.jobs]
-
-    except Exception:
-        logger.exception("Legacy scrape_jobs_by_query failed")
-        return []

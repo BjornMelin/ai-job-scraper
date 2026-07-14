@@ -1,474 +1,121 @@
-# AI Job Scraper - Technical Architecture Documentation
+# How Job Tracker is structured
 
-**Version**: 1.0  
-**Date**: 2025-08-27  
-**Status**: Production Ready  
+**Content type:** Conceptual
 
-## Executive Summary
+Job Tracker has one Streamlit interface, one application database boundary, and one collection configuration. This page explains where each contract belongs.
 
-The AI Job Scraper is a production-ready, library-first job search platform that combines intelligent scraping, hybrid AI processing, and responsive mobile-first UI design. Built with modern Python 3.12 and leveraging proven libraries, the system achieves 92.8% code reduction while maintaining enterprise-grade performance and reliability.
+## Application flow
 
-### Key Technical Achievements
-
-- **4-Phase Implementation Complete**: Unified scraping, mobile cards, hybrid AI, system coordination
-- **Library-First Architecture**: 272 lines of custom code vs 3,785 lines eliminated through strategic library use
-- **Hybrid AI Processing**: vLLM local inference with cloud fallback for optimal cost/performance
-- **2-Tier Scraping Strategy**: JobSpy for job boards + ScrapeGraphAI for company pages
-- **Mobile-First Responsive Design**: CSS Grid layout supporting 320px-1920px viewports
-- **Production Performance**: <500ms response times, <3s AI processing, 95%+ success rates
-
-## System Architecture Overview
-
-### High-Level Architecture
+Labeled `st.page_link` controls expose **Jobs**, **Searches**, and **Insights** over hidden native Streamlit routing. This avoids the framework's inaccessible responsive drawer while preserving direct URLs. Every page calls services that share the engine and session helpers in `src/database.py`.
 
 ```mermaid
-graph TB
-    subgraph "User Interface Layer"
-        UI[Streamlit Web UI]
-        MOBILE[Mobile-First Cards]
-        SEARCH[Real-time Search]
-        ANALYTICS[Analytics Dashboard]
-    end
-    
-    subgraph "Orchestration Layer"
-        ORCHESTRATOR[Service Orchestrator]
-        TASK_MGR[Background Task Manager]
-        PROGRESS[Progress Tracker]
-        HEALTH[System Health Monitor]
-    end
-    
-    subgraph "AI Processing Layer"
-        ROUTER[Hybrid AI Router]
-        VLLM[vLLM Local Service]
-        CLOUD[Cloud AI Service]
-        COMPLEXITY[Task Complexity Analyzer]
-    end
-    
-    subgraph "Scraping Layer"
-        UNIFIED[Unified Scraper Service]
-        JOBSPY[JobSpy - Job Boards]
-        SCRAPEGRAPH[ScrapeGraphAI - Company Pages]
-        PROXIES[IPRoyal Proxies]
-    end
-    
-    subgraph "Data Layer"
-        DB[(SQLite + SQLModel)]
-        FTS5[SQLite FTS5 Search]
-        DUCKDB[DuckDB Analytics]
-        SYNC[Database Sync Service]
-    end
-    
-    UI --> ORCHESTRATOR
-    ORCHESTRATOR --> ROUTER
-    ORCHESTRATOR --> UNIFIED
-    ROUTER --> VLLM
-    ROUTER --> CLOUD
-    UNIFIED --> JOBSPY
-    UNIFIED --> SCRAPEGRAPH
-    SCRAPEGRAPH --> ROUTER
-    UNIFIED --> DB
-    DB --> FTS5
-    DB --> DUCKDB
-    FTS5 --> SEARCH
-    DUCKDB --> ANALYTICS
-    TASK_MGR --> PROGRESS
-    HEALTH --> ORCHESTRATOR
+flowchart LR
+    SearchesUI[Searches page] --> Searches[SavedSearchService]
+    Searches --> Runner[Saved-search runner]
+    Runner --> Scraper[JobSpy adapter]
+    Scraper --> Validation[Pydantic validation]
+    Validation --> Jobs[JobService transaction]
+    Jobs --> DB[(SQLite)]
+    DB --> Facets[CompanyService]
+    DB --> Search[JobSearchService]
+    DB --> Analytics[AnalyticsService]
+    JobsUI[Jobs page] --> Search
+    JobsUI --> Jobs
+    InsightsUI[Insights page] --> Facets
+    InsightsUI --> Analytics
 ```
 
-### Component Architecture
+## Interface ownership
 
-#### Phase 3A: Unified Scraping Service
+The interface keeps one implementation per task:
 
-- **JobSpy Integration**: Structured job board scraping (LinkedIn, Indeed, Glassdoor)
-- **ScrapeGraphAI Integration**: AI-powered company page extraction
-- **Proxy Management**: IPRoyal residential proxy rotation
-- **Error Recovery**: Tenacity retry logic with exponential backoff
-- **Performance**: 15x async improvement, 95%+ success rate
+| File | Owns |
+| --- | --- |
+| `src/main.py` | Page configuration and top navigation |
+| `src/ui/design.py` | Visual tokens, responsive CSS, reduced motion, and presentation helpers |
+| `src/ui/pages/jobs.py` | Workflow filters and job review mutations |
+| `src/ui/pages/searches.py` | Saved-search forms and manual runs |
+| `src/ui/pages/insights.py` | Read-only workflow, salary, trend, and company summaries |
 
-#### Phase 3B: Mobile-First Responsive Cards
+The application does not use a second component framework, custom browser detection, URL-state adapters, page-level service caches, or a parallel sidebar shell.
 
-- **CSS Grid Layout**: `repeat(auto-fill, minmax(300px, 1fr))` responsive design
-- **Mobile Detection**: JavaScript matchMedia API for accurate viewport detection
-- **Performance Optimization**: <200ms rendering for 50+ cards
-- **Touch-Friendly**: 44px minimum touch targets, hover states
+## Service ownership
 
-#### Phase 3C: Hybrid AI Integration
+Each mutable concept has one owner:
 
-- **Local vLLM Service**: Qwen2.5-4B-Instruct model, 200-300 tokens/s
-- **Cloud Fallback**: LiteLLM with GPT-4o-mini, Claude-3-Haiku
-- **Intelligent Routing**: Complexity-based routing (0.5 threshold)
-- **Structured Output**: Instructor integration for 15% reliability improvement
+| Component | Owns | Does not own |
+| --- | --- | --- |
+| `src/database.py` | Engine creation, session scope, commit, and rollback | Business queries |
+| `SavedSearchService` | Search definitions and latest run health | Persisted jobs |
+| `JobSpyScraper` | Provider parameters and row conversion | Database transactions |
+| `JobService` | Job queries, workflow state, deduplication, and scrape persistence | UI state |
+| `CompanyService` | Read-only company facets derived from jobs | Scrape configuration |
+| `JobSearchService` | Literal multi-term job search | Connections or result caches |
+| `AnalyticsService` | Personal-scale job aggregates | A second analytics database |
+| `CostMonitor` | Typed operational cost events and monthly budget health | Connections or UI alerts |
 
-#### Phase 3D: System Coordination
+## Job workflow contract
 
-- **Service Orchestration**: End-to-end workflow execution
-- **Background Tasks**: Async processing with progress tracking
-- **Health Monitoring**: Real-time service availability detection
-- **Progress Tracking**: ETA estimation with linear regression
+Every job has one typed `ApplicationStage` value:
 
-## API Documentation
+1. `Inbox`
+2. `Saved`
+3. `Applied`
+4. `Interviews`
+5. `Closed`
 
-### Core Service APIs
+The database enforces the same values with a check constraint. Stars and notes remain independent fields.
 
-#### Unified Scraping Service
+Alembic revision `8f4b2c91a3d7` maps the former stage values before adding the constraint. It maps `New` to `Inbox`, `Interested` to `Saved`, and `Rejected` to `Closed`. `Applied` stays `Applied`.
 
-```python
-class IScrapingService(Protocol):
-    async def scrape_job_boards(
-        self, 
-        query: JobQuery,
-        max_jobs: int = 50
-    ) -> AsyncGenerator[Job, None]:
-        """Scrape jobs from job boards using JobSpy."""
-        
-    async def scrape_company_pages(
-        self, 
-        urls: list[str],
-        enhance_with_ai: bool = True
-    ) -> AsyncGenerator[Job, None]:
-        """Scrape company pages using ScrapeGraphAI + AI enhancement."""
-        
-    async def get_scraping_status(self, task_id: str) -> ScrapingStatus:
-        """Get real-time status of background scraping task."""
+The same revision normalizes legacy null salary values and safely adopts any former service-owned cost table. Invalid legacy timestamps, ownership, or costs stop before schema DDL; legacy metadata remains readable as JSON objects. Migration provenance ensures downgrade preserves a cost table that existed before the revision.
+
+Follow-up revision `c91e7a4d2b6f` repairs databases already stamped by the draft migration. It imports the retired sibling `costs.db` once without changing that file, remaps colliding identifiers instead of overwriting canonical rows, and records the source-to-target identifier mapping for safe retries. It normalizes already-adopted cost metadata to JSON objects and losslessly converts two-element finite, integral numeric salary pairs to integer-or-null JSON. Any unsafe salary shape aborts the revision before mutation with the affected row and raw value so it can be repaired and retried. The revision then enforces the required salary column. SQLite migrations use native non-legacy transaction control so an interrupted schema change rolls back before retry.
+
+The follow-up downgrade is deliberately forward-only and does not delete imported history, provenance, or repaired salary data. Re-upgrading is idempotent.
+
+## Saved-search lifecycle
+
+A saved search is the only collection configuration. It stores the query, location, sites, remote flag, job type, result limit, and enabled state.
+
+The runner records one finite status:
+
+1. Record `running` before provider work starts
+2. Replace the lease timestamp with the completion time and record `succeeded` with jobs seen and inserted after a successful response
+3. Replace the lease timestamp with the completion time and record `failed` with an error after a provider or persistence failure
+4. Replace the lease timestamp with the completion time and record `cancelled` if task cancellation interrupts the run
+
+The contract also supports `never` and `partial`. Deleting or disabling a saved search never deletes persisted jobs.
+
+## Persistence rules
+
+Job upserts and the saved search's terminal run health share one transaction. A failure between those writes rolls back every job and company mutation from that result, so a run cannot leave durable jobs behind while still reporting `running`.
+
+The service enforces these rules:
+
+- A job needs a title, company, and direct or listing URL
+- The direct application URL wins when both URLs exist
+- The URL identifies an existing job
+- A repeated row updates provider-owned fields and preserves stage, star, notes, and archive state
+- A company exists only when a valid job references it
+- Company totals and latest-posted dates are aggregate query results
+
+## Search and analytics
+
+Search and analytics query the same committed state as the rest of the application. Neither service creates an engine or stores a duplicate cache.
+
+Search matches every whitespace-separated term across title, description, company, and location. It returns detached `Job` data transfer objects, so UI code never depends on a live session.
+
+Analytics computes job trends, company counts, and salary summaries with SQLAlchemy. Add another engine only after measured workload evidence justifies its lifecycle and consistency cost.
+
+## Verify the boundaries
+
+Run the architecture gates:
+
+```bash
+uv run --locked alembic check
+uv run --locked pytest -q
+uv run --locked ruff check .
 ```
 
-#### Hybrid AI Router
-
-```python
-class HybridAIRouter:
-    async def route_request(
-        self, 
-        content: str, 
-        task_type: str = "extraction"
-    ) -> AIResponse:
-        """Route AI requests based on complexity analysis."""
-        
-    async def analyze_complexity(self, content: str) -> float:
-        """Analyze content complexity for routing decisions."""
-        
-    def get_health_status(self) -> dict[str, Any]:
-        """Get health status of all AI services."""
-```
-
-#### Service Orchestrator
-
-```python
-class ServiceOrchestrator:
-    async def execute_integrated_workflow(
-        self,
-        query: str,
-        workflow_options: dict[str, Any]
-    ) -> str:
-        """Execute end-to-end workflow with progress tracking."""
-        
-    async def validate_production_readiness(self) -> dict[str, Any]:
-        """Comprehensive production readiness validation."""
-```
-
-### Database Schema
-
-#### Core Models (SQLModel)
-
-```python
-class JobSQL(SQLModel, table=True):
-    __tablename__ = "jobs"
-    
-    id: int | None = Field(default=None, primary_key=True)
-    title: str = Field(index=True)
-    company_name: str = Field(index=True)
-    location: str | None = None
-    salary_min: int | None = None
-    salary_max: int | None = None
-    description: str | None = None
-    url: str = Field(unique=True)
-    date_posted: datetime | None = None
-    status: JobStatus = Field(default=JobStatus.NEW)
-    
-    # Relationships
-    company_id: int | None = Field(foreign_key="companies.id")
-    company: "CompanySQL" = Relationship(back_populates="jobs")
-
-class CompanySQL(SQLModel, table=True):
-    __tablename__ = "companies"
-    
-    id: int | None = Field(default=None, primary_key=True)
-    name: str = Field(index=True, unique=True)
-    website: str | None = None
-    description: str | None = None
-    industry: str | None = None
-    size: str | None = None
-    
-    # Relationships
-    jobs: list["JobSQL"] = Relationship(back_populates="company")
-```
-
-## Component Integration Patterns
-
-### Data Flow Architecture
-
-```mermaid
-graph LR
-    subgraph "Input Sources"
-        JB[Job Boards]
-        CP[Company Pages]
-        USER[User Queries]
-    end
-    
-    subgraph "Processing Pipeline"
-        SCRAPER[Unified Scraper]
-        AI_ROUTER[AI Router]
-        VALIDATOR[Data Validator]
-        DB_SYNC[Database Sync]
-    end
-    
-    subgraph "Storage & Search"
-        DB[(SQLite Database)]
-        FTS5[FTS5 Search Index]
-        CACHE[Query Cache]
-    end
-    
-    subgraph "User Experience"
-        SEARCH_UI[Search Interface]
-        CARDS[Mobile Cards]
-        ANALYTICS[Analytics Dashboard]
-        STATUS[Progress Indicators]
-    end
-    
-    JB --> SCRAPER
-    CP --> SCRAPER
-    SCRAPER --> AI_ROUTER
-    AI_ROUTER --> VALIDATOR
-    VALIDATOR --> DB_SYNC
-    DB_SYNC --> DB
-    DB --> FTS5
-    USER --> SEARCH_UI
-    SEARCH_UI --> FTS5
-    FTS5 --> CARDS
-    DB --> ANALYTICS
-    SCRAPER --> STATUS
-```
-
-### Service Communication Patterns
-
-#### Async Background Processing
-
-```python
-# Background task coordination
-async def coordinate_scraping_workflow(query: JobQuery) -> str:
-    task_id = str(uuid.uuid4())
-    
-    # Initialize progress tracking
-    progress_tracker = get_progress_tracker()
-    await progress_tracker.start_tracking(task_id, estimated_duration=300)
-    
-    # Execute scraping workflow
-    orchestrator = get_service_orchestrator()
-    results = await orchestrator.execute_integrated_workflow(
-        query=query.search_term,
-        workflow_options={
-            "enable_ai_enhancement": True,
-            "max_jobs": query.max_results,
-            "enable_progress_tracking": True,
-        }
-    )
-    
-    await progress_tracker.complete_tracking(task_id)
-    return task_id
-```
-
-#### Error Recovery Patterns
-
-```python
-# Tenacity-based retry with exponential backoff
-@retry(
-    stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=1, min=2, max=10),
-    retry=retry_if_exception_type((httpx.RequestError, ScrapingServiceError)),
-    before_sleep=before_sleep_log(logger, logging.WARNING)
-)
-async def resilient_scraping_operation(url: str) -> dict[str, Any]:
-    async with httpx.AsyncClient(proxies=get_proxy()) as client:
-        response = await client.get(url, timeout=30.0)
-        response.raise_for_status()
-        return {"status": "success", "data": response.json()}
-```
-
-## Performance Characteristics
-
-### Measured Performance Metrics
-
-| Component | Metric | Target | Achieved | Notes |
-|-----------|--------|--------|----------|-------|
-| **Search Queries** | Response Time | <500ms | 5-300ms | Scales with dataset size (1K-500K jobs) |
-| **AI Processing** | Local vLLM | <3s | 1-2s | Qwen2.5-4B, content <8K tokens |
-| **AI Processing** | Cloud Fallback | <5s | 2-4s | GPT-4o-mini, complex content |
-| **UI Rendering** | Card Display | <200ms | <200ms | 50 cards, mobile-optimized |
-| **Scraping Success** | Job Boards | >90% | 95%+ | With proxy rotation |
-| **Memory Usage** | Total System | <8GB | 2-4GB | Including Docker containers |
-
-### Scalability Characteristics
-
-#### Database Performance (SQLite + FTS5)
-
-- **1K Jobs**: 5-15ms search, 2.5MB storage
-- **10K Jobs**: 15-50ms search, 27.5MB storage  
-- **100K Jobs**: 50-200ms search, 275MB storage
-- **500K Jobs**: 200-300ms search, 1.3GB storage (tested limit)
-
-#### AI Processing Distribution
-
-- **Local Processing**: 98% of requests (content <8K tokens)
-- **Cloud Fallback**: 2% of requests (complex content)
-- **Cost Impact**: $2.50/month vs $50/month (95% cost reduction)
-
-## Security Architecture
-
-### Data Protection
-
-- **Local-First Storage**: All job data stored locally in SQLite
-- **API Privacy**: Processing-only usage, no data retention by cloud services
-- **Proxy Security**: Residential proxy rotation with authentication
-- **Input Validation**: Pydantic schema validation for all data inputs
-
-### Operational Security
-
-- **Secret Management**: Environment-based API key management via pydantic-settings
-- **Network Security**: HTTPS enforcement, certificate validation
-- **Error Handling**: Sanitized error messages, no sensitive data exposure
-- **Session Management**: Streamlit session-based state isolation
-
-## Technology Stack Details
-
-### Core Infrastructure
-
-```yaml
-Runtime: Python 3.12+
-Package Manager: uv (modern pip replacement)
-Web Framework: Streamlit 1.47+
-Database: SQLite 3.38+ with WAL mode
-ORM: SQLModel 0.0.24+ (Pydantic + SQLAlchemy)
-Search: SQLite FTS5 with Porter stemming
-Analytics: DuckDB 0.9+ with sqlite_scanner
-```
-
-### AI & ML Stack
-
-```yaml
-Local AI: vLLM 0.6+ with Qwen2.5-4B-Instruct
-Cloud AI: LiteLLM 1.63+ (OpenAI, Anthropic)
-Structured Output: Instructor 1.8+ with Pydantic validation
-Token Analysis: tiktoken for complexity routing
-Embedding: OpenAI text-embedding-ada-002 (if needed)
-```
-
-### Scraping & Networking
-
-```yaml
-Job Boards: python-jobspy 1.1.82+
-AI Scraping: scrapegraphai 1.61+
-HTTP Client: httpx 0.28+ with async support
-Proxy Service: IPRoyal residential proxies
-User Agents: Random rotation with browser fingerprints
-Retry Logic: tenacity 8.0+ with exponential backoff
-```
-
-### DevOps & Monitoring
-
-```yaml
-Containerization: Docker + docker-compose
-Process Management: Python threading with asyncio
-Logging: Python logging with structured output
-Monitoring: Custom health checks and metrics
-Testing: pytest with factory-boy and hypothesis
-Code Quality: ruff (formatting + linting)
-```
-
-## Deployment Architecture
-
-### Container Architecture
-
-```yaml
-# docker-compose.yml structure
-services:
-  ai-job-scraper:
-    build: .
-    ports: ["8501:8501"]
-    volumes: 
-      - "./src:/app/src"      # Hot reload
-      - "./jobs.db:/app/jobs.db"  # Data persistence
-    environment:
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - PROXY_POOL=${PROXY_POOL}
-      
-  vllm-server:  # Optional local AI
-    image: vllm/vllm-openai:latest
-    command: |
-      --model Qwen/Qwen2.5-4B-Instruct
-      --port 8000 --api-key local-key
-    ports: ["8000:8000"]
-    runtime: nvidia  # GPU support
-```
-
-### Configuration Management
-
-```python
-# Environment-based configuration
-class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env")
-    
-    openai_api_key: str = ""
-    ai_token_threshold: int = 8000
-    proxy_pool: list[str] = []
-    use_proxies: bool = False
-    db_url: str = "sqlite:///jobs.db"
-    
-    # SQLite optimization
-    sqlite_pragmas: list[str] = [
-        "PRAGMA journal_mode = WAL",
-        "PRAGMA synchronous = NORMAL", 
-        "PRAGMA cache_size = 64000",
-        "PRAGMA temp_store = MEMORY",
-        "PRAGMA mmap_size = 134217728",
-        "PRAGMA foreign_keys = ON",
-        "PRAGMA optimize"
-    ]
-```
-
-## Integration Validation
-
-### Health Check Endpoints
-
-```python
-# System health monitoring
-health_monitor = get_system_health_monitor()
-
-# Database connectivity
-db_health = await health_monitor.check_database_health()
-
-# AI service availability  
-ai_health = await health_monitor.check_ai_services_health()
-
-# External service dependencies
-proxy_health = await health_monitor.check_proxy_health()
-scraping_health = await health_monitor.check_scraping_services_health()
-
-# Comprehensive system status
-system_status = await health_monitor.get_comprehensive_health_report()
-```
-
-### Production Readiness Validation
-
-```python
-# Automated production checks
-orchestrator = get_service_orchestrator() 
-readiness_report = await orchestrator.validate_production_readiness()
-
-# Report includes:
-# - Service availability (database, AI, proxies)
-# - Configuration completeness
-# - Performance benchmarks
-# - Error recovery testing
-# - Resource utilization analysis
-```
-
-This technical architecture provides the foundation for a scalable, maintainable, and production-ready AI job scraper system with comprehensive monitoring, error recovery, and performance optimization capabilities.
+ADR-037 records the interface decision. ADR-041 records the data-boundary decision.

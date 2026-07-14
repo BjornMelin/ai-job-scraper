@@ -1,1 +1,1 @@
-"""UI components and pages for the AI Job Scraper application."""
+"""UI components and pages for Job Tracker."""

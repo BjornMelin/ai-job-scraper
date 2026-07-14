@@ -12,11 +12,9 @@ from datetime import UTC, datetime
 from typing import Any
 
 import pytest
-
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
-
-from src.models import CompanySQL, JobSQL
+from src.database_models import CompanySQL, JobSQL
 
 
 def create_test_job_data(**overrides: "Any") -> dict[str, "Any"]:
@@ -31,6 +29,7 @@ def create_test_job_data(**overrides: "Any") -> dict[str, "Any"]:
     import hashlib
 
     default_data = {
+        "company_id": 1,
         "title": "Test Job",
         "description": "Test description",
         "link": "https://test.com/job",
@@ -66,7 +65,7 @@ def test_company_sql_creation(session: Session) -> None:
     Validates that CompanySQL instances can be created, persisted to
     the database, and retrieved with all fields intact.
     """
-    company = CompanySQL(name="Test Co", url="https://test.co/careers", active=True)
+    company = CompanySQL(name="Test Co", url="https://test.co/careers")
     session.add(company)
     session.commit()
     session.refresh(company)
@@ -74,7 +73,7 @@ def test_company_sql_creation(session: Session) -> None:
     result = session.exec(select(CompanySQL).where(CompanySQL.name == "Test Co"))
     retrieved = result.first()
     assert retrieved.name == "Test Co"
-    assert retrieved.active is True
+    assert retrieved.url == "https://test.co/careers"
 
 
 def test_company_unique_name(session: Session) -> None:
@@ -83,11 +82,11 @@ def test_company_unique_name(session: Session) -> None:
     Verifies that attempting to create companies with duplicate names
     raises an IntegrityError due to unique constraint violation.
     """
-    company1 = CompanySQL(name="Unique Co", url="https://unique1.co", active=True)
+    company1 = CompanySQL(name="Unique Co", url="https://unique1.co")
     session.add(company1)
     session.commit()
 
-    company2 = CompanySQL(name="Unique Co", url="https://unique2.co", active=False)
+    company2 = CompanySQL(name="Unique Co", url="https://unique2.co")
     session.add(company2)
     with pytest.raises(IntegrityError):
         session.commit()
@@ -104,7 +103,6 @@ def test_job_sql_creation(session: Session) -> None:
     company = CompanySQL(
         name="AI Test Co",
         url="https://ai-test.co/careers",
-        active=True,
     )
     session.add(company)
     session.commit()
@@ -123,7 +121,7 @@ def test_job_sql_creation(session: Session) -> None:
 
     result = session.exec(select(JobSQL).where(JobSQL.title == "AI Engineer"))
     retrieved = result.first()
-    assert retrieved.company == "AI Test Co"
+    assert session.get(CompanySQL, retrieved.company_id).name == "AI Test Co"
     assert list(retrieved.salary) == [
         100000,
         150000,
@@ -136,9 +134,14 @@ def test_job_unique_link(session: Session) -> None:
     Verifies that attempting to create jobs with duplicate links
     raises an IntegrityError due to unique constraint violation.
     """
+    company = CompanySQL(name="Link Co", url=None)
+    session.add(company)
+    session.flush()
+
     # Create first job
     create_and_save_job(
         session,
+        company_id=company.id,
         title="Job1",
         description="Desc1",
         link="https://test.co/job",
@@ -147,6 +150,7 @@ def test_job_unique_link(session: Session) -> None:
 
     # Attempt to create second job with same link
     job2_data = create_test_job_data(
+        company_id=company.id,
         title="Job2",
         description="Desc2",
         link="https://test.co/job",
@@ -160,7 +164,7 @@ def test_job_unique_link(session: Session) -> None:
 
 @pytest.mark.parametrize(
     ("salary_input", "expected"),
-    (
+    [
         # Basic range formats
         ("$100k-150k", (100000, 150000)),
         ("£80,000 - £120,000", (80000, 120000)),
@@ -260,7 +264,7 @@ def test_job_unique_link(session: Session) -> None:
             ),  # Detects monthly pattern, converts to annual
         ),
         ("$1,250,000-$1,500,000", (1250000, 1500000)),  # Range with multiple commas
-    ),
+    ],
 )
 def test_salary_parsing(
     salary_input: "Any",

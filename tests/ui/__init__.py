@@ -1,1 +1,1 @@
-"""UI test package for AI Job Scraper."""
+"""UI behavior tests for the three-page Job Tracker interface."""

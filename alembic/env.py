@@ -9,10 +9,13 @@ from logging.config import fileConfig
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
-from sqlmodel import SQLModel
-
-# Import Settings and models for autogeneration
 from src.config import Settings
+from src.database_models import AppSQLModel
+
+_MIGRATION_STATE_TABLES = {
+    "_alembic_8f4b2c91a3d7_state",
+    "_alembic_c91e7a4d2b6f_legacy_cost_imports",
+}
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -27,11 +30,9 @@ config.set_main_option("sqlalchemy.url", settings.db_url)
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Import all models to ensure they are registered with SQLModel.metadata
-# ruff: noqa: E402
 
-# Set target_metadata to SQLModel.metadata for autogenerate support
-target_metadata = SQLModel.metadata
+# Set target_metadata to the application-owned registry for autogenerate support.
+target_metadata = AppSQLModel.metadata
 
 # Naming convention for cleaner constraint names
 NAMING_CONVENTION = {
@@ -42,12 +43,20 @@ NAMING_CONVENTION = {
     "pk": "pk_%(table_name)s",
 }
 
+
+def _include_object(object_, name, type_, reflected, compare_to) -> bool:
+    """Exclude migration bookkeeping that is not application-owned schema."""
+    del object_, reflected, compare_to
+    return not (type_ == "table" and name in _MIGRATION_STATE_TABLES)
+
+
 # Common configuration shared by online and offline modes
 COMMON_CFG = {
     "target_metadata": target_metadata,
     "compare_type": True,
     "render_as_batch": True,  # Enable batch mode for SQLite
     "naming_convention": NAMING_CONVENTION,
+    "include_object": _include_object,
 }
 
 # other values from the config, defined by the needs of env.py,
@@ -67,7 +76,14 @@ def _configure_offline() -> None:
 
 def _configure_online(connection) -> None:
     """Configure context for online migrations."""
-    context.configure(connection=connection, **COMMON_CFG)
+    options = dict(COMMON_CFG)
+    if connection.dialect.name == "sqlite":
+        # Python 3.12 defaults to legacy transaction control, which does not
+        # begin a transaction for DDL. Native PEP 249 mode makes Alembic's
+        # transaction cover schema changes as well as data changes.
+        connection.connection.driver_connection.autocommit = False
+        options["transactional_ddl"] = True
+    context.configure(connection=connection, **options)
 
 
 def run_migrations_offline() -> None:

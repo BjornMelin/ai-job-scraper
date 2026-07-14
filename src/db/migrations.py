@@ -1,4 +1,4 @@
-"""Database migration utilities for the AI Job Scraper.
+"""Database migration utilities for Job Tracker.
 
 This module provides utilities for running Alembic database migrations
 during application startup, ensuring the database schema stays in sync
@@ -6,6 +6,8 @@ with the application code.
 """
 
 import logging
+from functools import cache
+from pathlib import Path
 
 from alembic import command
 from alembic.config import Config
@@ -15,6 +17,7 @@ from sqlalchemy.exc import SQLAlchemyError
 logger = logging.getLogger(__name__)
 
 
+@cache
 def run_migrations() -> None:
     """Run Alembic database migrations to head revision.
 
@@ -32,8 +35,7 @@ def run_migrations() -> None:
     try:
         logger.info("Starting database migrations...")
 
-        # Load Alembic configuration from alembic.ini
-        alembic_cfg = Config("alembic.ini")
+        alembic_cfg = Config(str(Path(__file__).resolve().parents[2] / "alembic.ini"))
 
         # Run migrations to head (latest) revision
         # This is idempotent - safe to run multiple times
@@ -46,9 +48,4 @@ def run_migrations() -> None:
             "Failed to run database migrations [%s]",
             type(e).__name__,
         )
-        # Don't raise the exception to prevent app startup failure
-        # The app can still work with the current database state
-        logger.warning(
-            "Application will continue with current database schema. "
-            "Manual migration may be required.",
-        )
+        raise

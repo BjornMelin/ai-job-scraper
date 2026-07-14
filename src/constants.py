@@ -1,4 +1,4 @@
-"""Shared constants for the AI Job Scraper application.
+"""Shared constants for Job Tracker.
 
 This module defines constants used across scraping modules, such as regex patterns
 for filtering AI-related job titles and default search keywords/locations.
@@ -77,6 +77,3 @@ SALARY_DEFAULT_MAX = SALARY_UNBOUNDED_THRESHOLD
 # UI constants for salary slider
 SALARY_SLIDER_STEP = 25000
 SALARY_SLIDER_FORMAT = "$%dk"
-
-# Application status options
-APPLICATION_STATUSES = ["New", "Interested", "Applied", "Rejected"]

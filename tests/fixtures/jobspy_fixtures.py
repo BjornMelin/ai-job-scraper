@@ -1,16 +1,36 @@
-"""Comprehensive test fixtures for JobSpy integration testing.
+"""Comprehensive JobSpy test fixtures using polyfactory for type-safe generation.
 
-This module provides realistic mock data and fixtures for testing JobSpy integration
-without making actual network calls. All data is completely mocked for fast,
-deterministic testing.
+This module provides pytest fixtures for mocking JobSpy responses with comprehensive
+edge case coverage including malformed data, empty responses, and realistic job
+datasets.
+
+Key Features:
+- Type-safe polyfactory integration with JobPosting models
+- Parametrized fixtures for different response scenarios
+- Extensive edge case coverage (Unicode, extreme values, duplicates)
+- Performance-optimized fixture scoping
+- Realistic and malformed DataFrame generation
+
+Usage:
+    @pytest.mark.parametrize(
+        "jobspy_response", ["valid", "empty", "malformed"], indirect=True
+    )
+    def test_with_different_responses(jobspy_response):
+        # jobspy_response is a pandas DataFrame
+        pass
 """
 
-from datetime import datetime
+from __future__ import annotations
+
+from datetime import UTC, date, datetime
+from decimal import Decimal
 from typing import Any
 
 import pandas as pd
 import pytest
-
+from faker import Faker
+from polyfactory import Use
+from polyfactory.factories.pydantic_factory import ModelFactory
 from src.models.job_models import (
     JobPosting,
     JobScrapeRequest,
@@ -20,382 +40,640 @@ from src.models.job_models import (
     LocationType,
 )
 
+fake = Faker()
 
-@pytest.fixture
-def sample_jobspy_raw_data() -> list[dict[str, Any]]:
-    """Raw data that JobSpy would return as DataFrame rows."""
-    return [
-        {
-            "id": "job_001_linkedin",
-            "site": "linkedin",
-            "job_url": "https://linkedin.com/jobs/12345",
-            "job_url_direct": "https://linkedin.com/jobs/12345?apply=true",
-            "title": "Senior Python Developer",
-            "company": "TechCorp Inc",
-            "location": "San Francisco, CA",
-            "date_posted": "2024-01-15",
-            "job_type": "fulltime",
-            "salary_source": "employer",
-            "interval": "yearly",
-            "min_amount": 120000.0,
-            "max_amount": 180000.0,
-            "currency": "USD",
-            "is_remote": False,
-            "location_type": "onsite",
-            "job_level": "Senior",
-            "job_function": "Engineering",
-            "listing_type": "external",
-            "description": "We are seeking a Senior Python Developer to join our team...",
-            "emails": ["jobs@techcorp.com"],
-            "skills": ["Python", "Django", "PostgreSQL", "AWS"],
-            "experience_range": "5-8 years",
-            "vacancy_count": 3,
-            "company_industry": "Technology",
-            "company_url": "https://techcorp.com",
-            "company_logo": "https://techcorp.com/logo.png",
-            "company_url_direct": "https://techcorp.com/careers",
-            "company_addresses": ["123 Tech St, San Francisco, CA"],
-            "company_num_employees": "1001-5000",
-            "company_revenue": "$100M-500M",
-            "company_description": "Leading technology company focused on innovation",
-            "company_rating": 4.5,
-            "company_reviews_count": 1250,
-        },
-        {
-            "id": "job_002_indeed",
-            "site": "indeed",
-            "job_url": "https://indeed.com/jobs/67890",
-            "job_url_direct": None,
-            "title": "Data Scientist",
-            "company": "DataCo Analytics",
-            "location": "Remote",
-            "date_posted": "2024-01-14",
-            "job_type": "contract",
-            "salary_source": None,
-            "interval": None,
-            "min_amount": None,
-            "max_amount": None,
-            "currency": None,
-            "is_remote": True,
-            "location_type": "remote",
-            "job_level": "Mid",
-            "job_function": "Data Science",
-            "listing_type": "premium",
-            "description": "Join our data science team to build ML models...",
-            "emails": None,
-            "skills": ["Python", "TensorFlow", "SQL", "Statistics"],
-            "experience_range": "3-5 years",
-            "vacancy_count": 1,
-            "company_industry": "Analytics",
-            "company_url": "https://dataco.com",
-            "company_logo": None,
-            "company_url_direct": "https://dataco.com/jobs",
-            "company_addresses": None,
-            "company_num_employees": "51-200",
-            "company_revenue": None,
-            "company_description": "Analytics consulting firm",
-            "company_rating": None,
-            "company_reviews_count": None,
-        },
-        {
-            "id": "job_003_glassdoor",
-            "site": "glassdoor",
-            "job_url": "https://glassdoor.com/jobs/11111",
-            "job_url_direct": "https://glassdoor.com/jobs/11111/apply",
-            "title": "Frontend Developer",
-            "company": "StartupCo",
-            "location": "Austin, TX",
-            "date_posted": "2024-01-13",
-            "job_type": "fulltime",
-            "salary_source": "glassdoor_estimate",
-            "interval": "yearly",
-            "min_amount": 80000.0,
-            "max_amount": 120000.0,
-            "currency": "USD",
-            "is_remote": False,
-            "location_type": "hybrid",
-            "job_level": "Junior",
-            "job_function": "Engineering",
-            "listing_type": "standard",
-            "description": "Looking for a creative frontend developer...",
-            "emails": ["hiring@startupco.com", "tech@startupco.com"],
-            "skills": ["React", "JavaScript", "CSS", "HTML"],
-            "experience_range": "1-3 years",
-            "vacancy_count": 2,
-            "company_industry": "Software",
-            "company_url": "https://startupco.com",
-            "company_logo": "https://startupco.com/assets/logo.jpg",
-            "company_url_direct": "https://startupco.com/careers",
-            "company_addresses": ["456 Startup Blvd, Austin, TX"],
-            "company_num_employees": "11-50",
-            "company_revenue": "$1M-10M",
-            "company_description": "Innovative startup in the fintech space",
-            "company_rating": 3.8,
-            "company_reviews_count": 45,
-        },
-    ]
+# =============================================================================
+# POLYFACTORY FACTORIES FOR TYPE-SAFE GENERATION
+# =============================================================================
 
 
-@pytest.fixture
-def sample_jobspy_dataframe(sample_jobspy_raw_data) -> pd.DataFrame:
-    """Mock JobSpy DataFrame output with realistic data."""
-    return pd.DataFrame(sample_jobspy_raw_data)
+class JobPostingFactory(ModelFactory[JobPosting]):
+    """Factory for generating type-safe JobPosting instances."""
+
+    __model__ = JobPosting
+    __check_model__ = False
+
+    # Core fields with realistic data
+    id = Use(lambda: f"job_{fake.uuid4()}")
+    site = Use(lambda: fake.random_element(list(JobSite)))
+    job_url = Use(lambda: fake.url())
+    job_url_direct = Use(lambda: fake.url())
+    title = Use(lambda: fake.job())
+    company = Use(lambda: fake.company())
+    location = Use(lambda: fake.city())
+    date_posted = Use(lambda: fake.date_between(start_date="-30d", end_date="today"))
+
+    # Job type and location
+    job_type = Use(lambda: fake.random_element(list(JobType)))
+    is_remote = Use(lambda: fake.boolean())
+    location_type = Use(lambda: fake.random_element(list(LocationType)))
+
+    # Salary information
+    salary_source = Use(
+        lambda: fake.random_element(["Employer", "Glassdoor", "Indeed", "PayScale"])
+    )
+    interval = Use(lambda: fake.random_element(["yearly", "monthly", "hourly"]))
+    min_amount = Use(lambda: fake.random_int(min=50000, max=120000))
+    max_amount = Use(lambda: fake.random_int(min=120000, max=200000))
+    currency = Use(lambda: fake.random_element(["USD", "EUR", "GBP", "CAD"]))
+
+    # Job details
+    job_level = Use(
+        lambda: fake.random_element(["Entry", "Mid", "Senior", "Executive"])
+    )
+    job_function = Use(
+        lambda: fake.random_element(
+            ["Engineering", "Marketing", "Sales", "HR", "Finance"]
+        )
+    )
+    listing_type = Use(
+        lambda: fake.random_element(["External", "Internal", "Easy Apply"])
+    )
+    description = Use(lambda: fake.text(max_nb_chars=500))
+    emails = Use(lambda: [fake.email() for _ in range(fake.random_int(min=0, max=3))])
+    skills = Use(lambda: [fake.word() for _ in range(fake.random_int(min=3, max=10))])
+    experience_range = Use(
+        lambda: (
+            f"{fake.random_int(min=1, max=3)}-{fake.random_int(min=4, max=10)} years"
+        )
+    )
+    vacancy_count = Use(lambda: fake.random_int(min=1, max=5))
+
+    # Company information
+    company_industry = Use(
+        lambda: fake.random_element(
+            ["Technology", "Healthcare", "Finance", "Education", "Retail"]
+        )
+    )
+    company_url = Use(lambda: fake.url())
+    company_logo = Use(lambda: fake.image_url())
+    company_url_direct = Use(lambda: fake.url())
+    company_addresses = Use(
+        lambda: [fake.address() for _ in range(fake.random_int(min=1, max=3))]
+    )
+    company_num_employees = Use(
+        lambda: fake.random_element(["1-10", "11-50", "51-200", "201-1000", "1000+"])
+    )
+    company_revenue = Use(
+        lambda: fake.random_element(
+            ["<$1M", "$1M-$5M", "$5M-$50M", "$50M-$500M", "$500M+"]
+        )
+    )
+    company_description = Use(lambda: fake.text(max_nb_chars=300))
+    company_rating = Use(lambda: round(fake.random.uniform(1.0, 5.0), 1))
+    company_reviews_count = Use(lambda: fake.random_int(min=10, max=5000))
+
+    @classmethod
+    def to_dataframe(cls, count: int = 10) -> pd.DataFrame:
+        """Generate a pandas DataFrame with specified number of jobs.
+
+        Args:
+            count: Number of job records to generate
+
+        Returns:
+            pandas DataFrame with JobPosting-compatible structure
+        """
+        jobs = [cls.build() for _ in range(count)]
+        return pd.DataFrame([job.model_dump() for job in jobs])
+
+    @classmethod
+    def build_malformed(cls) -> dict[str, Any]:
+        """Build a malformed job record for testing error handling."""
+        return {
+            "id": None,  # Missing required field
+            "title": "",  # Empty string
+            "company": 12345,  # Wrong type
+            "location": {"invalid": "object"},  # Wrong type
+            "min_amount": "not_a_number",  # Invalid float
+            "max_amount": Decimal("150000.50"),  # Non-standard number type
+            "date_posted": "invalid_date",  # Invalid date
+            "emails": "not_a_list",  # Wrong type for list field
+            "skills": None,  # Null list field
+            "company_rating": "five_stars",  # Invalid rating
+            "is_remote": "maybe",  # Invalid boolean
+            "site": "unknown_site",  # Invalid enum
+            "job_type": "",  # Empty enum
+        }
+
+    @classmethod
+    def build_edge_case(cls) -> dict[str, Any]:
+        """Build an edge case job record with extreme/unusual values."""
+        return {
+            "id": "job_" + "🎯" * 10,  # Unicode in ID
+            "title": "Senior 🚀 Full-Stack Engineer 💻 (Remote) - €€€",  # Unicode/emoji
+            "company": "ÄÄÄÄ Corporation 中文公司",  # International characters
+            "location": "New York, NY; San Francisco, CA; Remote",  # Multiple locations
+            "min_amount": 1000000.0,  # Extremely high salary
+            "max_amount": 999999.0,  # Invalid range (max < min)
+            "date_posted": date(2030, 1, 1),  # Future date
+            "emails": ["test@" + "x" * 100 + ".com"],  # Very long email
+            "skills": ["Python"] * 50,  # Duplicate skills
+            "company_rating": 5.5,  # Invalid rating (>5.0)
+            "vacancy_count": -1,  # Negative count
+            "experience_range": "0-0 years",  # Zero experience
+            "company_num_employees": "Unknown",  # Non-standard format
+            "site": JobSite.LINKEDIN,
+            "job_type": JobType.FULLTIME,
+        }
 
 
-@pytest.fixture
-def empty_jobspy_dataframe() -> pd.DataFrame:
-    """Empty DataFrame simulating no results from JobSpy."""
+class JobScrapeRequestFactory(ModelFactory[JobScrapeRequest]):
+    """Factory for generating type-safe JobScrapeRequest instances."""
+
+    __model__ = JobScrapeRequest
+    __check_model__ = False
+
+    site_name = Use(lambda: fake.random_element(list(JobSite)))
+    search_term = Use(
+        lambda: fake.random_element(
+            [
+                "Python Developer",
+                "Data Scientist",
+                "Machine Learning Engineer",
+                "Software Engineer",
+                "DevOps Engineer",
+                "Product Manager",
+            ]
+        )
+    )
+    google_search_term = Use(lambda: fake.random_element([None, fake.job()]))
+    location = Use(lambda: fake.city())
+    distance = Use(lambda: fake.random_int(min=10, max=100))
+    is_remote = Use(lambda: fake.boolean())
+    job_type = Use(lambda: fake.random_element([None, *list(JobType)]))
+    easy_apply = Use(lambda: fake.random_element([None, True, False]))
+    results_wanted = Use(lambda: fake.random_int(min=10, max=100))
+    country_indeed = Use(
+        lambda: fake.random_element(["usa", "canada", "uk", "germany"])
+    )
+    offset = Use(lambda: fake.random_int(min=0, max=50))
+    hours_old = Use(
+        lambda: fake.random_element([None, 24, 72, 168])
+    )  # 1 day, 3 days, 1 week
+    enforce_annual_salary = Use(lambda: fake.boolean())
+    linkedin_fetch_description = Use(lambda: fake.boolean())
+    description_format = Use(lambda: fake.random_element(["markdown", "html", "text"]))
+
+
+# =============================================================================
+# BASIC FIXTURES
+# =============================================================================
+
+
+@pytest.fixture(scope="session")
+def empty_jobspy_response() -> pd.DataFrame:
+    """Empty JobSpy DataFrame response."""
     return pd.DataFrame()
 
 
-@pytest.fixture
-def malformed_jobspy_dataframe() -> pd.DataFrame:
-    """DataFrame with malformed/missing data for edge case testing."""
+@pytest.fixture(scope="session")
+def minimal_jobspy_response() -> pd.DataFrame:
+    """Minimal valid JobSpy response with required fields only."""
     return pd.DataFrame(
         [
             {
-                "id": "malformed_001",
-                "site": "unknown_site",  # Invalid site
-                "title": "",  # Empty title
-                "company": None,  # None company
-                "location": "Invalid Location Format",
-                "date_posted": "invalid-date",  # Invalid date
-                "job_type": "unknown_type",  # Invalid job type
-                "min_amount": "not_a_number",  # Invalid salary
-                "max_amount": "",  # Empty salary
-                "is_remote": "maybe",  # Invalid boolean
-                "company_rating": "five_stars",  # Invalid rating
+                "id": "minimal_job_1",
+                "site": "linkedin",
+                "title": "Test Job",
+                "company": "Test Company",
             }
         ]
     )
 
 
-@pytest.fixture
-def sample_job_scrape_request() -> JobScrapeRequest:
-    """Standard job scrape request for testing."""
-    return JobScrapeRequest(
-        site_name=[JobSite.LINKEDIN, JobSite.INDEED],
-        search_term="Python developer",
-        location="San Francisco, CA",
-        distance=25,
-        is_remote=False,
-        job_type=JobType.FULLTIME,
-        results_wanted=50,
-        hours_old=24,
-    )
+@pytest.fixture(scope="session")
+def valid_jobspy_response() -> pd.DataFrame:
+    """Standard valid JobSpy response with realistic data."""
+    return JobPostingFactory.to_dataframe(count=5)
 
 
-@pytest.fixture
-def remote_job_scrape_request() -> JobScrapeRequest:
-    """Remote job scrape request for testing location types."""
-    return JobScrapeRequest(
-        site_name=JobSite.LINKEDIN,
-        search_term="Data Scientist",
-        location="Remote",
-        is_remote=True,
-        job_type=JobType.CONTRACT,
-        results_wanted=25,
-    )
+@pytest.fixture(scope="session")
+def large_jobspy_response() -> pd.DataFrame:
+    """Large JobSpy response for performance testing."""
+    return JobPostingFactory.to_dataframe(count=1000)
 
 
-@pytest.fixture
-def sample_job_postings(sample_jobspy_raw_data) -> list[JobPosting]:
-    """List of JobPosting objects for testing."""
-    return [JobPosting.model_validate(data) for data in sample_jobspy_raw_data]
-
-
-@pytest.fixture
-def sample_job_scrape_result(
-    sample_job_postings, sample_job_scrape_request
-) -> JobScrapeResult:
-    """Complete job scrape result for testing."""
-    return JobScrapeResult(
-        jobs=sample_job_postings,
-        total_found=len(sample_job_postings),
-        request_params=sample_job_scrape_request,
-        metadata={
-            "scrape_timestamp": datetime.now().isoformat(),
-            "success_rate": 1.0,
-            "total_sites_scraped": 2,
-        },
-    )
-
-
-@pytest.fixture
-def mock_jobspy_scrape_success(monkeypatch, sample_jobspy_dataframe):
-    """Mock jobspy.scrape_jobs function to return successful results."""
-
-    def mock_scrape_jobs(**kwargs):
-        # Simulate realistic behavior based on parameters
-        df = sample_jobspy_dataframe.copy()
-
-        # Filter by site if specified
-        if kwargs.get("site_name"):
-            sites = (
-                kwargs["site_name"]
-                if isinstance(kwargs["site_name"], list)
-                else [kwargs["site_name"]]
-            )
-            site_names = [
-                site.value if hasattr(site, "value") else str(site).lower()
-                for site in sites
-            ]
-            df = df[df["site"].isin(site_names)]
-
-        # Limit results if specified
-        if kwargs.get("results_wanted"):
-            df = df.head(kwargs["results_wanted"])
-
-        return df
-
-    monkeypatch.setattr("jobspy.scrape_jobs", mock_scrape_jobs)
-    return mock_scrape_jobs
-
-
-@pytest.fixture
-def mock_jobspy_scrape_empty(monkeypatch, empty_jobspy_dataframe):
-    """Mock jobspy.scrape_jobs to return no results."""
-
-    def mock_scrape_jobs(**kwargs):
-        return empty_jobspy_dataframe
-
-    monkeypatch.setattr("jobspy.scrape_jobs", mock_scrape_jobs)
-    return mock_scrape_jobs
-
-
-@pytest.fixture
-def mock_jobspy_scrape_error(monkeypatch):
-    """Mock jobspy.scrape_jobs to raise an exception."""
-
-    def mock_scrape_jobs(**kwargs):
-        raise ConnectionError("Failed to connect to job site")
-
-    monkeypatch.setattr("jobspy.scrape_jobs", mock_scrape_jobs)
-    return mock_scrape_jobs
-
-
-@pytest.fixture
-def mock_jobspy_scrape_malformed(monkeypatch, malformed_jobspy_dataframe):
-    """Mock jobspy.scrape_jobs to return malformed data."""
-
-    def mock_scrape_jobs(**kwargs):
-        return malformed_jobspy_dataframe
-
-    monkeypatch.setattr("jobspy.scrape_jobs", mock_scrape_jobs)
-    return mock_scrape_jobs
-
-
-@pytest.fixture
-def jobsite_enum_values():
-    """All valid JobSite enum values for parametrized testing."""
-    return list(JobSite)
-
-
-@pytest.fixture
-def jobtype_enum_values():
-    """All valid JobType enum values for parametrized testing."""
-    return list(JobType)
-
-
-@pytest.fixture
-def locationtype_enum_values():
-    """All valid LocationType enum values for parametrized testing."""
-    return list(LocationType)
-
-
-@pytest.fixture
-def edge_case_test_data():
-    """Edge cases for comprehensive validation testing."""
-    return {
-        "empty_strings": {"title": "", "company": "", "location": ""},
-        "none_values": {"title": None, "company": None, "location": None},
-        "whitespace_only": {"title": "   ", "company": "\t", "location": "\n"},
-        "very_long_strings": {
-            "title": "a" * 1000,
-            "company": "b" * 500,
-            "location": "c" * 200,
-        },
-        "special_characters": {
-            "title": "Software Engineer @#$%^&*()",
-            "company": "Company & Associates, LLC.",
-            "location": "São Paulo, Brazil",
-        },
-        "numeric_strings": {
-            "title": "123456",
-            "company": "999",
-            "location": "12345",
-        },
-    }
-
-
-@pytest.fixture
-def performance_test_data():
-    """Large dataset for performance testing."""
-    base_data = {
-        "id": "perf_job_{i}",
-        "site": "linkedin",
-        "title": "Software Engineer {i}",
-        "company": "Company {i}",
-        "location": "City {i}, State",
-        "date_posted": "2024-01-15",
-        "job_type": "fulltime",
-        "is_remote": False,
-    }
-
-    # Generate 1000 jobs for performance testing
-    return [
+@pytest.fixture(scope="session")
+def malformed_jobspy_response() -> pd.DataFrame:
+    """JobSpy response with various malformed data scenarios."""
+    malformed_jobs = [
+        JobPostingFactory.build_malformed(),
+        JobPostingFactory.build_malformed(),
         {
-            k: v.format(i=i) if isinstance(v, str) and "{i}" in v else v
-            for k, v in base_data.items()
-        }
-        for i in range(1000)
+            "title": None,  # Missing title
+            "company": "",  # Empty company
+            "location": "   ",  # Whitespace only
+        },
+        {
+            "id": "",  # Empty ID
+            "salary": "competitive",  # Non-numeric salary
+            "missing_required_fields": True,
+        },
     ]
+    return pd.DataFrame(malformed_jobs)
 
 
-# Async test helpers
+@pytest.fixture(scope="session")
+def edge_case_jobspy_response() -> pd.DataFrame:
+    """JobSpy response with edge cases and extreme values."""
+    edge_cases = [
+        JobPostingFactory.build_edge_case(),
+        {
+            "id": "duplicate_id",  # Will be duplicated
+            "title": "Job 1",
+            "company": "Company A",
+        },
+        {
+            "id": "duplicate_id",  # Duplicate ID
+            "title": "Job 2",
+            "company": "Company B",
+        },
+        {
+            "id": "unicode_test_🔥",
+            "title": "Software Engineer 👨‍💻",
+            "company": "Tech Corp 🏢",
+            "location": "San Francisco 🌉",
+            "description": "Join our team! 🎉 We're looking for a passionate "
+            "developer 💪",
+        },
+    ]
+    return pd.DataFrame(edge_cases)
 
 
-@pytest.fixture
-async def async_mock_jobspy_success():
-    """Async wrapper for successful JobSpy mocking."""
+@pytest.fixture(scope="session")
+def mixed_types_jobspy_response() -> pd.DataFrame:
+    """JobSpy response with mixed and inconsistent data types."""
+    mixed_data = [
+        {
+            "id": 12345,  # Integer instead of string
+            "title": ["Job Title as List"],  # List instead of string
+            "company": True,  # Boolean instead of string
+            "min_amount": "50k",  # String instead of float
+            "max_amount": None,  # None value
+            "date_posted": 1640995200,  # Unix timestamp
+            "skills": "Python,Java,SQL",  # Comma-separated string instead of list
+            "is_remote": 1,  # Integer instead of boolean
+            "company_rating": "4.5 stars",  # String with units
+        },
+        {
+            "id": None,  # None ID
+            "title": "",  # Empty string
+            "company": 0,  # Zero as company
+            "location": {},  # Empty dict
+            "emails": "single@email.com",  # String instead of list
+        },
+    ]
+    return pd.DataFrame(mixed_data)
 
-    async def mock_async_scrape(**kwargs):
-        # Simulate async delay
-        import asyncio
 
-        await asyncio.sleep(0.01)  # 10ms simulated delay
-        return pd.DataFrame(
-            [
-                {
-                    "id": "async_job_001",
-                    "site": "linkedin",
-                    "title": "Async Developer",
-                    "company": "AsyncCorp",
-                    "location": "Remote",
-                    "is_remote": True,
-                }
-            ]
-        )
-
-    return mock_async_scrape
-
-
-# Parametrized test data combinations
+# =============================================================================
+# PARAMETRIZED FIXTURES
+# =============================================================================
 
 
 @pytest.fixture(
-    params=[
-        (JobSite.LINKEDIN, "fulltime", False),
-        (JobSite.INDEED, "contract", True),
-        (JobSite.GLASSDOOR, "parttime", False),
-        ([JobSite.LINKEDIN, JobSite.INDEED], "fulltime", True),
-    ]
+    params=["empty", "minimal", "valid", "malformed", "edge_case", "mixed_types"]
 )
-def site_jobtype_remote_combinations(request):
-    """Parametrized combinations of site, job type, and remote settings."""
-    site, job_type, is_remote = request.param
-    return {
-        "site_name": site,
-        "job_type": job_type,
-        "is_remote": is_remote,
-    }
+def jobspy_response(request) -> pd.DataFrame:
+    """Parametrized fixture returning different JobSpy response types.
+
+    Available params:
+        - empty: Empty DataFrame
+        - minimal: Minimal valid data
+        - valid: Standard realistic data
+        - malformed: Various malformed data scenarios
+        - edge_case: Extreme values and edge cases
+        - mixed_types: Mixed and inconsistent data types
+    """
+    if request.param == "empty":
+        return pd.DataFrame()
+    if request.param == "minimal":
+        return pd.DataFrame(
+            [
+                {
+                    "id": "minimal_job_1",
+                    "site": "linkedin",
+                    "title": "Test Job",
+                    "company": "Test Company",
+                }
+            ]
+        )
+    if request.param == "valid":
+        return JobPostingFactory.to_dataframe(count=5)
+    if request.param == "malformed":
+        malformed_jobs = [
+            JobPostingFactory.build_malformed(),
+            JobPostingFactory.build_malformed(),
+            {
+                "title": None,  # Missing title
+                "company": "",  # Empty company
+                "location": "   ",  # Whitespace only
+            },
+        ]
+        return pd.DataFrame(malformed_jobs)
+    if request.param == "edge_case":
+        edge_cases = [
+            JobPostingFactory.build_edge_case(),
+            {
+                "id": "duplicate_id",  # Will be duplicated
+                "title": "Job 1",
+                "company": "Company A",
+            },
+            {
+                "id": "duplicate_id",  # Duplicate ID
+                "title": "Job 2",
+                "company": "Company B",
+            },
+        ]
+        return pd.DataFrame(edge_cases)
+    if request.param == "mixed_types":
+        mixed_data = [
+            {
+                "id": 12345,  # Integer instead of string
+                "title": ["Job Title as List"],  # List instead of string
+                "company": True,  # Boolean instead of string
+                "min_amount": "50k",  # String instead of float
+            },
+            {
+                "id": None,  # None ID
+                "title": "",  # Empty string
+                "company": 0,  # Zero as company
+            },
+        ]
+        return pd.DataFrame(mixed_data)
+    return pd.DataFrame()
+
+
+@pytest.fixture(params=[5, 50, 100, 1000])
+def jobspy_response_sized(request) -> pd.DataFrame:
+    """Parametrized fixture for testing different dataset sizes."""
+    return JobPostingFactory.to_dataframe(count=request.param)
+
+
+@pytest.fixture(params=list(JobSite))
+def jobspy_response_by_site(request) -> pd.DataFrame:
+    """Parametrized fixture for testing different job sites."""
+    factory = JobPostingFactory.build()
+    factory.site = request.param
+    return pd.DataFrame([factory.model_dump()])
+
+
+# =============================================================================
+# JOB SCRAPE REQUEST FIXTURES
+# =============================================================================
+
+
+@pytest.fixture
+def sample_scrape_request() -> JobScrapeRequest:
+    """Standard JobScrapeRequest for testing."""
+    return JobScrapeRequestFactory.build()
+
+
+@pytest.fixture
+def linkedin_scrape_request() -> JobScrapeRequest:
+    """LinkedIn-specific scrape request."""
+    return JobScrapeRequestFactory.build(
+        site_name=JobSite.LINKEDIN,
+        linkedin_fetch_description=True,
+        search_term="Python Developer",
+        location="San Francisco, CA",
+    )
+
+
+@pytest.fixture
+def remote_scrape_request() -> JobScrapeRequest:
+    """Remote job scrape request."""
+    return JobScrapeRequestFactory.build(
+        is_remote=True,
+        location=None,
+        search_term="Remote Software Engineer",
+    )
+
+
+@pytest.fixture
+def multi_site_scrape_request() -> JobScrapeRequest:
+    """Multi-site scrape request."""
+    return JobScrapeRequestFactory.build(
+        site_name=[JobSite.LINKEDIN, JobSite.INDEED, JobSite.GLASSDOOR],
+        search_term="Data Scientist",
+        results_wanted=50,
+    )
+
+
+# =============================================================================
+# JOB SCRAPE RESULT FIXTURES
+# =============================================================================
+
+
+@pytest.fixture
+def successful_scrape_result(
+    valid_jobspy_response, sample_scrape_request
+) -> JobScrapeResult:
+    """Successful JobScrapeResult with valid data."""
+    return JobScrapeResult.from_pandas(
+        df=valid_jobspy_response,
+        request=sample_scrape_request,
+        metadata={"scraping_method": "jobspy", "success": True, "duration": 2.5},
+    )
+
+
+@pytest.fixture
+def empty_scrape_result(sample_scrape_request) -> JobScrapeResult:
+    """Empty JobScrapeResult (no jobs found)."""
+    return JobScrapeResult(
+        jobs=[],
+        total_found=0,
+        request_params=sample_scrape_request,
+        metadata={
+            "scraping_method": "jobspy",
+            "success": True,
+            "message": "No jobs found",
+        },
+    )
+
+
+@pytest.fixture
+def failed_scrape_result(sample_scrape_request) -> JobScrapeResult:
+    """Failed JobScrapeResult with error metadata."""
+    return JobScrapeResult(
+        jobs=[],
+        total_found=0,
+        request_params=sample_scrape_request,
+        metadata={
+            "scraping_method": "jobspy",
+            "success": False,
+            "error": "Network timeout",
+            "error_type": "ConnectionError",
+        },
+    )
+
+
+# =============================================================================
+# SPECIALIZED FIXTURES FOR EDGE CASES
+# =============================================================================
+
+
+@pytest.fixture
+def duplicate_jobs_response() -> pd.DataFrame:
+    """JobSpy response with duplicate job IDs for testing deduplication."""
+    job_data = JobPostingFactory.build().model_dump()
+    # Create duplicates with same ID but different data
+    duplicates = [
+        {**job_data, "id": "duplicate_test", "title": "Job Title 1"},
+        {**job_data, "id": "duplicate_test", "title": "Job Title 2"},
+        {**job_data, "id": "duplicate_test", "title": "Job Title 3"},
+    ]
+    return pd.DataFrame(duplicates)
+
+
+@pytest.fixture
+def salary_edge_cases_response() -> pd.DataFrame:
+    """JobSpy response with various salary edge cases."""
+    base_job = JobPostingFactory.build().model_dump()
+    salary_cases = [
+        {**base_job, "id": "salary_1", "min_amount": 0, "max_amount": 0},  # Zero salary
+        {
+            **base_job,
+            "id": "salary_2",
+            "min_amount": 200000,
+            "max_amount": 150000,
+        },  # Invalid range
+        {
+            **base_job,
+            "id": "salary_3",
+            "min_amount": 1000000,
+            "max_amount": 2000000,
+        },  # Extreme values
+        {
+            **base_job,
+            "id": "salary_4",
+            "min_amount": None,
+            "max_amount": None,
+        },  # No salary info
+        {
+            **base_job,
+            "id": "salary_5",
+            "min_amount": 50.5,
+            "max_amount": 75.75,
+        },  # Hourly wages
+    ]
+    return pd.DataFrame(salary_cases)
+
+
+@pytest.fixture
+def date_edge_cases_response() -> pd.DataFrame:
+    """JobSpy response with various date edge cases."""
+    base_job = JobPostingFactory.build().model_dump()
+    date_cases = [
+        {**base_job, "id": "date_1", "date_posted": date(2030, 12, 31)},  # Future date
+        {**base_job, "id": "date_2", "date_posted": date(1900, 1, 1)},  # Very old date
+        {**base_job, "id": "date_3", "date_posted": None},  # No date
+        {
+            **base_job,
+            "id": "date_4",
+            "date_posted": datetime.now(UTC),
+        },  # Datetime instead of date
+    ]
+    return pd.DataFrame(date_cases)
+
+
+@pytest.fixture
+def unicode_jobs_response() -> pd.DataFrame:
+    """JobSpy response with Unicode and emoji characters."""
+    unicode_jobs = [
+        {
+            "id": "unicode_1",
+            "title": "Développeur Python 🐍",
+            "company": "Société Française 🇫🇷",
+            "location": "Paris, France 🗼",
+            "description": "Nous recherchons un développeur passionné! 🚀✨",
+        },
+        {
+            "id": "unicode_2",
+            "title": "软件工程师 💻",
+            "company": "中国科技公司 🏢",
+            "location": "北京, 中国 🇨🇳",
+            "description": "加入我们的团队! 🎯💪",
+        },
+        {
+            "id": "unicode_3",
+            "title": "Инженер-программист 🔧",
+            "company": "Российская компания 🏭",
+            "location": "Москва, Россия 🇷🇺",
+            "description": "Присоединяйтесь к нашей команде! 🌟⭐",
+        },
+    ]
+    return pd.DataFrame(unicode_jobs)
+
+
+# =============================================================================
+# UTILITY FIXTURES
+# =============================================================================
+
+
+@pytest.fixture
+def null_jobspy_response() -> None:
+    """None response from JobSpy (simulates complete failure)."""
+    return
+
+
+@pytest.fixture
+def jobspy_timeout_simulation() -> Exception:
+    """Exception fixture for simulating JobSpy timeout."""
+    return TimeoutError("JobSpy request timed out after 30 seconds")
+
+
+@pytest.fixture
+def jobspy_connection_error() -> Exception:
+    """Exception fixture for simulating JobSpy connection error."""
+    return ConnectionError("Failed to connect to job site")
+
+
+@pytest.fixture
+def random_job_posting() -> JobPosting:
+    """Generate a single random JobPosting instance."""
+    return JobPostingFactory.build()
+
+
+@pytest.fixture
+def job_posting_batch() -> list[JobPosting]:
+    """Generate a batch of JobPosting instances."""
+    return JobPostingFactory.batch(size=10)
+
+
+# =============================================================================
+# FIXTURE EXAMPLE USAGE
+# =============================================================================
+
+
+def pytest_configure() -> None:
+    """Configure pytest with fixture documentation."""
+    pytest.main.__doc__ = """
+    JobSpy Fixtures Usage Examples:
+
+    # Basic usage with different response types
+    @pytest.mark.parametrize(
+        "jobspy_response", ["valid", "empty", "malformed"], indirect=True
+    )
+    def test_scraper_handles_responses(jobspy_response):
+        result = scraper.process(jobspy_response)
+        assert isinstance(result, JobScrapeResult)
+
+    # Size-based testing
+    @pytest.mark.parametrize("jobspy_response_sized", [10, 100], indirect=True)
+    def test_performance(jobspy_response_sized):
+        start_time = time.time()
+        process_jobs(jobspy_response_sized)
+        assert time.time() - start_time < 1.0
+
+    # Site-specific testing
+    def test_linkedin_specific(linkedin_scrape_request):
+        assert linkedin_scrape_request.site_name == JobSite.LINKEDIN
+        assert linkedin_scrape_request.linkedin_fetch_description is True
+
+    # Edge case testing
+    def test_unicode_handling(unicode_jobs_response):
+        for _, job in unicode_jobs_response.iterrows():
+            assert isinstance(job['title'], str)
+            # Verify Unicode characters are preserved
+    """
