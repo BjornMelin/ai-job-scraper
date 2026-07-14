@@ -1,1 +1,1 @@
-"""UI tests for manual refresh patterns using st.testing.AppTest."""
+"""UI behavior tests for the three-page Job Tracker interface."""

@@ -28,7 +28,6 @@ def test_company_factory(session):
     company = CompanyFactory.create()
     assert company.name.startswith("Test Company")
     assert company.url.endswith("/careers")
-    assert company.active is True
 
 
 def test_job_factory(session):
@@ -39,7 +38,8 @@ def test_job_factory(session):
     CompanyFactory._meta.sqlalchemy_session = session
     JobFactory._meta.sqlalchemy_session = session
 
-    job = JobFactory.create()
+    company = CompanyFactory.create()
+    job = JobFactory.create(company_id=company.id)
     assert job.title.startswith("Software Engineer")
     assert job.location == "Remote"
     assert job.company_id is not None
@@ -53,8 +53,7 @@ def test_app_test_fixture(app_test):
 
 def test_settings_fixture(test_settings):
     """Test configuration fixture."""
-    assert test_settings.openai_api_key == "test-key"
-    assert test_settings.use_groq is False
+    assert test_settings.db_url == "sqlite:///:memory:"
     assert test_settings.db_url == "sqlite:///:memory:"
 
 

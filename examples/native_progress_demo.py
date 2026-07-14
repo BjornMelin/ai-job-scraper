@@ -1,7 +1,8 @@
 """Native Streamlit Progress Components Demo - Zero Custom Code.
 
 This demo showcases using native Streamlit components (st.progress, st.status, st.toast)
-directly without any custom wrapper classes. This demonstrates the library-first approach
+directly without any custom wrapper classes. This demonstrates the
+library-first approach
 where we leverage built-in Streamlit functionality instead of writing custom code.
 
 Run with: streamlit run examples/native_progress_demo.py
@@ -9,7 +10,6 @@ Run with: streamlit run examples/native_progress_demo.py
 
 import threading
 import time
-
 from datetime import UTC, datetime
 
 import streamlit as st
@@ -176,7 +176,7 @@ def demo_concurrent_progress() -> None:
     if "workers" in st.session_state and st.session_state.workers:
         st.markdown("### Worker Progress")
 
-        for worker_id, worker_data in st.session_state.workers.items():
+        for _worker_id, worker_data in st.session_state.workers.items():
             with st.container(border=True):
                 col1, col2 = st.columns([3, 1])
 
@@ -211,7 +211,7 @@ def main() -> None:
     st.sidebar.markdown("""
     This demo uses only native Streamlit components:
     - `st.progress()` for progress bars
-    - `st.status()` for status containers  
+    - `st.status()` for status containers
     - `st.toast()` for notifications
     - `st.spinner()` for loading states
     - `st.session_state` for progress tracking

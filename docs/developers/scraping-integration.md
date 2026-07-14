@@ -1,61 +1,54 @@
-# 🚀 Scraping Integration Guide
+# Integrate saved-search collection
 
-This guide provides technical details on how the scraping engine is architected and integrated with the Streamlit UI and the database.
+**Content type:** Conceptual
 
-## 🏗️ Architecture Overview
+Job Tracker collects jobs only through saved searches. This page explains the provider call, persistence transaction, and run-health update.
 
-The scraping system is designed to be modular and decoupled. The UI triggers a background task, which runs an orchestrator that calls specialized scraping modules. The results are then passed to a synchronization engine that safely updates the database.
+## Collection flow
+
+The **Searches** page calls `run_saved_search()` after you select **Run now**.
 
 ```mermaid
-graph TD
-    A[UI: Scraping Page] -- Clicks "Start" --> B[background_tasks.py]
-    B -- Spawns Thread --> C[scraper.py: scrape_all()]
-    C -- Calls --> D[scraper_job_boards.py]
-    C -- Calls --> E[scraper_company_pages.py]
-    D & E -- Return Normalized Jobs --> C
-    C -- Passes Jobs to --> F[SmartSyncEngine]
-    F -- Updates --> G[Database]
-    B -- Updates State --> A
+flowchart LR
+    UI[Searches page] --> Runner[run_saved_search]
+    Runner --> Service[JobService]
+    Service --> Adapter[JobSpyScraper]
+    Adapter --> Provider[Job boards]
+    Provider --> Validation[JobPosting validation]
+    Validation --> Transaction[Job persistence transaction]
+    Transaction --> Health[Saved-search run health]
 ```
 
-## 📁 Key Implementation Files
+## Implementation files
 
-* **`src/scraper.py` (Orchestrator):** The `scrape_all()` function is the main entry point. It calls the other scrapers, combines their results, filters, deduplicates, and finally calls the `SmartSyncEngine`.
+The collection path uses these files:
 
-* **`src/scraper_job_boards.py`:** Uses the `JobSpy` library to efficiently scrape structured data from sites like LinkedIn and Indeed.
+- `src/ui/pages/searches.py`: saved-search forms and **Run now** action
+- `src/scraping/scrape_all.py`: run lifecycle and health recording
+- `src/scraping/job_scraper.py`: JobSpy parameters and row conversion
+- `src/services/job_service.py`: deduplication and transactional persistence
+- `src/services/saved_search_service.py`: saved definitions and latest run health
 
-* **`src/scraper_company_pages.py`:** Uses `ScrapeGraphAI` and `LangGraph` to create an agentic workflow for extracting data from unstructured company career pages.
+## Run-health behavior
 
-* **`src/services/database_sync.py`:** Contains the `SmartSyncEngine`, which handles all the logic for safely writing data to the database.
+The runner records `running` and its lease start before calling the provider. A terminal write replaces that lease timestamp with the completion time and records `succeeded`, `partial`, `failed`, or `cancelled` with duration and result counts.
 
-* **`src/ui/utils/background_tasks.py`:** Manages running the `scrape_all` function in a separate thread so the UI remains responsive.
+An empty provider response is successful when no provider error exists. A mixed response stores valid jobs and reports `partial` with raw, valid, and invalid row counts. A nonempty response with no valid rows reports `failed`. A database failure rolls back both the provider result and terminal run health.
 
-* **`src/ui/pages/scraping.py`:** The Streamlit page that provides the user interface for starting scrapes and viewing real-time progress.
+## Persistence behavior
 
-## 🎯 Core Integration Points
+The job URL identifies a repeated posting. Existing jobs receive nonempty provider-owned updates while preserving richer stored values when a repeated response omits optional fields. Stage, star, notes, and archive state always remain user-owned.
 
-### 1. UI to Background Task
+Job and company upserts commit in the same transaction as the saved search's terminal health. The initial `running` lease is a separate atomic claim because provider network work happens outside a database transaction.
 
-* The "Start Scraping" button on the `scraping.py` page calls `start_background_scraping()` from `background_tasks.py`.
+Companies are created only for valid jobs. They become read-only facets under **Insights** and job filters.
 
-* This function sets a flag `st.session_state.scraping_active = True` and starts a new `threading.Thread`.
+## Verify collection
 
-* The thread's target is a worker function that calls the main `scraper.scrape_all()` orchestrator.
+Run the provider, runner, and service tests:
 
-### 2. Real-Time Progress Reporting
-
-* The background worker function updates `st.session_state` at various stages of the process (e.g., updating per-company status, overall progress).
-
-* The `scraping.py` page has a small section of code that checks if `scraping_active` is true. If it is, it calls `st.rerun()` on a throttled interval (e.g., every 2 seconds).
-
-* This `rerun` causes the page to redraw, reading the latest progress from `st.session_state` and updating the progress bars and metrics.
-
-### 3. Scraper to Database
-
-* The scraping modules (`scraper_job_boards.py`, `scraper_company_pages.py`) are designed to be **read-only** from the perspective of the `jobs` table. Their only job is to fetch and normalize data into `JobSQL` objects.
-
-* The `scrape_all()` orchestrator collects the lists of these objects.
-
-* It then passes the final, deduplicated list to `SmartSyncEngine.sync_jobs()`.
-
-* The `SmartSyncEngine` is the **only** component responsible for writing job data to the database, ensuring all data goes through the same safe, intelligent update logic. This decoupling is a key architectural principle of the application.
+```bash
+uv run --locked pytest -q tests/services/test_job_scraper.py
+uv run --locked pytest -q tests/scraping/test_scrape_all.py
+uv run --locked pytest -q tests/integration/test_scraping_workflow.py
+```

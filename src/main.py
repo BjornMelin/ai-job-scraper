@@ -1,90 +1,62 @@
-"""Main entry point for the AI Job Scraper Streamlit application.
-
-This module serves as the primary entry point for the web application,
-handling page configuration, theme loading, and navigation using Streamlit's
-built-in st.navigation() for optimal performance and maintainability.
-"""
-
-import logging
+"""Streamlit entry point for Job Tracker."""
 
 import streamlit as st
 
-from src.db.migrations import run_migrations
-from src.ui.state.session_state import init_session_state
-from src.ui.styles.theme import load_theme
-from src.ui.utils.database_helpers import render_database_health_widget
-from src.utils.startup_helpers import initialize_performance_optimizations
-
-logger = logging.getLogger(__name__)
+from src.ui.design import apply_design
 
 
 def main() -> None:
-    """Main application entry point.
-
-    Configures the Streamlit page, loads theme, initializes state management,
-    and sets up navigation using library-first st.navigation() approach.
-    """
-    # Run database migrations BEFORE any Streamlit operations
-    # This ensures the database schema is up to date on every startup
-    run_migrations()
-
-    # Configure Streamlit page
+    """Configure the app shell and run the selected page."""
     st.set_page_config(
-        page_title="AI Job Scraper",
+        page_title="Job Tracker",
+        page_icon=":material/work:",
         layout="wide",
-        initial_sidebar_state="expanded",
+        initial_sidebar_state="collapsed",
         menu_items={
-            "About": "AI-powered job scraper for managing your job search efficiently.",
+            "About": "A focused, local-first workspace for finding and tracking jobs.",
         },
     )
+    apply_design()
 
-    # Load application theme and styles
-    load_theme()
-
-    # Initialize session state with library-first approach
-    init_session_state()
-
-    # Initialize simple startup configuration
-    # Uses Streamlit's native caching with library-first approach
-    initialize_performance_optimizations()
-
-    # Define pages using st.navigation() with relative paths
-    # All paths are relative to the main.py entrypoint file
-    pages = [
+    jobs_page = st.Page(
+        "ui/pages/jobs.py",
+        title="Jobs",
+        icon=":material/work:",
+        url_path="jobs",
+    )
+    pages = (
+        jobs_page,
         st.Page(
-            "ui/pages/jobs.py",
-            title="Jobs",
-            icon="📋",
-            default=True,  # Preserves default behavior from old navigation
+            "ui/pages/searches.py",
+            title="Searches",
+            icon=":material/search:",
+            url_path="searches",
         ),
         st.Page(
-            "ui/pages/companies.py",
-            title="Companies",
-            icon="🏢",
+            "ui/pages/insights.py",
+            title="Insights",
+            icon=":material/insights:",
+            url_path="insights",
         ),
-        st.Page(
-            "ui/pages/scraping.py",
-            title="Scraping",
-            icon="🔍",
-        ),
-        st.Page(
-            "ui/pages/analytics.py",
-            title="Analytics",
-            icon="📊",
-        ),
-        st.Page(
-            "ui/pages/settings.py",
-            title="Settings",
-            icon="⚙️",
-        ),
-    ]
+    )
+    home_page = st.Page(
+        lambda: st.switch_page(jobs_page),
+        title="Jobs",
+        default=True,
+        visibility="hidden",
+    )
+    page = st.navigation([home_page, *pages], position="hidden")
 
-    # Add database health monitoring to sidebar
-    render_database_health_widget()
+    with st.container(
+        key="primary-navigation",
+        horizontal=True,
+        vertical_alignment="center",
+        gap="xsmall",
+    ):
+        for destination in pages:
+            st.page_link(destination)
 
-    # Streamlit handles all navigation logic automatically
-    pg = st.navigation(pages)
-    pg.run()
+    page.run()
 
 
 if __name__ == "__main__":

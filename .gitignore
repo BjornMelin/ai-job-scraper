@@ -66,8 +66,7 @@ ENV/
 env.bak/
 venv.bak/
 
-# uv cache and lock files
-uv.lock
+# uv cache
 .uv-cache/
 
 # =============================================================================
@@ -104,6 +103,9 @@ ipython_config.py
 
 # Jupyter Notebook
 .ipynb_checkpoints
+
+# Browser test artifacts
+.playwright-cli/
 
 # =============================================================================
 # DATABASE & CACHING
@@ -184,7 +186,6 @@ yarn-debug.log*
 yarn-error.log*
 
 # Frontend build outputs
-/static/
 /public/build/
 
 # =============================================================================

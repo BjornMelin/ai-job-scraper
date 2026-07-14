@@ -1,251 +1,129 @@
-"""Simple cost monitoring service for $50 monthly budget tracking.
-
-This module provides lightweight cost tracking using SQLModel for database
-operations and Streamlit caching for dashboard integration. Focuses on
-simplicity and maintainability with library-first approach.
-
-Features:
-- Simple SQLModel cost tracking entries
-- Monthly budget monitoring ($50 limit)
-- Cost alerts at 80% and 100% thresholds
-- Service-based cost breakdown (AI, proxy, scraping)
-- Streamlit caching for dashboard performance
-"""
+"""Operational cost tracking over the canonical application database."""
 
 from __future__ import annotations
 
 import logging
-
+import math
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlmodel import Field, Session, SQLModel, create_engine, func, select
+from sqlalchemy import func
+from sqlalchemy.engine import Connection, Engine
+from sqlmodel import select
 
-# Import streamlit with fallback for non-Streamlit environments
-try:
-    import streamlit as st
-
-    STREAMLIT_AVAILABLE = True
-except ImportError:
-    STREAMLIT_AVAILABLE = False
-
-    class _DummyStreamlit:
-        @staticmethod
-        def cache_data(**_kwargs):
-            def decorator(wrapped_func):
-                return wrapped_func
-
-            return decorator
-
-    st = _DummyStreamlit()
+from src.database import db_session
+from src.database_models import CostEntry
 
 logger = logging.getLogger(__name__)
 
 
-class CostEntry(SQLModel, table=True):
-    """Simple cost tracking model for operational expenses.
-
-    Tracks costs by service type for budget monitoring and analysis.
-    """
-
-    __tablename__ = "cost_entries"
-
-    id: int | None = Field(default=None, primary_key=True)
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC), index=True)
-    service: str = Field(index=True)  # "ai", "proxy", "scraping"
-    operation: str  # Description of operation
-    cost_usd: float  # Cost in USD
-    extra_data: str = ""  # Optional JSON string for additional details
-
-    def __init__(self, **data):
-        """Initialize with timezone-aware timestamp handling."""
-        # Ensure timestamp is timezone-aware when retrieved from database
-        if "timestamp" in data and data["timestamp"] is not None:
-            ts = data["timestamp"]
-            if isinstance(ts, datetime) and ts.tzinfo is None:
-                # If timestamp is naive (from SQLite), assume it's UTC
-                data["timestamp"] = ts.replace(tzinfo=UTC)
-        super().__init__(**data)
-
-
 class CostMonitor:
-    """Simple cost monitoring service for $50 monthly budget.
+    """Record cost events and report current-month budget health."""
 
-    Provides basic cost tracking with budget alerts and service breakdown
-    using SQLModel and Streamlit caching for optimal performance.
+    def __init__(
+        self,
+        bind: Engine | Connection | None = None,
+        *,
+        monthly_budget: float = 50.0,
+    ) -> None:
+        if not math.isfinite(monthly_budget) or monthly_budget <= 0:
+            raise ValueError("monthly_budget must be finite and positive")
+        self._bind = bind
+        self.monthly_budget = monthly_budget
 
-    Features:
-    - Track costs by service (AI, proxy, scraping)
-    - Monthly budget monitoring with alerts
-    - Simple cost aggregation and reporting
-    - Built-in $50 monthly budget limit
-
-    Example:
-        ```python
-        monitor = CostMonitor()
-
-        # Track AI operation cost
-        monitor.track_ai_cost("gpt-4", 1000, 0.02, "job_extraction")
-
-        # Get monthly summary
-        summary = monitor.get_monthly_summary()
-        ```
-    """
-
-    def __init__(self, db_path: str = "costs.db"):
-        """Initialize cost monitor with SQLite database.
-
-        Args:
-            db_path: Path to SQLite database for cost storage.
-        """
-        self.db_path = db_path
-        self.monthly_budget = 50.0  # $50 monthly budget
-        self.engine = create_engine(f"sqlite:///{db_path}")
-
-        # Create tables
-        SQLModel.metadata.create_all(self.engine)
-
-        logger.info(
-            "Cost monitor initialized with $%.2f monthly budget", self.monthly_budget
-        )
+    def _track(
+        self,
+        *,
+        service: str,
+        operation: str,
+        cost: float,
+        extra_data: dict[str, object],
+    ) -> None:
+        with db_session(self._bind) as session:
+            session.add(
+                CostEntry.create_validated(
+                    service=service,
+                    operation=operation,
+                    cost_usd=cost,
+                    extra_data=extra_data,
+                )
+            )
+        self._check_budget_alerts()
 
     def track_ai_cost(
-        self, model: str, tokens: int, cost: float, operation: str
+        self,
+        model: str,
+        tokens: int,
+        cost: float,
+        operation: str,
     ) -> None:
-        """Track AI/LLM operation costs.
-
-        Args:
-            model: AI model used (e.g., "gpt-4", "groq-llama")
-            tokens: Number of tokens processed
-            cost: Cost in USD
-            operation: Description of operation
-        """
-        extra_data = f'{{"model": "{model}", "tokens": {tokens}}}'
-
-        with Session(self.engine) as session:
-            entry = CostEntry(
-                service="ai", operation=operation, cost_usd=cost, extra_data=extra_data
-            )
-            session.add(entry)
-            session.commit()
-
-        logger.info("AI cost tracked: %s, $%.4f (%s)", model, cost, operation)
-        self._check_budget_alerts(cost)
+        """Record one AI operation."""
+        if tokens < 0:
+            raise ValueError("tokens must be nonnegative")
+        self._track(
+            service="ai",
+            operation=operation,
+            cost=cost,
+            extra_data={"model": model, "tokens": tokens},
+        )
 
     def track_proxy_cost(self, requests: int, cost: float, endpoint: str) -> None:
-        """Track proxy service costs.
-
-        Args:
-            requests: Number of requests made
-            cost: Cost in USD
-            endpoint: Proxy endpoint used
-        """
-        extra_data = f'{{"requests": {requests}, "endpoint": "{endpoint}"}}'
-
-        with Session(self.engine) as session:
-            entry = CostEntry(
-                service="proxy",
-                operation="requests",
-                cost_usd=cost,
-                extra_data=extra_data,
-            )
-            session.add(entry)
-            session.commit()
-
-        logger.info(
-            "Proxy cost tracked: %d requests, $%.4f (%s)", requests, cost, endpoint
+        """Record one proxy charge."""
+        if requests < 0:
+            raise ValueError("requests must be nonnegative")
+        self._track(
+            service="proxy",
+            operation="requests",
+            cost=cost,
+            extra_data={"requests": requests, "endpoint": endpoint},
         )
-        self._check_budget_alerts(cost)
 
     def track_scraping_cost(self, company: str, jobs_found: int, cost: float) -> None:
-        """Track scraping operation costs.
-
-        Args:
-            company: Company being scraped
-            jobs_found: Number of jobs found
-            cost: Cost in USD
-        """
-        extra_data = f'{{"company": "{company}", "jobs_found": {jobs_found}}}'
-
-        with Session(self.engine) as session:
-            entry = CostEntry(
-                service="scraping",
-                operation="company_scrape",
-                cost_usd=cost,
-                extra_data=extra_data,
-            )
-            session.add(entry)
-            session.commit()
-
-        logger.info(
-            "Scraping cost tracked: %s, %d jobs, $%.4f", company, jobs_found, cost
+        """Record one scraping charge."""
+        if jobs_found < 0:
+            raise ValueError("jobs_found must be nonnegative")
+        self._track(
+            service="scraping",
+            operation="search_run",
+            cost=cost,
+            extra_data={"company": company, "jobs_found": jobs_found},
         )
-        self._check_budget_alerts(cost)
 
-    @st.cache_data(ttl=60)  # 1-minute cache for real-time budget tracking
-    def get_monthly_summary(_self) -> dict[str, Any]:  # noqa: N805
-        """Get current month cost breakdown and budget analysis.
-
-        Returns:
-            Dict containing monthly costs, budget status, and breakdowns.
-        """
-        with Session(_self.engine) as session:
-            # Get start of current month
-            now = datetime.now(UTC)
-            start_of_month = now.replace(
-                day=1, hour=0, minute=0, second=0, microsecond=0
-            )
-
-            # Get costs by service for current month
-            results = session.exec(
+    def get_monthly_summary(self) -> dict[str, Any]:
+        """Return current-month costs, counts, and budget status."""
+        now = datetime.now(UTC)
+        start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        with db_session(self._bind) as session:
+            rows = session.exec(
                 select(
                     CostEntry.service,
-                    func.sum(CostEntry.cost_usd).label("total_cost"),
-                    func.count(CostEntry.id).label("operation_count"),
+                    func.sum(CostEntry.cost_usd),
+                    func.count(CostEntry.id),
                 )
                 .where(CostEntry.timestamp >= start_of_month)
                 .group_by(CostEntry.service)
             ).all()
 
-            # Build cost breakdown
-            costs_by_service = {}
-            operation_counts = {}
-            total_cost = 0.0
-
-            for result in results:
-                service_cost = float(result.total_cost)
-                costs_by_service[result.service] = service_cost
-                operation_counts[result.service] = result.operation_count
-                total_cost += service_cost
-
-            # Calculate budget metrics
-            remaining = _self.monthly_budget - total_cost
-            utilization_percent = (total_cost / _self.monthly_budget) * 100
-            budget_status = _self._get_budget_status(total_cost)
-
-            return {
-                "costs_by_service": costs_by_service,
-                "operation_counts": operation_counts,
-                "total_cost": total_cost,
-                "monthly_budget": _self.monthly_budget,
-                "remaining": remaining,
-                "utilization_percent": utilization_percent,
-                "budget_status": budget_status,
-                "month_year": now.strftime("%B %Y"),
-            }
+        costs_by_service: dict[str, float] = {}
+        operation_counts: dict[str, int] = {}
+        for service, total, count in rows:
+            costs_by_service[service] = float(total)
+            operation_counts[service] = count
+        total_cost = sum(costs_by_service.values())
+        return {
+            "costs_by_service": costs_by_service,
+            "operation_counts": operation_counts,
+            "total_cost": total_cost,
+            "monthly_budget": self.monthly_budget,
+            "remaining": self.monthly_budget - total_cost,
+            "utilization_percent": (total_cost / self.monthly_budget) * 100,
+            "budget_status": self._get_budget_status(total_cost),
+            "month_year": now.strftime("%B %Y"),
+        }
 
     def _get_budget_status(self, total_cost: float) -> str:
-        """Get budget status based on utilization.
-
-        Args:
-            total_cost: Current month total cost
-
-        Returns:
-            Status string indicating budget health.
-        """
         utilization = total_cost / self.monthly_budget
-
-        if utilization >= 1.0:
+        if utilization >= 1:
             return "over_budget"
         if utilization >= 0.8:
             return "approaching_limit"
@@ -253,73 +131,47 @@ class CostMonitor:
             return "moderate_usage"
         return "within_budget"
 
-    def _check_budget_alerts(self, _new_cost: float) -> None:
-        """Check if budget alerts should be triggered after cost addition.
-
-        Args:
-            _new_cost: Cost that was just added (unused but kept for API consistency)
-        """
+    def _check_budget_alerts(self) -> None:
+        """Log threshold crossings without coupling persistence to the UI."""
         try:
             summary = self.get_monthly_summary()
-            status = summary["budget_status"]
-            utilization = summary["utilization_percent"]
-
-            # Show alerts based on budget status
-            if status == "over_budget" and STREAMLIT_AVAILABLE:
-                budget_msg = (
-                    f"🚨 Monthly budget exceeded! "
-                    f"${summary['total_cost']:.2f} / ${self.monthly_budget:.2f}"
-                )
-                st.error(budget_msg)
-            elif status == "approaching_limit" and STREAMLIT_AVAILABLE:
-                st.warning(f"⚠️ Approaching budget limit: {utilization:.1f}% used")
-
-            # Log warnings
-            if status in ["over_budget", "approaching_limit"]:
-                logger.warning(
-                    "Budget alert: %s - $%.2f / $%.2f (%.1f%% used)",
-                    status,
-                    summary["total_cost"],
-                    self.monthly_budget,
-                    utilization,
-                )
-
         except Exception:
-            logger.exception("Failed to check budget alerts")
+            logger.exception("Cost persisted, but budget alert evaluation failed")
+            return
+        if summary["budget_status"] in {"over_budget", "approaching_limit"}:
+            logger.warning(
+                "Budget alert: %s, $%.2f of $%.2f",
+                summary["budget_status"],
+                summary["total_cost"],
+                summary["monthly_budget"],
+            )
 
     def get_cost_alerts(self) -> list[dict[str, str]]:
-        """Get cost-related alerts for dashboard display.
-
-        Returns:
-            List of alert dictionaries with type and message.
-        """
+        """Return presentation-neutral alerts for the dashboard."""
         try:
             summary = self.get_monthly_summary()
-            alerts = []
+        except Exception as error:
+            logger.exception("Cost summary failed")
+            return [{"type": "error", "message": f"Cost monitoring error: {error}"}]
 
-            if summary["budget_status"] == "over_budget":
-                alerts.append(
-                    {
-                        "type": "error",
-                        "message": (
-                            f"Monthly budget exceeded: ${summary['total_cost']:.2f} / "
-                            f"${summary['monthly_budget']:.2f}"
-                        ),
-                    }
-                )
-            elif summary["budget_status"] == "approaching_limit":
-                alerts.append(
-                    {
-                        "type": "warning",
-                        "message": (
-                            f"Approaching budget limit: "
-                            f"{summary['utilization_percent']:.0f}% used"
-                        ),
-                    }
-                )
-
-        except Exception as e:
-            logger.exception("Failed to get cost alerts")
-            return [{"type": "error", "message": f"Cost monitoring error: {e}"}]
-
-        return alerts
+        if summary["budget_status"] == "over_budget":
+            return [
+                {
+                    "type": "error",
+                    "message": (
+                        f"Monthly budget exceeded: ${summary['total_cost']:.2f} / "
+                        f"${summary['monthly_budget']:.2f}"
+                    ),
+                }
+            ]
+        if summary["budget_status"] == "approaching_limit":
+            return [
+                {
+                    "type": "warning",
+                    "message": (
+                        "Approaching budget limit: "
+                        f"{summary['utilization_percent']:.0f}% used"
+                    ),
+                }
+            ]
+        return []

@@ -1,336 +1,90 @@
-# Database Migrations
+# Database migrations
 
-This directory contains Alembic migration scripts for managing database schema evolution in the AI Job Scraper application.
+Alembic owns every schema change for the application's SQLite database. The
+application uses the SQLModel metadata in `src/database_models.py`, SQLite batch
+operations, and Python 3.12 native transaction control so interrupted DDL can be
+retried safely.
 
-## Overview
+## Revisions
 
-The migration system is built on [Alembic](https://alembic.sqlalchemy.org/), SQLAlchemy's database migration tool, with specific optimizations for SQLModel integration and SQLite batch operations.
+The active history is linear:
 
-### Key Features
+1. `d555e0170c65` creates the original company and job tables.
+2. `8f4b2c91a3d7` adds saved searches, converts companies to read-only facets,
+   adopts inline legacy costs, and normalizes workflow and salary values.
+3. `c91e7a4d2b6f` imports a sibling `costs.db` without modifying it, repairs
+   already-stamped cost metadata and salaries, and records import provenance
+   for retry safety.
 
-- **SQLModel Integration**: Seamlessly works with SQLModel models for autogenerate functionality
+The final revision is intentionally forward-only: downgrading it retains
+imported costs, provenance, and repaired salary data. Re-upgrading is
+idempotent.
 
-- **SQLite Batch Mode**: Optimized for SQLite's ALTER TABLE limitations using batch operations
+## Apply and inspect migrations
 
-- **Naming Conventions**: Consistent constraint naming for reliable schema evolution
-
-- **Automatic Startup**: Migrations run automatically during application initialization
-
-- **Thread-Safe**: Designed for concurrent access patterns in the application
-
-## Architecture
-
-### Directory Structure
-
-```text
-alembic/
-├── README.md              # This documentation
-├── env.py                 # Alembic environment configuration
-├── script.py.mako         # Migration script template
-└── versions/              # Migration version files
-    └── d555e0170c65_initial_migration_create_tables.py
-```
-
-### Key Components
-
-- **env.py**: Configures Alembic for SQLModel integration with dynamic database URL loading and SQLite optimizations
-
-- **versions/**: Contains migration scripts in chronological order
-
-- **Naming Convention**: Enforces consistent constraint names for foreign keys, indexes, and unique constraints
-
-## Common Commands
-
-### Create a New Migration
-
-Generate a new migration script:
+Run all commands from the repository root with the locked environment:
 
 ```bash
-
-# Auto-generate from model changes
-alembic revision --autogenerate -m "Add user preferences table"
-
-# Create empty migration template
-alembic revision -m "Custom data migration"
+uv run --locked alembic current
+uv run --locked alembic history
+uv run --locked alembic upgrade head
+uv run --locked alembic check
 ```
 
-### Apply Migrations
+The packaged application also upgrades to `head` during startup and stops if a
+migration fails.
+
+## Create a revision
+
+Update the table model, service contract, and tests before generating a schema
+diff:
 
 ```bash
-
-# Upgrade to latest version
-alembic upgrade head
-
-# Upgrade to specific revision
-alembic upgrade ae1027a6acf
-
-# Upgrade one step forward
-alembic upgrade +1
+uv run --locked alembic revision --autogenerate -m "describe the change"
 ```
 
-### Migration History
+Review every generated operation. In particular, verify SQLite batch-table
+copies preserve constraints, indexes, foreign keys, and data. Internal
+`_alembic_*` provenance tables are deliberately excluded from autogeneration.
+
+## Verify a migration
+
+Use a temporary database for ordinary upgrade and downgrade tests:
 
 ```bash
-
-# Show migration history
-alembic history --verbose
-
-# Show current database revision
-alembic current
-
-# Show pending migrations
-alembic history -r current:head
+DB_URL=sqlite:////tmp/ai-job-scraper.db uv run --locked alembic upgrade head
+DB_URL=sqlite:////tmp/ai-job-scraper.db uv run --locked alembic check
+DB_URL=sqlite:////tmp/ai-job-scraper.db uv run --locked alembic downgrade base
+DB_URL=sqlite:////tmp/ai-job-scraper.db uv run --locked alembic upgrade head
 ```
 
-### Rollback Migrations
+Rehearse data migrations against a copy of representative data, including any
+sibling `costs.db`. Confirm the source file's hash is unchanged before and after
+the rehearsal. Run the migration test suite as the final gate:
 
 ```bash
-
-# Downgrade one step
-alembic downgrade -1
-
-# Downgrade to specific revision
-alembic downgrade 1975ea83b712
-
-# Downgrade to base (remove all migrations)
-alembic downgrade base
+uv run --locked pytest -q tests/unit/database/test_migrations.py
+uv run --locked alembic check
 ```
 
-### Generate SQL Scripts
+## Recover from a failure
+
+Do not stamp over a failed revision and do not edit `alembic_version` manually.
+Stop application writes, preserve the failed database for diagnosis, and use
+one of these paths:
+
+1. Retry the upgrade when the revision is documented and tested as retry-safe.
+2. Restore the pre-upgrade backup, correct the migration, and run it again.
+
+Inspect state before deciding:
 
 ```bash
-
-# Generate SQL without executing
-alembic upgrade head --sql > migration.sql
-
-# Generate SQL for specific range
-alembic upgrade 1975ea:ae1027 --sql > partial_migration.sql
+uv run --locked alembic current
+uv run --locked alembic heads
+uv run --locked alembic history
 ```
 
-## SQLModel Integration
-
-### Model Registration
-
-The `env.py` file automatically imports all SQLModel classes to ensure they're registered with the metadata:
-
-```python
-
-# Models are imported for autogeneration
-from src.models import CompanySQL, JobSQL
-```
-
-### Autogeneration Setup
-
-Alembic is configured to use SQLModel's metadata for schema comparison:
-
-```python
-target_metadata = SQLModel.metadata
-```
-
-### Foreign Key Naming
-
-The system uses explicit naming conventions to ensure foreign key constraints can be referenced in future migrations:
-
-```python
-naming_convention = {
-    "ix": "ix_%(column_0_label)s",
-    "uq": "uq_%(table_name)s_%(column_0_name)s",
-    "ck": "ck_%(table_name)s_%(constraint_name)s",
-    "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
-    "pk": "pk_%(table_name)s",
-}
-```
-
-## SQLite Batch Mode
-
-### Why Batch Mode?
-
-SQLite has limitations with ALTER TABLE operations. Batch mode works around these by:
-
-1. Creating a temporary table with the new schema
-2. Copying data from the original table
-3. Dropping the original table
-4. Renaming the temporary table
-
-### Configuration
-
-Batch mode is enabled in `env.py`:
-
-```python
-context.configure(
-    # ... other options
-    render_as_batch=True,  # Enable batch mode for SQLite
-)
-```
-
-### Batch Operations
-
-When working with existing tables, use batch operations:
-
-```python
-def upgrade():
-    with op.batch_alter_table("companysql") as batch_op:
-        batch_op.add_column(sa.Column('new_field', sa.String(50)))
-        batch_op.create_index('ix_companysql_new_field', ['new_field'])
-
-def downgrade():
-    with op.batch_alter_table("companysql") as batch_op:
-        batch_op.drop_index('ix_companysql_new_field')
-        batch_op.drop_column('new_field')
-```
-
-## Migration Best Practices
-
-### Model Changes
-
-1. **Always review autogenerated migrations** before applying them
-2. **Add data migrations** when changing existing data formats
-3. **Use descriptive migration messages** that explain the business reason
-4. **Test migrations** on a copy of production data
-
-### Schema Evolution
-
-```python
-def upgrade():
-    # Schema changes first
-    op.add_column('jobs', sa.Column('priority', sa.Integer()))
-    
-    # Data migrations second
-    connection = op.get_bind()
-    connection.execute(
-        text("UPDATE jobs SET priority = 1 WHERE status = 'urgent'")
-    )
-
-def downgrade():
-    # Reverse order: data changes first, schema changes last
-    op.drop_column('jobs', 'priority')
-```
-
-### Performance Considerations
-
-- **Use batch operations** for SQLite table modifications
-
-- **Create indexes concurrently** for large tables (PostgreSQL)
-
-- **Consider data volume** when adding NOT NULL columns
-
-### Error Handling
-
-Always include proper rollback logic:
-
-```python
-def upgrade():
-    try:
-        op.add_column('table', sa.Column('new_col', sa.String()))
-    except Exception:
-        # Migration will automatically rollback
-        raise
-
-def downgrade():
-    op.drop_column('table', 'new_col')
-```
-
-## Automatic Startup Integration
-
-### How It Works
-
-Migrations run automatically when the application starts:
-
-1. Application imports database module
-2. Database initialization calls `run_migrations()`
-3. Alembic upgrades to head revision
-4. Application continues startup
-
-### Implementation
-
-The migration system integrates with the application startup sequence through the test infrastructure in `tests/test_migration_startup.py`, which validates:
-
-- Fresh database initialization
-
-- Existing database upgrades
-
-- Migration idempotency
-
-- Error handling during startup
-
-### Configuration - Auto-Startup
-
-The system uses the same database URL from application settings:
-
-```python
-settings = Settings()
-config.set_main_option("sqlalchemy.url", settings.db_url)
-```
-
-## Troubleshooting
-
-### Common Issues
-
-**Migration file not found**:
-
-```bash
-
-# Check current directory and alembic.ini location
-alembic current
-```
-
-**SQLite locking errors**:
-
-- Ensure no other processes are using the database
-
-- Check if WAL mode is enabled in database configuration
-
-**Autogenerate not detecting changes**:
-
-- Verify models are imported in `env.py`
-
-- Check that SQLModel.metadata includes your models
-
-- Ensure database is at current head revision
-
-### Debug Commands
-
-```bash
-
-# Show raw SQL that would be executed
-alembic upgrade head --sql
-
-# Check migration environment
-python -c "from alembic.config import Config; c = Config('alembic.ini'); print(c.get_main_option('sqlalchemy.url'))"
-
-# Validate migration consistency
-alembic check
-```
-
-### Recovery
-
-**Reset to fresh state**:
-
-```bash
-
-# Drop alembic_version table and re-stamp
-alembic stamp base
-alembic upgrade head
-```
-
-**Skip problematic migration**:
-
-```bash
-
-# Manually update alembic_version table to skip broken migration
-alembic stamp <target_revision>
-```
-
-## Related Documentation
-
-- [Alembic Official Documentation](https://alembic.sqlalchemy.org/)
-
-- [SQLModel Documentation](https://sqlmodel.tiangolo.com/)
-
-- [SQLite ALTER TABLE Limitations](https://www.sqlite.org/lang_altertable.html)
-
-- [Project Migration Strategy ADR](../adrs-and-docs.md#adr-012-alembic-migration-strategy)
-
-## Version History
-
-- **Initial Migration (d555e0170c65)**: Created CompanySQL and JobSQL tables with indexes and relationships
+See [the deployment guide](../docs/developers/deployment.md) for backup and
+upgrade procedures and
+[the architecture overview](../docs/developers/architecture-overview.md) for
+the current data-boundary contract.

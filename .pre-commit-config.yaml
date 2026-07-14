@@ -9,7 +9,7 @@ repos:
         entry: env LC_ALL=C.UTF-8 uv run ruff format
         language: system
         types: [python]
-        
+
       - id: ruff-lint
         name: Lint with ruff
         entry: env LC_ALL=C.UTF-8 uv run ruff check --fix

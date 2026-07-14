@@ -1,93 +1,70 @@
-# 🚀 Getting Started with AI Job Scraper
+# Get started with Job Tracker
 
-Welcome! This guide will walk you through setting up and running the AI Job Scraper on your local machine in just a few minutes.
+**Content type:** Tutorial
 
-## 📋 Prerequisites
+Install Job Tracker, create a saved search, and collect your first jobs. You need Python 3.12, Git, and [uv](https://docs.astral.sh/uv/).
 
-Before you begin, make sure you have the following:
+## Install the application
 
-* **Python 3.12 or newer.**
-
-* **`uv`**, a fast Python package installer. If you don't have it, you can install it with `pip install uv`.
-
-* **Git** for cloning the project repository.
-
-* **(Optional but Recommended)** An **OpenAI** or **Groq** API key for the highest quality job scraping.
-
-## ⚡ Quick Start (5-Minute Setup)
-
-### 1. Clone the Repository
-
-Open your terminal or command prompt and run the following command to download the project:
+Clone the repository and install the locked dependencies:
 
 ```bash
 git clone https://github.com/BjornMelin/ai-job-scraper.git
 cd ai-job-scraper
+uv sync --locked
 ```
 
-### 2. Install Dependencies
-
-We use `uv` for fast and reliable dependency management. Run this command in the project directory:
+Copy the environment template:
 
 ```bash
-uv sync
+cp .env.example .env
 ```
 
-This will create a virtual environment and install all the necessary packages.
+## Prepare the database
 
-### 3. Configure Your API Keys
-
-For the best results, you need to provide an LLM API key.
-
-1. Find the file named `.env.example` in the project folder.
-2. Make a copy of it and rename the copy to `.env`.
-3. Open the new `.env` file and paste your API key from OpenAI or Groq.
-
-```env
-
-# .env file
-OPENAI_API_KEY=your_openai_api_key_here
-GROQ_API_KEY=your_groq_api_key_here
-
-# Set USE_GROQ to true if you want to use the Groq API
-USE_GROQ=false
-```
-
-### 4. Initialize the Database
-
-Before the first run, you need to create the database and add a curated list of top AI companies.
+Apply every Alembic migration:
 
 ```bash
-uv run python -m src.seed
+uv run --locked alembic upgrade head
 ```
 
-You should see a message confirming that companies have been seeded.
-
-### 5. Run the Application
-
-You're all set! Start the Streamlit web application with this command:
+Add the starter saved searches if you want examples to edit:
 
 ```bash
-uv run streamlit run src/main.py
+uv run --locked ai-job-seed
 ```
 
-Your web browser should automatically open to `http://localhost:8501`.
+## Start Job Tracker
 
-**🎉 Congratulations! You are now running the AI Job Scraper!**
+Launch the local Streamlit server:
 
-## ▶️ Your First Scrape
+```bash
+uv run --locked ai-job-scraper
+```
 
-1. Navigate to the **"Scraping"** page using the left-hand menu.
-2. Click the **"🚀 Start Scraping"** button.
-3. Watch the real-time progress dashboard as the application finds jobs from the pre-configured companies.
-4. Once complete, navigate to the **"Jobs"** page to see your results!
+Open `http://localhost:8501`.
 
-## 🔧 Troubleshooting
+## Collect your first jobs
 
-* **`uv: command not found`**: Make sure you have installed `uv` correctly. Try `pip install uv`.
+Create and run one saved search:
 
-* **Port 8501 already in use**: Another application is using the default port. Run `streamlit run src/main.py --server.port 8502` to use a different port.
+1. Select **Searches** in the top navigation
+2. Open **New saved search**
+3. Enter a name, keywords, location, and at least one job board
+4. Select **Create saved search**
+5. Select **Run now** on the saved-search card
 
-* **API Key Errors**: Double-check that you have copied your API key correctly into the `.env` file and saved it.
+The run reports jobs seen, jobs added, duration, and any provider error. A successful search with no matches reports zero jobs instead of a failure.
 
-For more detailed solutions, please see the full **[Troubleshooting Guide](./troubleshooting.md)**.
+## Review the results
+
+Select **Jobs** in the top navigation. New jobs start in **Inbox**.
+
+Open **Review and update** on any job to:
+
+- Change its workflow stage
+- Mark it as starred
+- Add private notes
+- Open the original posting
+
+Use [Job Tracker’s workflow](user-guide.md) for the complete interface reference.

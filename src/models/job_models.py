@@ -3,15 +3,14 @@
 from __future__ import annotations
 
 from datetime import date
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 import pandas as pd
+from pydantic import BaseModel, Field, field_validator, model_validator
 
-from pydantic import BaseModel, Field, field_validator
 
-
-class JobSite(str, Enum):
+class JobSite(StrEnum):
     """Supported job sites for scraping."""
 
     LINKEDIN = "linkedin"
@@ -38,7 +37,7 @@ class JobSite(str, Enum):
         return site_mapping.get(normalized)
 
 
-class JobType(str, Enum):
+class JobType(StrEnum):
     """Job employment types."""
 
     FULLTIME = "fulltime"
@@ -72,7 +71,7 @@ class JobType(str, Enum):
         return type_mapping.get(normalized)
 
 
-class LocationType(str, Enum):
+class LocationType(StrEnum):
     """Work location types."""
 
     REMOTE = "remote"
@@ -91,6 +90,27 @@ class LocationType(str, Enum):
         return cls.ONSITE
 
 
+class SavedSearchRunStatus(StrEnum):
+    """Finite lifecycle states for one saved-search run."""
+
+    NEVER = "never"
+    RUNNING = "running"
+    SUCCEEDED = "succeeded"
+    PARTIAL = "partial"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+class ApplicationStage(StrEnum):
+    """Canonical job-search workflow."""
+
+    INBOX = "Inbox"
+    SAVED = "Saved"
+    APPLIED = "Applied"
+    INTERVIEWS = "Interviews"
+    CLOSED = "Closed"
+
+
 class JobScrapeRequest(BaseModel):
     """Request parameters for job scraping."""
 
@@ -106,7 +126,7 @@ class JobScrapeRequest(BaseModel):
     country_indeed: str = "usa"
     offset: int = Field(default=0, ge=0)
     hours_old: int | None = Field(default=None, ge=1)
-    enforce_annual_salary: bool = False
+    enforce_annual_salary: bool = True
     linkedin_fetch_description: bool = False
     description_format: str = "markdown"
 
@@ -141,7 +161,7 @@ class JobPosting(BaseModel):
     job_url: str | None = None
     job_url_direct: str | None = None
     title: str
-    company: str
+    company: str | None = None
     location: str | None = None
     date_posted: date | None = None
     job_type: JobType | None = None
@@ -180,6 +200,28 @@ class JobPosting(BaseModel):
     company_rating: float | None = None
     company_reviews_count: int | None = None
 
+    @model_validator(mode="after")
+    def require_persistable_identity(self) -> JobPosting:
+        """Reject rows that cannot be identified or grouped truthfully."""
+        self.title = self.title.strip()
+        self.company = self.company.strip() if self.company else None
+        self.job_url = self.job_url.strip() if self.job_url else None
+        self.job_url_direct = (
+            self.job_url_direct.strip() if self.job_url_direct else None
+        )
+        if not self.title:
+            raise ValueError("Job title cannot be empty")
+        if not self.company:
+            raise ValueError("Job company cannot be empty")
+        if not (self.job_url_direct or self.job_url):
+            raise ValueError("Job URL cannot be empty")
+        if "location_type" not in self.model_fields_set:
+            self.location_type = LocationType.from_remote_flag(
+                self.is_remote,
+                self.location,
+            )
+        return self
+
     @field_validator("min_amount", "max_amount", "company_rating", mode="before")
     @classmethod
     def safe_float_conversion(cls, value: Any) -> float | None:
@@ -207,17 +249,18 @@ class JobPosting(BaseModel):
             return JobType.normalize(value)
         return value
 
-    @field_validator("location_type", mode="before")
+    @field_validator("emails", "skills", "company_addresses", mode="before")
     @classmethod
-    def set_location_type(cls, value: Any, info) -> LocationType:
-        """Set location type based on is_remote flag and location."""
-        if isinstance(value, LocationType):
-            return value
-        # Use other field values to determine location type
-        data = info.data if info.data else {}
-        is_remote = data.get("is_remote", False)
-        location = data.get("location")
-        return LocationType.from_remote_flag(is_remote, location)
+    def normalize_string_lists(cls, value: Any) -> Any:
+        """Normalize scalar values emitted by JobSpy into the declared list shape."""
+        if value is None:
+            return None
+        if isinstance(value, str):
+            stripped = value.strip()
+            return [stripped] if stripped else None
+        if isinstance(value, tuple | set):
+            return list(value)
+        return value
 
 
 class JobScrapeResult(BaseModel):
@@ -241,9 +284,10 @@ class JobScrapeResult(BaseModel):
             # Convert pandas row to dict, handling NaN/None values
             job_data = {}
             for col, value in row.items():
-                if pd.isna(value):
+                # Handle different value types safely
+                if pd.api.types.is_scalar(value) and pd.isna(value):
                     job_data[col] = None
-                elif isinstance(value, (pd.Timestamp, pd.DatetimeIndex)):
+                elif isinstance(value, pd.Timestamp | pd.DatetimeIndex):
                     job_data[col] = value.date() if hasattr(value, "date") else None
                 else:
                     job_data[col] = value

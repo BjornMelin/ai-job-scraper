@@ -1,92 +1,126 @@
-# 🔧 Troubleshooting Guide: AI Job Scraper
+# Troubleshoot Job Tracker
 
-This guide helps you diagnose and resolve common issues.
+**Content type:** Troubleshooting
 
-## 🚨 Quick Diagnostics
+Use these checks when Job Tracker does not start, collect jobs, or display expected data. Preserve `jobs.db` while diagnosing problems because it contains your stages and notes.
 
-If you're having trouble, first check the **"Database Health"** expander in the bottom-left of the sidebar. A green "Healthy" status means your database connection is good. If it shows a warning or error, this is likely the source of the problem.
+## Fix startup failures
 
-## ❌ Installation & Startup Issues
+### The shell cannot find `uv`
 
-### "Module not found" or `ImportError`
+Install uv with the [official installer](https://docs.astral.sh/uv/getting-started/installation/), then restart your shell.
 
-**Symptom:** The application fails to start with an error about a missing module (e.g., `streamlit`, `sqlmodel`).
+### Python reports a missing module
 
-**Solution:** Your dependencies are likely not installed correctly. Run `uv sync` again.
-
-```bash
-uv sync
-```
-
-### `uv: command not found`
-
-**Symptom:** Your terminal doesn't recognize the `uv` command.
-
-**Solution:** You need to install `uv`. The easiest way is with `pip`:
+Restore the locked environment:
 
 ```bash
-pip install uv
+uv sync --locked
 ```
 
-### "Port 8501 is already in use"
+### Alembic reports an outdated schema
 
-**Symptom:** The app fails to start because another process is using the default port.
-
-**Solution:** Run the app on a different port.
+Apply every migration before starting the app:
 
 ```bash
-streamlit run src/main.py --server.port 8502
+uv run --locked alembic upgrade head
 ```
 
-## 🌐 Scraping & API Issues
+The workflow migration rewrites the former job states to `Inbox`, `Saved`, `Applied`, and `Closed`. It also enforces the five current stage values.
 
-### No Jobs Found After Scraping
+If migration reports invalid legacy cost entries, repair the listed timestamp, cost, service, or operation rows in a backup copy before retrying. The error includes each affected row identifier. Validation runs before schema DDL, and SQLite schema changes run in one transaction, so a corrected migration can be retried without removing an Alembic temporary table.
 
-**Symptom:** You run a scrape, it completes successfully, but the "Jobs" page is empty.
+The follow-up migration imports the retired `costs.db` beside `jobs.db` into the canonical database once. It leaves `costs.db` unchanged and remaps an imported identifier if that identifier already belongs to another canonical cost. Back up both files before migration and keep the legacy file until you have verified the imported count.
 
-**Solutions:**
+Malformed legacy jobs are preserved. The Jobs page labels a recovered record when its original posting link was blank, and uses explicit placeholder text for a missing title or company. Every legacy company source appears under **Searches** with a `Migrated company:` prefix and keeps its former enabled state, including sources that had never run.
 
-1. **Check Active Companies:** Go to the "Companies" page and ensure the companies you want to scrape have their "Active" toggle turned on.
-2. **Check Your Filters:** Go to the "Jobs" page and click the "Clear All Filters" button in the sidebar to make sure you're not filtering out all results.
-3. **Website Changes:** The company may have changed its website structure. The scraper will try to adapt, but sometimes it may fail. This usually resolves itself as the underlying scraping libraries are updated.
+### Port 8501 is unavailable
 
-### API Key Errors
+Start the server on another port:
 
-**Symptom:** You see an error message about "Authentication" or "Invalid API Key" on the "Settings" page.
+```bash
+uv run --locked ai-job-scraper --port 8502
+```
 
-**Solutions:**
+## Diagnose saved-search runs
 
-1. **Verify Your Key:** Go to the "Settings" page and carefully re-paste your API key.
-2. **Check `.env` File:** Ensure you have copied the key correctly into your `.env` file and that the file is in the root directory of the project.
-3. **Check Account Status:** Log in to your OpenAI or Groq account to ensure your account is active and has available credits or usage limits.
+### A run succeeds with zero jobs
 
-## 💾 Database Issues
+Zero matches are a valid provider response. Review the query, location, job boards, remote preference, and results limit under **Searches**.
 
-### "Database is locked"
+If only some provider rows validate, the run reports `partial` and explains how many rows were skipped. A nonempty response in which every row is invalid reports `failed`, not a successful zero-result run.
 
-**Symptom:** You see a red error message in the app about a `database is locked` error.
+Broaden one input at a time, then select **Run now** again. The run card updates its jobs-seen and jobs-new counts.
 
-**Solution:** This can happen if multiple processes are trying to access the database file at once. The best solution is to simply stop and restart the application.
+### A run fails
 
-1. Press `Ctrl+C` in your terminal to stop the Streamlit server.
-2. Run `streamlit run src/main.py` to start it again.
+Read the latest error on the saved-search card. Provider outages, rate limits, and changed job-board behavior can fail a run without changing previously collected jobs.
 
-### Data Seems Out of Date or Incorrect
+Retry the same search once. If it fails again, run the scraping tests and inspect the application log:
 
-**Symptom:** The jobs list doesn't seem to update after a scrape, or data looks wrong.
+```bash
+uv run --locked pytest -q tests/services/test_job_scraper.py tests/scraping
+tail -n 100 app.log
+```
 
-**Solution:** This could be a caching issue or a failed scrape.
+### A saved search cannot run
 
-1. Perform a hard refresh in your browser (`Ctrl+Shift+R` or `Cmd+Shift+R`).
-2. Run a new scrape from the "Scraping" page and watch the progress dashboard for any errors.
-3. If problems persist, you can perform a hard reset by deleting the `jobs.db` file and re-initializing the database with `uv run python -m src.seed seed`. **Warning: This will delete all your existing job data and user notes.**
+Check its **Enabled** box. Disabled searches keep their definition and run history but disable **Run now**.
 
-## 🆘 Getting Further Help
+## Diagnose job views
 
-If your issue isn't listed here, please open an issue on our [GitHub repository](https://github.com/BjornMelin/ai-job-scraper/issues). Please include:
+### Collected jobs do not appear
 
-* Your operating system (e.g., Windows 11, macOS Sonoma).
+Check the selected workflow stage on **Jobs**. New jobs appear in **Inbox**, not across every stage.
 
-* The exact error message you are seeing.
+Clear **Search jobs**, **Companies**, and **Starred only**. The result count updates after each filter change.
 
-* The steps you took that led to the error.
+### A company is missing from Insights
+
+Companies are derived from persisted jobs. The facet appears after a successful run stores at least one valid job for that company.
+
+You cannot create an empty company record or use a company as scrape configuration. Create a saved search for the target role or employer instead.
+
+## Recover from database errors
+
+### SQLite reports `database is locked`
+
+Stop duplicate Job Tracker or migration processes. Then restart one application process:
+
+```bash
+uv run --locked ai-job-scraper
+```
+
+### The database contains unexpected data
+
+Use SQLite's online backup command before any destructive action. It creates a
+consistent snapshot even when the source database uses WAL:
+
+```bash
+mkdir -p backups
+stamp=$(date +%Y%m%d-%H%M%S)
+sqlite3 jobs.db ".backup 'backups/jobs-${stamp}.db'"
+if [ -f costs.db ]; then
+  sqlite3 costs.db ".backup 'backups/costs-${stamp}.db'"
+fi
+```
+
+Run the database and migration tests:
+
+```bash
+uv run --locked pytest -q tests/unit/database tests/integration/test_database_transactions.py
+uv run --locked alembic check
+```
+
+Do not delete `jobs.db` unless you intend to remove every job, stage, star, note, and saved search.
+
+## Report an unresolved problem
+
+Open a [GitHub issue](https://github.com/BjornMelin/ai-job-scraper/issues) with:
+
+- Your operating system and Python version
+- The exact command you ran
+- The complete error message
+- The smallest sequence that reproduces the failure
+
+Remove API keys, tokens, and private job notes before attaching logs.

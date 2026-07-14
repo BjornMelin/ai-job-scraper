@@ -1,4 +1,4 @@
-"""Test fixtures package for AI Job Scraper.
+"""Test fixtures package for Job Tracker.
 
 This package provides comprehensive test fixtures for JobSpy integration testing,
 including type-safe factories using polyfactory and extensive edge case coverage.
