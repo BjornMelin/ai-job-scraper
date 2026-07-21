@@ -29,7 +29,7 @@ dependencies = [
     "pydantic-settings>=2.14.2,<3.0.0",
     # UI and CLI
     "streamlit>=1.59.2,<2.0.0",
-    "typer>=0.26.8,<1.0.0",
+    "typer>=0.27.0,<1.0.0",
     # Utilities
     "humanize>=4.16.0,<5.0.0",
     "price-parser>=0.5.0,<1.0.0",
@@ -54,12 +54,12 @@ python-preference = "managed"
 [dependency-groups]
 dev = [
     "factory-boy>=3.3.3,<4.0.0",
-    "faker>=40.28.1,<41.0.0",
+    "faker>=40.32.0,<41.0.0",
     "polyfactory>=3.3.0,<4.0.0",
     "pre-commit>=4.6.0,<5.0.0",
     "pytest>=9.1.1,<10.0.0",
     "pytest-asyncio>=1.4.0,<2.0.0",
-    "ruff>=0.15.21,<1.0.0",
+    "ruff>=0.15.22,<1.0.0",
 ]
 
 [tool.ruff]
