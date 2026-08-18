@@ -25,16 +25,16 @@ dependencies = [
     "python-jobspy>=1.1.82,<2.0.0",
     # Database
     "sqlmodel>=0.0.39,<1.0.0",
-    "alembic>=1.18.5,<2.0.0",
-    "pydantic-settings>=2.14.2,<3.0.0",
+    "alembic>=1.19.1,<2.0.0",
+    "pydantic-settings>=2.15.0,<3.0.0",
     # UI and CLI
-    "streamlit>=1.59.2,<2.0.0",
-    "typer>=0.26.8,<1.0.0",
+    "streamlit>=1.61.1,<2.0.0",
+    "typer>=0.27.1,<1.0.0",
     # Utilities
     "humanize>=4.16.0,<5.0.0",
     "price-parser>=0.5.0,<1.0.0",
     "pydantic>=2.13.4,<3.0.0",
-    "sqlalchemy>=2.0.51,<3.0.0",
+    "sqlalchemy>=2.0.52,<3.0.0",
 ]
 
 [project.urls]
@@ -54,12 +54,12 @@ python-preference = "managed"
 [dependency-groups]
 dev = [
     "factory-boy>=3.3.3,<4.0.0",
-    "faker>=40.28.1,<41.0.0",
+    "faker>=40.36.0,<41.0.0",
     "polyfactory>=3.3.0,<4.0.0",
-    "pre-commit>=4.6.0,<5.0.0",
+    "pre-commit>=4.6.2,<5.0.0",
     "pytest>=9.1.1,<10.0.0",
     "pytest-asyncio>=1.4.0,<2.0.0",
-    "ruff>=0.15.21,<1.0.0",
+    "ruff>=0.16.3,<1.0.0",
 ]
 
 [tool.ruff]
