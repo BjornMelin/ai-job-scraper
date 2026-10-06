@@ -20,7 +20,7 @@ classifiers = [
 ]
 dependencies = [
     # Data processing
-    "pandas>=2.3.3,<3.0.0",
+    "pandas>=2.3.3,<4.0.0",
     # Web and scraping
     "python-jobspy>=1.1.82,<2.0.0",
     # Database
